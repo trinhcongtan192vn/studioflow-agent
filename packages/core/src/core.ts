@@ -1,4 +1,7 @@
 import path from 'node:path';
+import { asrLineBuilder } from './asr/builder.js';
+import { captionsBuilder } from './asr/captions.js';
+import { asrTools, defineAsrJobs } from './asr/tools.js';
 import { ProviderRegistry } from './capability/registry.js';
 import { defaultAppDataDir } from './config/resolve.js';
 import { createGateway, type Gateway } from './gateway/index.js';
@@ -76,6 +79,11 @@ export function createCore(opts: CoreOptions = {}): Core {
   };
   for (const t of ttsTools(tts)) gateway.register(t);
   defineTtsJobs(tts, appDataDir);
+  // ASR + caption (010)
+  graph.registerBuilder('asr.line', asrLineBuilder({ providers, db, appDataDir }));
+  graph.registerBuilder('captions', captionsBuilder);
+  for (const t of asrTools(tts)) gateway.register(t);
+  defineAsrJobs(tts, appDataDir);
   // Workflow (007)
   const workflows = new WorkflowService({
     dirs: opts.workflowDirs ?? defaultWorkflowDirs(appDataDir),

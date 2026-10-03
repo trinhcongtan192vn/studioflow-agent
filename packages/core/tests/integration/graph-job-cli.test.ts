@@ -33,6 +33,10 @@ function core() {
       meta: { duration_ms: 1000, voice_id: 'vo_c3z8p1mn', file, content_hash: ctx.inputHash },
     };
   });
+  // audio giả không phải WAV → ASR giả tương ứng (010)
+  app.graph.registerBuilder('asr.line', async () => ({
+    meta: { words: [], asr_wer: 0, asr_flag: 'ok', transcript: '' },
+  }));
   const session = {
     session_id: 'ss_test0001' as const,
     kind: 'main' as const,
@@ -48,7 +52,7 @@ describe('graph.* / job.* tools (004 US5)', () => {
     const st = await app.gateway.call(session, 'graph.status', {});
     expect(st).toMatchObject({ ok: true, data: { nodes: expect.any(Array) } });
     const plan = await app.gateway.call(session, 'graph.plan', {});
-    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(5); // 3 audio + audio_meta + frame_timing
+    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(9); // 3 audio.line + 3 asr.line + audio_meta + captions + frame_timing (010)
     const build = await app.gateway.call(session, 'graph.build', {});
     expect(build).toMatchObject({ ok: true, job_id: expect.stringMatching(/^jb_/) });
     const id = (build as { job_id: string }).job_id;

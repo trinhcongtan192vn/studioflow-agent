@@ -18,6 +18,8 @@ export interface TtsAdapterInput {
   voice_file?: string;
   /** Hash nội dung `voice.pt` (vào khóa cache). */
   voice_hash?: string | null;
+  /** Seed sinh (sinh lại khi ASR lệch, 010); vào khóa cache qua `runCapability`. */
+  seed?: number;
 }
 
 export interface VoiceAdapterInput {

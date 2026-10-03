@@ -168,3 +168,26 @@ export {
 } from './text/objectives.js';
 export { runRefine, refineSummary, type RefineDeps, type RefineResult } from './text/refine.js';
 export { scriptExecutor, publishMetaExecutor, stripWrapping } from './text/executors.js';
+export {
+  alignWords,
+  displayWords,
+  normalizeTokens,
+  normalizeWord,
+  wordErrorRate,
+  type TimedWord,
+} from './asr/text.js';
+export { buildCaptionGroups, captionsBuilder, type CaptionLineInput } from './asr/captions.js';
+export {
+  createHfTranscribeProvider,
+  createFakeAsrProvider,
+  parseTranscriptWords,
+  whisperCli,
+  whisperDir,
+  type AsrAdapter,
+  type AsrAlignInput,
+  type AsrAlignOutput,
+} from './asr/providers.js';
+export { asrLineBuilder, type AsrLineMeta } from './asr/builder.js';
+export { alignVideo, acceptLines, type AlignResult } from './asr/regen.js';
+export { readAsrState, writeAsrState, type AsrState } from './asr/state.js';
+export { asrTools, defineAsrJobs } from './asr/tools.js';

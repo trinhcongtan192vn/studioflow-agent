@@ -106,6 +106,8 @@ class OmniVoiceEngine:
                 kwargs["num_step"] = int(params["num_step"])
             if task == "tts.synthesize" and params.get("voice_prompt"):
                 kwargs["voice_clone_prompt"] = self._prompt(params["voice_prompt"])
+            if params.get("seed") is not None:
+                torch.manual_seed(int(params["seed"]))  # sinh lại khi ASR lệch (010 FR-009)
             if torch.cuda.is_available():
                 torch.cuda.reset_peak_memory_stats()
             t0 = time.perf_counter()

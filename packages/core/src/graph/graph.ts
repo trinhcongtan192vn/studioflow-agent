@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AudioMeta, Line, NodeStatus, PlanEstimate, PlannedJob } from '../contracts/types.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
+import { readAsrState } from '../asr/state.js';
 import { SfError } from '../errors.js';
 import type { WriteStore } from '../store/writer.js';
 import { loadVideoModel, voiceOf, type VideoModel } from './model.js';
@@ -173,6 +174,7 @@ export class BuildGraph {
   nodes(model: VideoModel): NodeDef[] {
     const on = (t: NodeType) => this.builders.active(t);
     const defs: NodeDef[] = [];
+    const asr = readAsrState(model.videoDir);
     if (on('audio.line')) {
       for (const l of model.lines) {
         const voice = voiceOf(model, l);
@@ -192,6 +194,8 @@ export class BuildGraph {
             voice_files: voice ? model.hashChannelDir(`voices/${voice}`) : null,
             provider: model.config('provider.tts.synthesize'),
             language: model.language,
+            // sinh lại do ASR lệch (010 R3) → seed khác
+            ...(asr.regen[l.id] ? { regen: asr.regen[l.id] } : {}),
           },
         });
       }
@@ -223,6 +227,7 @@ export class BuildGraph {
     add('audio_meta', lineDeps, {
       order: model.lines.map((l) => l.id),
       pauses: model.lines.map((l) => l.pause_after_ms ?? 0),
+      ...(Object.keys(asr.accepted).length ? { accepted: asr.accepted } : {}),
     });
     add('captions', ['audio_meta'], {
       texts: model.lines.map((l) => [l.id, l.text]),
@@ -431,15 +436,15 @@ export class BuildGraph {
           signal,
         });
         const outputs = out.outputs ?? [];
-        const outputHash = outputs.length
-          ? sha256(
-              outputs
-                .map(
-                  (o) => `${o}:${sha256(readFileSync(this.store.abs(`videos/${videoId}/${o}`)))}`,
-                )
-                .join('\n'),
-            )
-          : sha256(canonicalJson(out.meta ?? null));
+        // hash đầu ra = file + meta: meta đổi mà file giữ nguyên vẫn lan tới nút sau (010)
+        const outputHash = sha256(
+          [
+            ...outputs.map(
+              (o) => `${o}:${sha256(readFileSync(this.store.abs(`videos/${videoId}/${o}`)))}`,
+            ),
+            canonicalJson(out.meta ?? null),
+          ].join('\n'),
+        );
         g.nodes[def.id] = {
           key: def.key,
           type: def.type,
@@ -512,6 +517,7 @@ interface AudioLineMeta {
 /** Builder `audio_meta` (D3 5.7): lắp từ meta của `audio.line` và `asr.line`. */
 const buildAudioMeta: Builder = async (ctx) => {
   const lines = ctx.model.lines;
+  const accepted = readAsrState(ctx.model.videoDir).accepted;
   const assembled = assembleAudioLines(
     lines.map((l) => {
       const m = ctx.records[`audio.line:${l.id}`]?.meta as AudioLineMeta | undefined;
@@ -541,7 +547,14 @@ const buildAudioMeta: Builder = async (ctx) => {
         voice_id: a.voice_id as AudioMeta['lines'][number]['voice_id'],
         words: asr?.words ?? [],
         ...(asr?.asr_wer === undefined ? {} : { asr_wer: asr.asr_wer }),
-        ...(asr?.asr_flag === undefined ? {} : { asr_flag: asr.asr_flag }),
+        ...(asr?.asr_flag === undefined
+          ? {}
+          : {
+              asr_flag:
+                asr.asr_flag === 'mismatch' && accepted[l.id] === a.content_hash
+                  ? ('accepted' as const)
+                  : asr.asr_flag,
+            }),
         content_hash: a.content_hash,
       };
     }),

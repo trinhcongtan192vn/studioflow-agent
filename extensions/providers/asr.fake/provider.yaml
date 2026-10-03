@@ -1,0 +1,12 @@
+# Provider giả cho CI không GPU (D12 mục 2): chỉ nạp khi SF_GPU=0.
+id: asr.fake
+version: 1.0.0
+capabilities: [asr.align]
+contract_versions: { asr.align: '1' }
+runtime: node
+resource: cpu
+languages: [vi, de, en]
+install_profile: minimal
+cost: { kind: free }
+health: { method: health, timeout_ms: 1000 }
+app_api: '>=0.1 <2.0'

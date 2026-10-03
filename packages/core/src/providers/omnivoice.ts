@@ -85,7 +85,12 @@ export function createOmniVoiceProvider(opts: { appDataDir?: string } = {}) {
       }
       return worker.run(
         'tts.synthesize',
-        { text: input.text, voice_prompt: input.voice_file, speed: input.speed ?? null },
+        {
+          text: input.text,
+          voice_prompt: input.voice_file,
+          speed: input.speed ?? null,
+          seed: input.seed ?? null,
+        },
         ctx.workdir,
         { jobId, onProgress: ctx.progress, signal: ctx.signal },
       );
