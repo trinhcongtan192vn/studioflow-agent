@@ -1,5 +1,9 @@
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
+import { assetTools } from './assets/tools.js';
+import { designSystemExecutor } from './hf/design-system.js';
+import { frameBuildExecutor } from './hf/frame-build.js';
+import { indexBuilder } from './hf/index-builder.js';
 import { captionsBuilder } from './asr/captions.js';
 import { asrTools, defineAsrJobs } from './asr/tools.js';
 import { ProviderRegistry } from './capability/registry.js';
@@ -105,6 +109,14 @@ export function createCore(opts: CoreOptions = {}): Core {
     ...(textMode && textFixtureDir ? { mode: textMode, fixtureDir: textFixtureDir } : {}),
   });
   registerTextObjectives();
+  // HyperFrames adapter, frame build, asset (011)
+  graph.registerBuilder('index', indexBuilder);
+  for (const t of assetTools()) gateway.register(t);
+  workflows.registerExecutor('design-system', designSystemExecutor());
+  workflows.registerExecutor(
+    'frame-build',
+    frameBuildExecutor({ builders: graph, gateway, runtime: () => workflows.agentRuntime }),
+  );
   workflows.registerExecutor('script', scriptExecutor({ text, permissions: gateway.permissions }));
   workflows.registerExecutor(
     'publish-meta',

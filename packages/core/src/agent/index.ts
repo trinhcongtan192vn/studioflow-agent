@@ -17,7 +17,12 @@ export function createRuntime(opts: {
   if (mode === 'record' || mode === 'replay') {
     const fixtureDir = opts.fixtureDir ?? process.env.SF_LLM_FIXTURES;
     if (!fixtureDir) throw new Error('SF_LLM is set but no fixture directory (SF_LLM_FIXTURES)');
-    return new RecordReplayRuntime(claude, { fixtureDir, mode });
+    return new RecordReplayRuntime(claude, {
+      fixtureDir,
+      mode,
+      replayToolsFor: ['frame'],
+      callTool: (ctx, name, input) => opts.gateway.call(ctx, name, input),
+    });
   }
   return claude;
 }

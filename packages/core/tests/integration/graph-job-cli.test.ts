@@ -37,6 +37,8 @@ function core() {
   app.graph.registerBuilder('asr.line', async () => ({
     meta: { words: [], asr_wer: 0, asr_flag: 'ok', transcript: '' },
   }));
+  // chưa có frame trong test này → index giả (011)
+  app.graph.registerBuilder('index', async () => ({ meta: { index: 'stub' } }));
   const session = {
     session_id: 'ss_test0001' as const,
     kind: 'main' as const,
@@ -52,7 +54,7 @@ describe('graph.* / job.* tools (004 US5)', () => {
     const st = await app.gateway.call(session, 'graph.status', {});
     expect(st).toMatchObject({ ok: true, data: { nodes: expect.any(Array) } });
     const plan = await app.gateway.call(session, 'graph.plan', {});
-    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(9); // 3 audio.line + 3 asr.line + audio_meta + captions + frame_timing (010)
+    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(10); // 3 audio.line + 3 asr.line + audio_meta + captions + frame_timing (010) + index (011)
     const build = await app.gateway.call(session, 'graph.build', {});
     expect(build).toMatchObject({ ok: true, job_id: expect.stringMatching(/^jb_/) });
     const id = (build as { job_id: string }).job_id;

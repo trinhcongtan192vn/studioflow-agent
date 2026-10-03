@@ -1,5 +1,6 @@
 import { alignVideo } from '../asr/regen.js';
 import type { ProviderRegistry } from '../capability/registry.js';
+import type { AgentRuntime } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
 import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
@@ -53,6 +54,13 @@ export class WorkflowService {
 
   setAgentRunner(fn: AgentStepRunner | undefined): void {
     this.runner = fn;
+  }
+
+  /** Runtime agent cho phiên `frame` của bước frame-build (011); desktop/CLI gắn khi có. */
+  agentRuntime?: AgentRuntime;
+
+  setAgentRuntime(rt: AgentRuntime | undefined): void {
+    this.agentRuntime = rt;
   }
 
   engine(channelDir: string, videoId: string): WorkflowEngine {

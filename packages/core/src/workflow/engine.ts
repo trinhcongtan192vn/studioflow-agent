@@ -30,6 +30,13 @@ export interface StepRunContext {
   appDataDir?: string;
   /** Thư mục gói workflow (rubric `rubrics/` của gói, D6 4.3). */
   packDir?: string;
+  /** Chờ phiên `frame` báo `workflow.step_complete` kèm `frame_id` (011). */
+  waitFrame?: (frameId: string) => Promise<FrameCompletion>;
+}
+
+export interface FrameCompletion {
+  outputs: string[];
+  new_element_ids?: string[];
 }
 
 /** Executor bước engine (D6 mục 2 cột "engine"); trả file đầu ra (tương đối video). */
@@ -75,6 +82,7 @@ export class WorkflowEngine extends EventEmitter {
   private target?: string;
   private running?: Promise<void>;
   private readonly completions = new Map<string, (outputs: string[]) => void>();
+  private readonly frameWaiters = new Map<string, (r: FrameCompletion) => void>();
 
   constructor(private readonly d: EngineDeps) {
     super();
@@ -430,12 +438,14 @@ export class WorkflowEngine extends EventEmitter {
       signal: ctrl.signal,
       appDataDir: this.d.appDataDir,
       ...(this.pack(st0)?.dir ? { packDir: this.pack(st0)!.dir } : {}),
+      waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
     };
     const spec = STEP_LIBRARY[decl.uses];
     let outputs: string[] = spec.outputs(decl.params);
     let extra: Omit<StepExecutorResult, 'outputs'> = {};
     try {
-      if (spec.by === 'engine') {
+      // bước agent có executor riêng (frame-build: phiên `frame` × N, 011) chạy như bước engine
+      if (spec.by === 'engine' || this.d.executors.has(decl.uses)) {
         const exec = this.d.executors.get(decl.uses);
         if (!exec)
           throw new SfError(
@@ -526,8 +536,28 @@ export class WorkflowEngine extends EventEmitter {
     }
   }
 
+  /** Hứa hẹn hoàn tất khi phiên `frame` gọi `workflow.step_complete` với `frame_id` (011). */
+  waitFrame(stepId: string, frameId: string): Promise<FrameCompletion> {
+    return new Promise((resolve) => this.frameWaiters.set(`${stepId}:${frameId}`, resolve));
+  }
+
   /** `workflow.step_complete` (D4 mục 2.4). */
-  async stepComplete(stepId: string, outputs: string[]): Promise<{ next_step?: string }> {
+  async stepComplete(
+    stepId: string,
+    outputs: string[],
+    frame?: { frame_id: string; new_element_ids?: string[] },
+  ): Promise<{ next_step?: string }> {
+    if (frame) {
+      const w = this.frameWaiters.get(`${stepId}:${frame.frame_id}`);
+      if (!w)
+        throw new SfError(
+          'E_STEP_INCOMPLETE',
+          `frame ${frame.frame_id} of step ${stepId} is not waiting for an agent`,
+        );
+      this.frameWaiters.delete(`${stepId}:${frame.frame_id}`);
+      w({ outputs, ...(frame.new_element_ids ? { new_element_ids: frame.new_element_ids } : {}) });
+      return {};
+    }
     const resolve = this.completions.get(stepId);
     if (!resolve) {
       const st = this.readState();

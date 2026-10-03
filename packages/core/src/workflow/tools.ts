@@ -96,8 +96,20 @@ export function workflowTools(svc: WorkflowService): ToolDefinition[] {
         required: ['step_id', 'outputs'],
         additionalProperties: false,
       },
-      handler: async (i: { step_id: string; outputs: string[] }, ctx) =>
-        engine(ctx).stepComplete(i.step_id, i.outputs),
+      handler: async (
+        i: { step_id: string; outputs: string[]; frame_id?: string; new_element_ids?: string[] },
+        ctx,
+      ) =>
+        engine(ctx).stepComplete(
+          i.step_id,
+          i.outputs,
+          i.frame_id
+            ? {
+                frame_id: i.frame_id,
+                ...(i.new_element_ids ? { new_element_ids: i.new_element_ids } : {}),
+              }
+            : undefined,
+        ),
     },
     {
       name: 'workflow.gate_check',

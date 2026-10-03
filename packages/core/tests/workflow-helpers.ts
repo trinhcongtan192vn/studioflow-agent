@@ -1,6 +1,13 @@
-import { copyFileSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { BuildGraph, createCore, createVideo, type Core, type StepExecutor } from '../src/index.js';
+import {
+  BuildGraph,
+  createCore,
+  createVideo,
+  loadVideoModel,
+  type Core,
+  type StepExecutor,
+} from '../src/index.js';
 import { coreDir } from './helpers.js';
 import { copyChannel, fixtureAppData, fixtureVideo, tempDir } from './domain-helpers.js';
 
@@ -68,9 +75,17 @@ export function wireDemo(fx: WorkflowFixture, opts: { badScript?: boolean } = {}
   return { notes };
 }
 
-/** `finalize` giả: dựng toàn bộ graph (bản thật ở 011 còn lắp index.html). */
+/** `finalize` giả: frame giả (bản thật do frame-build, 011) rồi dựng toàn bộ graph. */
 export function finalizeExecutor(core: Core): StepExecutor {
   return async (ctx) => {
+    for (const f of loadVideoModel(ctx.store.root, ctx.videoId).frames) {
+      const rel = `videos/${ctx.videoId}/compositions/frames/${f.id}.html`;
+      if (!existsSync(ctx.store.abs(rel)))
+        ctx.store.write(rel, `<template><div data-composition-id="${f.id}"></div></template>`, {
+          by: 'test',
+          validate: false,
+        });
+    }
     await new BuildGraph({
       store: ctx.store,
       appDataDir: ctx.appDataDir,
