@@ -1,0 +1,21 @@
+# Gói prompt mặc định của app (D6 mục 6.2) — dùng khi kênh chưa có profile/references/prompts/.
+schema_version: 1
+steps:
+  script:
+    {
+      template: script.md,
+      include: [common/voice.md, common/banned.md, common/tts-rules.md, common/examples.md],
+      token_cap: 6000,
+    }
+  outline: { template: outline.md, include: [common/voice.md], token_cap: 4000 }
+  screenplay:
+    {
+      template: screenplay.md,
+      include: [common/voice.md, common/banned.md, common/tts-rules.md],
+      token_cap: 7000,
+    }
+  title: { template: title.md, include: [common/voice.md], token_cap: 1500 }
+  description:
+    { template: description.md, include: [common/voice.md, common/banned.md], token_cap: 2000 }
+  revise: { template: revise.md, include: [common/voice.md, common/tts-rules.md], token_cap: 4000 }
+summaries: { common/examples.md: common/examples.summary.md }

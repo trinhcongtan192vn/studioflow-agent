@@ -3,6 +3,7 @@ import path from 'node:path';
 import { stringify } from 'yaml';
 import type { BriefFrontMatter, ChannelConfig, VideoState } from '../contracts/types.js';
 import type { WriteStore } from '../store/writer.js';
+import { SfError } from '../errors.js';
 import { newId } from './ids.js';
 
 /** ID video đã có trong kênh. */
@@ -18,9 +19,19 @@ export function listVideoIds(channelDir: string): string[] {
  * FR-WS-03 / D3 mục 8: tạo `videos/<vd>/` với `state.json` (`phase: 'briefing'`) và `BRIEF.md`
  * khởi đầu. Mọi ghi đi qua module ghi.
  */
-export function createVideo(store: WriteStore, input: { title?: string } = {}): VideoState {
+export function createVideo(
+  store: WriteStore,
+  input: {
+    title?: string;
+    /** ID cố định (test ghi/phát lại) — phải chưa tồn tại. */ id?: string;
+  } = {},
+): VideoState {
   const channel = JSON.parse(readFileSync(store.abs('channel.json'), 'utf8')) as ChannelConfig;
-  const id = newId('vd', new Set(listVideoIds(store.root))) as VideoState['video_id'];
+  const existing = new Set(listVideoIds(store.root));
+  if (input.id && (existing.has(input.id) || !/^vd_[0-9a-z]{8}$/.test(input.id))) {
+    throw new SfError('E_ID_DUPLICATE', `video id ${input.id} is taken or malformed`);
+  }
+  const id = (input.id ?? newId('vd', existing)) as VideoState['video_id'];
   const now = new Date().toISOString();
   const state: VideoState = {
     schema_version: 1,

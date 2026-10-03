@@ -42,6 +42,10 @@ export class WorkflowService {
     this.executors.set(uses, fn);
   }
 
+  executor(uses: string): StepExecutor | undefined {
+    return this.executors.get(uses);
+  }
+
   unregisterExecutor(uses: string): void {
     this.executors.delete(uses);
   }

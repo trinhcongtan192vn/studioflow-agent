@@ -133,6 +133,38 @@ export {
   type StepExecutor,
   type AgentStepRunner,
   type StepRunContext,
+  type StepExecutorResult,
 } from './workflow/engine.js';
 export { WorkflowService } from './workflow/service.js';
 export { workflowTools } from './workflow/tools.js';
+export {
+  parseModelRef,
+  resolveTextModels,
+  assertDifferentModels,
+  DEFAULT_MODELS,
+  type ModelRef,
+} from './text/models.js';
+export { claudeTextProvider, openAICompatProvider, type TextProvider } from './text/providers.js';
+export {
+  createTextService,
+  extractJson,
+  type TextService,
+  type TextServiceOptions,
+} from './text/service.js';
+export {
+  buildPrompt,
+  estimateTokens,
+  loadPromptPack,
+  bannedTerms,
+  type PromptPack,
+} from './text/prompts.js';
+export { loadRubric, rubricShort } from './text/rubrics.js';
+export {
+  checkScript,
+  checkMeta,
+  objectiveContext,
+  registerTextObjectives,
+  type ObjectiveResult,
+} from './text/objectives.js';
+export { runRefine, refineSummary, type RefineDeps, type RefineResult } from './text/refine.js';
+export { scriptExecutor, publishMetaExecutor, stripWrapping } from './text/executors.js';

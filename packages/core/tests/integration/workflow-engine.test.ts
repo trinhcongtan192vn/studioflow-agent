@@ -31,7 +31,7 @@ describe('briefing (007 US1, FR-WF-01)', () => {
     fx = workflowFixture();
     const r = await fx.core.gateway.call(fx.session, 'workflow.list', {});
     const ids = (r as { data: { workflows: { id: string }[] } }).data.workflows.map((w) => w.id);
-    expect(ids).toEqual(['demo-explainer']); // bad-order bị loại (E_STEP_ORDER)
+    expect(ids).toEqual(['demo-explainer', 'refine-demo']); // bad-order bị loại (E_STEP_ORDER)
   });
 
   it('select proposes in BRIEF.md and creates the brief approval; approving starts the workflow', async () => {

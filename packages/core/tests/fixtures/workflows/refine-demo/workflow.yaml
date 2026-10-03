@@ -1,0 +1,16 @@
+id: refine-demo
+version: 1.0.0
+title: Demo refine
+description: Workflow mẫu cho test refine-loop (009)
+app_api: '>=1.0 <2.0'
+output_profiles: [yt-1080p30]
+requires: [tts.synthesize]
+steps:
+  - {
+      id: script,
+      uses: script,
+      title: Kịch bản,
+      params: { mode: narration },
+      refine: { enabled: true, rubric: script-default },
+      approval: { required: true },
+    }
