@@ -12,6 +12,8 @@ export interface CoreOptions {
   appDataDir?: string;
   permissionTimeoutMs?: number;
   backoffMs?: number[];
+  /** Mặc định `<appDataDir>/studioflow.db`; `:memory:` cho lệnh CLI ngắn. */
+  dbFile?: string;
   /** Mặc định true: khôi phục job dở dang và bắt đầu chạy hàng đợi. */
   start?: boolean;
 }
@@ -33,7 +35,7 @@ export interface Core {
  */
 export function createCore(opts: CoreOptions = {}): Core {
   const appDataDir = opts.appDataDir ?? defaultAppDataDir();
-  const db = openDb(path.join(appDataDir, 'studioflow.db'));
+  const db = openDb(opts.dbFile ?? path.join(appDataDir, 'studioflow.db'));
   const queue = new JobQueue({ db, backoffMs: opts.backoffMs });
   const providers = new ProviderRegistry();
   const graph = new BuilderRegistry();

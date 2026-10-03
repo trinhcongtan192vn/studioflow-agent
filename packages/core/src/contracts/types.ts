@@ -468,3 +468,42 @@ export interface JobInfo {
   result?: unknown; error?: { code: string; message: string; retryable: boolean };
   children?: string[];                    // job con (ví dụ một job/line)
 }
+
+
+export interface AgentRuntime {
+  id: string;                                   // 'claude-agent-sdk'
+  authStatus(): Promise<{ ok: boolean; method: 'claude-plan' | 'api-key' | 'none'; detail?: string }>;
+  openSession(opts: SessionOptions): Promise<AgentSession>;
+}
+
+export interface SessionOptions {
+  kind: 'main' | 'frame' | 'producer' | 'critic';
+  context: SessionContext;                      // D4 mục 2.2
+  model: string;                                // theo bảng mục 2
+  systemAppend: string;                         // quy tắc app (mục 6) + chỉ dẫn theo kind
+  plugins: string[];                            // đường dẫn tuyệt đối thư mục plugin (mục 3)
+  tools: ToolPolicy;                            // mục 4
+  resume?: string;                              // id phiên để tiếp tục (chỉ 'main')
+  maxTurns?: number; budgetTokens?: number;
+  telemetry: { traceparent: string };           // D11
+}
+
+export interface AgentSession {
+  id: string;
+  send(message: UserMessage): AsyncIterable<AgentEvent>;
+  interrupt(): Promise<void>;
+  close(): Promise<void>;
+}
+
+export type UserMessage = { text: string; attachments?: { path: string; mime: string }[]; context_refs?: ContextRef[] };
+export type ContextRef = { kind: 'frame' | 'time' | 'element' | 'caption_group'; id?: string; time_ms?: Ms };
+
+export type AgentEvent =
+  | { type: 'text_delta'; text: string }
+  | { type: 'tool_call'; id: string; name: string; input: unknown }
+  | { type: 'tool_result'; id: string; ok: boolean; summary: string }
+  | { type: 'usage'; input_tokens: number; output_tokens: number; cost_usd?: number }
+  | { type: 'done'; stop_reason: string }
+  | { type: 'error'; code: string; message: string };
+
+export type ToolPolicy = { allowed: string[]; readRoots: string[] };   // allowed: tên tool MCP + built-in theo mục 4; readRoots: thư mục cho Read/Glob/Grep
