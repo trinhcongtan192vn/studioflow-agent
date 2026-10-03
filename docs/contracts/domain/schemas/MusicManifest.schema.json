@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/MusicManifest",
+  "definitions": {
+    "MusicManifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MusicTrack"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "tracks"
+      ],
+      "additionalProperties": false
+    },
+    "MusicTrack": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/MusicTrackId"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "music",
+            "sfx"
+          ]
+        },
+        "file": {
+          "$ref": "#/definitions/RelPath"
+        },
+        "original_name": {
+          "type": "string"
+        },
+        "hash": {
+          "$ref": "#/definitions/Sha256"
+        },
+        "title": {
+          "type": "string"
+        },
+        "artist": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "attribution": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "duration_ms": {
+              "$ref": "#/definitions/Ms"
+            },
+            "sample_rate": {
+              "type": "number"
+            },
+            "channels": {
+              "type": "number"
+            },
+            "bpm": {
+              "type": "number"
+            },
+            "bpm_confidence": {
+              "type": "number"
+            },
+            "energy": {
+              "type": "number"
+            },
+            "energy_curve": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "loudness_lufs": {
+              "type": "number"
+            },
+            "loop_points": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "start_ms": {
+                    "$ref": "#/definitions/Ms"
+                  },
+                  "end_ms": {
+                    "$ref": "#/definitions/Ms"
+                  }
+                },
+                "required": [
+                  "start_ms",
+                  "end_ms"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "silence_head_ms": {
+              "$ref": "#/definitions/Ms"
+            },
+            "silence_tail_ms": {
+              "$ref": "#/definitions/Ms"
+            }
+          },
+          "required": [
+            "duration_ms",
+            "sample_rate",
+            "channels",
+            "energy",
+            "energy_curve",
+            "loudness_lufs",
+            "silence_head_ms",
+            "silence_tail_ms"
+          ],
+          "additionalProperties": false
+        },
+        "embedding": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "vector_file": {
+              "$ref": "#/definitions/RelPath"
+            }
+          },
+          "required": [
+            "model",
+            "vector_file"
+          ],
+          "additionalProperties": false
+        },
+        "added_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "used_in": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VideoId"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "file",
+        "original_name",
+        "hash",
+        "tags",
+        "analysis",
+        "added_at",
+        "used_in"
+      ],
+      "additionalProperties": false
+    },
+    "MusicTrackId": {
+      "$ref": "#/definitions/Id%3C%22mt%22%3E"
+    },
+    "Id<\"mt\">": {
+      "type": "string",
+      "pattern": "^mt_[0-9a-z]{8}$"
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Sha256": {
+      "type": "string"
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    }
+  }
+}

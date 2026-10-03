@@ -248,6 +248,13 @@ export class BuildGraph {
       frame_md: model.hashOf('frame.md'),
       profile: model.config('output.profile'),
       transitions: model.frames.map((f) => f.transition_in ?? null),
+      // 012: nhạc theo scene + mức trộn
+      music: model.scenes.map((s) => [
+        s.id,
+        s.music ?? null,
+        model.config('music.volume_db', { sceneId: s.id }),
+      ]),
+      duck_db: model.config('music.duck_db'),
     });
     return defs.sort(
       (a, b) =>

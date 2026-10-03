@@ -34,4 +34,8 @@ def create_engine(name: str) -> Engine:
         from sf_worker.engines.omnivoice import OmniVoiceEngine
 
         return OmniVoiceEngine()
+    if name == "audio-analysis":
+        from sf_worker.engines.audio_analysis import AudioAnalysisEngine
+
+        return AudioAnalysisEngine()
     raise ValueError(f"unknown engine: {name}")

@@ -16,7 +16,7 @@ export const WORKER_SRC =
 /** Python của môi trường engine: `<app-data>/providers/python/<engine>/` (D4 mục 9.3); `SF_PYTHON_<ENGINE>` ghi đè. */
 export function enginePython(engine: string, appDataDir = defaultAppDataDir()): string {
   return (
-    process.env[`SF_PYTHON_${engine.toUpperCase()}`] ??
+    process.env[`SF_PYTHON_${engine.toUpperCase().replace(/-/g, '_')}`] ??
     path.join(appDataDir, 'providers', 'python', engine, 'Scripts', 'python.exe')
   );
 }

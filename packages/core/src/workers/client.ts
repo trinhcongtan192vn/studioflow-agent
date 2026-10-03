@@ -50,6 +50,8 @@ export class PythonWorker {
     if (this.child) return this.child;
     const child = spawn(this.opts.python, ['-m', 'sf_worker', 'serve', '--engine', this.opts.engine], {
       env: { ...process.env, ...this.opts.env, PYTHONPATH: this.opts.srcDir, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+      // cwd cố định: thư mục của tiến trình gọi có thể chứa gói trùng tên (ví dụ `coverage/`)
+      cwd: this.opts.srcDir,
       windowsHide: true,
     });
     this.child = child;

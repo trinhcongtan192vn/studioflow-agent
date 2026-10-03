@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
 import { assetTools } from './assets/tools.js';
+import { defineMusicJobs, musicTools } from './music/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
 import { frameBuildExecutor } from './hf/frame-build.js';
 import { indexBuilder } from './hf/index-builder.js';
@@ -110,8 +111,11 @@ export function createCore(opts: CoreOptions = {}): Core {
   });
   registerTextObjectives();
   // HyperFrames adapter, frame build, asset (011)
-  graph.registerBuilder('index', indexBuilder);
+  graph.registerBuilder('index', indexBuilder({ appDataDir }));
   for (const t of assetTools()) gateway.register(t);
+  // Kho nhạc (012)
+  for (const t of musicTools(tts, appDataDir)) gateway.register(t);
+  defineMusicJobs(tts, appDataDir);
   workflows.registerExecutor('design-system', designSystemExecutor());
   workflows.registerExecutor(
     'frame-build',

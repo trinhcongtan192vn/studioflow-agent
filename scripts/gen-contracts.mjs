@@ -38,6 +38,7 @@ export const SCHEMA_ROOTS = [
   'PublishFrontMatter',
   'WorkflowManifest',
   'ProviderManifest',
+  'MusicManifest',
 ];
 
 const ID_PREFIXES = [
@@ -134,6 +135,12 @@ ${body}
 export function extractD6(md, deps) {
   const body = sections(md, [['## 1.', '## 9.']]);
   return `${GENERATED('docs/06-spec-workflow-skill.md')}${importsFor(body, deps)}\n${body}\n`;
+}
+
+/** D8 mục 1–2: kho nhạc, `music.find` (012). */
+export function extractD8(md, deps) {
+  const body = sections(md, [['## 1.', '## 3.']]);
+  return `${GENERATED('docs/08-spec-music.md mục 1–2')}${importsFor(body, deps)}\n${body}\n`;
 }
 
 // ---------- D3 mục 7.2 → config keys ----------
@@ -261,6 +268,7 @@ function plannedFiles() {
   const d4 = readFileSync(path.join(docs, '04-spec-capability-gateway.md'), 'utf8');
   const d6 = readFileSync(path.join(docs, '06-spec-workflow-skill.md'), 'utf8');
   const d5 = readFileSync(path.join(docs, '05-spec-agent-runtime-policy.md'), 'utf8');
+  const d8 = readFileSync(path.join(docs, '08-spec-music.md'), 'utf8');
   const keys = extractConfigKeys(d3);
   const errorDocs = readdirSync(docs)
     .filter((f) => /^(0[3-9]|1[01])-.*\.md$/.test(f))
@@ -280,6 +288,7 @@ function plannedFiles() {
   return {
     d3Ts,
     d6Ts,
+    d8Ts: extractD8(d8, [{ from: '../domain/d3', ts: d3Ts }]),
     d5Ts: extractD5(d5, [
       { from: '../domain/d3', ts: d3Ts },
       { from: '../gateway/d4', ts: d4Ts },
@@ -296,7 +305,7 @@ function plannedFiles() {
 }
 
 const INDEX_TS = `${GENERATED('docs/contracts/domain/*')}export * from './d3';\nexport * from './markdown';\nexport * from './config-keys';\n`;
-const ROOT_INDEX_TS = `${GENERATED('docs/contracts/*')}export * from './domain/index';\nexport * from './gateway/d4';\nexport * from './workflow/d6';\n`;
+const ROOT_INDEX_TS = `${GENERATED('docs/contracts/*')}export * from './domain/index';\nexport * from './gateway/d4';\nexport * from './workflow/d6';\nexport * from './music/d8';\n`;
 
 async function build() {
   const f = plannedFiles();
@@ -305,6 +314,7 @@ async function build() {
     [path.join(outDocs, 'gateway', 'd4.ts'), f.d4Ts],
     [path.join(outDocs, 'workflow', 'd6.ts'), f.d6Ts],
     [path.join(outDocs, 'agent', 'd5.ts'), f.d5Ts],
+    [path.join(outDocs, 'music', 'd8.ts'), f.d8Ts],
     [path.join(outDocs, 'index.ts'), ROOT_INDEX_TS],
     [path.join(outDocs, 'domain', 'config-keys.ts'), f.keysTs],
     [path.join(outDocs, 'domain', 'index.ts'), INDEX_TS],
@@ -338,6 +348,7 @@ async function build() {
       f.d6Ts,
       f.d4Ts,
       f.d5Ts,
+      f.d8Ts,
     ]
       .map((s) =>
         s

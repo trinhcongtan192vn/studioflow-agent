@@ -6,6 +6,7 @@ export type ArtifactKind =
   | 'output_profile'
   | 'cast_member'
   | 'asset_manifest'
+  | 'music_manifest'
   | 'state'
   | 'audio_meta'
   | 'caption_groups'
@@ -51,6 +52,12 @@ export const ARTIFACTS: KindSpec[] = [
     pattern: /(?:^|\/)characters\/[^/]+\/cast\.json$/,
     format: 'json',
     schema: 'CastMember',
+  },
+  {
+    kind: 'music_manifest',
+    pattern: /(?:^|\/)music\/manifest\.json$/,
+    format: 'json',
+    schema: 'MusicManifest',
   },
   {
     kind: 'asset_manifest',

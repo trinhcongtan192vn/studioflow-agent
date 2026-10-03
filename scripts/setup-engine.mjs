@@ -2,6 +2,7 @@
 // 006 FR-010, 010 FR-008 — cài engine cho dev. Trình cài chính thức (tiến độ, hồ sơ) là 014.
 //   node scripts/setup-engine.mjs omnivoice   (môi trường Python + torch cu128 + omnivoice)
 //   node scripts/setup-engine.mjs asr         (whisper.cpp dựng sẵn + model large-v3-turbo)
+//   node scripts/setup-engine.mjs audio-analysis (librosa + pyloudnorm, CPU)
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -29,6 +30,11 @@ const PY_ENGINES = {
       ],
       ['omnivoice==0.2.1'],
     ],
+  },
+  // 012: phân tích nhạc (CPU) — cùng phiên bản với nhóm `audio` của workers/gpu/pyproject.toml
+  'audio-analysis': {
+    python: '3.12',
+    steps: [['librosa==0.11.0', 'pyloudnorm==0.1.1', 'soundfile==0.13.1']],
   },
 };
 
