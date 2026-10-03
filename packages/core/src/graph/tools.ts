@@ -63,34 +63,8 @@ export function graphTools(s: GraphServices): ToolDefinition[] {
         properties: { targets: { type: 'array', items: { type: 'string' } } },
         additionalProperties: false,
       },
-      async handler(input: { targets?: string[] }, ctx) {
-        const videoId = videoOf(ctx);
-        const plan = graphFor(ctx).plan(videoId, input.targets);
-        const lines = plan.jobs.filter((j) => j.type === 'audio.line').length;
-        const limit = Number(
-          resolveConfig(
-            'policy.batch.tts_lines',
-            { channelDir: ctx.store.root, videoId },
-            { appDataDir: ctx.appDataDir },
-          ).value,
-        );
-        if (lines > limit) {
-          const ok = await ctx.permissions.ask(ctx.session, {
-            tool: 'graph.build',
-            kind: 'batch_gen',
-            summary: `Sinh ${lines} line audio (ngưỡng ${limit})`,
-            estimate: plan.estimate,
-          });
-          if (!ok)
-            throw new SfError('E_PERMISSION_DECLINED', `user declined generating ${lines} lines`);
-        }
-        const job = s.queue.enqueue('graph.build', {
-          video_id: videoId,
-          channel_dir: ctx.store.root,
-          payload: { targets: input.targets ?? null, appDataDir: ctx.appDataDir ?? null },
-        });
-        return { job_id: job.id, plan };
-      },
+      handler: (input: { targets?: string[] }, ctx) =>
+        startGraphBuild(s, ctx, input.targets, 'graph.build'),
     },
   ];
 }
@@ -119,4 +93,45 @@ export function defineGraphJob(
       return r;
     },
   });
+}
+
+/**
+ * Lập kế hoạch, hỏi người dùng nếu số line audio vượt `policy.batch.tts_lines` (D5 mục 5.1),
+ * rồi xếp job `graph.build`. Dùng chung cho `graph.build` và `tts.synthesize`.
+ */
+export async function startGraphBuild(
+  s: GraphServices,
+  ctx: ToolContext,
+  targets: string[] | undefined,
+  tool: string,
+): Promise<{ job_id: string; plan: ReturnType<BuildGraph['plan']> }> {
+  const videoId = videoOf(ctx);
+  const plan = new BuildGraph({
+    store: ctx.store,
+    appDataDir: ctx.appDataDir,
+    builders: s.builders,
+  }).plan(videoId, targets);
+  const lines = plan.jobs.filter((j) => j.type === 'audio.line').length;
+  const limit = Number(
+    resolveConfig(
+      'policy.batch.tts_lines',
+      { channelDir: ctx.store.root, videoId },
+      { appDataDir: ctx.appDataDir },
+    ).value,
+  );
+  if (lines > limit) {
+    const ok = await ctx.permissions.ask(ctx.session, {
+      tool,
+      kind: 'batch_gen',
+      summary: `Sinh ${lines} line audio (ngưỡng ${limit})`,
+      estimate: plan.estimate,
+    });
+    if (!ok) throw new SfError('E_PERMISSION_DECLINED', `user declined generating ${lines} lines`);
+  }
+  const job = s.queue.enqueue('graph.build', {
+    video_id: videoId,
+    channel_dir: ctx.store.root,
+    payload: { targets: targets ?? null, appDataDir: ctx.appDataDir ?? null },
+  });
+  return { job_id: job.id, plan };
 }

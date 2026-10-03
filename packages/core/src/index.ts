@@ -98,3 +98,9 @@ export { canonicalJson } from './domain/hash.js';
 
 // Agent Runtime (005, D5)
 export * from './agent/index.js';
+
+// TTS (006)
+export { PythonWorker } from './workers/client.js';
+export * from './providers/index.js';
+export { audioLineBuilder, voiceFile } from './tts/builder.js';
+export { createVoiceProfile, speak, ttsTools, defineTtsJobs } from './tts/tools.js';

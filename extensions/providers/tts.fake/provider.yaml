@@ -1,0 +1,13 @@
+# Provider giả cho CI không GPU (D12 mục 2): chỉ nạp khi SF_GPU=0.
+id: tts.fake
+version: 1.0.0
+capabilities: [voice.profile, tts.synthesize]
+contract_versions: { tts.synthesize: '1', voice.profile: '1' }
+runtime: node
+resource: cpu
+languages: [vi, de, en]
+install_profile: minimal
+cost: { kind: free }
+limits: { max_chars: 600 }
+health: { method: health, timeout_ms: 1000 }
+app_api: '>=0.1 <2.0'

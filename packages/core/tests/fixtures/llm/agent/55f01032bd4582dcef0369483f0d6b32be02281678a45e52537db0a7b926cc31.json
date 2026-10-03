@@ -1,26 +1,5 @@
 {
   "request": {
-    "allowed": [
-      "Read",
-      "Glob",
-      "Grep",
-      "Skill",
-      "TodoWrite",
-      "mcp__sf__artifact_list",
-      "mcp__sf__artifact_read",
-      "mcp__sf__artifact_validate",
-      "mcp__sf__artifact_write",
-      "mcp__sf__config_resolve",
-      "mcp__sf__config_set",
-      "mcp__sf__graph_build",
-      "mcp__sf__graph_plan",
-      "mcp__sf__graph_status",
-      "mcp__sf__job_cancel",
-      "mcp__sf__job_list",
-      "mcp__sf__job_status",
-      "mcp__sf__job_wait",
-      "mcp__sf__script_run"
-    ],
     "history": [
       "Đọc SCRIPT.md của video hiện tại và cho biết có bao nhiêu line (marker sf:line). Trả lời chỉ bằng một con số."
     ],
@@ -32,7 +11,7 @@
   "response": [
     {
       "type": "tool_call",
-      "id": "toolu_01UTjT3mkP1aSWUnpt7UibGv",
+      "id": "toolu_01GthFBPKLPVPUojDnfDDGCK",
       "name": "ToolSearch",
       "input": {
         "query": "select:mcp__sf__artifact_read",
@@ -41,13 +20,13 @@
     },
     {
       "type": "tool_result",
-      "id": "toolu_01UTjT3mkP1aSWUnpt7UibGv",
+      "id": "toolu_01GthFBPKLPVPUojDnfDDGCK",
       "ok": true,
       "summary": ""
     },
     {
       "type": "tool_call",
-      "id": "toolu_01K3mzsMgRgP2uc7o8GwqJhK",
+      "id": "toolu_01VRpDy5rL9AgyUSgDAtW6FX",
       "name": "mcp__sf__artifact_read",
       "input": {
         "path": "SCRIPT.md"
@@ -55,7 +34,7 @@
     },
     {
       "type": "tool_result",
-      "id": "toolu_01K3mzsMgRgP2uc7o8GwqJhK",
+      "id": "toolu_01VRpDy5rL9AgyUSgDAtW6FX",
       "ok": true,
       "summary": "{\"ok\":true,\"data\":{\"content\":\"---\\nschema_version: 1\\nvideo_id: vd_8m2pq7rt\\nlanguage: vi\\nstatus: approved\\n---\\nGhi chú tự do trước beat đầu tiên — parser giữ nguyên.\\n\\n## Mở đầu <!-- sf:beat id=bt"
     },
@@ -67,7 +46,7 @@
       "type": "usage",
       "input_tokens": 6,
       "output_tokens": 152,
-      "cost_usd": 0.1091726
+      "cost_usd": 0.064911
     },
     {
       "type": "done",

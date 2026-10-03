@@ -10,8 +10,9 @@ import { llmCall, LlmFixtureError, type LlmMode } from '../testing/llm-replay.js
 import { renderUserMessage } from './claude.js';
 
 /**
- * Ghi/phát lại phiên agent (D12 mục 2): khóa = loại phiên, model, chỉ dẫn hệ thống, tên plugin,
- * tool cho phép và lịch sử tin nhắn của phiên — không gồm đường dẫn tuyệt đối.
+ * Ghi/phát lại phiên agent (D12 mục 2): khóa = loại phiên, model, chỉ dẫn hệ thống, tên plugin và
+ * lịch sử tin nhắn của phiên — không gồm đường dẫn tuyệt đối, không gồm danh sách tool (thêm tool ở
+ * tính năng sau không làm mất bản ghi; chính sách tool được kiểm riêng bằng test contract).
  */
 export class RecordReplayRuntime implements AgentRuntime {
   readonly id: string;
@@ -41,7 +42,6 @@ export class RecordReplayRuntime implements AgentRuntime {
           model: o.model,
           systemAppend: o.systemAppend,
           plugins: o.plugins.map((p) => path.basename(p)),
-          allowed: o.tools.allowed,
           history: [...history],
         };
         try {
