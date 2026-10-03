@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ProviderManifest",
+  "definitions": {
+    "ProviderManifest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contract_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "runtime": {
+          "type": "string",
+          "enum": [
+            "python-worker",
+            "comfyui",
+            "node",
+            "cloud",
+            "agent-runtime"
+          ]
+        },
+        "engine": {
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/definitions/ResourceClass"
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lang"
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "install_profile": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "standard",
+            "full"
+          ]
+        },
+        "cost": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "free",
+                "per_token",
+                "per_image",
+                "per_second"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "health": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string"
+            },
+            "timeout_ms": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "method",
+            "timeout_ms"
+          ],
+          "additionalProperties": false
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "network": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "app_api": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "capabilities",
+        "contract_versions",
+        "runtime",
+        "resource",
+        "install_profile",
+        "cost",
+        "health",
+        "app_api"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceClass": {
+      "type": "string",
+      "enum": [
+        "gpu-heavy",
+        "gpu-light",
+        "cpu",
+        "network"
+      ]
+    },
+    "Lang": {
+      "type": "string",
+      "enum": [
+        "vi",
+        "de",
+        "en"
+      ]
+    }
+  }
+}

@@ -2884,6 +2884,501 @@ export const schemas = {
       }
     }
   },
+  WorkflowManifest: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/WorkflowManifest",
+    "definitions": {
+      "WorkflowManifest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "app_api": {
+            "type": "string"
+          },
+          "upstream": {
+            "type": "object",
+            "properties": {
+              "hyperframes_workflow": {
+                "type": "string"
+              },
+              "hyperframes_version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "hyperframes_workflow",
+              "hyperframes_version"
+            ],
+            "additionalProperties": false
+          },
+          "output_profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "optional": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "brief": {
+            "type": "object",
+            "properties": {
+              "questions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "questions"
+            ],
+            "additionalProperties": false
+          },
+          "scripts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "args_schema": {
+                  "type": "object"
+                },
+                "writes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/StepDecl"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "title",
+          "description",
+          "app_api",
+          "output_profiles",
+          "requires",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "StepDecl": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uses": {
+            "$ref": "#/definitions/StepLibraryId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "refine": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "rubric": {
+                "type": "string"
+              },
+              "min_rounds": {
+                "type": "number"
+              },
+              "max_rounds": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "enabled",
+              "rubric"
+            ],
+            "additionalProperties": false
+          },
+          "approval": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "boolean"
+              },
+              "summary_template": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "gate": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/GateDecl"
+            }
+          },
+          "skip_if": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "config": {
+                    "$ref": "#/definitions/ConfigKey"
+                  },
+                  "equals": {}
+                },
+                "required": [
+                  "config",
+                  "equals"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "phase_before": {
+                    "type": "string",
+                    "const": "M3"
+                  }
+                },
+                "required": [
+                  "phase_before"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "uses",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "StepLibraryId": {
+        "type": "string",
+        "enum": [
+          "design-system",
+          "script",
+          "storyboard",
+          "cast",
+          "voice",
+          "assets",
+          "frame-build",
+          "animatic",
+          "captions",
+          "music",
+          "look",
+          "effects",
+          "overlays",
+          "lipsync",
+          "finalize",
+          "publish-meta",
+          "render"
+        ]
+      },
+      "GateDecl": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "artifact_valid"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "graph_fresh"
+              },
+              "nodes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "nodes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "approved"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "step"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "script"
+              },
+              "script": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "script"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "objective"
+              },
+              "check": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "kind",
+              "check"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ConfigKey": {
+        "type": "string"
+      }
+    }
+  },
+  ProviderManifest: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/ProviderManifest",
+    "definitions": {
+      "ProviderManifest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contract_versions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "python-worker",
+              "comfyui",
+              "node",
+              "cloud",
+              "agent-runtime"
+            ]
+          },
+          "engine": {
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/definitions/ResourceClass"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Lang"
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "install_profile": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "standard",
+              "full"
+            ]
+          },
+          "cost": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "free",
+                  "per_token",
+                  "per_image",
+                  "per_second"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "health": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "timeout_ms": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "method",
+              "timeout_ms"
+            ],
+            "additionalProperties": false
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "network": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "app_api": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "capabilities",
+          "contract_versions",
+          "runtime",
+          "resource",
+          "install_profile",
+          "cost",
+          "health",
+          "app_api"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceClass": {
+        "type": "string",
+        "enum": [
+          "gpu-heavy",
+          "gpu-light",
+          "cpu",
+          "network"
+        ]
+      },
+      "Lang": {
+        "type": "string",
+        "enum": [
+          "vi",
+          "de",
+          "en"
+        ]
+      }
+    }
+  },
 } as const;
 
 export type SchemaRoot = keyof typeof schemas;

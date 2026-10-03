@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["docs/contracts/domain/*.ts", "node_modules/.cache/sf-contracts/*.ts"]
+  "include": ["docs/contracts/**/*.ts", "node_modules/.cache/sf-contracts/**/*.ts"]
 }

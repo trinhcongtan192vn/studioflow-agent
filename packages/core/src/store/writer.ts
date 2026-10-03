@@ -4,6 +4,7 @@ import {
   copyFileSync,
   existsSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -102,6 +103,41 @@ export class WriteStore {
     this.entries.push({ path: target.rel, hash, by: opts.by, ts: new Date().toISOString() });
     if (this.entries.length > LOG_LIMIT) this.entries.splice(0, this.entries.length - LOG_LIMIT);
     return { path: target.rel, hash, ...(backup ? { backup } : {}) };
+  }
+
+  /**
+   * Chép một file trong kênh sang đích (ví dụ cache → video, D4 mục 7): hard link nếu cùng ổ, nếu
+   * không thì chép; luôn đổi tên nguyên tử vào đích. Không kiểm schema (nội dung đã được kiểm khi ghi gốc).
+   */
+  copyWithin(srcRel: string, dstRel: string, opts: { by: string }): WriteResult {
+    const src = resolveInside(this.root, srcRel);
+    const dst = resolveInside(this.root, dstRel);
+    const video = splitVideoPath(dst.rel);
+    const base = video ? path.join(this.root, ...video.videoRel.split('/')) : this.root;
+    const tmpDir = path.join(base, '.sf', 'tmp');
+    mkdirSync(tmpDir, { recursive: true });
+    mkdirSync(path.dirname(dst.abs), { recursive: true });
+    const tmp = path.join(tmpDir, randomUUID());
+    try {
+      linkSync(src.abs, tmp);
+    } catch {
+      copyFileSync(src.abs, tmp);
+    }
+    renameSync(tmp, dst.abs);
+    const hash = sha256(readFileSync(dst.abs));
+    this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
+    return { path: dst.rel, hash };
+  }
+
+  /** Xóa dữ liệu dẫn xuất (D4 mục 11): chỉ trong `cache/` hoặc `.sf/` (trừ `.sf/backups`). */
+  removeDerived(rel: string): void {
+    const t = resolveInside(this.root, rel);
+    const derived =
+      /^cache\//.test(t.rel) ||
+      (/(^|\/)\.sf\//.test(t.rel) && !/(^|\/)\.sf\/backups(\/|$)/.test(t.rel));
+    if (!derived)
+      throw new SfError('E_PATH_OUTSIDE', `${t.rel} is not derived data; it cannot be removed`);
+    rmSync(t.abs, { recursive: true, force: true });
   }
 
   private atomicWrite(tmpDir: string, abs: string, content: string | Buffer): void {

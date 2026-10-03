@@ -342,6 +342,56 @@ export type ConfigKey =
   | 'gpu.vram_total_gb';
 
 
+export interface WorkflowManifest {
+  id: string; version: string; title: string; description: string;
+  app_api: string;                          // semver range
+  upstream?: { hyperframes_workflow: string; hyperframes_version: string };
+  output_profiles: string[];                // cho phép; phần tử đầu là mặc định
+  requires: string[];                       // capability bắt buộc
+  optional?: string[];
+  brief?: { questions: string[] };          // câu hỏi thêm cho router khi chốt brief (mục 3.0)
+  scripts?: { id: string; command: string; args_schema?: object; writes?: string[] }[];
+  steps: StepDecl[];                        // không gồm brief (brief là pha trước workflow)
+}
+
+export type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
+  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'lipsync' | 'finalize' | 'publish-meta' | 'render';
+
+export interface StepDecl {
+  id: string;                               // duy nhất trong workflow
+  uses: StepLibraryId;
+  title: string;
+  after?: string[];                         // phụ thuộc; mặc định = bước trước
+  params?: Record<string, unknown>;         // theo schema params của bước (mục 2)
+  refine?: { enabled: boolean; rubric: string; min_rounds?: number; max_rounds?: number; threshold?: number };
+  approval?: { required: boolean; summary_template?: string };
+  gate?: GateDecl[];                        // thêm vào gate mặc định của bước
+  skip_if?: { config: ConfigKey; equals: unknown } | { phase_before: 'M3' }; // điều kiện bỏ qua; ngữ pháp duy nhất
+}
+
+export type GateDecl =
+  | { kind: 'artifact_valid'; path: string }
+  | { kind: 'graph_fresh'; nodes: string }  // ví dụ 'audio.line:*'
+  | { kind: 'approved'; step: string }
+  | { kind: 'script'; script: string }      // script trả exit 0 = qua
+  | { kind: 'objective'; check: string; params?: Record<string, unknown> };   // mục 4.2
+
+export interface Rubric { id: string; version: number; scale: 10;
+  criteria: { id: string; weight: number; prompt: string }[];   // Σ weight = 1
+  severity_rules: string; }
+
+export interface FramePacket {
+  video_id: VideoId; frame: Frame; scene: Scene;
+  lines: Line[]; timing: { start_ms: Ms; duration_ms: Ms };
+  design_system: RelPath;                 // frame.md
+  blueprint?: { id: string; path: RelPath; vars: Record<string, string> };
+  assets: { asset_id: AssetId; file: RelPath; width: number; height: number; alpha: boolean }[];
+  output_path: RelPath;                   // compositions/frames/<fr>.html — phạm vi ghi duy nhất
+  rules: string[];                        // từ hồ sơ kênh: font, màu, vùng an toàn…
+  pinned_delta?: ManualDelta;             // khi sinh lại có áp lại chỉnh tay
+}
+
+
 export interface SessionContext {
   session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
   channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
@@ -352,3 +402,69 @@ export interface SessionContext {
 export type ToolResult<T> =
   | { ok: true; data: T; job_id?: string }          // job_id khi việc chạy nền
   | { ok: false; error: { code: string; message: string; details?: unknown; retryable: boolean } };
+
+export interface CapabilityContract<I, O> { id: string; version: string; input: I; output: O; resource: ResourceClass; cacheable: boolean; }
+export type ResourceClass = 'gpu-heavy' | 'gpu-light' | 'cpu' | 'network';
+
+// voice.profile
+export interface VoiceProfileInput { name: string; language: Lang; ref_audio: RelPath; emotions?: Record<string, RelPath>; }
+export interface VoiceProfileOutput { voice_id: VoiceId; files: RelPath[]; }
+
+// tts.synthesize (một line mỗi lần gọi provider)
+export interface TtsInput { text: string; language: Lang; voice_id: VoiceId; emotion?: string; speed?: number; }
+export interface TtsOutput { file: RelPath; duration_ms: Ms; sample_rate: 48000; }
+
+// asr.align
+export interface AsrAlignInput { audio: RelPath; language: Lang; expected_text: string; }
+export interface AsrAlignOutput { words: { i: number; text: string; start_ms: Ms; end_ms: Ms; conf?: number }[]; transcript: string; wer: number; }
+
+// image.generate / image.edit
+export interface ImageGenerateInput { prompt: string; negative_prompt?: string; width: number; height: number; transparent?: boolean;
+  reference_asset_ids?: AssetId[]; look?: string; seed?: number; steps?: number; }
+export interface ImageEditInput { source_asset_id: AssetId; instruction: string; mask_asset_id?: AssetId; reference_asset_ids?: AssetId[]; seed?: number; }
+export interface ImageOutput { file: RelPath; width: number; height: number; alpha: boolean; seed: number; }
+
+// image.remove_bg
+export interface RemoveBgInput { source_asset_id: AssetId; subject: 'person' | 'object'; }
+
+// text.generate / text.review (chỉ Workflow Engine)
+export interface TextGenerateInput { role: 'primary' | 'aux'; messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+  max_tokens: number; temperature?: number; response_format?: 'text' | 'json'; }
+export interface TextGenerateOutput { text: string; usage: { input: number; output: number }; cost_usd: number; model: string; }
+export interface TextReviewInput { artifact_text: string; rubric: Rubric; brief: string; prior_issues?: ReviewRound['issues']; }
+export interface TextReviewOutput { score: number; criteria: ReviewRound['criteria']; issues: ReviewRound['issues']; usage: TextGenerateOutput['usage']; cost_usd: number; model: string; }
+
+// lipsync.cues
+export interface LipsyncInput { audio: RelPath; fps: number; thresholds?: { half: number; open: number }; }
+
+// render.video
+export interface RenderInput { mode: 'draft' | 'release'; output_profile: string; }
+
+export interface VideoStateSummary { video_id: VideoId; phase: VideoState['phase']; workflow: VideoState['workflow'];
+  current_step?: string; steps: { id: string; title: string; status: StepState['status']; refine?: StepState['refine'] }[];
+  pending_approvals: ApprovalId[]; owner: VideoState['owner']; budget: VideoState['budget']; }
+export interface NodeStatus { key: string; type: string; status: 'fresh' | 'stale' | 'missing' | 'pinned' | 'pinned_stale' | 'failed' | 'external_change' | 'orphan';
+  reason?: string; decision_required?: boolean; }
+export interface PlannedJob { kind: string; targets: string[]; engine?: string; phase: number; est_ms: number; est_cost_usd: number; from_cache: boolean; }
+export interface PlanEstimate { total_ms: number; total_cost_usd: number; jobs_count: number; cached_count: number; }
+// graph.plan trả { jobs: PlannedJob[]; estimate: PlanEstimate }
+
+export interface ProviderManifest {
+  id: string; version: string; capabilities: string[]; contract_versions: Record<string, string>;
+  runtime: 'python-worker' | 'comfyui' | 'node' | 'cloud' | 'agent-runtime';
+  engine?: string; resource: ResourceClass; languages?: Lang[]; models?: string[];
+  install_profile: 'minimal' | 'standard' | 'full'; cost: { kind: 'free' | 'per_token' | 'per_image' | 'per_second' };
+  limits?: Record<string, number>; health: { method: string; timeout_ms: number };
+  secrets?: string[]; network?: string[]; app_api: string;
+}
+
+export interface JobInfo {
+  id: string; kind: string;               // capability id hoặc 'graph.build' | 'render' | 'script' | 'download'
+  video_id?: VideoId; status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled' | 'partial';
+  progress: { done: number; total: number; message?: string };
+  engine?: string; priority: 0 | 1 | 2;   // 2 = đang chặn điểm duyệt
+  attempts: number; max_attempts: number; // mặc định 3 (1 lần chạy + 2 lần thử lại)
+  created_at: Iso8601; started_at?: Iso8601; finished_at?: Iso8601;
+  result?: unknown; error?: { code: string; message: string; retryable: boolean };
+  children?: string[];                    // job con (ví dụ một job/line)
+}
