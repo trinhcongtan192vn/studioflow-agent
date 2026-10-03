@@ -1,0 +1,142 @@
+# Danh mục thành phần tải theo yêu cầu (D4 mục 10, 014). `dest` tương đối <app-data>.
+# URL ghim theo bản phát hành/commit; sha256 + size lấy từ GitHub release digest / Hugging Face LFS
+# (2026-10-04). Mở rộng 014: `extract` (giải nén zip vào thư mục), `content` (file văn bản nhỏ),
+# `python_env` (môi trường engine cài bằng uv — pip tự kiểm hash gói).
+- key: ffmpeg
+  title: FFmpeg 8.1 (BtbN win64 gpl)
+  install_profile: minimal
+  satisfied_by_path: ffmpeg
+  files:
+    - name: ffmpeg-n8.1.3-14-g330caae0c1-win64-gpl-8.1.zip
+      url: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-03-18-14/ffmpeg-n8.1.3-14-g330caae0c1-win64-gpl-8.1.zip
+      sha256: f49fba1d918b0997197e82e32f771f774aa33e94d8c6fd2fcaae44eaebaf7fe1
+      size: 193036895
+      dest: providers/ffmpeg/ffmpeg.zip
+      extract: providers/ffmpeg
+- key: uv
+  title: uv 0.12.23 (trình cài môi trường Python)
+  install_profile: standard
+  satisfied_by_path: uv
+  files:
+    - name: uv-x86_64-pc-windows-msvc.zip
+      url: https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip
+      sha256: 75d05de6762778c31ee183398de7dd15093fad0ed90b1f236d8205ea5ec00c90
+      size: 18043715
+      dest: providers/uv/uv.zip
+      extract: providers/uv
+- key: whisper-cli
+  title: whisper.cpp b5130 (CUDA 12.4 + CPU)
+  install_profile: standard
+  files:
+    - name: whisper-cublas-12.4.0-bin-x64.zip
+      url: https://github.com/ggml-org/whisper.cpp/releases/download/b5130/whisper-cublas-12.4.0-bin-x64.zip
+      sha256: af520ddd034d985b55dfeea3e465ed93653ba2aee1a55e865033edc548c272a7
+      size: 674539285
+      dest: providers/whisper/whisper-cublas-12.4.0-bin-x64.zip
+      extract: providers/whisper/cuda
+    - name: whisper-bin-x64.zip
+      url: https://github.com/ggml-org/whisper.cpp/releases/download/b5130/whisper-bin-x64.zip
+      sha256: f9ec6c52a2e949b62ab51fa21d0d497958f9e41c3010c157c4e42932d5316f3c
+      size: 8573270
+      dest: providers/whisper/whisper-bin-x64.zip
+      extract: providers/whisper/cpu
+- key: whisper-large-v3-turbo
+  title: Whisper large-v3-turbo (ggml, ASR đa ngôn ngữ)
+  install_profile: standard
+  files:
+    - name: ggml-large-v3-turbo.bin
+      url: https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo.bin
+      sha256: 1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69
+      size: 1624555275
+      dest: providers/whisper/home/.cache/hyperframes/whisper/models/ggml-large-v3-turbo.bin
+- key: omnivoice-model
+  title: OmniVoice (k2-fsa/OmniVoice @ c5fdb5c)
+  install_profile: standard
+  files:
+    - {
+        name: config.json,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/config.json,
+        sha256: 5e359117e13b420c5e0c925d4aba650d624767131f1d1746928f8b850d5dc372,
+        size: 2238,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/config.json,
+      }
+    - {
+        name: model.safetensors,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/model.safetensors,
+        sha256: 730839316de585f4c8298ec0e1712efc10fb19c6fa4e36eb741cb8d51ebcf6aa,
+        size: 2450344112,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/model.safetensors,
+      }
+    - {
+        name: tokenizer.json,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/tokenizer.json,
+        sha256: 408f669b7e2b045fdf54201d815bd364e6667dbd845115da81239c40bc6dcfd1,
+        size: 11423986,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/tokenizer.json,
+      }
+    - {
+        name: tokenizer_config.json,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/tokenizer_config.json,
+        sha256: 49f78845596a82bf15c83673794bdf9f76f812b11f60ab6a2239d9be65b00676,
+        size: 533,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/tokenizer_config.json,
+      }
+    - {
+        name: chat_template.jinja,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/chat_template.jinja,
+        sha256: a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8,
+        size: 4168,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/chat_template.jinja,
+      }
+    - {
+        name: audio_tokenizer/config.json,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/config.json,
+        sha256: eefb20806f7104e77c9a5277c9df0f9bb8826b08eb1d4e8ab2b9829b6ef9fac1,
+        size: 2531,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/config.json,
+      }
+    - {
+        name: audio_tokenizer/model.safetensors,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/model.safetensors,
+        sha256: fe7c5e8785e0a05833e1bfc3e002ec7f55af21e306b2e7154a448c1f54ccfb0d,
+        size: 805665628,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/model.safetensors,
+      }
+    - {
+        name: audio_tokenizer/preprocessor_config.json,
+        url: https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/preprocessor_config.json,
+        sha256: ae61eea88558608ee2fa86d2aec9fce8d99a5ff75d09cb7651ccce21ae1d9084,
+        size: 206,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/snapshots/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/preprocessor_config.json,
+      }
+    - {
+        name: refs/main,
+        content: c5fdb5ccb189668d56333f77ba2629f4cd7535f4,
+        dest: models/hf/hub/models--k2-fsa--OmniVoice/refs/main,
+      }
+- key: omnivoice-env
+  title: Môi trường Python OmniVoice (torch 2.8 cu128)
+  install_profile: standard
+  python_env:
+    engine: omnivoice
+    python: '3.12'
+    steps:
+      - [
+          'torch==2.8.0+cu128',
+          'torchaudio==2.8.0+cu128',
+          '--extra-index-url',
+          'https://download.pytorch.org/whl/cu128',
+          '--index-strategy',
+          'unsafe-best-match',
+        ]
+      - ['omnivoice==0.2.1']
+    approx_size: 5200000000
+- key: audio-analysis-env
+  title: Môi trường Python phân tích nhạc (librosa)
+  install_profile: standard
+  python_env:
+    engine: audio-analysis
+    python: '3.12'
+    steps:
+      - ['librosa==0.11.0', 'pyloudnorm==0.1.1', 'soundfile==0.13.1']
+    approx_size: 450000000

@@ -8,6 +8,7 @@ import type {
   TextReviewOutput,
 } from '../contracts/types.js';
 import { SfError } from '../errors.js';
+import { getSecretDefault } from '../secrets/credman.js';
 import { Logger } from '../log.js';
 import type { WriteStore } from '../store/writer.js';
 import { llmCall, LlmFixtureError, type LlmMode } from '../testing/llm-replay.js';
@@ -44,8 +45,8 @@ export interface TextService {
   review(input: TextReviewInput, scope: CallScope): Promise<TextReviewOutput>;
 }
 
-export const defaultGetSecret = (name: string): string | undefined =>
-  ({ openai: process.env.OPENAI_API_KEY, deepseek: process.env.DEEPSEEK_API_KEY })[name];
+/** Khóa provider: biến môi trường (dev) rồi Credential Manager `StudioFlow/<provider>` (014, D5 5.4). */
+export const defaultGetSecret = (name: string): string | undefined => getSecretDefault(name);
 
 function pricing(appDataDir?: string) {
   const f = appDataDir ? path.join(appDataDir, 'settings.json') : undefined;

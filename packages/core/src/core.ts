@@ -2,6 +2,7 @@ import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
 import { assetTools } from './assets/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
+import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
 import { frameBuildExecutor } from './hf/frame-build.js';
@@ -117,6 +118,20 @@ export function createCore(opts: CoreOptions = {}): Core {
   // Kho nhạc (012)
   for (const t of musicTools(tts, appDataDir)) gateway.register(t);
   defineMusicJobs(tts, appDataDir);
+  // Trình quản lý model (014): công cụ đã tải vào PATH; job `download` cài một thành phần
+  ensureToolPaths(appDataDir);
+  queue.define('download', {
+    engine: 'download',
+    idempotent: true,
+    run: async (job, ctx) => {
+      const p = job.payload as { key: string; profile?: InstallProfile };
+      return installEntry(appDataDir, p.key, {
+        signal: ctx.signal,
+        progress: ctx.progress,
+        ...(p.profile ? { profile: p.profile } : {}),
+      });
+    },
+  });
   // Render (013)
   for (const t of renderTools(tts)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
