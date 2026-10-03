@@ -129,6 +129,25 @@ export class WriteStore {
     return { path: dst.rel, hash };
   }
 
+  /**
+   * Đưa một file ngoài project (thư mục tạm của công cụ, ví dụ MP4 vừa render) vào đích: chép vào
+   * `.sf/tmp` rồi đổi tên nguyên tử (013).
+   */
+  importFile(absSrc: string, dstRel: string, opts: { by: string }): WriteResult {
+    const dst = resolveInside(this.root, dstRel);
+    const video = splitVideoPath(dst.rel);
+    const base = video ? path.join(this.root, ...video.videoRel.split('/')) : this.root;
+    const tmpDir = path.join(base, '.sf', 'tmp');
+    mkdirSync(tmpDir, { recursive: true });
+    mkdirSync(path.dirname(dst.abs), { recursive: true });
+    const tmp = path.join(tmpDir, randomUUID());
+    copyFileSync(absSrc, tmp);
+    renameSync(tmp, dst.abs);
+    const hash = sha256(readFileSync(dst.abs));
+    this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
+    return { path: dst.rel, hash };
+  }
+
   /** Xóa dữ liệu dẫn xuất (D4 mục 11): chỉ trong `cache/` hoặc `.sf/` (trừ `.sf/backups`). */
   removeDerived(rel: string): void {
     const t = resolveInside(this.root, rel);

@@ -22,6 +22,8 @@ export interface JobKind {
   /** Chạy lại an toàn sau khi app tắt giữa chừng (D4 mục 5 khôi phục). */
   idempotent: boolean;
   run(job: QueuedJob, ctx: JobContext): Promise<unknown>;
+  /** Gọi khi khôi phục đánh dấu job không idempotent là `E_JOB_INTERRUPTED` (ví dụ render, 013). */
+  onInterrupted?(job: QueuedJob): void;
 }
 
 export interface EnqueueSpec {
@@ -188,6 +190,11 @@ export class JobQueue extends EventEmitter {
             retryable: false,
           },
         });
+        try {
+          this.kinds.get(job.kind)?.onInterrupted?.(job);
+        } catch {
+          /* dọn trạng thái phụ là cố gắng tối đa */
+        }
       }
     }
     return rows.length;

@@ -252,3 +252,15 @@ export {
 } from './music/mix.js';
 export { buildCredits } from './music/credits.js';
 export { musicTools, defineMusicJobs } from './music/tools.js';
+export { hfRender, killTree } from './render/hf-render.js';
+export { finishVideo, measureLoudness, probeDurationMs } from './render/post.js';
+export {
+  renderVideo,
+  releaseGates,
+  creditsFor,
+  newRenderId,
+  markInterrupted,
+  type RenderDeps,
+  type RenderJobInput,
+} from './render/render.js';
+export { renderTools, defineRenderJob, renderExecutor } from './render/tools.js';
