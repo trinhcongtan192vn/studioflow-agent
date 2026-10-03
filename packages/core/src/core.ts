@@ -6,7 +6,10 @@ import { BuilderRegistry } from './graph/graph.js';
 import { defineGraphJob, graphTools } from './graph/tools.js';
 import { JobQueue } from './jobs/queue.js';
 import { jobTools } from './jobs/tools.js';
+import { registerDefaultProviders } from './providers/index.js';
 import { openDb, type Db } from './store/db.js';
+import { audioLineBuilder } from './tts/builder.js';
+import { defineTtsJobs, ttsTools } from './tts/tools.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -43,6 +46,18 @@ export function createCore(opts: CoreOptions = {}): Core {
   for (const t of [...jobTools(queue), ...graphTools({ queue, builders: graph })])
     gateway.register(t);
   defineGraphJob(queue, graph, (dir) => gateway.storeFor(dir));
+  // TTS (006): provider mặc định, builder audio.line, tool voice/tts.
+  const providerHandles = registerDefaultProviders(providers, { appDataDir });
+  graph.registerBuilder('audio.line', audioLineBuilder({ providers, db, appDataDir }));
+  const tts = {
+    queue,
+    builders: graph,
+    providers,
+    db,
+    storeFor: (dir: string) => gateway.storeFor(dir),
+  };
+  for (const t of ttsTools(tts)) gateway.register(t);
+  defineTtsJobs(tts, appDataDir);
   if (opts.start !== false) {
     queue.recover();
     queue.start();
@@ -56,6 +71,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     gateway,
     close() {
       queue.stop();
+      void providerHandles.stop();
       db.close();
     },
   };

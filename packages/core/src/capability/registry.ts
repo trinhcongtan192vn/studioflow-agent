@@ -90,6 +90,11 @@ export class ProviderRegistry {
       }
       return a;
     }
+    // D12 mục 2: khi không có GPU, provider giả của capability thay provider thật.
+    if (process.env.SF_GPU === '0') {
+      const fake = this.forCapability(capability).find((a) => a.manifest.id.endsWith('.fake'));
+      if (fake) return fake;
+    }
     throw new SfError(
       'E_PROVIDER_UNAVAILABLE',
       `no available provider for ${capability}${tried.length ? `: ${tried.join(', ')}` : ''}; install the needed profile in Settings`,

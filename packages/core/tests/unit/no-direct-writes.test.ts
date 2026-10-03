@@ -10,6 +10,7 @@ const WRITE_API =
 /** Tệp được phép ghi ngoài kênh/video (không phải dữ liệu dự án). */
 const ALLOWED = new Set([
   'testing/llm-replay.ts', // fixture test (D12), không phải kênh/video
+  'providers/fake.ts', // chỉ ghi vào RunContext.workdir tạm ngoài project (D4 mục 4.2)
 ]);
 
 function files(dir: string): string[] {

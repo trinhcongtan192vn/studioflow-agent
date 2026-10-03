@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { AudioMeta, Line } from '../contracts/types.js';
+import type { AudioMeta, Line, NodeStatus, PlanEstimate, PlannedJob } from '../contracts/types.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
 import type { WriteStore } from '../store/writer.js';
@@ -57,14 +57,16 @@ export interface NodeDef {
   line?: Line;
 }
 
-export interface NodeStatus {
+/** Trạng thái nút dạng nội bộ (có id/pha) — dùng cho build và test chi tiết. */
+export interface NodeState_ {
   id: string;
   type: NodeType;
   key: string;
   status: NodeState;
 }
 
-export interface PlannedJob {
+/** Mục kế hoạch dạng nội bộ. */
+export interface PlannedNode {
   node: string;
   type: NodeType;
   key: string;
@@ -286,17 +288,52 @@ export class BuildGraph {
     return loadVideoModel(this.store.root, videoId, this.opts.appDataDir);
   }
 
-  /** `graph.status` (D4 mục 2.4, 8.2). */
-  status(videoId: string): NodeStatus[] {
+  /** Trạng thái từng nút (dạng nội bộ). */
+  nodeStates(videoId: string): NodeState_[] {
     const { defs, status } = this.evaluate(this.model(videoId), this.load(videoId));
     return defs.map((d) => ({ id: d.id, type: d.type, key: d.key, status: status.get(d.id)! }));
   }
 
-  /** `graph.plan`: nút không `fresh` theo pha; ước tính thời gian từ lịch sử (D4 mục 8.3). */
-  plan(
+  /** `graph.status` — `NodeStatus` của D4 mục 3.1 (`key` = id nút, ví dụ `audio.line:ln_…`). */
+  status(videoId: string): NodeStatus[] {
+    return this.nodeStates(videoId).map((n) => ({ key: n.id, type: n.type, status: n.status }));
+  }
+
+  /** `graph.plan` — `{jobs: PlannedJob[], estimate: PlanEstimate}` của D4 mục 3.1. */
+  plan(videoId: string, targets?: string[]): { jobs: PlannedJob[]; estimate: PlanEstimate } {
+    const internal = this.planNodes(videoId, targets);
+    const avg = this.historyMs(videoId);
+    const jobs: PlannedJob[] = internal.jobs.map((j) => ({
+      kind: j.type,
+      targets: [j.node],
+      phase: PHASES.indexOf(j.phase),
+      est_ms: Math.round(avg.get(j.type) ?? 0),
+      est_cost_usd: 0,
+      from_cache: false,
+    }));
+    return {
+      jobs,
+      estimate: {
+        total_ms: jobs.reduce((s, j) => s + j.est_ms, 0),
+        total_cost_usd: 0,
+        jobs_count: jobs.length,
+        cached_count: 0,
+      },
+    };
+  }
+
+  private historyMs(videoId: string): Map<NodeType, number> {
+    const history = new Map<NodeType, number[]>();
+    for (const r of Object.values(this.load(videoId).nodes))
+      if (r.ms !== undefined) history.set(r.type, [...(history.get(r.type) ?? []), r.ms]);
+    return new Map([...history].map(([t, h]) => [t, h.reduce((a, b) => a + b, 0) / h.length]));
+  }
+
+  /** Nút không `fresh` theo pha (dạng nội bộ); ước tính giây từ lịch sử (D4 mục 8.3). */
+  planNodes(
     videoId: string,
     targets?: string[],
-  ): { jobs: PlannedJob[]; estimate: { seconds: number | null; cost_usd: number } } {
+  ): { jobs: PlannedNode[]; estimate: { seconds: number | null; cost_usd: number } } {
     const g = this.load(videoId);
     const { defs, status } = this.evaluate(this.model(videoId), g);
     const wanted = targets?.length ? closure(defs, targets) : undefined;
@@ -345,7 +382,7 @@ export class BuildGraph {
     const signal = opts.signal ?? new AbortController().signal;
     const g = this.load(videoId);
     const model = this.model(videoId);
-    const plan = this.plan(videoId, opts.targets).jobs;
+    const plan = this.planNodes(videoId, opts.targets).jobs;
     const defs = new Map(this.nodes(model).map((d) => [d.id, d]));
     const result: BuildResult = { status: 'succeeded', nodes: {} };
     let done = 0;

@@ -14,3 +14,6 @@
 - **Decision**: nút định danh `<type>:<key>` (`audio.line:ln_x`, `audio_meta`, …). `input_hash` gồm phần đầu vào D4 8.1 + `output_hash` đã ghi của nút phụ thuộc; trạng thái hiệu lực = `stale` nếu bất kỳ phụ thuộc nào không `fresh` (lan truyền). Builder trả `{outputs: RelPath[], meta?}`; `output_hash` = hash gộp các file đầu ra (hoặc của `meta` với `frame_timing`).
 - **frame_timing** lưu trong `graph.json` (`meta.frames[]`, `meta.lines[]`) theo D4 8.1.
 - **Pha** (D4 mục 6 quy tắc 4): `audio.line`→tts, `asr.line`→asr, `audio_meta|captions|frame_timing|index`→assemble.
+
+## R5. Sửa sau (2026-10-03, trong nhánh 006)
+- `graph.status`/`graph.plan` ban đầu trả hình dạng tự đặt; đã sửa theo D4 mục 3.1 (`NodeStatus {key, type, status}`, `PlannedJob {kind, targets, phase, est_ms, est_cost_usd, from_cache}`, `PlanEstimate`). Dạng nội bộ giữ ở `nodeStates()`/`planNodes()`.

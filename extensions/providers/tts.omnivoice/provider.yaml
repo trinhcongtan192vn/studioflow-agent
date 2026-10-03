@@ -1,0 +1,14 @@
+id: tts.omnivoice
+version: 1.0.0
+capabilities: [voice.profile, tts.synthesize]
+contract_versions: { tts.synthesize: '1', voice.profile: '1' }
+runtime: python-worker
+engine: omnivoice
+resource: gpu-light
+languages: [vi, de, en]
+models: [omnivoice-base]
+install_profile: standard
+cost: { kind: free }
+limits: { max_chars: 600 }
+health: { method: health, timeout_ms: 120000 }
+app_api: '>=0.1 <2.0'

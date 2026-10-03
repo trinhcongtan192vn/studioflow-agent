@@ -1,0 +1,410 @@
+{
+  "request": {
+    "history": [
+      "Hãy đọc câu sau bằng giọng của kênh: \"Xin chào các bạn, đây là bản thử giọng đọc.\" Cách làm: ghi SCRIPT.md của video hiện tại thành một beat \"Thử\" chứa đúng một line của narrator với câu đó, rồi gọi tts.synthesize cho mọi line và chờ job xong. Trả lời ngắn gọn khi xong."
+    ],
+    "kind": "main",
+    "model": "claude-sonnet-5-5",
+    "plugins": ["studioflow-core", "profile"],
+    "systemAppend": "Bạn là agent sản xuất video của StudioFlow. Quy tắc:\n1. Chỉ ghi file qua tool mcp__sf__artifact_write; chỉ chạy lệnh qua mcp__sf__script_run. Không cố dùng cách khác.\n2. Làm theo workflow hiện tại (xem mcp__sf__workflow_state). Khi xong một bước do bạn thực hiện, gọi mcp__sf__workflow_step_complete.\n3. Không tự duyệt thay người dùng. Điểm duyệt do hệ thống tạo; bạn chỉ gắn tóm tắt bằng mcp__sf__approval_annotate.\n4. Dùng capability theo tên, không nhắc tên model.\n5. Không sửa file của frame đã ghim nếu chưa được người dùng cho phép.\n6. Trả lời người dùng bằng ngôn ngữ của họ; nội dung video theo ngôn ngữ kênh.\n7. Khi thiếu thông tin, hỏi ngắn gọn thay vì đoán.\nĐường dẫn trong tool sf là tương đối thư mục video hiện tại (ví dụ SCRIPT.md)."
+  },
+  "response": [
+    {
+      "type": "tool_call",
+      "id": "toolu_011p14TGwU6jP7GouQsty9no",
+      "name": "ToolSearch",
+      "input": {
+        "query": "select:mcp__sf__artifact_write,mcp__sf__tts_synthesize,mcp__sf__job_wait,mcp__sf__artifact_read,mcp__sf__workflow_state",
+        "max_results": 10
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_011p14TGwU6jP7GouQsty9no",
+      "ok": true,
+      "summary": ""
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_015aibGtf27rmY6ZovpDqpy7",
+      "name": "Skill",
+      "input": {
+        "skill": "studioflow-core:studioflow"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_015aibGtf27rmY6ZovpDqpy7",
+      "ok": true,
+      "summary": "Launching skill: studioflow-core:studioflow"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01CcvrkMsywasQNDiLQeQYd3",
+      "name": "mcp__sf__artifact_read",
+      "input": {
+        "path": "SCRIPT.md"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01CcvrkMsywasQNDiLQeQYd3",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"content\":\"---\\nschema_version: 1\\nvideo_id: vd_8m2pq7rt\\nlanguage: vi\\nstatus: approved\\n---\\nGhi chú tự do trước beat đầu tiên — parser giữ nguyên.\\n\\n## Mở đầu <!-- sf:beat id=bt"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01BpfpQQq4uSqphr7xKwsZTW",
+      "name": "ToolSearch",
+      "input": {
+        "query": "select:mcp__sf__workflow_state,mcp__sf__workflow_step_complete",
+        "max_results": 5
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01BpfpQQq4uSqphr7xKwsZTW",
+      "ok": true,
+      "summary": "No matching deferred tools found"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01QWjz1hcwHpnbzw8P862nQb",
+      "name": "mcp__sf__artifact_write",
+      "input": {
+        "path": "SCRIPT.md",
+        "base_hash": "105e3b274f4ea62d130f2743d3b5202f97d144d89f822ca0f426ac0fba0b1c36",
+        "content": "---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: approved\n---\n\n## Thử\n\n<!-- sf:line speaker=narrator -->\nXin chào các bạn, đây là bản thử giọng đọc.\n"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01QWjz1hcwHpnbzw8P862nQb",
+      "ok": false,
+      "summary": "{\"ok\":false,\"error\":{\"code\":\"E_PARSE_MARKER\",\"message\":\"line 10: sf:line before any sf:beat heading\",\"details\":{\"line\":10},\"retryable\":false}}"
+    },
+    {
+      "type": "text_delta",
+      "text": "Beat c"
+    },
+    {
+      "type": "text_delta",
+      "text": "ần mar"
+    },
+    {
+      "type": "text_delta",
+      "text": "ker;"
+    },
+    {
+      "type": "text_delta",
+      "text": " th"
+    },
+    {
+      "type": "text_delta",
+      "text": "êm v"
+    },
+    {
+      "type": "text_delta",
+      "text": "ào."
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01Hjq6pofJ2rQUczrrXSkDXq",
+      "name": "mcp__sf__artifact_write",
+      "input": {
+        "path": "SCRIPT.md",
+        "base_hash": "105e3b274f4ea62d130f2743d3b5202f97d144d89f822ca0f426ac0fba0b1c36",
+        "content": "---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: approved\n---\n\n## Thử <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nXin chào các bạn, đây là bản thử giọng đọc.\n"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01Hjq6pofJ2rQUczrrXSkDXq",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"hash\":\"be6224244c0cf1e4dd8bfbcad327ed576f98769bf0ef0316bf7fcbb47362cb0a\",\"assigned_ids\":[\"bt_oegjdtst\",\"ln_h3blw82l\"]}}"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01EzRXiAfkK2aZZ3EJS8CXdL",
+      "name": "mcp__sf__tts_synthesize",
+      "input": {
+        "line_ids": "all"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01EzRXiAfkK2aZZ3EJS8CXdL",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"job_id\":\"jb_7p3c6j45\",\"plan\":{\"jobs\":[{\"kind\":\"audio.line\",\"targets\":[\"audio.line:ln_h3blw82l\"],\"phase\":0,\"est_ms\":0,\"est_cost_usd\":0,\"from_cache\":false},{\"kind\":\"audio_meta\",\"targ"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_013x7XML7ER8vaM64fGMU3Gp",
+      "name": "mcp__sf__job_wait",
+      "input": {
+        "job_id": "jb_7p3c6j45",
+        "timeout_ms": 300000
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_013x7XML7ER8vaM64fGMU3Gp",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"id\":\"jb_7p3c6j45\",\"kind\":\"graph.build\",\"video_id\":\"vd_8m2pq7rt\",\"status\":\"succeeded\",\"progress\":{\"done\":2,\"total\":2},\"priority\":1,\"attempts\":1,\"max_attempts\":3,\"created_at\":\"2026-1"
+    },
+    {
+      "type": "text_delta",
+      "text": "Xong."
+    },
+    {
+      "type": "text_delta",
+      "text": " `SCRIPT."
+    },
+    {
+      "type": "text_delta",
+      "text": "md` gi"
+    },
+    {
+      "type": "text_delta",
+      "text": "ờ chỉ có"
+    },
+    {
+      "type": "text_delta",
+      "text": " beat \"Thử\" với"
+    },
+    {
+      "type": "text_delta",
+      "text": " một line của"
+    },
+    {
+      "type": "text_delta",
+      "text": " narrator (`ln_"
+    },
+    {
+      "type": "text_delta",
+      "text": "h3blw82l`)"
+    },
+    {
+      "type": "text_delta",
+      "text": " chứa câu th"
+    },
+    {
+      "type": "text_delta",
+      "text": "ử gi"
+    },
+    {
+      "type": "text_delta",
+      "text": "ọng. Job TTS"
+    },
+    {
+      "type": "text_delta",
+      "text": " `jb_7p3c"
+    },
+    {
+      "type": "text_delta",
+      "text": "6j45` đã ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ạy xong và"
+    },
+    {
+      "type": "text_delta",
+      "text": " aud"
+    },
+    {
+      "type": "text_delta",
+      "text": "io đã được"
+    },
+    {
+      "type": "text_delta",
+      "text": " tạo.\n\n-"
+    },
+    {
+      "type": "text_delta",
+      "text": " **N"
+    },
+    {
+      "type": "text_delta",
+      "text": "ội dung c"
+    },
+    {
+      "type": "text_delta",
+      "text": "ũ đã m"
+    },
+    {
+      "type": "text_delta",
+      "text": "ất:** "
+    },
+    {
+      "type": "text_delta",
+      "text": "ghi the"
+    },
+    {
+      "type": "text_delta",
+      "text": "o y"
+    },
+    {
+      "type": "text_delta",
+      "text": "êu cầu n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ai beat c"
+    },
+    {
+      "type": "text_delta",
+      "text": "ũ "
+    },
+    {
+      "type": "text_delta",
+      "text": "(\"Mở đầu\","
+    },
+    {
+      "type": "text_delta",
+      "text": " \"Kết\") và các"
+    },
+    {
+      "type": "text_delta",
+      "text": " line của"
+    },
+    {
+      "type": "text_delta",
+      "text": " chúng (`ln_"
+    },
+    {
+      "type": "text_delta",
+      "text": "2r7c4kxm"
+    },
+    {
+      "type": "text_delta",
+      "text": "`, `ln_9w"
+    },
+    {
+      "type": "text_delta",
+      "text": "3b6tqa`,"
+    },
+    {
+      "type": "text_delta",
+      "text": " `ln_5h8q"
+    },
+    {
+      "type": "text_delta",
+      "text": "2m3x`) không cò"
+    },
+    {
+      "type": "text_delta",
+      "text": "n trong file. Th"
+    },
+    {
+      "type": "text_delta",
+      "text": "ư mục này không có git,"
+    },
+    {
+      "type": "text_delta",
+      "text": " n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên tôi không kh"
+    },
+    {
+      "type": "text_delta",
+      "text": "ôi phục được từ"
+    },
+    {
+      "type": "text_delta",
+      "text": " lị"
+    },
+    {
+      "type": "text_delta",
+      "text": "ch sử.\n- **"
+    },
+    {
+      "type": "text_delta",
+      "text": "Bước"
+    },
+    {
+      "type": "text_delta",
+      "text": " work"
+    },
+    {
+      "type": "text_delta",
+      "text": "flow ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ưa đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "óng:** tôi không"
+    },
+    {
+      "type": "text_delta",
+      "text": " có"
+    },
+    {
+      "type": "text_delta",
+      "text": " tool `work"
+    },
+    {
+      "type": "text_delta",
+      "text": "flow_state` và `work"
+    },
+    {
+      "type": "text_delta",
+      "text": "flow_step_complete`"
+    },
+    {
+      "type": "text_delta",
+      "text": ", nên không"
+    },
+    {
+      "type": "text_delta",
+      "text": " xem được"
+    },
+    {
+      "type": "text_delta",
+      "text": " work"
+    },
+    {
+      "type": "text_delta",
+      "text": "flow hiện tại và"
+    },
+    {
+      "type": "text_delta",
+      "text": " ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ưa đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "ánh dấu h"
+    },
+    {
+      "type": "text_delta",
+      "text": "oàn thành bước n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ào."
+    },
+    {
+      "type": "usage",
+      "input_tokens": 14,
+      "output_tokens": 1589,
+      "cost_usd": 0.12491120000000001
+    },
+    {
+      "type": "done",
+      "stop_reason": "end_turn"
+    }
+  ]
+}
