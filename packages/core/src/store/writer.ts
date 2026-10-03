@@ -14,6 +14,7 @@ import {
   renameSync,
   rmSync,
   rmdirSync,
+  symlinkSync,
   writeSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -128,6 +129,21 @@ export class WriteStore {
     const hash = sha256(readFileSync(dst.abs));
     this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
     return { path: dst.rel, hash };
+  }
+
+  /**
+   * Liên kết thư mục (junction trên Windows) trong dữ liệu dẫn xuất `.sf/` tới thư mục của project —
+   * bản chụp xem trước Studio dùng chung `public/`, `audio/` mà không chép (017).
+   */
+  linkDir(targetRel: string, linkRel: string): void {
+    const target = resolveInside(this.root, targetRel);
+    const link = resolveInside(this.root, linkRel);
+    if (!/(^|\/)\.sf\//.test(link.rel))
+      throw new SfError('E_PATH_OUTSIDE', `${link.rel}: links only inside .sf/`);
+    if (existsSync(link.abs)) return;
+    mkdirSync(path.dirname(link.abs), { recursive: true });
+    mkdirSync(target.abs, { recursive: true });
+    symlinkSync(target.abs, link.abs, 'junction');
   }
 
   /** Ghi nối một dòng vào file chỉ-nối-đuôi (chat log `chat/<session_id>.jsonl`, D3 5.16). */

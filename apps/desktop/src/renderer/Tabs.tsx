@@ -146,6 +146,11 @@ export function JobsTab({ video }: { video?: string }) {
 /** UI-05 Xem trước (M1: render; Studio nhúng ở 017). */
 export function PreviewTab({ channel, video }: { channel: string; video?: string }) {
   const [msg, setMsg] = useState('');
+  const [url, setUrl] = useState<string>();
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    setUrl(undefined);
+  }, [video]);
   if (!video) return <p className="muted">Chọn một video.</p>;
   const render = async (mode: 'draft' | 'release') => {
     try {
@@ -157,13 +162,50 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       setMsg((e as Error).message);
     }
   };
+  // UI-05 / D9 mục 2: Studio xem trước (chỉ đọc) nhúng trong panel; tự tải lại khi file cảnh đổi
+  const openStudio = async () => {
+    try {
+      setUrl((await core.call('studio.open', { channel, video, mode: 'preview' })).url);
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  const studio = url && (
+    <iframe
+      data-testid="studio"
+      title="Studio"
+      src={url}
+      className={wide ? 'studio wide' : 'studio'}
+    />
+  );
   return (
-    <div>
+    <div className="preview">
       <div className="row">
+        {url ? (
+          <>
+            <button onClick={() => setWide(!wide)}>{wide ? 'Thu nhỏ' : 'Mở rộng'}</button>
+            <button
+              onClick={() =>
+                void core.call('studio.close', { channel, video }).then(() => setUrl(undefined))
+              }
+            >
+              Đóng Studio
+            </button>
+          </>
+        ) : (
+          <button onClick={() => void openStudio()}>Mở Studio xem trước</button>
+        )}
         <button onClick={() => void render('draft')}>Render nháp</button>
         <button onClick={() => void render('release')}>Render phát hành</button>
       </div>
       <p>{msg}</p>
+      {wide ? (
+        <div className="modal" onClick={() => setWide(false)}>
+          {studio}
+        </div>
+      ) : (
+        studio
+      )}
     </div>
   );
 }

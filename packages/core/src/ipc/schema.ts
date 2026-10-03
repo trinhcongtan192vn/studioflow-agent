@@ -131,6 +131,8 @@ export interface IpcMethods {
     params: ChannelRef & { path: string };
     result: { kind: 'text' | 'json' | 'binary'; content?: string; size: number };
   };
+  'studio.open': { params: VideoRef & { mode: 'preview' }; result: { url: string; port: number } };
+  'studio.close': { params: VideoRef; result: { closed: boolean } };
   'asr.accept': { params: VideoRef & { line_ids: string[] }; result: Record<string, never> };
 }
 

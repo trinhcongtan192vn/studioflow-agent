@@ -273,3 +273,14 @@ pre {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.studio {
+  width: 100%;
+  height: 60vh;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.studio.wide {
+  width: 92vw;
+  height: 88vh;
+  background: var(--panel);
+}

@@ -5,6 +5,8 @@ import { assetTools } from './assets/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
 import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
 import { attachTraceStore } from './trace/trace.js';
+import { StudioPreviews } from './studio/preview.js';
+import { studioTools } from './studio/tools.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
 import { frameBuildExecutor } from './hf/frame-build.js';
@@ -59,6 +61,8 @@ export interface Core {
   workflows: WorkflowService;
   /** Text providers (009). */
   text: TextService;
+  /** Studio xem trước (017). */
+  studio: StudioPreviews;
   close(): void;
 }
 
@@ -140,6 +144,9 @@ export function createCore(opts: CoreOptions = {}): Core {
       });
     },
   });
+  // Studio xem trước (017)
+  const studio = new StudioPreviews();
+  for (const t of studioTools(studio)) gateway.register(t);
   // Render (013)
   for (const t of renderTools(tts)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
@@ -168,9 +175,11 @@ export function createCore(opts: CoreOptions = {}): Core {
     gateway,
     workflows,
     text,
+    studio,
     close() {
       if (closed) return;
       closed = true;
+      studio.closeAll();
       detachTrace();
       queue.stop();
       void providerHandles.stop();
