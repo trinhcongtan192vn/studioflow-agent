@@ -1,7 +1,7 @@
 // 008 · FR-CH-02/07, FR-WS-02 — vỏ desktop thật (Electron + core trong utilityProcess): mở kênh,
 // danh sách video, explorer chỉ đọc, chat với Claude qua phiên `main` (record khi SF_LLM=record,
 // replay khi không), lịch sử còn sau khi mở lại, tab Job/Trace.
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +42,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
   const channel = path.join(tmp, 'kênh');
   const appData = path.join(tmp, 'app');
   cpSync(fixtureChannel, channel, { recursive: true });
+  // index.html tối thiểu để Studio có dự án để mở
+  writeFileSync(
+    path.join(channel, 'videos', 'vd_8m2pq7rt', 'index.html'),
+    '<!doctype html><html><head><meta charset="UTF-8"></head><body><div id="root" data-composition-id="main" data-start="0" data-duration="2" data-width="1920" data-height="1080"></div></body></html>',
+  );
   let app = await launch(channel, appData);
   try {
     const win = await app.firstWindow();
@@ -74,6 +79,12 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('chat-send')).toHaveText('Gửi', { timeout: 300_000 });
     const messages = win.getByTestId('messages');
     await expect(messages.locator('.msg.assistant').last()).toContainText(/3|ba/i);
+    // tab Xem trước: Studio nhúng (017 FR-ST-01)
+    await win.getByRole('button', { name: 'Xem trước' }).click();
+    await win.getByRole('button', { name: 'Mở Studio xem trước' }).click();
+    await expect(win.getByTestId('studio')).toHaveAttribute('src', /#project\/vd_8m2pq7rt$/, {
+      timeout: 60_000,
+    });
     // tab Job / Trace
     await win.getByRole('button', { name: 'Trace' }).click();
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');

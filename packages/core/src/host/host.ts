@@ -521,6 +521,10 @@ export class CoreHost extends EventEmitter {
           return { kind: 'json', content: readFileSync(abs, 'utf8'), size };
         return { kind: 'binary', size };
       }
+      case 'studio.open':
+        return c.studio.open(this.store(p.channel), p.video);
+      case 'studio.close':
+        return { closed: c.studio.close(this.store(p.channel), p.video) };
       case 'asr.accept': {
         const ctx = {
           session_id: 'ss_ui000001',
