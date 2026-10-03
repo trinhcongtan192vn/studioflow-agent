@@ -340,3 +340,15 @@ export type ConfigKey =
   | 'policy.budget_warn_ratio'
   | `gpu.vram_budget_gb.${string}`
   | 'gpu.vram_total_gb';
+
+
+export interface SessionContext {
+  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
+  channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
+  allowed_paths?: RelPath[];          // phạm vi ghi (frame/producer)
+  read_only_videos?: VideoId[];       // đọc chéo video (shorts từ video dài)
+}
+
+export type ToolResult<T> =
+  | { ok: true; data: T; job_id?: string }          // job_id khi việc chạy nền
+  | { ok: false; error: { code: string; message: string; details?: unknown; retryable: boolean } };

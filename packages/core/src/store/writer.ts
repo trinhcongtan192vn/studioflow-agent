@@ -94,7 +94,7 @@ export class WriteStore {
     const baseRel = video?.videoRel ?? '';
     const base = baseRel ? path.join(this.root, ...baseRel.split('/')) : this.root;
     let backup: string | undefined;
-    if (existsSync(target.abs) && (opts.backup === 'always' || this.needsBackup(target.rel))) {
+    if (existsSync(target.abs) && (opts.backup === 'always' || this.protectedReason(target.rel))) {
       backup = this.backup(base, baseRel, video?.inner ?? target.rel, target.abs);
     }
     this.atomicWrite(path.join(base, '.sf', 'tmp'), target.abs, content);
@@ -131,11 +131,11 @@ export class WriteStore {
   }
 
   /** Artifact nằm trong một approval `approved`, hoặc HTML của frame đã ghim (D3 mục 8). */
-  private needsBackup(rel: string): boolean {
+  protectedReason(rel: string): 'overwrite_approved' | 'pinned_frame' | undefined {
     const video = splitVideoPath(rel);
-    if (!video) return false;
+    if (!video) return undefined;
     const statePath = path.join(this.root, ...video.videoRel.split('/'), 'state.json');
-    if (!existsSync(statePath)) return false;
+    if (!existsSync(statePath)) return undefined;
     let state: {
       approvals?: { status: string; artifact_hashes?: Record<string, string> }[];
       pinned_frames?: Record<string, unknown>;
@@ -143,17 +143,19 @@ export class WriteStore {
     try {
       state = JSON.parse(readFileSync(statePath, 'utf8'));
     } catch {
-      return false;
+      return undefined;
     }
     if (
       state.approvals?.some(
         (a) => a.status === 'approved' && a.artifact_hashes && video.inner in a.artifact_hashes,
       )
     ) {
-      return true;
+      return 'overwrite_approved';
     }
     const frame = /^compositions\/frames\/(fr_[0-9a-z]{8})\.html$/.exec(video.inner)?.[1];
-    return Boolean(frame && state.pinned_frames && frame in state.pinned_frames);
+    return frame && state.pinned_frames && frame in state.pinned_frames
+      ? 'pinned_frame'
+      : undefined;
   }
 
   /** Chép bản cũ vào `<base>/.sf/backups/<ISO>/<inner>`; giữ BACKUP_KEEP bản mỗi file. */

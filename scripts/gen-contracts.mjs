@@ -61,26 +61,43 @@ const norm = (s) => s.replace(/\r\n/g, '\n');
 
 // ---------- D3 → d3.ts ----------
 
-/** Trích khối ```ts trong D3 mục 3–7 (mục 8+ không có định nghĩa type). */
-export function extractD3Types(md) {
+/** Trích các khối ```ts giữa hai tiêu đề, thêm `export`; `function` → `export declare function`. */
+export function extractTsBlocks(md, startHeading, endHeading) {
   const text = norm(md);
-  const start = text.indexOf('\n## 3.');
-  const end = text.indexOf('\n## 8.');
+  const start = text.indexOf(`\n${startHeading}`);
+  const end = text.indexOf(`\n${endHeading}`);
+  if (start < 0 || end < 0) throw new Error(`headings not found: ${startHeading} / ${endHeading}`);
   const body = text.slice(start, end);
   const blocks = [...body.matchAll(/```ts\n([\s\S]*?)```/g)].map((m) => m[1]);
-  const out = blocks.map((b) =>
-    b
-      .split('\n')
-      .map((line) => {
-        if (/^\s/.test(line) || line.trim() === '') return line;
-        return line
-          .replace(/^function /, 'export declare function ')
-          .replace(/(^|;\s+)(type|interface) /g, '$1export $2 ');
-      })
-      .join('\n')
-      .trimEnd(),
-  );
-  return `${GENERATED('docs/03-spec-domain-artifacts.md mục 3–7')}import type { ConfigKey } from './config-keys';\n\n${out.join('\n\n')}\n`;
+  return blocks
+    .map((b) =>
+      b
+        .split('\n')
+        .map((line) => {
+          if (/^\s/.test(line) || line.trim() === '') return line;
+          return line
+            .replace(/^function /, 'export declare function ')
+            .replace(/(^|;\s+)(type|interface) /g, '$1export $2 ');
+        })
+        .join('\n')
+        .trimEnd(),
+    )
+    .join('\n\n');
+}
+
+/** D3 mục 3–7 (mục 8+ không có định nghĩa type). */
+export function extractD3Types(md) {
+  return `${GENERATED('docs/03-spec-domain-artifacts.md mục 3–7')}import type { ConfigKey } from './config-keys';\n\n${extractTsBlocks(md, '## 3.', '## 8.')}\n`;
+}
+
+const exportedNames = (ts) =>
+  [...ts.matchAll(/export (?:interface|type|declare function) (\w+)/g)].map((m) => m[1]);
+
+/** D4 mục 2.2–2.3 (SessionContext, ToolResult); import type từ d3 các tên được dùng. */
+export function extractD4Gateway(md, d3Ts) {
+  const body = extractTsBlocks(md, '### 2.2', '### 2.4');
+  const used = exportedNames(d3Ts).filter((n) => new RegExp(`\\b${n}\\b`).test(body));
+  return `${GENERATED('docs/04-spec-capability-gateway.md mục 2.2–2.3')}import type { ${used.join(', ')} } from '../domain/d3';\n\n${body}\n`;
 }
 
 // ---------- D3 mục 7.2 → config keys ----------
@@ -205,6 +222,7 @@ async function generateSchemas(typesDir) {
 
 function plannedFiles() {
   const d3 = readFileSync(path.join(docs, '03-spec-domain-artifacts.md'), 'utf8');
+  const d4 = readFileSync(path.join(docs, '04-spec-capability-gateway.md'), 'utf8');
   const keys = extractConfigKeys(d3);
   const errorDocs = readdirSync(docs)
     .filter((f) => /^(0[3-9]|1[01])-.*\.md$/.test(f))
@@ -213,6 +231,7 @@ function plannedFiles() {
   const local = JSON.parse(readFileSync(path.join(outDocs, 'errors.local.json'), 'utf8'));
   return {
     d3Ts: extractD3Types(d3),
+    d4Ts: extractD4Gateway(d4, extractD3Types(d3)),
     keysTs: configKeysTs(keys),
     keysJson: `${JSON.stringify({ $comment: 'GENERATED from docs/03 mục 7.2 — DO NOT EDIT', keys }, null, 2)}\n`,
     errors: errorsJson(extractErrors(errorDocs), local),
@@ -225,6 +244,7 @@ async function build() {
   const f = plannedFiles();
   const files = new Map([
     [path.join(outDocs, 'domain', 'd3.ts'), f.d3Ts],
+    [path.join(outDocs, 'gateway', 'd4.ts'), f.d4Ts],
     [path.join(outDocs, 'domain', 'config-keys.ts'), f.keysTs],
     [path.join(outDocs, 'domain', 'index.ts'), INDEX_TS],
     [path.join(outDocs, 'domain', 'config-keys.json'), f.keysJson],
@@ -249,11 +269,11 @@ async function build() {
   // Bản dùng trong core (rootDir = src): type gộp + schema/errors/keys dạng module TS.
   const coreTypes =
     `${GENERATED('docs/contracts/domain/*.ts')}` +
-    [f.d3Ts, readFileSync(path.join(outDocs, 'domain', 'markdown.ts'), 'utf8'), f.keysTs]
+    [f.d3Ts, readFileSync(path.join(outDocs, 'domain', 'markdown.ts'), 'utf8'), f.keysTs, f.d4Ts]
       .map((s) =>
         s
           .replace(/^\/\/ GENERATED.*\n/, '')
-          .replace(/^import type [\s\S]*?from '\.\/[a-z0-9-]+';\n/gm, ''),
+          .replace(/^import type [\s\S]*?from '\.\.?\/[a-z0-9/-]+';\n/gm, ''),
       )
       .join('\n');
   const schemaModule =

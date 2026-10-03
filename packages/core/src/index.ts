@@ -56,3 +56,7 @@ export {
   type WriteResult,
   type WriteOptions,
 } from './store/writer.js';
+
+// Gateway (003, D4 mục 2, D5)
+export * from './gateway/index.js';
+export { maskSecrets, Logger, type LogSink, type LogLevel } from './log.js';
