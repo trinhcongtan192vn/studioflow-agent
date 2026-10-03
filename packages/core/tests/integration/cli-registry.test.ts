@@ -1,4 +1,4 @@
-// 001 · US2 AC5 · FR-SC-010 · SC-006 — module tự đăng ký, phát hiện trùng.
+// 001 · US2 AC5 · FR-010 · SC-006 — module tự đăng ký, phát hiện trùng.
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -36,7 +36,7 @@ async function capture(argv: string[], modulesDirs: string[], stdin = '') {
   return { code, out, err };
 }
 
-describe('CLI registry (001 FR-SC-010)', () => {
+describe('CLI registry (001 FR-010)', () => {
   it('discovers a new module without touching the framework', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'sf-mod-'));
     tmpDirs.push(root);

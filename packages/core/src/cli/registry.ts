@@ -8,7 +8,7 @@ const CLI_FILES = ['cli.js', 'cli.mjs', 'cli.ts'];
 
 /**
  * Quét `<dir>/<module>/cli.{js,mjs,ts}` và gom `commands`. Thêm module mới không cần sửa khung
- * (001 FR-SC-010). Trùng `(module, name)` → `E_CLI_DUPLICATE_COMMAND`, không chọn ngầm.
+ * (001 FR-010). Trùng `(module, name)` → `E_CLI_DUPLICATE_COMMAND`, không chọn ngầm.
  */
 export async function loadCommands(modulesDirs: string[]): Promise<CliCommand[]> {
   const found = new Map<string, { cmd: CliCommand; file: string }>();

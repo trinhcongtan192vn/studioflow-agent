@@ -144,41 +144,41 @@ Mỗi commit và test tham chiếu số tính năng (`NNN`) và mã FR/AC theo �
 
 **Cấu trúc & ranh giới**
 
-- **FR-SC-001**: Repo PHẢI có đúng ba project: `apps/desktop`, `packages/core`, `workers/gpu`; thư mục `extensions/` PHẢI chỉ chứa dữ liệu/script, không là project (constitution Điều VIII).
-- **FR-SC-002**: Repo PHẢI có kiểm tra tự động phát hiện (a) project thứ tư, (b) `apps/desktop` truy cập nội bộ không công khai của `core` (Điều II), và báo lỗi khi vi phạm.
-- **FR-SC-003**: Mỗi project PHẢI có ít nhất một test mẫu pass và một "điểm vào" tối thiểu chạy được độc lập.
+- **FR-001**: Repo PHẢI có đúng ba project: `apps/desktop`, `packages/core`, `workers/gpu`; thư mục `extensions/` PHẢI chỉ chứa dữ liệu/script, không là project (constitution Điều VIII).
+- **FR-002**: Repo PHẢI có kiểm tra tự động phát hiện (a) project thứ tư, (b) `apps/desktop` truy cập nội bộ không công khai của `core` (Điều II), và báo lỗi khi vi phạm.
+- **FR-003**: Mỗi project PHẢI có ít nhất một test mẫu pass và một "điểm vào" tối thiểu chạy được độc lập.
 
 **Lệnh chuẩn & chất lượng**
 
-- **FR-SC-004**: PHẢI có một lệnh duy nhất chạy build + lint + test cho cả ba project, mã thoát ≠ 0 khi bất kỳ bước nào lỗi, và một báo cáo tóm tắt theo project.
-- **FR-SC-005**: PHẢI có lint/format cho từng ngôn ngữ trong repo (TypeScript và Python) với cấu hình chung ở gốc repo; vi phạm làm lint thất bại.
-- **FR-SC-006**: Lệnh thiết lập/kiểm tra PHẢI phát hiện công cụ nền tảng thiếu hoặc sai phiên bản và báo rõ tên + phiên bản tối thiểu.
-- **FR-SC-007**: Build/test/lint PHẢI chạy đúng trên Windows 11 x64 với đường dẫn chứa khoảng trắng hoặc Unicode.
+- **FR-004**: PHẢI có một lệnh duy nhất chạy build + lint + test cho cả ba project, mã thoát ≠ 0 khi bất kỳ bước nào lỗi, và một báo cáo tóm tắt theo project.
+- **FR-005**: PHẢI có lint/format cho từng ngôn ngữ trong repo (TypeScript và Python) với cấu hình chung ở gốc repo; vi phạm làm lint thất bại.
+- **FR-006**: Lệnh thiết lập/kiểm tra PHẢI phát hiện công cụ nền tảng thiếu hoặc sai phiên bản và báo rõ tên + phiên bản tối thiểu.
+- **FR-007**: Build/test/lint PHẢI chạy đúng trên Windows 11 x64 với đường dẫn chứa khoảng trắng hoặc Unicode.
 
 **CLI `sf`**
 
-- **FR-SC-008**: CLI `sf` PHẢI tuân quy ước của D4 mục 12: nhận tham số dòng lệnh hoặc JSON từ stdin; JSON ra stdout; lỗi ra stderr dạng `{code, message}`; mã thoát 0 (thành công) / 1 (lỗi nghiệp vụ) / 2 (lỗi tham số).
-- **FR-SC-009**: Khung CLI PHẢI cung cấp `sf --version` và `sf --help`, cùng ít nhất một lệnh mẫu/chẩn đoán phủ đủ ba mã thoát để test quy ước.
-- **FR-SC-010**: Khung CLI PHẢI cho phép module khác đăng ký lệnh `sf <module> <lệnh>` mà không sửa mã khung; phát hiện trùng tên lệnh.
-- **FR-SC-011**: Logic của CLI PHẢI nằm trong `packages/core` (Điều II); CLI chỉ là lớp vỏ gọi API.
+- **FR-008**: CLI `sf` PHẢI tuân quy ước của D4 mục 12: nhận tham số dòng lệnh hoặc JSON từ stdin; JSON ra stdout; lỗi ra stderr dạng `{code, message}`; mã thoát 0 (thành công) / 1 (lỗi nghiệp vụ) / 2 (lỗi tham số).
+- **FR-009**: Khung CLI PHẢI cung cấp `sf --version` và `sf --help`, cùng ít nhất một lệnh mẫu/chẩn đoán phủ đủ ba mã thoát để test quy ước.
+- **FR-010**: Khung CLI PHẢI cho phép module khác đăng ký lệnh `sf <module> <lệnh>` mà không sửa mã khung; phát hiện trùng tên lệnh.
+- **FR-011**: Logic của CLI PHẢI nằm trong `packages/core` (Điều II); CLI chỉ là lớp vỏ gọi API.
 
 **Kiểm thử & CI**
 
-- **FR-SC-012**: Khung test PHẢI hỗ trợ các loại test của D12 mục 1 (contract, integration, e2e, gpu, ui, unit), cho phép chạy riêng từng loại, và mỗi loại có ít nhất một test mẫu (trừ `gpu` và `ui` chỉ cần có chỗ + nhãn nếu chưa có nội dung).
-- **FR-SC-013**: Test gắn nhãn `gpu` PHẢI bị bỏ qua và báo "skipped" khi `SF_GPU=0`; `SF_LLM=replay` PHẢI là mặc định ở CI và test thiếu bản ghi PHẢI fail, không gọi mạng (D12 mục 2).
-- **FR-SC-014**: PHẢI có CI chạy trên Windows không GPU (`SF_GPU=0`, `SF_LLM=replay`) thực hiện build + lint + test; CI đỏ PHẢI chặn merge (D12 mục 7).
-- **FR-SC-015**: Báo cáo test PHẢI cho thấy được độ phủ dòng của `packages/core`; ngưỡng cụ thể do plan/tech-defaults quyết định và CI PHẢI áp ngưỡng đó.
+- **FR-012**: Khung test PHẢI hỗ trợ các loại test của D12 mục 1 (contract, integration, e2e, gpu, ui, unit), cho phép chạy riêng từng loại, và mỗi loại có ít nhất một test mẫu (trừ `gpu` và `ui` chỉ cần có chỗ + nhãn nếu chưa có nội dung).
+- **FR-013**: Test gắn nhãn `gpu` PHẢI bị bỏ qua và báo "skipped" khi `SF_GPU=0`; `SF_LLM=replay` PHẢI là mặc định ở CI và test thiếu bản ghi PHẢI fail, không gọi mạng (D12 mục 2).
+- **FR-014**: PHẢI có CI chạy trên Windows không GPU (`SF_GPU=0`, `SF_LLM=replay`) thực hiện build + lint + test; CI đỏ PHẢI chặn merge (D12 mục 7).
+- **FR-015**: Báo cáo test PHẢI cho thấy được độ phủ dòng của `packages/core`; ngưỡng cụ thể do plan/tech-defaults quyết định và CI PHẢI áp ngưỡng đó.
 
 **Đóng gói**
 
-- **FR-SC-016**: PHẢI có một lệnh đóng gói sinh bản cài đặt Windows x64 mang số phiên bản của repo; từ chối chạy nếu build/test chưa xanh.
-- **FR-SC-017**: Bản cài đặt PHẢI cài, mở được cửa sổ chính hiển thị phiên bản `core`, và gỡ cài đặt sạch phần chương trình mà không xóa ngầm dữ liệu người dùng.
-- **FR-SC-018**: Bản cài đặt ở 001 KHÔNG ký số mã (chỉ phục vụ nội bộ M0/M1); `quickstart.md` PHẢI ghi chú rủi ro cảnh báo SmartScreen. Quyết định ký số mã được xem lại trước khi phát hành công khai.
+- **FR-016**: PHẢI có một lệnh đóng gói sinh bản cài đặt Windows x64 mang số phiên bản của repo; từ chối chạy nếu build/test chưa xanh.
+- **FR-017**: Bản cài đặt PHẢI cài, mở được cửa sổ chính hiển thị phiên bản `core`, và gỡ cài đặt sạch phần chương trình mà không xóa ngầm dữ liệu người dùng.
+- **FR-018**: Bản cài đặt ở 001 KHÔNG ký số mã (chỉ phục vụ nội bộ M0/M1); `quickstart.md` PHẢI ghi chú rủi ro cảnh báo SmartScreen. Quyết định ký số mã được xem lại trước khi phát hành công khai.
 
 **Truy vết**
 
-- **FR-SC-019**: Repo PHẢI có kiểm tra (cục bộ và CI) báo lỗi khi commit/PR không chứa số tính năng `NNN` (Điều XI).
-- **FR-SC-020**: `quickstart.md` của tính năng PHẢI mô tả thiết lập từ repo sạch đến build/test/đóng gói xanh, đủ để người mới làm theo không cần hỏi thêm.
+- **FR-019**: Repo PHẢI có kiểm tra (cục bộ và CI) báo lỗi khi commit/PR không chứa số tính năng `NNN` (Điều XI).
+- **FR-020**: `quickstart.md` của tính năng PHẢI mô tả thiết lập từ repo sạch đến build/test/đóng gói xanh, đủ để người mới làm theo không cần hỏi thêm.
 
 ### Key Entities *(include if feature involves data)*
 

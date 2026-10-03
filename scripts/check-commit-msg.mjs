@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// 001 FR-SC-019 — commit/PR phải ghi số tính năng NNN (constitution Điều XI).
+// 001 FR-019 — commit/PR phải ghi số tính năng NNN (constitution Điều XI).
 // Dùng: check-commit-msg.mjs <file>  |  check-commit-msg.mjs --range <a..b>
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const RULE =
-  'commit message must reference the feature number NNN (e.g. "feat(core): x (001 FR-SC-008)")';
+  'commit message must reference the feature number NNN (e.g. "feat(core): x (001 FR-008)")';
 
 /** Trả về null nếu hợp lệ, hoặc chuỗi lỗi. */
 export function checkMessage(message) {

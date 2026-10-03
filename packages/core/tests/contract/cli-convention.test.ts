@@ -1,4 +1,4 @@
-// 001 · US2 AC1–4 · FR-SC-008, FR-SC-009 · SC-003 — quy ước D4 mục 12.
+// 001 · US2 AC1–4 · FR-008, FR-009 · SC-003 — quy ước D4 mục 12.
 import { describe, expect, it } from 'vitest';
 import { runSf } from '../helpers.js';
 
@@ -11,7 +11,7 @@ function parseErr(stderr: string): { code: string; message: string } {
   return err;
 }
 
-describe('sf CLI convention (001 FR-SC-008)', () => {
+describe('sf CLI convention (001 FR-008)', () => {
   it('--version prints JSON with version, exit 0', () => {
     const r = runSf(['--version']);
     expect(r.code).toBe(0);

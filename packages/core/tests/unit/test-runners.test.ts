@@ -1,4 +1,4 @@
-// 001 · FR-SC-012 — `sf test <type>` chọn runner theo project.
+// 001 · FR-012 — `sf test <type>` chọn runner theo project.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { coreDir } from '../helpers.js';
 
 const repoRoot = path.resolve(coreDir, '..', '..');
 
-describe('sf test runners (001 FR-SC-012)', () => {
+describe('sf test runners (001 FR-012)', () => {
   it('registers one command per D12 test type', () => {
     expect(commands.map((c) => c.name)).toEqual([...TEST_TYPES]);
   });
@@ -60,7 +60,7 @@ describe('sf test runners (001 FR-SC-012)', () => {
   });
 });
 
-describe('readJsonInput (001 FR-SC-008)', () => {
+describe('readJsonInput (001 FR-008)', () => {
   it('reads JSON from a stream', async () => {
     await expect(
       readJsonInput(Readable.from([Buffer.from('{"a":'), Buffer.from('1}')])),

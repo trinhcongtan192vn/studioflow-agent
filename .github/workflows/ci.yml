@@ -1,4 +1,4 @@
-# 001 FR-SC-014 — CI Windows không GPU (D12 mục 7). Đặt CI là required check để chặn merge khi đỏ.
+# 001 FR-014 — CI Windows không GPU (D12 mục 7). Đặt CI là required check để chặn merge khi đỏ.
 name: ci
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.11'
-      - name: Commit messages reference NNN (FR-SC-019)
+      - name: Commit messages reference NNN (FR-019)
         if: github.event_name == 'pull_request'
         run: node scripts/check-commit-msg.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
       - run: node scripts/doctor.mjs

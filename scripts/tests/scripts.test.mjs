@@ -1,4 +1,4 @@
-// 001 · US1 AC2, US3 AC1/AC4, US6 · FR-SC-002/004/006/019 — script khung.
+// 001 · US1 AC2, US3 AC1/AC4, US6 · FR-002/004/006/019 — script khung.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -83,15 +83,15 @@ test('desktop importing core internals fails lint (US3 AC4, FR-SC-002b)', () => 
   }
 });
 
-test('check-commit-msg (US6 AC1/AC2, FR-SC-019)', () => {
+test('check-commit-msg (US6 AC1/AC2, FR-019)', () => {
   assert.notEqual(checkMessage('fix: something'), null);
-  assert.equal(checkMessage('feat(core): sf CLI (001 FR-SC-008)'), null);
+  assert.equal(checkMessage('feat(core): sf CLI (001 FR-008)'), null);
   assert.equal(checkMessage('chore: x\n\nRefs 002'), null);
   assert.equal(checkMessage("Merge branch '001-repo-scaffold'"), null);
   assert.notEqual(checkMessage('# 001 only in comment\nfix: y'), null);
 });
 
-test('doctor reports missing and outdated tools (FR-SC-006)', () => {
+test('doctor reports missing and outdated tools (FR-006)', () => {
   assert.deepEqual(parseVersion('Python 3.12.7'), [3, 12, 7]);
   assert.equal(atLeast([22, 1, 0], '22.0.0'), true);
   assert.equal(atLeast([3, 10, 9], '3.11.0'), false);

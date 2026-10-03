@@ -1,11 +1,11 @@
-// 001 · FR-SC-007 — đường dẫn có khoảng trắng và Unicode.
+// 001 · FR-007 — đường dẫn có khoảng trắng và Unicode.
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runSf } from '../helpers.js';
 
-describe('paths with spaces/Unicode (001 FR-SC-007)', () => {
+describe('paths with spaces/Unicode (001 FR-007)', () => {
   it('sf runs from a cwd with spaces and diacritics', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'thư mục có dấu '));
     try {

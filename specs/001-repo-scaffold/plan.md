@@ -40,7 +40,7 @@ Dựng khung monorepo 3 project (`apps/desktop`, `packages/core`, `workers/gpu`)
 - [x] **Hợp đồng (V):** 001 chưa có schema miền (002 tạo `docs/contracts/`). Quy ước CLI lấy nguyên văn D4 mục 12; `contracts/cli.md` chỉ trích dẫn.
 - [x] **An toàn file (VI):** 001 không ghi vào kênh/video/kho dữ liệu app. Script dev chỉ ghi `dist/`, `coverage/`, `release/`.
 - [x] **Quan sát (VII):** chưa có thao tác sinh nội dung; log khung CLI ra stderr dạng JSON có cấu trúc khi `SF_LOG=debug`.
-- [x] **Đơn giản (VIII):** đúng 3 project; script gốc (`scripts/*.mjs`) không phải project; có kiểm tra tự động (FR-SC-002).
+- [x] **Đơn giản (VIII):** đúng 3 project; script gốc (`scripts/*.mjs`) không phải project; có kiểm tra tự động (FR-002).
 - [x] **Trừu tượng (IX):** không thêm lớp bọc; CLI dùng `parseArgs` trực tiếp.
 - [x] **Tích hợp (X):** test CLI spawn tiến trình thật, test worker chạy Python thật, test desktop chạy Electron thật (Playwright).
 
@@ -69,11 +69,11 @@ eslint.config.mjs  .prettierrc.json  .editorconfig  .gitattributes
 .githooks/commit-msg      # gọi scripts/check-commit-msg.mjs
 .github/workflows/ci.yml
 scripts/
-├── doctor.mjs            # kiểm công cụ nền tảng (FR-SC-006)
-├── verify.mjs            # build + lint + test tổng, báo cáo theo project (FR-SC-004)
+├── doctor.mjs            # kiểm công cụ nền tảng (FR-006)
+├── verify.mjs            # build + lint + test tổng, báo cáo theo project (FR-004)
 ├── check-structure.mjs   # đúng 3 project, extensions/ không là project (FR-SC-002a)
-├── check-commit-msg.mjs  # NNN trong commit/PR (FR-SC-019)
-└── package.mjs           # verify xanh rồi mới electron-builder (FR-SC-016)
+├── check-commit-msg.mjs  # NNN trong commit/PR (FR-019)
+└── package.mjs           # verify xanh rồi mới electron-builder (FR-016)
 packages/core/
 ├── package.json          # name @studioflow/core, "exports" chỉ "." và "./cli"
 ├── bin/sf.mjs

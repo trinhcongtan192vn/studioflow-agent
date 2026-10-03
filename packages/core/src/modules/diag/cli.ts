@@ -1,7 +1,7 @@
 import { CliError } from '../../cli/errors.js';
 import type { CliCommand } from '../../cli/types.js';
 
-/** Lệnh mẫu/chẩn đoán phủ đủ mã thoát 0/1/2 để kiểm quy ước CLI (001 FR-SC-009). */
+/** Lệnh mẫu/chẩn đoán phủ đủ mã thoát 0/1/2 để kiểm quy ước CLI (001 FR-009). */
 export const commands: CliCommand[] = [
   {
     module: 'diag',

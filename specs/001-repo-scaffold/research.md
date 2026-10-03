@@ -14,7 +14,7 @@ Theo `docs/tech-defaults.md` mục 6 trừ khi ghi lệch.
 
 ## R3. Khung CLI
 - **Decision**: tự viết trên `node:util.parseArgs`; registry phát hiện module bằng cách quét `modules/*/cli.{js,ts}` cạnh khung (import động).
-- **Rationale**: quy ước D4 mục 12 (JSON stdin, `{code, message}`, mã 0/1/2) không khớp sẵn với commander/yargs; phát hiện bằng thư mục đáp ứng FR-SC-010/SC-006 (thêm module không sửa khung).
+- **Rationale**: quy ước D4 mục 12 (JSON stdin, `{code, message}`, mã 0/1/2) không khớp sẵn với commander/yargs; phát hiện bằng thư mục đáp ứng FR-010/SC-006 (thêm module không sửa khung).
 - **Alternatives**: commander (phải bọc lại toàn bộ xử lý lỗi/mã thoát — trái Điều IX).
 
 ## R4. Ranh giới desktop → core

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 001 FR-SC-006 — kiểm công cụ nền tảng; báo tên + phiên bản tối thiểu khi thiếu/sai.
+// 001 FR-006 — kiểm công cụ nền tảng; báo tên + phiên bản tối thiểu khi thiếu/sai.
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

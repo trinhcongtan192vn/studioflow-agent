@@ -8,7 +8,7 @@ Windows 11 x64; Node ≥ 22; Python ≥ 3.11; `uv` ≥ 0.4; Git. (GPU không b�
 git clone <repo> ; cd studioflow-agent
 npm run setup      # doctor → npm install → uv sync → bật git hooks
 ```
-`npm run setup` báo rõ công cụ thiếu và phiên bản tối thiểu (FR-SC-006).
+`npm run setup` báo rõ công cụ thiếu và phiên bản tối thiểu (FR-006).
 
 ## Kiểm tra tổng (Story 1)
 ```powershell
@@ -44,4 +44,4 @@ npm run package          # chạy verify trước; xanh mới build → release/
 Bản cài **không ký số mã** (chỉ nội bộ M0/M1): Windows SmartScreen có thể cảnh báo "Windows protected your PC" → *More info* → *Run anyway*. Gỡ cài đặt xóa thư mục chương trình, giữ `%APPDATA%\StudioFlow`.
 
 ## Truy vết (Story 6)
-Commit message phải chứa số tính năng 3 chữ số, ví dụ `feat(core): ... (001 FR-SC-008)`. Hook `commit-msg` chặn nếu thiếu.
+Commit message phải chứa số tính năng 3 chữ số, ví dụ `feat(core): ... (001 FR-008)`. Hook `commit-msg` chặn nếu thiếu.

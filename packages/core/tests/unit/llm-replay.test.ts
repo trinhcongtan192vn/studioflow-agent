@@ -1,4 +1,4 @@
-// 001 · US5 AC3 · FR-SC-013 — SF_LLM record/replay (D12 mục 2).
+// 001 · US5 AC3 · FR-013 — SF_LLM record/replay (D12 mục 2).
 import { mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,7 +16,7 @@ function tmp(): string {
   return d;
 }
 
-describe('LLM record/replay (001 FR-SC-013)', () => {
+describe('LLM record/replay (001 FR-013)', () => {
   it('replay with no fixture fails and never calls the real LLM', async () => {
     const real = vi.fn();
     await expect(
@@ -63,7 +63,7 @@ describe('LLM record/replay (001 FR-SC-013)', () => {
   });
 });
 
-describe('gpuEnabled (001 FR-SC-013)', () => {
+describe('gpuEnabled (001 FR-013)', () => {
   it('is false only when SF_GPU=0', () => {
     const prev = process.env.SF_GPU;
     try {

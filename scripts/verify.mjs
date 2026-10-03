@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 001 FR-SC-004 — build + lint + test cho cả 3 project, báo cáo theo project (contracts/verify-report.md).
+// 001 FR-004 — build + lint + test cho cả 3 project, báo cáo theo project (contracts/verify-report.md).
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';

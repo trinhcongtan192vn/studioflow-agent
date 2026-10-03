@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 001 FR-SC-001/002a — đúng 3 project; extensions/ chỉ là dữ liệu; phiên bản thống nhất.
+// 001 FR-001/002a — đúng 3 project; extensions/ chỉ là dữ liệu; phiên bản thống nhất.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

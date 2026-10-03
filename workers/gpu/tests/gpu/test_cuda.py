@@ -1,4 +1,4 @@
-"""001 FR-SC-013 — mẫu test nhãn gpu."""
+"""001 FR-013 — mẫu test nhãn gpu."""
 
 import pytest
 

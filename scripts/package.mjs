@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 001 FR-SC-016 — đóng gói chỉ khi verify xanh; sinh release/StudioFlow-Setup-<version>.exe.
+// 001 FR-016 — đóng gói chỉ khi verify xanh; sinh release/StudioFlow-Setup-<version>.exe.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
