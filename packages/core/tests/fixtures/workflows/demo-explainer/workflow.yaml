@@ -1,0 +1,20 @@
+id: demo-explainer
+version: 1.0.0
+title: Demo thuyết minh
+description: Workflow mẫu cho test Workflow Engine (007)
+app_api: '>=1.0 <2.0'
+output_profiles: [yt-1080p30, yt-shorts-1080x1920]
+requires: [tts.synthesize]
+brief: { questions: ['Độ dài mục tiêu?'] }
+steps:
+  - { id: script, uses: script, title: Kịch bản, approval: { required: true } }
+  - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
+  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
+  - { id: voice, uses: voice, title: Giọng đọc }
+  - {
+      id: finalize,
+      uses: finalize,
+      title: Hoàn thiện,
+      gate: [{ kind: approved, step: storyboard }],
+      approval: { required: true },
+    }

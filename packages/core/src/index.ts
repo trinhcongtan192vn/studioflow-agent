@@ -104,3 +104,35 @@ export { PythonWorker } from './workers/client.js';
 export * from './providers/index.js';
 export { audioLineBuilder, voiceFile } from './tts/builder.js';
 export { createVoiceProfile, speak, ttsTools, defineTtsJobs } from './tts/tools.js';
+
+// Workflow Engine (007, D6)
+export { satisfies } from './workflow/semver.js';
+export {
+  STEP_LIBRARY,
+  validateManifest,
+  executionOrder,
+  type StepSpec,
+  type ManifestError,
+} from './workflow/library.js';
+export {
+  loadPack,
+  loadPacks,
+  defaultWorkflowDirs,
+  APP_API,
+  APP_PHASE,
+  type WorkflowPack,
+} from './workflow/packs.js';
+export {
+  evaluateGate,
+  registerObjective,
+  type GateResult,
+  type GateContext,
+} from './workflow/gates.js';
+export {
+  WorkflowEngine,
+  type StepExecutor,
+  type AgentStepRunner,
+  type StepRunContext,
+} from './workflow/engine.js';
+export { WorkflowService } from './workflow/service.js';
+export { workflowTools } from './workflow/tools.js';
