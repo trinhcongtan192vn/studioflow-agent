@@ -13,6 +13,9 @@
     "./cli": {
       "types": "./dist/cli/main.d.ts",
       "default": "./dist/cli/main.js"
+    },
+    "./host-entry": {
+      "default": "./dist/host/main.js"
     }
   },
   "bin": {

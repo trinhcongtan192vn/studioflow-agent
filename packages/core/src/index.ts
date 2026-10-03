@@ -297,3 +297,18 @@ export {
   getTrace,
   type SpanRow,
 } from './trace/trace.js';
+export { CoreHost } from './host/host.js';
+export {
+  UPLOAD_LIMIT,
+  UPLOAD_TYPES,
+  type IpcMethods,
+  type IpcEvents,
+  type IpcMethod,
+  type IpcRequest,
+  type IpcResponse,
+  type IpcNotification,
+  type ChatLine,
+  type ExplorerNode,
+  type HostControl,
+} from './ipc/schema.js';
+export { setHostSecrets } from './secrets/credman.js';

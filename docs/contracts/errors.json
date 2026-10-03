@@ -296,6 +296,16 @@
       ]
     },
     {
+      "code": "E_NOT_CHANNEL",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/008-desktop-shell-chat/spec.md",
+          "when": "Thư mục mở không có channel.json (IPC channel.open)"
+        }
+      ]
+    },
+    {
       "code": "E_OWNER_CONFLICT",
       "retryable": false,
       "sources": [

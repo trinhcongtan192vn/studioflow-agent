@@ -95,10 +95,19 @@ export function getSecretDefault(name: string): string | undefined {
     } as Record<string, string | undefined>
   )[name];
   if (env) return env;
+  // app desktop: `main` đọc Credential Manager và chuyển cho core (D5 mục 5.4)
+  if (hostSecrets) return hostSecrets[name];
   if (process.platform !== 'win32' || process.env.SF_NO_CREDMAN === '1') return undefined;
   try {
     return secretGet(name);
   } catch {
     return undefined;
   }
+}
+
+let hostSecrets: Record<string, string> | undefined;
+
+/** Core trong app desktop nhận bí mật từ `main` (không tự đọc Credential Manager). */
+export function setHostSecrets(s: Record<string, string> | undefined): void {
+  hostSecrets = s;
 }

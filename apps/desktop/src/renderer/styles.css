@@ -1,0 +1,275 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --ink: #16191d;
+  --muted: #5f6b77;
+  --line: #d9dee4;
+  --accent: #2f6fde;
+  --tool: #eef2f8;
+  --user: #e5efff;
+  --warn: #b3261e;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15181c;
+    --panel: #1d2127;
+    --ink: #e8ebef;
+    --muted: #9aa5b1;
+    --line: #2f353d;
+    --accent: #6ea0ff;
+    --tool: #232932;
+    --user: #22324d;
+    --warn: #ff8a80;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button {
+  font: inherit;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.link {
+  border: none;
+  background: none;
+  padding: 2px 0;
+  text-align: left;
+  color: var(--ink);
+}
+input,
+textarea,
+select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.home {
+  padding: 32px;
+  overflow: auto;
+  flex: 1;
+}
+.home section {
+  margin-bottom: 24px;
+}
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr 420px;
+  min-height: 0;
+}
+.left,
+.right {
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 10px;
+  overflow: auto;
+}
+.right {
+  border-left: 1px solid var(--line);
+  border-right: none;
+  display: flex;
+  flex-direction: column;
+}
+.center {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.video-head {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.messages {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+}
+.msg {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+.msg.user {
+  background: var(--user);
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-left: 15%;
+}
+.msg.tool {
+  background: var(--tool);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.msg.system {
+  color: var(--muted);
+  font-style: italic;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+}
+.card.wide {
+  width: 80vw;
+  max-height: 80vh;
+  overflow: auto;
+}
+.note {
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+.composer {
+  border-top: 1px solid var(--line);
+  padding: 10px;
+}
+.composer textarea {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 10px;
+}
+.list li.active {
+  font-weight: 600;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--warn);
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.tabs button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tab-body {
+  flex: 1;
+  overflow: auto;
+}
+.steps {
+  padding-left: 18px;
+}
+.step .actions {
+  float: right;
+}
+.step .actions button {
+  padding: 0 6px;
+  margin-left: 2px;
+}
+.step.failed {
+  color: var(--warn);
+}
+.jobs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.jobs td {
+  border-bottom: 1px solid var(--line);
+  padding: 3px 4px;
+}
+.explorer .children {
+  padding-left: 12px;
+}
+.explorer .dir {
+  font-weight: 600;
+}
+.spans {
+  list-style: none;
+  padding: 0;
+  font-size: 13px;
+}
+.spans .error {
+  color: var(--warn);
+}
+.chip {
+  background: var(--tool);
+  border-radius: 10px;
+  padding: 2px 8px;
+  margin-right: 4px;
+  font-size: 12px;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.modal .card {
+  min-width: 520px;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  z-index: 20;
+}
+.statusbar {
+  display: flex;
+  gap: 18px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--muted);
+}
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

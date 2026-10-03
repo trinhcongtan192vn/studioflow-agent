@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { context, trace } from '@opentelemetry/api';
+import { clean, tracer } from '../trace/trace.js';
 import type {
   AgentEvent,
   AgentRuntime,
@@ -66,13 +68,39 @@ export class RecordReplayRuntime implements AgentRuntime {
             },
             { fixtureDir, mode },
           );
-          for (const e of events) {
-            if (reexec && e.type === 'tool_call' && e.name.startsWith('mcp__sf__')) {
-              // tên MCP `mcp__sf__artifact_write` → tool `artifact.write`
-              const name = e.name.slice('mcp__sf__'.length).replace('_', '.');
-              await callTool!(o.context, name, e.input);
+          // phát lại: phiên thật không chạy → span `sf.agent.session` dựng từ sự kiện đã ghi (D11)
+          const span = replaying
+            ? tracer().startSpan('sf.agent.session', {
+                attributes: clean({
+                  'sf.session_kind': o.kind,
+                  'sf.session_id': o.context.session_id,
+                  'sf.video_id': o.context.video_id,
+                  'sf.replay': true,
+                }),
+              })
+            : undefined;
+          const ctx = span ? trace.setSpan(context.active(), span) : context.active();
+          let tin = 0;
+          let tout = 0;
+          try {
+            for (const e of events) {
+              if (e.type === 'usage') {
+                tin += e.input_tokens;
+                tout += e.output_tokens;
+              }
+              if (reexec && e.type === 'tool_call' && e.name.startsWith('mcp__sf__')) {
+                // tên MCP `mcp__sf__artifact_write` → tool `artifact.write`
+                const name = e.name.slice('mcp__sf__'.length).replace('_', '.');
+                await context.with(ctx, () => callTool!(o.context, name, e.input));
+              }
+              yield e;
             }
-            yield e;
+          } finally {
+            span?.setAttributes({
+              'gen_ai.usage.input_tokens': tin,
+              'gen_ai.usage.output_tokens': tout,
+            });
+            span?.end();
           }
         } catch (e) {
           if (e instanceof LlmFixtureError)

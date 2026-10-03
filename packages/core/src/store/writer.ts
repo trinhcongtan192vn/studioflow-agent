@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  appendFileSync,
   closeSync,
   copyFileSync,
   existsSync,
@@ -7,12 +8,12 @@ import {
   linkSync,
   mkdirSync,
   openSync,
-  readdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
-  rmdirSync,
   rmSync,
+  rmdirSync,
   writeSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -127,6 +128,14 @@ export class WriteStore {
     const hash = sha256(readFileSync(dst.abs));
     this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
     return { path: dst.rel, hash };
+  }
+
+  /** Ghi nối một dòng vào file chỉ-nối-đuôi (chat log `chat/<session_id>.jsonl`, D3 5.16). */
+  appendLine(rel: string, line: string, opts: { by: string }): void {
+    const target = resolveInside(this.root, rel);
+    mkdirSync(path.dirname(target.abs), { recursive: true });
+    appendFileSync(target.abs, `${line.replace(/\r?\n/g, ' ')}\n`);
+    this.entries.push({ path: target.rel, hash: '', by: opts.by, ts: new Date().toISOString() });
   }
 
   /**
