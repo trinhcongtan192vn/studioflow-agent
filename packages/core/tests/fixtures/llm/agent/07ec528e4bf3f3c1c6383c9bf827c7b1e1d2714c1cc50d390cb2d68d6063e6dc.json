@@ -1,0 +1,77 @@
+{
+  "request": {
+    "allowed": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Skill",
+      "TodoWrite",
+      "mcp__sf__artifact_list",
+      "mcp__sf__artifact_read",
+      "mcp__sf__artifact_validate",
+      "mcp__sf__artifact_write",
+      "mcp__sf__config_resolve",
+      "mcp__sf__config_set",
+      "mcp__sf__graph_build",
+      "mcp__sf__graph_plan",
+      "mcp__sf__graph_status",
+      "mcp__sf__job_cancel",
+      "mcp__sf__job_list",
+      "mcp__sf__job_status",
+      "mcp__sf__job_wait",
+      "mcp__sf__script_run"
+    ],
+    "history": [
+      "Đọc SCRIPT.md của video hiện tại và cho biết có bao nhiêu line (marker sf:line). Trả lời chỉ bằng một con số."
+    ],
+    "kind": "main",
+    "model": "claude-sonnet-5-5",
+    "plugins": ["studioflow-core", "profile"],
+    "systemAppend": "Bạn là agent sản xuất video của StudioFlow. Quy tắc:\n1. Chỉ ghi file qua tool mcp__sf__artifact_write; chỉ chạy lệnh qua mcp__sf__script_run. Không cố dùng cách khác.\n2. Làm theo workflow hiện tại (xem mcp__sf__workflow_state). Khi xong một bước do bạn thực hiện, gọi mcp__sf__workflow_step_complete.\n3. Không tự duyệt thay người dùng. Điểm duyệt do hệ thống tạo; bạn chỉ gắn tóm tắt bằng mcp__sf__approval_annotate.\n4. Dùng capability theo tên, không nhắc tên model.\n5. Không sửa file của frame đã ghim nếu chưa được người dùng cho phép.\n6. Trả lời người dùng bằng ngôn ngữ của họ; nội dung video theo ngôn ngữ kênh.\n7. Khi thiếu thông tin, hỏi ngắn gọn thay vì đoán.\nĐường dẫn trong tool sf là tương đối thư mục video hiện tại (ví dụ SCRIPT.md)."
+  },
+  "response": [
+    {
+      "type": "tool_call",
+      "id": "toolu_01UTjT3mkP1aSWUnpt7UibGv",
+      "name": "ToolSearch",
+      "input": {
+        "query": "select:mcp__sf__artifact_read",
+        "max_results": 1
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01UTjT3mkP1aSWUnpt7UibGv",
+      "ok": true,
+      "summary": ""
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01K3mzsMgRgP2uc7o8GwqJhK",
+      "name": "mcp__sf__artifact_read",
+      "input": {
+        "path": "SCRIPT.md"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01K3mzsMgRgP2uc7o8GwqJhK",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"content\":\"---\\nschema_version: 1\\nvideo_id: vd_8m2pq7rt\\nlanguage: vi\\nstatus: approved\\n---\\nGhi chú tự do trước beat đầu tiên — parser giữ nguyên.\\n\\n## Mở đầu <!-- sf:beat id=bt"
+    },
+    {
+      "type": "text_delta",
+      "text": "3"
+    },
+    {
+      "type": "usage",
+      "input_tokens": 6,
+      "output_tokens": 152,
+      "cost_usd": 0.1091726
+    },
+    {
+      "type": "done",
+      "stop_reason": "end_turn"
+    }
+  ]
+}

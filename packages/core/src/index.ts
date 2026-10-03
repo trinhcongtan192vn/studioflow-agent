@@ -95,3 +95,6 @@ export { assembleAudioLines, computeFrameTiming, type FrameTiming } from './grap
 export { loadVideoModel, type VideoModel } from './graph/model.js';
 export { createCore, type Core, type CoreOptions } from './core.js';
 export { canonicalJson } from './domain/hash.js';
+
+// Agent Runtime (005, D5)
+export * from './agent/index.js';

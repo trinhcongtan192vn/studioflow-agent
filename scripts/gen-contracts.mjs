@@ -122,6 +122,14 @@ export function extractD4(md, deps) {
   return `${GENERATED('docs/04-spec-capability-gateway.md mục 2.2–2.3, 3, 4.1, 5')}${importsFor(body, deps)}\n${body}\n`;
 }
 
+/** D5 mục 1: Agent Runtime Port. */
+export function extractD5(md, deps) {
+  const body = sections(md, [['## 1.', '## 2.']]);
+  return `${GENERATED('docs/05-spec-agent-runtime-policy.md mục 1')}${importsFor(body, deps)}
+${body}
+`;
+}
+
 /** D6: manifest workflow, rubric, frame packet. */
 export function extractD6(md, deps) {
   const body = sections(md, [['## 1.', '## 9.']]);
@@ -252,6 +260,7 @@ function plannedFiles() {
   const d3 = readFileSync(path.join(docs, '03-spec-domain-artifacts.md'), 'utf8');
   const d4 = readFileSync(path.join(docs, '04-spec-capability-gateway.md'), 'utf8');
   const d6 = readFileSync(path.join(docs, '06-spec-workflow-skill.md'), 'utf8');
+  const d5 = readFileSync(path.join(docs, '05-spec-agent-runtime-policy.md'), 'utf8');
   const keys = extractConfigKeys(d3);
   const errorDocs = readdirSync(docs)
     .filter((f) => /^(0[3-9]|1[01])-.*\.md$/.test(f))
@@ -264,9 +273,17 @@ function plannedFiles() {
     { from: '../domain/d3', ts: d3Ts },
     { from: '../domain/config-keys', ts: keysTs },
   ]);
+  const d4Ts = extractD4(d4, [
+    { from: '../domain/d3', ts: d3Ts },
+    { from: '../workflow/d6', ts: d6Ts },
+  ]);
   return {
     d3Ts,
     d6Ts,
+    d5Ts: extractD5(d5, [
+      { from: '../domain/d3', ts: d3Ts },
+      { from: '../gateway/d4', ts: d4Ts },
+    ]),
     d4Ts: extractD4(d4, [
       { from: '../domain/d3', ts: d3Ts },
       { from: '../workflow/d6', ts: d6Ts },
@@ -287,6 +304,7 @@ async function build() {
     [path.join(outDocs, 'domain', 'd3.ts'), f.d3Ts],
     [path.join(outDocs, 'gateway', 'd4.ts'), f.d4Ts],
     [path.join(outDocs, 'workflow', 'd6.ts'), f.d6Ts],
+    [path.join(outDocs, 'agent', 'd5.ts'), f.d5Ts],
     [path.join(outDocs, 'index.ts'), ROOT_INDEX_TS],
     [path.join(outDocs, 'domain', 'config-keys.ts'), f.keysTs],
     [path.join(outDocs, 'domain', 'index.ts'), INDEX_TS],
@@ -319,6 +337,7 @@ async function build() {
       f.keysTs,
       f.d6Ts,
       f.d4Ts,
+      f.d5Ts,
     ]
       .map((s) =>
         s
