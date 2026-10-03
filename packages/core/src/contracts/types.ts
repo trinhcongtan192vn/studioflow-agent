@@ -507,3 +507,40 @@ export type AgentEvent =
   | { type: 'error'; code: string; message: string };
 
 export type ToolPolicy = { allowed: string[]; readRoots: string[] };   // allowed: tên tool MCP + built-in theo mục 4; readRoots: thư mục cho Read/Glob/Grep
+
+
+export interface MusicManifest extends Versioned {   // schema_version 1
+  tracks: MusicTrack[];
+}
+
+export interface MusicTrack {
+  id: MusicTrackId; kind: 'music' | 'sfx';
+  file: RelPath; original_name: string; hash: Sha256;
+  title?: string; artist?: string;
+  source?: string; url?: string;             // ví dụ "YouTube Audio Library", "Pixabay"
+  attribution?: string;                      // văn bản ghi công nguyên văn, nếu bài yêu cầu
+  tags: string[];                            // thể loại, tâm trạng, nhạc cụ (chữ thường)
+  description?: string;
+  analysis: {
+    duration_ms: Ms; sample_rate: number; channels: number;
+    bpm?: number; bpm_confidence?: number;
+    energy: number;                          // 0–1, RMS trung bình chuẩn hóa
+    energy_curve: number[];                  // RMS mỗi 1 giây, 0–1
+    loudness_lufs: number;
+    loop_points?: { start_ms: Ms; end_ms: Ms }[];
+    silence_head_ms: Ms; silence_tail_ms: Ms;
+  };
+  embedding?: { model: string; vector_file: RelPath };   // M2, '.index/<track_id>.npy' tương đối với thư mục kho
+  added_at: Iso8601; used_in: VideoId[];
+}
+
+export interface MusicFindInput {
+  query?: string;                       // mô tả tự nhiên hoặc từ khóa
+  tags?: string[];                      // phải có tất cả
+  bpm?: { min?: number; max?: number };
+  energy?: { min?: number; max?: number };
+  min_duration_ms?: Ms;
+  exclude_ids?: MusicTrackId[];
+  limit?: number;                       // mặc định 5
+}
+export interface MusicFindOutput { results: { track_id: MusicTrackId; score: number; reasons: string[] }[] }

@@ -6,7 +6,9 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", { include-group = "audio" }]
+# engine audio-analysis (CPU, 012): cũng cài vào <app-data>/providers/python/audio-analysis
+audio = ["librosa==0.11.0", "pyloudnorm==0.1.1", "soundfile==0.13.1"]
 
 [build-system]
 requires = ["hatchling"]

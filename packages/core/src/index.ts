@@ -225,3 +225,30 @@ export { designSystemExecutor } from './hf/design-system.js';
 export { imageInfo, type ImageInfo } from './assets/image-info.js';
 export { importAsset, searchAssets, readManifest } from './assets/library.js';
 export { assetTools } from './assets/tools.js';
+export {
+  createAudioAnalysisProvider,
+  type AnalyzeInput,
+  type MusicAnalysis,
+} from './music/provider.js';
+export {
+  addTracks,
+  appLibrary,
+  readMusicManifest,
+  trackById,
+  recentVideoIds,
+  markUsed,
+  type MusicLibrary,
+  type AddInput,
+} from './music/library.js';
+export { findMusic } from './music/find.js';
+export {
+  bedFfmpegArgs,
+  duckExpression,
+  mergeIntervals,
+  renderBed,
+  runFfmpeg,
+  type BedInput,
+  type MusicSegment,
+} from './music/mix.js';
+export { buildCredits } from './music/credits.js';
+export { musicTools, defineMusicJobs } from './music/tools.js';

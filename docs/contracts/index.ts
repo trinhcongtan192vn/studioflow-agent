@@ -2,3 +2,4 @@
 export * from './domain/index';
 export * from './gateway/d4';
 export * from './workflow/d6';
+export * from './music/d8';

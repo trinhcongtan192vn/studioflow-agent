@@ -117,6 +117,14 @@ export interface IndexInput {
   voices: { line_id: string; file: string; start_ms: number; duration_ms: number }[];
   captions: boolean;
   total_ms: number;
+  /** Bed nhạc đã trộn (012): thuộc tính D8 mục 3. */
+  music?: {
+    file: string;
+    track_ids: string[];
+    volume_db: number;
+    duck_db: number;
+    fade_ms: number;
+  };
 }
 
 /** `index.html` theo quy ước HyperFrames (assemble-index.mjs + transitions.mjs v0.8.115, 011 R1). */
@@ -137,6 +145,12 @@ export function buildIndexHtml(i: IndexInput): string {
   for (const v of i.voices) {
     body.push(
       `      <audio id="el-${v.line_id}-voice" data-sf-line="${v.line_id}" src="${v.file}" data-start="${r3(v.start_ms / 1000)}" data-duration="${r3(v.duration_ms / 1000)}" data-track-index="10" data-volume="1"></audio>`,
+    );
+  }
+  if (i.music) {
+    const m = i.music;
+    body.push(
+      `      <audio id="el-music" data-sf-track="${m.track_ids.join(',')}" src="${m.file}" data-start="0" data-duration="${total}" data-track-index="11" data-volume="1" data-volume-db="${m.volume_db}" data-fade-in-ms="${m.fade_ms}" data-fade-out-ms="${m.fade_ms}" data-duck-db="${m.duck_db}"></audio>`,
     );
   }
   const gsap: string[] = [];

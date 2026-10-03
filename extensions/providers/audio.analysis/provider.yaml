@@ -1,0 +1,12 @@
+# Phân tích bài nhạc khi nạp (D4 mục 4.3, D8, 012): worker Python engine audio-analysis (CPU).
+id: audio.analysis
+version: 1.0.0
+capabilities: [music.analyze]
+contract_versions: { music.analyze: '1' }
+runtime: python-worker
+engine: audio-analysis
+resource: cpu
+install_profile: standard
+cost: { kind: free }
+health: { method: health, timeout_ms: 60000 }
+app_api: '>=0.1 <2.0'
