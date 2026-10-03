@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain — còn 2: nội dung bản cài đặt (Story 4), ký số mã (FR-SC-018)
+- [x] No [NEEDS CLARIFICATION] markers remain — 2 điểm đã chốt ngày 2026-10-03 (xem mục Clarifications trong spec)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,5 +31,5 @@
 
 ## Notes
 
-- 2 điểm [NEEDS CLARIFICATION] cần Tan trả lời ở bước `/speckit-clarify` (hoặc trực tiếp khi duyệt) trước `/speckit-plan`.
+- 2 điểm [NEEDS CLARIFICATION] đã được chốt khi duyệt (2026-10-03): gói cài = vỏ app + `core`; không ký số mã ở 001.
 - NFR-09 chỉ được phủ một phần (hạ tầng); dự án mẫu theo workflow thuộc các tính năng 016, 023, 029–031.

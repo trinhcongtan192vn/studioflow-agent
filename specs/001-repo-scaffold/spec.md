@@ -16,6 +16,13 @@
 
 Mọi tính năng sau (002–032) cần một chỗ đứng chung: cùng cấu trúc thư mục, cùng cách chạy test/lint, cùng cách gọi lệnh `sf`, và một đường ra bản cài đặt Windows. Tính năng này **chỉ dựng khung** — không chứa logic nghiệp vụ (mô hình miền, Gateway, workflow, TTS… thuộc các tính năng 002+). Mục tiêu: một lập trình viên (hoặc Claude Code) clone repo, chạy vài lệnh là build/test/lint được trên Windows 11 x64, và các tính năng sau chỉ việc thêm module vào đúng chỗ.
 
+## Clarifications
+
+### Session 2026-10-03
+
+- Q: Bản cài đặt Windows ở 001 gồm những gì? → A: Chỉ vỏ app + `core`; không kèm CLI `sf`, Python, FFmpeg (014 lo runtime).
+- Q: Có ký số mã bản cài đặt ở 001 không? → A: Không ký ở 001; ghi chú rủi ro SmartScreen trong `quickstart.md`.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Thiết lập và chạy kiểm tra từ repo sạch (Priority: P1)
@@ -83,7 +90,7 @@ Lập trình viên chạy một lệnh đóng gói và nhận ra một bản cà
 1. **Given** repo đã build xanh, **When** chạy lệnh đóng gói, **Then** sinh ra một bản cài đặt Windows x64 kèm số phiên bản khớp với phiên bản của repo.
 2. **Given** bản cài đặt đã sinh, **When** cài trên máy Windows 11 x64 sạch và mở app, **Then** cửa sổ chính mở và hiển thị phiên bản.
 3. **Given** app đã cài, **When** gỡ cài đặt, **Then** thư mục chương trình bị xóa và dữ liệu người dùng (nếu có) không bị xóa ngầm.
-4. **Given** gói cài đặt, **When** kiểm tra nội dung, **Then** CLI `sf` có trong gói và gọi được từ bản đã cài *hoặc* quyết định không đưa vào gói được ghi rõ [NEEDS CLARIFICATION: bản cài đặt có kèm CLI `sf` và runtime (Node/Python/FFmpeg) không, hay chỉ vỏ app? Mặc định đề xuất: chỉ vỏ app + `core`; Python worker và FFmpeg do tính năng 014 (model-manager-install) lo.]
+4. **Given** gói cài đặt, **When** kiểm tra nội dung, **Then** gói chỉ chứa vỏ app + `core`; CLI `sf`, runtime Python và FFmpeg không có trong gói (Python worker/FFmpeg do tính năng 014 lo).
 
 ---
 
@@ -166,7 +173,7 @@ Mỗi commit và test tham chiếu số tính năng (`NNN`) và mã FR/AC theo �
 
 - **FR-SC-016**: PHẢI có một lệnh đóng gói sinh bản cài đặt Windows x64 mang số phiên bản của repo; từ chối chạy nếu build/test chưa xanh.
 - **FR-SC-017**: Bản cài đặt PHẢI cài, mở được cửa sổ chính hiển thị phiên bản `core`, và gỡ cài đặt sạch phần chương trình mà không xóa ngầm dữ liệu người dùng.
-- **FR-SC-018**: Việc bản cài đặt có ký số mã hay không PHẢI được quyết định trước khi phát hành [NEEDS CLARIFICATION: ký số mã ở 001 hay để sau? Mặc định đề xuất: không ký ở 001 (chỉ phục vụ nội bộ M0/M1), ghi chú rủi ro SmartScreen trong quickstart.]
+- **FR-SC-018**: Bản cài đặt ở 001 KHÔNG ký số mã (chỉ phục vụ nội bộ M0/M1); `quickstart.md` PHẢI ghi chú rủi ro cảnh báo SmartScreen. Quyết định ký số mã được xem lại trước khi phát hành công khai.
 
 **Truy vết**
 
@@ -201,7 +208,7 @@ Mỗi commit và test tham chiếu số tính năng (`NNN`) và mã FR/AC theo �
 
 - Nền tảng mục tiêu duy nhất: Windows 11 x64 (đã chốt ở `docs/README.md` mục 2); không hỗ trợ macOS/Linux ở 001.
 - Lựa chọn công nghệ cụ thể (trình quản lý gói, công cụ test/lint, công cụ đóng gói, nền CI) thuộc `plan.md`; `tech-defaults.md` mục 6 là gợi ý không ràng buộc.
-- Nội dung bản cài đặt ở 001 là "vỏ app + `core`" (xem câu hỏi ở Story 4); runtime Python/FFmpeg/model tải sau bởi tính năng 014.
+- Nội dung bản cài đặt ở 001 là "vỏ app + `core`" (đã chốt, xem Clarifications); runtime Python/FFmpeg/model tải sau bởi tính năng 014.
 - Worker `workers/gpu` ở 001 chỉ có lệnh tự kiểm chạy được trên CPU; không có model, không cần GPU.
 - Hệ thống quản lý mã nguồn là Git với CI do nền tảng lưu trữ mã nguồn cung cấp; quy tắc "một tính năng = một nhánh `NNN-<tên>`" theo `docs/README.md` mục 3.3.
 - Dự án chưa có người dùng cuối; "người dùng" của tính năng này là lập trình viên và Claude Code.
