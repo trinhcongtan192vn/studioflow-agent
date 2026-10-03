@@ -16,12 +16,18 @@ export default tseslint.config(
       '.claude/**',
       '**/test-results/**',
       'scripts/tests/fixtures/**',
+      'packages/core/src/contracts/**',
+      'docs/**',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['**/tests/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {
     files: ['apps/desktop/src/renderer/**/*.{ts,tsx}'],

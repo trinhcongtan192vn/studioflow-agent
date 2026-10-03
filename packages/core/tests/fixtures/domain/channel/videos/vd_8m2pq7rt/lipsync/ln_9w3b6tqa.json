@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "line_id": "ln_9w3b6tqa",
+  "cast_id": "ca_a7f2k9wd",
+  "fps": 30,
+  "cues": [
+    { "frame": 0, "mouth": "closed" },
+    { "frame": 3, "mouth": "open" }
+  ]
+}

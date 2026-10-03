@@ -3,7 +3,8 @@ import type { Readable, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getVersion } from '../version.js';
-import { CliError, usageError } from './errors.js';
+import { SfError } from '../errors.js';
+import { usageError } from './errors.js';
 import { readJsonInput } from './io.js';
 import { loadCommands } from './registry.js';
 import type { CliCommand } from './types.js';
@@ -107,8 +108,12 @@ export async function main(argv: string[], io: MainIo = {}): Promise<number> {
     writeJson(stdout, result ?? {});
     return 0;
   } catch (e) {
-    if (e instanceof CliError) {
-      writeJson(stderr, { code: e.code, message: e.message });
+    if (e instanceof SfError) {
+      writeJson(stderr, {
+        code: e.code,
+        message: e.message,
+        ...(e.details === undefined ? {} : { details: e.details }),
+      });
       return e.exit;
     }
     writeJson(stderr, { code: 'E_INTERNAL', message: (e as Error)?.message ?? String(e) });

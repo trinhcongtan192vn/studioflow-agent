@@ -1,0 +1,406 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/StoryboardDoc",
+  "definitions": {
+    "StoryboardDoc": {
+      "type": "object",
+      "properties": {
+        "front": {
+          "$ref": "#/definitions/StoryboardFrontMatter"
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Scene"
+          }
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Frame"
+          }
+        }
+      },
+      "required": [
+        "front",
+        "scenes",
+        "frames"
+      ],
+      "additionalProperties": false
+    },
+    "StoryboardFrontMatter": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "status": {
+          "$ref": "#/definitions/DocStatus"
+        }
+      },
+      "required": [
+        "schema_version",
+        "status",
+        "video_id"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.5"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "DocStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "Scene": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/SceneId"
+        },
+        "order": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "setting": {
+          "type": "string"
+        },
+        "time_of_day": {
+          "type": "string"
+        },
+        "mood": {
+          "type": "string"
+        },
+        "look": {
+          "type": "string"
+        },
+        "music": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "none"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "track_id": {
+                  "$ref": "#/definitions/MusicTrackId"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "volume_db": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "frame_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FrameId"
+          }
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id",
+        "order",
+        "title",
+        "frame_ids"
+      ],
+      "additionalProperties": false
+    },
+    "SceneId": {
+      "$ref": "#/definitions/Id%3C%22sc%22%3E"
+    },
+    "Id<\"sc\">": {
+      "type": "string",
+      "pattern": "^sc_[0-9a-z]{8}$"
+    },
+    "MusicTrackId": {
+      "$ref": "#/definitions/Id%3C%22mt%22%3E"
+    },
+    "Id<\"mt\">": {
+      "type": "string",
+      "pattern": "^mt_[0-9a-z]{8}$"
+    },
+    "FrameId": {
+      "$ref": "#/definitions/Id%3C%22fr%22%3E"
+    },
+    "Id<\"fr\">": {
+      "type": "string",
+      "pattern": "^fr_[0-9a-z]{8}$"
+    },
+    "Frame": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/FrameId"
+        },
+        "scene_id": {
+          "$ref": "#/definitions/SceneId"
+        },
+        "order": {
+          "type": "number"
+        },
+        "beat_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BeatId"
+          }
+        },
+        "line_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LineId"
+          }
+        },
+        "blueprint": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Layer"
+          }
+        },
+        "transition_in": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "$ref": "#/definitions/Ms"
+            }
+          },
+          "required": [
+            "type",
+            "duration_ms"
+          ],
+          "additionalProperties": false
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "overlays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "block": {
+                "type": "string"
+              },
+              "vars": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "block",
+              "vars"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "lipsync": {
+          "type": "object",
+          "properties": {
+            "cast_id": {
+              "$ref": "#/definitions/CastId"
+            },
+            "mouth_anchor": {
+              "$ref": "#/definitions/ElementId"
+            }
+          },
+          "required": [
+            "cast_id",
+            "mouth_anchor"
+          ],
+          "additionalProperties": false
+        },
+        "sfx": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "track_id": {
+                "$ref": "#/definitions/MusicTrackId"
+              },
+              "at_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "volume_db": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "track_id",
+              "at_ms"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "min_duration_ms": {
+          "$ref": "#/definitions/Ms"
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id",
+        "scene_id",
+        "order",
+        "beat_ids",
+        "line_ids",
+        "intent",
+        "layers"
+      ],
+      "additionalProperties": false
+    },
+    "BeatId": {
+      "$ref": "#/definitions/Id%3C%22bt%22%3E"
+    },
+    "Id<\"bt\">": {
+      "type": "string",
+      "pattern": "^bt_[0-9a-z]{8}$"
+    },
+    "LineId": {
+      "$ref": "#/definitions/Id%3C%22ln%22%3E"
+    },
+    "Id<\"ln\">": {
+      "type": "string",
+      "pattern": "^ln_[0-9a-z]{8}$"
+    },
+    "Layer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/ElementId"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "background",
+            "image",
+            "object",
+            "text",
+            "shape",
+            "chart",
+            "overlay",
+            "mouth"
+          ]
+        },
+        "asset_id": {
+          "$ref": "#/definitions/AssetId"
+        },
+        "asset_request": {
+          "$ref": "#/definitions/AssetRequest"
+        },
+        "text": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "ElementId": {
+      "$ref": "#/definitions/Id%3C%22el%22%3E"
+    },
+    "Id<\"el\">": {
+      "type": "string",
+      "pattern": "^el_[0-9a-z]{8}$"
+    },
+    "AssetId": {
+      "$ref": "#/definitions/Id%3C%22as%22%3E"
+    },
+    "Id<\"as\">": {
+      "type": "string",
+      "pattern": "^as_[0-9a-z]{8}$"
+    },
+    "AssetRequest": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "library",
+            "code",
+            "generate",
+            "user"
+          ]
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "reference_asset_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetId"
+          }
+        },
+        "transparent": {
+          "type": "boolean"
+        },
+        "aspect": {
+          "type": "string",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "CastId": {
+      "$ref": "#/definitions/Id%3C%22ca%22%3E"
+    },
+    "Id<\"ca\">": {
+      "type": "string",
+      "pattern": "^ca_[0-9a-z]{8}$"
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/CaptionGroups",
+  "definitions": {
+    "CaptionGroups": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "style": {
+          "type": "string"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/CaptionGroupId"
+              },
+              "line_id": {
+                "$ref": "#/definitions/LineId"
+              },
+              "word_range": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "text": {
+                "type": "string"
+              },
+              "start_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "end_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "emphasis": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "speaker": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "line_id",
+              "word_range",
+              "text",
+              "start_ms",
+              "end_ms"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "groups",
+        "schema_version",
+        "style",
+        "video_id"
+      ],
+      "additionalProperties": false
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "CaptionGroupId": {
+      "$ref": "#/definitions/Id%3C%22cg%22%3E"
+    },
+    "Id<\"cg\">": {
+      "type": "string",
+      "pattern": "^cg_[0-9a-z]{8}$"
+    },
+    "LineId": {
+      "$ref": "#/definitions/Id%3C%22ln%22%3E"
+    },
+    "Id<\"ln\">": {
+      "type": "string",
+      "pattern": "^ln_[0-9a-z]{8}$"
+    },
+    "Ms": {
+      "type": "number"
+    }
+  }
+}

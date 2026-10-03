@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/BriefFrontMatter",
+  "definitions": {
+    "BriefFrontMatter": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "proposed_workflow": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Đề xuất của router; null khi chưa đề xuất."
+        },
+        "proposed_output_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_video_id": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VideoId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "language": {
+          "$ref": "#/definitions/Lang"
+        },
+        "target_duration_ms": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Ms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title_working": {
+          "type": "string"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Iso8601"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "approved_at",
+        "language",
+        "proposed_output_profile",
+        "proposed_workflow",
+        "schema_version",
+        "source_video_id",
+        "target_duration_ms",
+        "title_working",
+        "video_id"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.2"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "Lang": {
+      "type": "string",
+      "enum": [
+        "vi",
+        "de",
+        "en"
+      ]
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/StoryDoc",
+  "definitions": {
+    "StoryDoc": {
+      "type": "object",
+      "properties": {
+        "front": {
+          "$ref": "#/definitions/StoryFrontMatter"
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StoryBlock"
+          }
+        }
+      },
+      "required": [
+        "front",
+        "scenes"
+      ],
+      "additionalProperties": false
+    },
+    "StoryFrontMatter": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "status": {
+          "$ref": "#/definitions/DocStatus"
+        }
+      },
+      "required": [
+        "schema_version",
+        "status",
+        "video_id"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.3b"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "DocStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "StoryBlock": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "setting": {
+          "type": "string"
+        },
+        "beats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "title",
+        "summary",
+        "characters",
+        "setting",
+        "beats"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.3b — khối `sf-story` dưới mỗi heading `##`."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "video_id": "vd_8m2pq7rt",
+  "sample_rate": 48000,
+  "lines": [
+    {
+      "line_id": "ln_2r7c4kxm",
+      "file": "audio/lines/ln_2r7c4kxm.wav",
+      "start_ms": 0,
+      "duration_ms": 2400,
+      "speaker": "narrator",
+      "voice_id": "vo_c3z8p1mn",
+      "words": [
+        { "i": 0, "text": "Năm", "start_ms": 0, "end_ms": 300 },
+        { "i": 1, "text": "1428,", "start_ms": 300, "end_ms": 1200, "conf": 0.93 }
+      ],
+      "asr_wer": 0.05,
+      "asr_flag": "ok",
+      "content_hash": "aa00000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "total_duration_ms": 2700
+}

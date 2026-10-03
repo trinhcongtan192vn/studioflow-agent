@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/RenderRecord",
+  "definitions": {
+    "RenderRecord": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/definitions/RenderId"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "animatic",
+            "draft",
+            "release"
+          ]
+        },
+        "output_profile": {
+          "type": "string"
+        },
+        "started_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "finished_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "running",
+            "done",
+            "failed",
+            "canceled"
+          ]
+        },
+        "file": {
+          "$ref": "#/definitions/RelPath"
+        },
+        "duration_ms": {
+          "$ref": "#/definitions/Ms"
+        },
+        "gate_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "gate": {
+                "type": "string"
+              },
+              "pass": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "gate",
+              "pass"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "index_hash": {
+          "$ref": "#/definitions/Sha256"
+        }
+      },
+      "required": [
+        "gate_results",
+        "id",
+        "index_hash",
+        "mode",
+        "output_profile",
+        "schema_version",
+        "started_at",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "RenderId": {
+      "$ref": "#/definitions/Id%3C%22rd%22%3E"
+    },
+    "Id<\"rd\">": {
+      "type": "string",
+      "pattern": "^rd_[0-9a-z]{8}$"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "Sha256": {
+      "type": "string"
+    }
+  }
+}

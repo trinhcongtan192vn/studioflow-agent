@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "video_id": "vd_8m2pq7rt",
+  "channel_id": "ch_k3v9q2xa",
+  "created_at": "2026-10-03T10:49:00+07:00",
+  "updated_at": "2026-10-03T11:00:00+07:00",
+  "phase": "workflow",
+  "workflow": { "id": "narrated-explainer", "version": "1.0.0" },
+  "output_profile": "yt-1080p30",
+  "owner": "agent",
+  "steps": {
+    "script": {
+      "status": "done",
+      "attempt": 1,
+      "outputs": ["SCRIPT.md"],
+      "refine": { "rounds": 2, "final_score": 8.4 }
+    }
+  },
+  "approvals": [
+    {
+      "id": "ap_x1y2z3w4",
+      "step_id": "script",
+      "status": "approved",
+      "requested_at": "2026-10-03T10:55:00+07:00",
+      "decided_at": "2026-10-03T10:56:00+07:00",
+      "artifact_hashes": {
+        "SCRIPT.md": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "pinned_frames": {},
+  "config_overrides": { "look.id": "cold-steel" },
+  "budget": { "tokens_used": 12000, "api_cost_usd": 0.12 }
+}

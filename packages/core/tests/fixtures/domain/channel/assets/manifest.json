@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "id": "as_h6k2q9vt",
+      "file": "assets/files/palace.png",
+      "kind": "image",
+      "width": 1920,
+      "height": 1080,
+      "alpha": false,
+      "tags": ["cung điện", "hoàng hôn"],
+      "source": { "kind": "user_import" },
+      "hash": "1100000000000000000000000000000000000000000000000000000000000000",
+      "created_at": "2026-10-03T10:40:00+07:00"
+    }
+  ]
+}

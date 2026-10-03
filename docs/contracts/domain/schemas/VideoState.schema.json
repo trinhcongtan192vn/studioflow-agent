@@ -1,0 +1,353 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/VideoState",
+  "definitions": {
+    "VideoState": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "channel_id": {
+          "$ref": "#/definitions/ChannelId"
+        },
+        "created_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "updated_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "briefing",
+            "workflow"
+          ]
+        },
+        "workflow": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "read_only_videos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VideoId"
+          }
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "studio"
+          ]
+        },
+        "owner_since": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "steps": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/StepState"
+          }
+        },
+        "approvals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Approval"
+          }
+        },
+        "pinned_frames": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ManualDelta"
+          }
+        },
+        "config_overrides": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "tokens_used": {
+              "type": "number"
+            },
+            "api_cost_usd": {
+              "type": "number"
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "tokens": {
+                  "type": "number"
+                },
+                "api_cost_usd": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "tokens_used",
+            "api_cost_usd"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvals",
+        "budget",
+        "channel_id",
+        "config_overrides",
+        "created_at",
+        "output_profile",
+        "owner",
+        "phase",
+        "pinned_frames",
+        "schema_version",
+        "steps",
+        "updated_at",
+        "video_id",
+        "workflow"
+      ],
+      "additionalProperties": false
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "ChannelId": {
+      "$ref": "#/definitions/Id%3C%22ch%22%3E"
+    },
+    "Id<\"ch\">": {
+      "type": "string",
+      "pattern": "^ch_[0-9a-z]{8}$"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "StepState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "running",
+            "waiting_approval",
+            "done",
+            "failed",
+            "skipped",
+            "stale"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "finished_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "attempt": {
+          "type": "number"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RelPath"
+          }
+        },
+        "refine": {
+          "type": "object",
+          "properties": {
+            "rounds": {
+              "type": "number"
+            },
+            "final_score": {
+              "type": "number"
+            },
+            "incomplete": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "rounds"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "status",
+        "attempt"
+      ],
+      "additionalProperties": false
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Approval": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/ApprovalId"
+        },
+        "step_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "changes_requested"
+          ]
+        },
+        "requested_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "decided_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "note": {
+          "type": "string"
+        },
+        "artifact_hashes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Sha256"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "step_id",
+        "status",
+        "requested_at",
+        "artifact_hashes"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalId": {
+      "$ref": "#/definitions/Id%3C%22ap%22%3E"
+    },
+    "Id<\"ap\">": {
+      "type": "string",
+      "pattern": "^ap_[0-9a-z]{8}$"
+    },
+    "Sha256": {
+      "type": "string"
+    },
+    "ManualDelta": {
+      "type": "object",
+      "properties": {
+        "pinned_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "base_hash": {
+          "$ref": "#/definitions/Sha256"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "element_id": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ElementId"
+                  },
+                  {
+                    "type": "string",
+                    "const": "*"
+                  }
+                ]
+              },
+              "attr": {
+                "type": "string"
+              },
+              "before": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "element_id",
+              "attr",
+              "before",
+              "after"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "pinned_at",
+        "base_hash",
+        "changes"
+      ],
+      "additionalProperties": false
+    },
+    "ElementId": {
+      "$ref": "#/definitions/Id%3C%22el%22%3E"
+    },
+    "Id<\"el\">": {
+      "type": "string",
+      "pattern": "^el_[0-9a-z]{8}$"
+    }
+  }
+}

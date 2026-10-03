@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/CaptionOverrides",
+  "definitions": {
+    "CaptionOverrides": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "style": {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string"
+            },
+            "vars": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "groups": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "start_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "end_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "splits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "group_id": {
+                "$ref": "#/definitions/CaptionGroupId"
+              },
+              "at_word": {
+                "type": "number"
+              },
+              "new_id": {
+                "$ref": "#/definitions/CaptionGroupId"
+              }
+            },
+            "required": [
+              "group_id",
+              "at_word",
+              "new_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "merges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "group_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/CaptionGroupId"
+                }
+              },
+              "new_id": {
+                "$ref": "#/definitions/CaptionGroupId"
+              }
+            },
+            "required": [
+              "group_ids",
+              "new_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "groups",
+        "merges",
+        "schema_version",
+        "splits",
+        "video_id"
+      ],
+      "additionalProperties": false
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "CaptionGroupId": {
+      "$ref": "#/definitions/Id%3C%22cg%22%3E"
+    },
+    "Id<\"cg\">": {
+      "type": "string",
+      "pattern": "^cg_[0-9a-z]{8}$"
+    }
+  }
+}

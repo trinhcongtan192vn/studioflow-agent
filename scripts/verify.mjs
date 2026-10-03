@@ -31,6 +31,13 @@ export function defaultPlan() {
     },
     {
       project: 'repo',
+      step: 'contracts',
+      cwd: root,
+      cmd: node,
+      args: ['scripts/gen-contracts.mjs', '--check'],
+    },
+    {
+      project: 'repo',
       step: 'structure',
       cwd: root,
       cmd: node,

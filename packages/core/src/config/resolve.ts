@@ -1,0 +1,120 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { SfError } from '../errors.js';
+import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
+import type { WriteStore } from '../store/writer.js';
+import { DEFAULTS, PATTERN_DEFAULTS } from './defaults.js';
+import { checkConfigTier, configKeySpec, patternArg, requireKey, type ConfigTier } from './keys.js';
+
+export interface ResolvedValue<T = unknown> {
+  value: T;
+  source: 'default' | ConfigTier;
+  path: string;
+}
+
+export interface ConfigScope {
+  channelDir: string;
+  videoId?: string;
+  sceneId?: string;
+  frameId?: string;
+}
+
+export interface ResolveOptions {
+  /** `%APPDATA%\StudioFlow` (D3 mục 1); mặc định theo biến môi trường APPDATA. */
+  appDataDir?: string;
+}
+
+export function defaultAppDataDir(): string {
+  return path.join(
+    process.env.APPDATA ?? path.join(process.env.USERPROFILE ?? '.', 'AppData', 'Roaming'),
+    'StudioFlow',
+  );
+}
+
+function readJson(file: string): Record<string, unknown> | undefined {
+  return existsSync(file)
+    ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>)
+    : undefined;
+}
+
+function defaultValue(key: string): unknown {
+  if (key in DEFAULTS) return DEFAULTS[key];
+  const spec = configKeySpec(key)!;
+  const arg = patternArg(key);
+  return (arg !== undefined ? PATTERN_DEFAULTS[spec.key]?.[arg] : undefined) ?? null;
+}
+
+/** `resolveConfig` (D3 mục 7.3): app → channel → video → scene → frame, tầng sau thắng. */
+export function resolveConfig<T = unknown>(
+  key: string,
+  scope: ConfigScope,
+  opts: ResolveOptions = {},
+): ResolvedValue<T> {
+  const spec = requireKey(key);
+  let result: ResolvedValue = {
+    value: defaultValue(key),
+    source: 'default',
+    path: 'tech-defaults',
+  };
+  const take = (tier: ConfigTier, map: unknown, where: string) => {
+    if (!spec.tiers.includes(tier) || !map || typeof map !== 'object') return;
+    if (key in (map as object))
+      result = { value: (map as Record<string, unknown>)[key], source: tier, path: where };
+  };
+
+  const settings = readJson(path.join(opts.appDataDir ?? defaultAppDataDir(), 'settings.json'));
+  take('app', settings?.config, 'settings.json');
+
+  const channel = readJson(path.join(scope.channelDir, 'channel.json'));
+  if (!channel)
+    throw new SfError('E_SCHEMA_INVALID', `${scope.channelDir} is not a channel (no channel.json)`);
+  take('channel', channel.config, 'channel.json');
+
+  if (scope.videoId) {
+    const vRel = `videos/${scope.videoId}`;
+    const state = readJson(path.join(scope.channelDir, 'videos', scope.videoId, 'state.json'));
+    if (state) {
+      take('video', state.config_overrides, `${vRel}/state.json`);
+      if (key === 'output.profile' && state.output_profile) {
+        result = { value: state.output_profile, source: 'video', path: `${vRel}/state.json` };
+      }
+    }
+    const sbPath = path.join(scope.channelDir, 'videos', scope.videoId, 'STORYBOARD.md');
+    if ((scope.sceneId || scope.frameId) && existsSync(sbPath)) {
+      const sb = toStoryboardDoc(parseStoryboard(readFileSync(sbPath, 'utf8')), { loose: true });
+      const frame = scope.frameId ? sb.frames.find((f) => f.id === scope.frameId) : undefined;
+      const sceneId = scope.sceneId ?? frame?.scene_id;
+      const scene = sb.scenes.find((s) => s.id === sceneId);
+      take('scene', scene?.config, `${vRel}/STORYBOARD.md`);
+      take('frame', frame?.config, `${vRel}/STORYBOARD.md`);
+    }
+  }
+  return result as ResolvedValue<T>;
+}
+
+/** Đặt khóa ở tầng channel/video qua module ghi (nền cho tool `config.set`, D4 mục 2.4). */
+export function setConfig(
+  store: WriteStore,
+  key: string,
+  value: unknown,
+  target: { tier: 'channel' | 'video'; videoId?: string },
+): void {
+  checkConfigTier({ [key]: value }, target.tier);
+  if (target.tier === 'channel') {
+    const channel = JSON.parse(readFileSync(store.abs('channel.json'), 'utf8')) as {
+      config: Record<string, unknown>;
+    };
+    channel.config = { ...channel.config, [key]: value };
+    store.write('channel.json', `${JSON.stringify(channel, null, 2)}\n`, { by: 'config.set' });
+    return;
+  }
+  if (!target.videoId) throw new SfError('E_CONFIG_SCOPE', 'video tier requires videoId');
+  const rel = `videos/${target.videoId}/state.json`;
+  const state = JSON.parse(readFileSync(store.abs(rel), 'utf8')) as Record<string, unknown> & {
+    config_overrides: Record<string, unknown>;
+  };
+  if (key === 'output.profile') state.output_profile = value;
+  else state.config_overrides = { ...state.config_overrides, [key]: value };
+  state.updated_at = new Date().toISOString();
+  store.write(rel, `${JSON.stringify(state, null, 2)}\n`, { by: 'config.set' });
+}
