@@ -25,6 +25,7 @@ export interface ResolveOptions {
 }
 
 export function defaultAppDataDir(): string {
+  if (process.env.SF_APP_DATA) return process.env.SF_APP_DATA;
   return path.join(
     process.env.APPDATA ?? path.join(process.env.USERPROFILE ?? '.', 'AppData', 'Roaming'),
     'StudioFlow',

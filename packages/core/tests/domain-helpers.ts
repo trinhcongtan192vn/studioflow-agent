@@ -5,7 +5,7 @@ import { coreDir } from './helpers.js';
 
 export const fixturesDir = path.join(coreDir, 'tests', 'fixtures', 'domain');
 export const fixtureChannel = path.join(fixturesDir, 'channel');
-export const fixtureVideoId = 'vd_8m2pq7rt';
+export const fixtureVideoId = 'vd_8m2pq7rt' as const;
 export const fixtureVideo = path.join(fixtureChannel, 'videos', fixtureVideoId);
 export const fixtureAppData = path.join(fixturesDir, 'appdata');
 

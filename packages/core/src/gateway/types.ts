@@ -24,5 +24,7 @@ export interface ToolDefinition<I = any, O = unknown> {
   description: string;
   /** JSON Schema của đầu vào (`type: 'object'`). */
   input: Record<string, unknown>;
+  /** Handler trả `{job_id}` → đặt `ToolResult.job_id` (việc chạy nền, D4 mục 2.3). */
+  returnsJob?: boolean;
   handler(input: I, ctx: ToolContext): Promise<O>;
 }

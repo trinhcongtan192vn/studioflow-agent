@@ -94,7 +94,8 @@ export class Gateway {
         appDataDir: this.opts.appDataDir,
         opts,
       });
-      result = { ok: true, data };
+      const jobId = def.returnsJob ? (data as { job_id?: string } | undefined)?.job_id : undefined;
+      result = jobId ? { ok: true, data, job_id: jobId } : { ok: true, data };
     } catch (e) {
       if (isSfError(e)) {
         result = {

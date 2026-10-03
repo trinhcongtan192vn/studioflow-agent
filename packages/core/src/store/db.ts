@@ -1,0 +1,28 @@
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+
+export type Db = DatabaseSync;
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, video_id TEXT, channel_dir TEXT, status TEXT NOT NULL,
+  engine TEXT, priority INTEGER NOT NULL, idempotent INTEGER NOT NULL, parent_id TEXT,
+  not_before INTEGER NOT NULL DEFAULT 0, payload TEXT, info TEXT NOT NULL,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status);
+CREATE TABLE IF NOT EXISTS cache_entries (
+  key TEXT NOT NULL, channel TEXT NOT NULL, size INTEGER NOT NULL, last_used TEXT NOT NULL,
+  PRIMARY KEY (key, channel)
+);
+`;
+
+/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7). */
+export function openDb(file: string): Db {
+  if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
+  db.exec(SCHEMA);
+  return db;
+}

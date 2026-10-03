@@ -1,0 +1,97 @@
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import type { CastMember, Frame, Line, Scene } from '../contracts/types.js';
+import { resolveConfig } from '../config/resolve.js';
+import { sha256 } from '../domain/hash.js';
+import { parseBlocksDoc } from '../domain/markdown/blocks.js';
+import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
+import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
+
+/** Dữ liệu một video cần để dựng build graph (đọc từ artifact nguồn). */
+export interface VideoModel {
+  channelDir: string;
+  videoId: string;
+  videoDir: string;
+  language: string;
+  lines: Line[];
+  frames: Frame[];
+  scenes: Scene[];
+  cast: Record<string, Partial<CastMember>>;
+  config<T = unknown>(key: string, scope?: { sceneId?: string; frameId?: string }): T;
+  /** Hash nội dung một file/thư mục trong video (thiếu → null). */
+  hashOf(rel: string): string | null;
+  /** Hash nội dung một thư mục trong kênh (ví dụ `voices/<vo>`). */
+  hashChannelDir(rel: string): string | null;
+}
+
+function hashDir(dir: string): string | null {
+  if (!existsSync(dir)) return null;
+  const parts: string[] = [];
+  const walk = (d: string, rel: string) => {
+    for (const e of readdirSync(d, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p, `${rel}${e.name}/`);
+      else parts.push(`${rel}${e.name}:${sha256(readFileSync(p))}`);
+    }
+  };
+  walk(dir, '');
+  return sha256(parts.join('\n'));
+}
+
+export function loadVideoModel(
+  channelDir: string,
+  videoId: string,
+  appDataDir?: string,
+): VideoModel {
+  const videoDir = path.join(channelDir, 'videos', videoId);
+  const read = (f: string) =>
+    existsSync(path.join(videoDir, f)) ? readFileSync(path.join(videoDir, f), 'utf8') : undefined;
+  const scriptText = read('SCRIPT.md');
+  const script = scriptText ? toScriptDoc(parseScript(scriptText)) : undefined;
+  const sbText = read('STORYBOARD.md');
+  const sb = sbText ? toStoryboardDoc(parseStoryboard(sbText)) : undefined;
+  const cast: Record<string, Partial<CastMember>> = {};
+  const chars = path.join(channelDir, 'characters');
+  if (existsSync(chars)) {
+    for (const d of readdirSync(chars)) {
+      const f = path.join(chars, d, 'cast.json');
+      if (existsSync(f)) cast[d] = JSON.parse(readFileSync(f, 'utf8')) as CastMember;
+    }
+  }
+  const castText = read('CAST.md');
+  if (castText) {
+    const block = parseBlocksDoc(castText).blocks.find((b) => b.tag === 'sf-cast');
+    for (const c of (block?.data as Partial<CastMember>[] | undefined) ?? []) {
+      if (c?.id) cast[c.id] = { ...cast[c.id], ...c };
+    }
+  }
+  const channel = JSON.parse(readFileSync(path.join(channelDir, 'channel.json'), 'utf8')) as {
+    language: string;
+  };
+  return {
+    channelDir,
+    videoId,
+    videoDir,
+    language: script?.front.language ?? channel.language,
+    lines: script?.lines ?? [],
+    frames: sb?.frames ?? [],
+    scenes: sb?.scenes ?? [],
+    cast,
+    config: (key, scope = {}) =>
+      resolveConfig(key, { channelDir, videoId, ...scope }, { appDataDir }).value as never,
+    hashOf: (rel) => {
+      const p = path.join(videoDir, ...rel.split('/'));
+      if (!existsSync(p)) return null;
+      return statSync(p).isDirectory() ? hashDir(p) : sha256(readFileSync(p));
+    },
+    hashChannelDir: (rel) => hashDir(path.join(channelDir, ...rel.split('/'))),
+  };
+}
+
+/** Giọng của line: narrator → `voice.id`; nhân vật → `voice_id` của cast (D3 4, 7.2). */
+export function voiceOf(model: VideoModel, line: Line): string | null {
+  if (line.speaker === 'narrator') return model.config<string | null>('voice.id');
+  return (model.cast[line.speaker]?.voice_id as string | undefined) ?? null;
+}

@@ -60,3 +60,38 @@ export {
 // Gateway (003, D4 mục 2, D5)
 export * from './gateway/index.js';
 export { maskSecrets, Logger, type LogSink, type LogLevel } from './log.js';
+
+// Job, capability, cache, build graph (004, D4 mục 4–8)
+export { openDb, type Db } from './store/db.js';
+export {
+  JobQueue,
+  type QueuedJob,
+  type JobContext,
+  type JobKind,
+  type EnqueueSpec,
+} from './jobs/queue.js';
+export { ProviderRegistry, type AnyAdapter, type ResolveScope } from './capability/registry.js';
+export type { ProviderAdapter, RunContext, Span } from './capability/types.js';
+export {
+  runCapability,
+  cacheKey,
+  isCacheable,
+  type RunCapabilityArgs,
+  type RunCapabilityResult,
+} from './capability/run.js';
+export { evictCache } from './capability/cache.js';
+export {
+  BuildGraph,
+  BuilderRegistry,
+  type Builder,
+  type BuilderContext,
+  type BuildOutput,
+  type BuildResult,
+  type NodeStatus,
+  type NodeType,
+  type PlannedJob,
+} from './graph/graph.js';
+export { assembleAudioLines, computeFrameTiming, type FrameTiming } from './graph/timing.js';
+export { loadVideoModel, type VideoModel } from './graph/model.js';
+export { createCore, type Core, type CoreOptions } from './core.js';
+export { canonicalJson } from './domain/hash.js';

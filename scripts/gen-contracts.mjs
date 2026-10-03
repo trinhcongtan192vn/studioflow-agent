@@ -36,6 +36,8 @@ export const SCHEMA_ROOTS = [
   'StoryboardDoc',
   'CastDoc',
   'PublishFrontMatter',
+  'WorkflowManifest',
+  'ProviderManifest',
 ];
 
 const ID_PREFIXES = [
@@ -93,11 +95,37 @@ export function extractD3Types(md) {
 const exportedNames = (ts) =>
   [...ts.matchAll(/export (?:interface|type|declare function) (\w+)/g)].map((m) => m[1]);
 
-/** D4 mục 2.2–2.3 (SessionContext, ToolResult); import type từ d3 các tên được dùng. */
-export function extractD4Gateway(md, d3Ts) {
-  const body = extractTsBlocks(md, '### 2.2', '### 2.4');
-  const used = exportedNames(d3Ts).filter((n) => new RegExp(`\\b${n}\\b`).test(body));
-  return `${GENERATED('docs/04-spec-capability-gateway.md mục 2.2–2.3')}import type { ${used.join(', ')} } from '../domain/d3';\n\n${body}\n`;
+/** Dòng `import type` cho các tên của module khác được dùng trong `body`. */
+function importsFor(body, deps) {
+  return deps
+    .map(({ from, ts }) => {
+      const used = exportedNames(ts).filter((n) => new RegExp(`\\b${n}\\b`).test(body));
+      return used.length ? `import type { ${used.join(', ')} } from '${from}';\n` : '';
+    })
+    .join('');
+}
+
+const sections = (md, ranges) =>
+  ranges
+    .map(([a, b]) => extractTsBlocks(md, a, b))
+    .filter(Boolean)
+    .join('\n\n');
+
+/** D4: Gateway (2.2–2.3), hợp đồng capability (3), manifest provider (4.1), job (5). */
+export function extractD4(md, deps) {
+  const body = sections(md, [
+    ['### 2.2', '### 2.4'],
+    ['## 3.', '## 4.'],
+    ['### 4.1', '### 4.2'],
+    ['## 5.', '## 6.'],
+  ]);
+  return `${GENERATED('docs/04-spec-capability-gateway.md mục 2.2–2.3, 3, 4.1, 5')}${importsFor(body, deps)}\n${body}\n`;
+}
+
+/** D6: manifest workflow, rubric, frame packet. */
+export function extractD6(md, deps) {
+  const body = sections(md, [['## 1.', '## 9.']]);
+  return `${GENERATED('docs/06-spec-workflow-skill.md')}${importsFor(body, deps)}\n${body}\n`;
 }
 
 // ---------- D3 mục 7.2 → config keys ----------
@@ -223,28 +251,43 @@ async function generateSchemas(typesDir) {
 function plannedFiles() {
   const d3 = readFileSync(path.join(docs, '03-spec-domain-artifacts.md'), 'utf8');
   const d4 = readFileSync(path.join(docs, '04-spec-capability-gateway.md'), 'utf8');
+  const d6 = readFileSync(path.join(docs, '06-spec-workflow-skill.md'), 'utf8');
   const keys = extractConfigKeys(d3);
   const errorDocs = readdirSync(docs)
     .filter((f) => /^(0[3-9]|1[01])-.*\.md$/.test(f))
     .sort()
     .map((name) => ({ name, text: readFileSync(path.join(docs, name), 'utf8') }));
   const local = JSON.parse(readFileSync(path.join(outDocs, 'errors.local.json'), 'utf8'));
+  const d3Ts = extractD3Types(d3);
+  const keysTs = configKeysTs(keys);
+  const d6Ts = extractD6(d6, [
+    { from: '../domain/d3', ts: d3Ts },
+    { from: '../domain/config-keys', ts: keysTs },
+  ]);
   return {
-    d3Ts: extractD3Types(d3),
-    d4Ts: extractD4Gateway(d4, extractD3Types(d3)),
-    keysTs: configKeysTs(keys),
-    keysJson: `${JSON.stringify({ $comment: 'GENERATED from docs/03 mục 7.2 — DO NOT EDIT', keys }, null, 2)}\n`,
+    d3Ts,
+    d6Ts,
+    d4Ts: extractD4(d4, [
+      { from: '../domain/d3', ts: d3Ts },
+      { from: '../workflow/d6', ts: d6Ts },
+    ]),
+    keysTs,
+    keysJson: `${JSON.stringify({ $comment: 'GENERATED from docs/03 mục 7.2 — DO NOT EDIT', keys }, null, 2)}
+`,
     errors: errorsJson(extractErrors(errorDocs), local),
   };
 }
 
 const INDEX_TS = `${GENERATED('docs/contracts/domain/*')}export * from './d3';\nexport * from './markdown';\nexport * from './config-keys';\n`;
+const ROOT_INDEX_TS = `${GENERATED('docs/contracts/*')}export * from './domain/index';\nexport * from './gateway/d4';\nexport * from './workflow/d6';\n`;
 
 async function build() {
   const f = plannedFiles();
   const files = new Map([
     [path.join(outDocs, 'domain', 'd3.ts'), f.d3Ts],
     [path.join(outDocs, 'gateway', 'd4.ts'), f.d4Ts],
+    [path.join(outDocs, 'workflow', 'd6.ts'), f.d6Ts],
+    [path.join(outDocs, 'index.ts'), ROOT_INDEX_TS],
     [path.join(outDocs, 'domain', 'config-keys.ts'), f.keysTs],
     [path.join(outDocs, 'domain', 'index.ts'), INDEX_TS],
     [path.join(outDocs, 'domain', 'config-keys.json'), f.keysJson],
@@ -254,12 +297,13 @@ async function build() {
   const tmp = path.join(root, 'node_modules', '.cache', 'sf-contracts');
   mkdirSync(tmp, { recursive: true });
   for (const [file, content] of files) {
-    if (file.includes(`${path.sep}domain${path.sep}`) && file.endsWith('.ts')) {
-      writeFileSync(path.join(tmp, path.basename(file)), content);
-    }
+    if (!file.endsWith('.ts')) continue;
+    const dest = path.join(tmp, path.relative(outDocs, file));
+    mkdirSync(path.dirname(dest), { recursive: true });
+    writeFileSync(dest, content);
   }
   writeFileSync(
-    path.join(tmp, 'markdown.ts'),
+    path.join(tmp, 'domain', 'markdown.ts'),
     readFileSync(path.join(outDocs, 'domain', 'markdown.ts'), 'utf8'),
   );
   const schemas = await generateSchemas(tmp);
@@ -269,7 +313,13 @@ async function build() {
   // Bản dùng trong core (rootDir = src): type gộp + schema/errors/keys dạng module TS.
   const coreTypes =
     `${GENERATED('docs/contracts/domain/*.ts')}` +
-    [f.d3Ts, readFileSync(path.join(outDocs, 'domain', 'markdown.ts'), 'utf8'), f.keysTs, f.d4Ts]
+    [
+      f.d3Ts,
+      readFileSync(path.join(outDocs, 'domain', 'markdown.ts'), 'utf8'),
+      f.keysTs,
+      f.d6Ts,
+      f.d4Ts,
+    ]
       .map((s) =>
         s
           .replace(/^\/\/ GENERATED.*\n/, '')
