@@ -1,3 +1,4 @@
+import { alignVideo } from '../asr/regen.js';
 import type { ProviderRegistry } from '../capability/registry.js';
 import { resolveConfig } from '../config/resolve.js';
 import { SfError } from '../errors.js';
@@ -106,7 +107,12 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
       if (!ok)
         throw new SfError('E_PERMISSION_DECLINED', `user declined generating ${lines} lines`);
     }
-    const r = await graph.build(ctx.videoId, { targets, signal: ctx.signal });
+    // TTS → ASR (sinh lại line đọc sai) → audio_meta → captions (010)
+    const r = builders.active('asr.line')
+      ? await alignVideo({ store: ctx.store, builders, appDataDir: ctx.appDataDir }, ctx.videoId, {
+          signal: ctx.signal,
+        })
+      : { ...(await graph.build(ctx.videoId, { targets, signal: ctx.signal })), mismatched: [] };
     if (r.status !== 'succeeded') {
       const bad = Object.entries(r.nodes).filter(([, n]) => n.status === 'failed');
       throw new SfError(
@@ -114,6 +120,15 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
         bad.map(([id, n]) => `${id}: ${n.error?.message}`).join('; ') || 'voice build failed',
       );
     }
-    return { outputs: ['audio_meta.json'] };
+    return {
+      outputs: ['audio_meta.json', ...(builders.active('captions') ? ['caption_groups.json'] : [])],
+      ...(r.mismatched.length
+        ? {
+            summary: `ASR: ${r.mismatched.length} line còn lệch sau khi sinh lại (${r.mismatched
+              .map((m) => `${m.line_id} WER ${m.asr_wer.toFixed(2)}`)
+              .join(', ')}) — nghe lại, sửa chữ hoặc chấp nhận (asr.accept).`,
+          }
+        : {}),
+    };
   };
 }

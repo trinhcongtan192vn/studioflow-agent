@@ -1,0 +1,14 @@
+# ASR qua `hyperframes transcribe` (whisper.cpp, model đa ngôn ngữ) — D4 mục 4.3, 010 R1.
+id: asr.hf-transcribe
+version: 1.0.0
+capabilities: [asr.align]
+contract_versions: { asr.align: '1' }
+runtime: node
+engine: asr
+resource: gpu-light
+languages: [vi, de, en]
+models: [large-v3-turbo]
+install_profile: standard
+cost: { kind: free }
+health: { method: health, timeout_ms: 5000 }
+app_api: '>=0.1 <2.0'

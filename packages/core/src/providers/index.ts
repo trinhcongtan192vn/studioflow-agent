@@ -1,3 +1,4 @@
+import { createFakeAsrProvider, createHfTranscribeProvider } from '../asr/providers.js';
 import type { ProviderRegistry } from '../capability/registry.js';
 import { createFakeTtsProvider } from './fake.js';
 import { createOmniVoiceProvider } from './omnivoice.js';
@@ -12,10 +13,12 @@ export function registerDefaultProviders(
 ): { stop(): Promise<void> } {
   if (process.env.SF_GPU === '0') {
     registry.register(createFakeTtsProvider());
+    registry.register(createFakeAsrProvider());
     return { stop: async () => {} };
   }
   const omni = createOmniVoiceProvider(opts);
   registry.register(omni.adapter);
+  registry.register(createHfTranscribeProvider(opts));
   return { stop: () => omni.worker.stop() };
 }
 

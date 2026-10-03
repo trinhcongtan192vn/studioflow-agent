@@ -4,6 +4,7 @@ import { runCapability } from '../capability/run.js';
 import { sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
 import type { Builder } from '../graph/graph.js';
+import { readAsrState } from '../asr/state.js';
 import { voiceOf } from '../graph/model.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
@@ -40,6 +41,8 @@ export function audioLineBuilder(deps: {
     });
     const vf = voiceFile(ctx.store, voice);
     const file = `audio/lines/${line.id}.wav`;
+    // sinh lại do ASR lệch (010 R3): seed = số lần sinh lại
+    const regen = readAsrState(ctx.model.videoDir).regen[line.id] ?? 0;
     const r = await runCapability({
       store: ctx.store,
       db: deps.db,
@@ -52,7 +55,9 @@ export function audioLineBuilder(deps: {
         ...(line.emotion ? { emotion: line.emotion } : {}),
         ...(vf.file ? { voice_file: vf.file } : {}),
         voice_hash: vf.hash,
+        ...(regen ? { seed: regen } : {}),
       },
+      ...(regen ? { seed: regen } : {}),
       videoId: ctx.videoId,
       outputs: { file: `${ctx.videoRel}/${file}` },
       signal: ctx.signal,

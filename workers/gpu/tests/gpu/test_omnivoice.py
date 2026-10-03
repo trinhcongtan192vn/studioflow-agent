@@ -94,3 +94,32 @@ def test_clone_and_speak_vietnamese(tmp_path):
         assert res["vram_peak_mb"] <= 6 * 1024
     finally:
         w.close()
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not ENV_PY.exists(), reason="omnivoice engine env not installed (scripts/setup-engine.mjs)"
+)
+def test_seed_makes_generation_reproducible(tmp_path):
+    """010 FR-009 — cùng seed → cùng audio; seed khác → audio khác (sinh lại khi ASR lệch)."""
+    w = WorkerProc("omnivoice", python=str(ENV_PY))
+    try:
+        outs = []
+        for i, seed in enumerate([7, 7, 8]):
+            d = tmp_path / f"s{i}"
+            d.mkdir()
+            r = w.call(
+                "run",
+                {
+                    "job_id": f"s{i}",
+                    "task": "auto",
+                    "input": {"text": "Bầu trời màu xanh.", "seed": seed},
+                    "workdir": str(d),
+                },
+            )
+            assert "result" in r, r
+            outs.append((d / "out.wav").read_bytes())
+        assert outs[0] == outs[1]
+        assert outs[0] != outs[2]
+    finally:
+        w.close()
