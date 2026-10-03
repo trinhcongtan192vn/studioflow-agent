@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/Provenance",
+  "definitions": {
+    "Provenance": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "output": {
+          "$ref": "#/definitions/RelPath"
+        },
+        "output_hash": {
+          "$ref": "#/definitions/Sha256"
+        },
+        "capability": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "provider_version": {
+          "type": "string"
+        },
+        "model": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "file_hash": {
+              "$ref": "#/definitions/Sha256"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "seed": {
+          "type": "number"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "$ref": "#/definitions/RelPath"
+              },
+              "hash": {
+                "$ref": "#/definitions/Sha256"
+              },
+              "role": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "hash",
+              "role"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cache_key": {
+          "$ref": "#/definitions/Sha256"
+        },
+        "from_cache": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "generated",
+                "user_import",
+                "library"
+              ]
+            },
+            "url": {
+              "type": "string"
+            },
+            "attribution": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "job_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/definitions/Iso8601"
+        }
+      },
+      "required": [
+        "cache_key",
+        "capability",
+        "created_at",
+        "from_cache",
+        "inputs",
+        "output",
+        "output_hash",
+        "params",
+        "provider",
+        "provider_version",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Sha256": {
+      "type": "string"
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

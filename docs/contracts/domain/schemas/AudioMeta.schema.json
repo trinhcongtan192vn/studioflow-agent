@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/AudioMeta",
+  "definitions": {
+    "AudioMeta": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "sample_rate": {
+          "type": "number",
+          "const": 48000
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "line_id": {
+                "$ref": "#/definitions/LineId"
+              },
+              "file": {
+                "$ref": "#/definitions/RelPath"
+              },
+              "start_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "duration_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "speaker": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "narrator"
+                  },
+                  {
+                    "$ref": "#/definitions/CastId"
+                  }
+                ]
+              },
+              "voice_id": {
+                "$ref": "#/definitions/VoiceId"
+              },
+              "words": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "i": {
+                      "type": "number"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "start_ms": {
+                      "$ref": "#/definitions/Ms"
+                    },
+                    "end_ms": {
+                      "$ref": "#/definitions/Ms"
+                    },
+                    "conf": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "i",
+                    "text",
+                    "start_ms",
+                    "end_ms"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "asr_wer": {
+                "type": "number"
+              },
+              "asr_flag": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "mismatch",
+                  "accepted"
+                ]
+              },
+              "content_hash": {
+                "$ref": "#/definitions/Sha256"
+              }
+            },
+            "required": [
+              "line_id",
+              "file",
+              "start_ms",
+              "duration_ms",
+              "speaker",
+              "voice_id",
+              "words",
+              "content_hash"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "total_duration_ms": {
+          "$ref": "#/definitions/Ms"
+        }
+      },
+      "required": [
+        "lines",
+        "sample_rate",
+        "schema_version",
+        "total_duration_ms",
+        "video_id"
+      ],
+      "additionalProperties": false
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "LineId": {
+      "$ref": "#/definitions/Id%3C%22ln%22%3E"
+    },
+    "Id<\"ln\">": {
+      "type": "string",
+      "pattern": "^ln_[0-9a-z]{8}$"
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "CastId": {
+      "$ref": "#/definitions/Id%3C%22ca%22%3E"
+    },
+    "Id<\"ca\">": {
+      "type": "string",
+      "pattern": "^ca_[0-9a-z]{8}$"
+    },
+    "VoiceId": {
+      "$ref": "#/definitions/Id%3C%22vo%22%3E"
+    },
+    "Id<\"vo\">": {
+      "type": "string",
+      "pattern": "^vo_[0-9a-z]{8}$"
+    },
+    "Sha256": {
+      "type": "string"
+    }
+  }
+}

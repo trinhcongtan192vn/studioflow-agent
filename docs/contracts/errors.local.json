@@ -1,0 +1,55 @@
+{
+  "$comment": "Mã lỗi không nằm trong bảng mã lỗi của D3–D11. Mỗi mã ghi spec tính năng định nghĩa nó. gen-contracts gộp file này vào errors.json.",
+  "errors": [
+    {
+      "code": "E_CLI_USAGE",
+      "when": "Tham số CLI thiếu/sai, lệnh không tồn tại (exit 2)",
+      "source": "specs/001-repo-scaffold/data-model.md"
+    },
+    {
+      "code": "E_CLI_BAD_JSON",
+      "when": "stdin không phải JSON object hoặc vượt 1 MB (exit 2)",
+      "source": "specs/001-repo-scaffold/data-model.md"
+    },
+    {
+      "code": "E_CLI_DUPLICATE_COMMAND",
+      "when": "Hai module đăng ký trùng lệnh sf",
+      "source": "specs/001-repo-scaffold/data-model.md"
+    },
+    {
+      "code": "E_INTERNAL",
+      "when": "Lỗi không lường trước",
+      "source": "specs/001-repo-scaffold/data-model.md"
+    },
+    {
+      "code": "E_DIAG_FAIL",
+      "when": "Lỗi nghiệp vụ mẫu của sf diag fail",
+      "source": "specs/001-repo-scaffold/data-model.md"
+    },
+    {
+      "code": "E_LLM_FIXTURE_MISSING",
+      "when": "SF_LLM=replay và thiếu bản ghi phản hồi LLM (D12 mục 2)",
+      "source": "specs/001-repo-scaffold/research.md"
+    },
+    {
+      "code": "E_LLM_MODE",
+      "when": "SF_LLM không phải record|replay",
+      "source": "specs/001-repo-scaffold/research.md"
+    },
+    {
+      "code": "E_TEST_FAILED",
+      "when": "sf test <type> có project fail",
+      "source": "specs/001-repo-scaffold/contracts/cli.md"
+    },
+    {
+      "code": "E_TEST_NO_REPO",
+      "when": "sf test chạy ngoài repo nguồn",
+      "source": "specs/001-repo-scaffold/contracts/cli.md"
+    },
+    {
+      "code": "E_CHANNEL_EXISTS",
+      "when": "Khởi tạo kênh trong thư mục đã có channel.json",
+      "source": "specs/002-domain-artifacts/spec.md"
+    }
+  ]
+}

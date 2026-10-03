@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/OutputProfile",
+  "definitions": {
+    "OutputProfile": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "fps": {
+          "type": "number"
+        },
+        "safe_area": {
+          "type": "object",
+          "properties": {
+            "top": {
+              "type": "number"
+            },
+            "right": {
+              "type": "number"
+            },
+            "bottom": {
+              "type": "number"
+            },
+            "left": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ],
+          "additionalProperties": false
+        },
+        "max_duration_ms": {
+          "$ref": "#/definitions/Ms"
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "type": "string",
+              "const": "h264"
+            },
+            "crf": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "codec",
+            "crf"
+          ],
+          "additionalProperties": false
+        },
+        "audio": {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "type": "string",
+              "const": "aac"
+            },
+            "sample_rate": {
+              "type": "number",
+              "const": 48000
+            },
+            "loudness_lufs": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "codec",
+            "sample_rate",
+            "loudness_lufs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "width",
+        "height",
+        "fps",
+        "safe_area",
+        "video",
+        "audio"
+      ],
+      "additionalProperties": false
+    },
+    "Ms": {
+      "type": "number"
+    }
+  }
+}

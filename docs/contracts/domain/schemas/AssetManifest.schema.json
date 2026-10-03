@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/AssetManifest",
+  "definitions": {
+    "AssetManifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/AssetId"
+              },
+              "file": {
+                "$ref": "#/definitions/RelPath"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "svg",
+                  "audio"
+                ]
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              },
+              "alpha": {
+                "type": "boolean"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "generated",
+                      "user_import",
+                      "library"
+                    ]
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "attribution": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              "hash": {
+                "$ref": "#/definitions/Sha256"
+              },
+              "created_at": {
+                "$ref": "#/definitions/Iso8601"
+              }
+            },
+            "required": [
+              "id",
+              "file",
+              "kind",
+              "tags",
+              "hash",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "assets",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "AssetId": {
+      "$ref": "#/definitions/Id%3C%22as%22%3E"
+    },
+    "Id<\"as\">": {
+      "type": "string",
+      "pattern": "^as_[0-9a-z]{8}$"
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Sha256": {
+      "type": "string"
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

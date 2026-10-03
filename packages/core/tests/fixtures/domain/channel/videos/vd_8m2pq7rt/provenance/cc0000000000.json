@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "output": "audio/lines/ln_2r7c4kxm.wav",
+  "output_hash": "cc00000000000000000000000000000000000000000000000000000000000000",
+  "capability": "tts.synthesize",
+  "provider": "tts.omnivoice",
+  "provider_version": "0.1.0",
+  "model": { "id": "omnivoice-base" },
+  "params": { "speed": 1 },
+  "seed": 42,
+  "inputs": [
+    { "hash": "dd00000000000000000000000000000000000000000000000000000000000000", "role": "text" }
+  ],
+  "cache_key": "ee00000000000000000000000000000000000000000000000000000000000000",
+  "from_cache": false,
+  "source": { "kind": "generated" },
+  "created_at": "2026-10-03T10:52:00+07:00"
+}

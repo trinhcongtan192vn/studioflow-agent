@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ScriptDoc",
+  "definitions": {
+    "ScriptDoc": {
+      "type": "object",
+      "properties": {
+        "front": {
+          "$ref": "#/definitions/ScriptFrontMatter"
+        },
+        "beats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Beat"
+          }
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Line"
+          }
+        }
+      },
+      "required": [
+        "front",
+        "beats",
+        "lines"
+      ],
+      "additionalProperties": false
+    },
+    "ScriptFrontMatter": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "language": {
+          "$ref": "#/definitions/Lang"
+        },
+        "status": {
+          "$ref": "#/definitions/DocStatus"
+        }
+      },
+      "required": [
+        "language",
+        "schema_version",
+        "status",
+        "video_id"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.4"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "Lang": {
+      "type": "string",
+      "enum": [
+        "vi",
+        "de",
+        "en"
+      ]
+    },
+    "DocStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "Beat": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/BeatId"
+        },
+        "order": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "line_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LineId"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "order",
+        "title",
+        "line_ids"
+      ],
+      "additionalProperties": false
+    },
+    "BeatId": {
+      "$ref": "#/definitions/Id%3C%22bt%22%3E"
+    },
+    "Id<\"bt\">": {
+      "type": "string",
+      "pattern": "^bt_[0-9a-z]{8}$"
+    },
+    "LineId": {
+      "$ref": "#/definitions/Id%3C%22ln%22%3E"
+    },
+    "Id<\"ln\">": {
+      "type": "string",
+      "pattern": "^ln_[0-9a-z]{8}$"
+    },
+    "Line": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/LineId"
+        },
+        "beat_id": {
+          "$ref": "#/definitions/BeatId"
+        },
+        "order": {
+          "type": "number"
+        },
+        "speaker": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "narrator"
+            },
+            {
+              "$ref": "#/definitions/CastId"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "tts_text": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "emotion": {
+          "type": "string"
+        },
+        "pause_after_ms": {
+          "$ref": "#/definitions/Ms"
+        }
+      },
+      "required": [
+        "id",
+        "beat_id",
+        "order",
+        "speaker",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "CastId": {
+      "$ref": "#/definitions/Id%3C%22ca%22%3E"
+    },
+    "Id<\"ca\">": {
+      "type": "string",
+      "pattern": "^ca_[0-9a-z]{8}$"
+    },
+    "Ms": {
+      "type": "number"
+    }
+  }
+}

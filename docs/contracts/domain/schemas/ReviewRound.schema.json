@@ -1,0 +1,187 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ReviewRound",
+  "definitions": {
+    "ReviewRound": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "step_id": {
+          "type": "string"
+        },
+        "round": {
+          "type": "number"
+        },
+        "artifact": {
+          "$ref": "#/definitions/RelPath"
+        },
+        "draft_hash": {
+          "$ref": "#/definitions/Sha256"
+        },
+        "producer": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ],
+          "additionalProperties": false
+        },
+        "critic": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ],
+          "additionalProperties": false
+        },
+        "objective_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "pass": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "pass"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "score": {
+          "type": "number"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "score",
+              "weight"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "major",
+                  "minor"
+                ]
+              },
+              "location": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "fixed_in_round": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "severity",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "number"
+            },
+            "output": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "input",
+            "output"
+          ],
+          "additionalProperties": false
+        },
+        "cost_usd": {
+          "type": "number"
+        },
+        "created_at": {
+          "$ref": "#/definitions/Iso8601"
+        }
+      },
+      "required": [
+        "artifact",
+        "cost_usd",
+        "created_at",
+        "criteria",
+        "critic",
+        "draft_hash",
+        "issues",
+        "objective_checks",
+        "producer",
+        "round",
+        "schema_version",
+        "score",
+        "step_id",
+        "tokens"
+      ],
+      "additionalProperties": false
+    },
+    "RelPath": {
+      "type": "string"
+    },
+    "Sha256": {
+      "type": "string"
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

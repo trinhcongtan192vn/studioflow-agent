@@ -1,0 +1,205 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/SettingsConfig",
+  "definitions": {
+    "SettingsConfig": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "output.profile": {},
+            "workflow.default": {},
+            "voice.id": {},
+            "look.id": {},
+            "font.family": {},
+            "caption.style": {},
+            "caption.max_words": {},
+            "overlay.rules": {},
+            "text.producer": {},
+            "text.critic": {},
+            "text.aux": {},
+            "refine.min_rounds": {},
+            "refine.max_rounds": {},
+            "refine.threshold": {},
+            "frame.min_duration_ms": {},
+            "frame_build.parallel": {},
+            "budget.tokens_per_video": {},
+            "budget.api_cost_usd_per_video": {},
+            "budget.cache_gb": {},
+            "music.volume_db": {},
+            "music.duck_db": {},
+            "asr.max_regen": {},
+            "lipsync.enabled": {},
+            "policy.auto_approve.batch_gen": {},
+            "policy.auto_approve.paid_api": {},
+            "check.length_tolerance": {},
+            "check.duration_tolerance": {},
+            "meta.title_max": {},
+            "meta.description_max": {},
+            "policy.batch.tts_lines": {},
+            "policy.batch.images": {},
+            "policy.paid_api.per_call_usd": {},
+            "policy.budget_warn_ratio": {},
+            "gpu.vram_total_gb": {}
+          },
+          "additionalProperties": {}
+        },
+        "installed": {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "string",
+              "enum": [
+                "minimal",
+                "standard",
+                "full"
+              ]
+            },
+            "components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "installed_at": {
+                    "$ref": "#/definitions/Iso8601"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version",
+                  "installed_at"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "profile",
+            "components"
+          ],
+          "additionalProperties": false
+        },
+        "provider_fallbacks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "allow"
+          ],
+          "additionalProperties": false
+        },
+        "pricing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "mtok_in",
+                  "mtok_out",
+                  "image",
+                  "second"
+                ]
+              },
+              "usd": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "provider",
+              "model",
+              "unit",
+              "usd"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "trace": {
+          "type": "object",
+          "properties": {
+            "capture_content": {
+              "type": "boolean"
+            },
+            "retention_days": {
+              "type": "number"
+            },
+            "phoenix_enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "capture_content",
+            "retention_days",
+            "phoenix_enabled"
+          ],
+          "additionalProperties": false
+        },
+        "recent_channels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "opened_at": {
+                "$ref": "#/definitions/Iso8601"
+              }
+            },
+            "required": [
+              "path",
+              "opened_at"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "config",
+        "installed",
+        "network",
+        "pricing",
+        "provider_fallbacks",
+        "recent_channels",
+        "schema_version",
+        "trace"
+      ],
+      "additionalProperties": false
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

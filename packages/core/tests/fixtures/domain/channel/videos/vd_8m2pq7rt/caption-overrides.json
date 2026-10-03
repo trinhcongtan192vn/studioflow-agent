@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "video_id": "vd_8m2pq7rt",
+  "style": { "component": "caption-highlight", "vars": { "color": "#ffffff" } },
+  "groups": { "cg_m1x8d0rq": { "end_ms": 1300 } },
+  "splits": [],
+  "merges": []
+}

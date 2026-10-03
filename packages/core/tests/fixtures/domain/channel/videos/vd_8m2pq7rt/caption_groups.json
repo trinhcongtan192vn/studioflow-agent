@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "video_id": "vd_8m2pq7rt",
+  "style": "caption-highlight",
+  "groups": [
+    {
+      "id": "cg_m1x8d0rq",
+      "line_id": "ln_2r7c4kxm",
+      "word_range": [0, 1],
+      "text": "Năm 1428,",
+      "start_ms": 0,
+      "end_ms": 1200,
+      "emphasis": [1]
+    }
+  ]
+}

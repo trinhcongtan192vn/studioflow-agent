@@ -1,0 +1,350 @@
+{
+  "$comment": "GENERATED from docs/03 mục 7.2 — DO NOT EDIT",
+  "keys": [
+    {
+      "key": "output.profile",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "workflow.default",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "voice.id",
+      "pattern": false,
+      "type": "VoiceId",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "look.id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video",
+        "scene",
+        "frame"
+      ]
+    },
+    {
+      "key": "font.family",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "caption.style",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "caption.max_words",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "overlay.rules",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "provider.<capability>",
+      "pattern": true,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "text.producer",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "text.critic",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "text.aux",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "refine.min_rounds",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "refine.max_rounds",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "refine.threshold",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "script.wpm.<lang>",
+      "pattern": true,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "frame.min_duration_ms",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video",
+        "scene",
+        "frame"
+      ]
+    },
+    {
+      "key": "frame_build.parallel",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "budget.tokens_per_video",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "budget.api_cost_usd_per_video",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "budget.cache_gb",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "music.volume_db",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video",
+        "scene"
+      ]
+    },
+    {
+      "key": "music.duck_db",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "asr.wer_threshold.<lang>",
+      "pattern": true,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "asr.max_regen",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "lipsync.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "channel",
+        "video",
+        "frame"
+      ]
+    },
+    {
+      "key": "policy.auto_approve.batch_gen",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "video"
+      ]
+    },
+    {
+      "key": "policy.auto_approve.paid_api",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "video"
+      ]
+    },
+    {
+      "key": "check.length_tolerance",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "check.duration_tolerance",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "meta.title_max",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "meta.description_max",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "policy.batch.tts_lines",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "policy.batch.images",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "policy.paid_api.per_call_usd",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "policy.budget_warn_ratio",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "gpu.vram_budget_gb.<engine>",
+      "pattern": true,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "gpu.vram_total_gb",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    }
+  ]
+}

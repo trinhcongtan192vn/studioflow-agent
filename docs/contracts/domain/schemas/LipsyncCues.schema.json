@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/LipsyncCues",
+  "definitions": {
+    "LipsyncCues": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "line_id": {
+          "$ref": "#/definitions/LineId"
+        },
+        "cast_id": {
+          "$ref": "#/definitions/CastId"
+        },
+        "fps": {
+          "type": "number"
+        },
+        "cues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "frame": {
+                "type": "number"
+              },
+              "mouth": {
+                "type": "string",
+                "enum": [
+                  "closed",
+                  "half",
+                  "open"
+                ]
+              }
+            },
+            "required": [
+              "frame",
+              "mouth"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "cast_id",
+        "cues",
+        "fps",
+        "line_id",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "LineId": {
+      "$ref": "#/definitions/Id%3C%22ln%22%3E"
+    },
+    "Id<\"ln\">": {
+      "type": "string",
+      "pattern": "^ln_[0-9a-z]{8}$"
+    },
+    "CastId": {
+      "$ref": "#/definitions/Id%3C%22ca%22%3E"
+    },
+    "Id<\"ca\">": {
+      "type": "string",
+      "pattern": "^ca_[0-9a-z]{8}$"
+    }
+  }
+}

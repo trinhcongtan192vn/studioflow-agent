@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ChannelConfig",
+  "definitions": {
+    "ChannelConfig": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/definitions/ChannelId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/definitions/Lang"
+        },
+        "created_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "profile_dir": {
+          "type": "string",
+          "const": "profile"
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "output.profile": {},
+            "workflow.default": {},
+            "voice.id": {},
+            "look.id": {},
+            "font.family": {},
+            "caption.style": {},
+            "caption.max_words": {},
+            "overlay.rules": {},
+            "text.producer": {},
+            "text.critic": {},
+            "text.aux": {},
+            "refine.min_rounds": {},
+            "refine.max_rounds": {},
+            "refine.threshold": {},
+            "frame.min_duration_ms": {},
+            "frame_build.parallel": {},
+            "budget.tokens_per_video": {},
+            "budget.api_cost_usd_per_video": {},
+            "budget.cache_gb": {},
+            "music.volume_db": {},
+            "music.duck_db": {},
+            "asr.max_regen": {},
+            "lipsync.enabled": {},
+            "policy.auto_approve.batch_gen": {},
+            "policy.auto_approve.paid_api": {},
+            "check.length_tolerance": {},
+            "check.duration_tolerance": {},
+            "meta.title_max": {},
+            "meta.description_max": {},
+            "policy.batch.tts_lines": {},
+            "policy.batch.images": {},
+            "policy.paid_api.per_call_usd": {},
+            "policy.budget_warn_ratio": {},
+            "gpu.vram_total_gb": {}
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "config",
+        "created_at",
+        "id",
+        "language",
+        "name",
+        "profile_dir",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "ChannelId": {
+      "$ref": "#/definitions/Id%3C%22ch%22%3E"
+    },
+    "Id<\"ch\">": {
+      "type": "string",
+      "pattern": "^ch_[0-9a-z]{8}$"
+    },
+    "Lang": {
+      "type": "string",
+      "enum": [
+        "vi",
+        "de",
+        "en"
+      ]
+    },
+    "Iso8601": {
+      "type": "string"
+    }
+  }
+}

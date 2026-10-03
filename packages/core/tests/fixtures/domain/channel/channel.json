@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "ch_k3v9q2xa",
+  "name": "Sử Việt",
+  "language": "vi",
+  "created_at": "2026-10-03T10:49:00+07:00",
+  "profile_dir": "profile",
+  "config": {
+    "voice.id": "vo_c3z8p1mn",
+    "look.id": "warm-archive",
+    "caption.max_words": 6
+  }
+}

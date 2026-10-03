@@ -11,3 +11,5 @@ workers
 *.md
 package-lock.json
 verify-report.json
+packages/core/src/contracts
+node_modules/.cache

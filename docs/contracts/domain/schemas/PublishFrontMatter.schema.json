@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/PublishFrontMatter",
+  "definitions": {
+    "PublishFrontMatter": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "title": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "chapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start_ms": {
+                "$ref": "#/definitions/Ms"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "start_ms",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "status": {
+          "$ref": "#/definitions/DocStatus"
+        }
+      },
+      "required": [
+        "chapters",
+        "schema_version",
+        "status",
+        "tags",
+        "title",
+        "video_id"
+      ],
+      "additionalProperties": false,
+      "description": "D3 5.15"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    },
+    "Ms": {
+      "type": "number"
+    },
+    "DocStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    }
+  }
+}
