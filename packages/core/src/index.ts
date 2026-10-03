@@ -134,6 +134,7 @@ export {
   type AgentStepRunner,
   type StepRunContext,
   type StepExecutorResult,
+  type FrameCompletion,
 } from './workflow/engine.js';
 export { WorkflowService } from './workflow/service.js';
 export { workflowTools } from './workflow/tools.js';
@@ -191,3 +192,36 @@ export { asrLineBuilder, type AsrLineMeta } from './asr/builder.js';
 export { alignVideo, acceptLines, type AlignResult } from './asr/regen.js';
 export { readAsrState, writeAsrState, type AsrState } from './asr/state.js';
 export { asrTools, defineAsrJobs } from './asr/tools.js';
+export { hfInstall, hfLint, hfCheck, runHf, pinnedHfVersion, type HfFinding } from './hf/cli.js';
+export { sfIdsOf, checkFrameFile, type FrameFileProblem } from './hf/frame-file.js';
+export { loadOutputProfile, DEFAULT_OUTPUT_PROFILE } from './hf/outputs.js';
+export {
+  buildIndexHtml,
+  framePlacements,
+  transitionSeconds,
+  transitionRegistry,
+  type IndexInput,
+  type IndexFrame,
+} from './hf/index-html.js';
+export { buildCaptionsHtml, applyCaptionOverrides } from './hf/captions-html.js';
+export {
+  indexBuilder,
+  ensureHfProject,
+  groundColor,
+  HYPERFRAMES_JSON,
+} from './hf/index-builder.js';
+export {
+  buildFramePacket,
+  frameInstruction,
+  stageFrameAssets,
+  readChannelAssets,
+} from './hf/packet.js';
+export {
+  frameBuildExecutor,
+  type FrameBuildDeps,
+  type FrameBuildResult,
+} from './hf/frame-build.js';
+export { designSystemExecutor } from './hf/design-system.js';
+export { imageInfo, type ImageInfo } from './assets/image-info.js';
+export { importAsset, searchAssets, readManifest } from './assets/library.js';
+export { assetTools } from './assets/tools.js';

@@ -19,7 +19,16 @@ export class RecordReplayRuntime implements AgentRuntime {
 
   constructor(
     private readonly inner: AgentRuntime,
-    private readonly opts: { fixtureDir: string; mode?: LlmMode },
+    private readonly opts: {
+      fixtureDir: string;
+      mode?: LlmMode;
+      /**
+       * Khi phát lại: gọi lại tool Gateway có tác dụng (ghi file, báo xong) của các loại phiên này
+       * qua `callTool`, để test phiên `frame` chạy lại được (011 R4).
+       */
+      replayToolsFor?: SessionOptions['kind'][];
+      callTool?: (ctx: SessionOptions['context'], name: string, input: unknown) => Promise<unknown>;
+    },
   ) {
     this.id = `${inner.id}+${opts.mode ?? process.env.SF_LLM ?? 'replay'}`;
   }
@@ -31,7 +40,9 @@ export class RecordReplayRuntime implements AgentRuntime {
   async openSession(o: SessionOptions): Promise<AgentSession> {
     const history: string[] = [];
     let innerSession: AgentSession | undefined;
-    const { fixtureDir, mode } = this.opts;
+    const { fixtureDir, mode, replayToolsFor, callTool } = this.opts;
+    const replaying = (mode ?? process.env.SF_LLM ?? 'replay') === 'replay';
+    const reexec = replaying && callTool && replayToolsFor?.includes(o.kind);
     const inner = this.inner;
     return {
       id: o.context.session_id,
@@ -55,7 +66,14 @@ export class RecordReplayRuntime implements AgentRuntime {
             },
             { fixtureDir, mode },
           );
-          yield* events;
+          for (const e of events) {
+            if (reexec && e.type === 'tool_call' && e.name.startsWith('mcp__sf__')) {
+              // tên MCP `mcp__sf__artifact_write` → tool `artifact.write`
+              const name = e.name.slice('mcp__sf__'.length).replace('_', '.');
+              await callTool!(o.context, name, e.input);
+            }
+            yield e;
+          }
         } catch (e) {
           if (e instanceof LlmFixtureError)
             yield { type: 'error', code: e.code, message: e.message };

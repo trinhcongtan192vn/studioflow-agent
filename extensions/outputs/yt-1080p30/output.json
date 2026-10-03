@@ -1,0 +1,9 @@
+{
+  "id": "yt-1080p30",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "safe_area": { "top": 0.05, "right": 0.05, "bottom": 0.05, "left": 0.05 },
+  "video": { "codec": "h264", "crf": 18 },
+  "audio": { "codec": "aac", "sample_rate": 48000, "loudness_lufs": -14 }
+}

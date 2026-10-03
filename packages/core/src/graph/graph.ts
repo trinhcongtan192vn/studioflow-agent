@@ -244,6 +244,10 @@ export class BuildGraph {
     add('index', ['frame_timing', 'captions'], {
       frames_html: frameHtml,
       overrides: model.hashOf('caption-overrides.json'),
+      // 011: nền từ frame.md, kích thước theo output profile, transition vào của frame
+      frame_md: model.hashOf('frame.md'),
+      profile: model.config('output.profile'),
+      transitions: model.frames.map((f) => f.transition_in ?? null),
     });
     return defs.sort(
       (a, b) =>
