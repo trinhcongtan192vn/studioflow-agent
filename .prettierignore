@@ -1,0 +1,13 @@
+node_modules
+dist
+out
+release
+coverage
+docs
+specs
+.specify
+.claude
+workers
+*.md
+package-lock.json
+verify-report.json

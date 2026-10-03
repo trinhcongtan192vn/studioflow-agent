@@ -1,0 +1,31 @@
+{
+  "name": "studioflow-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/doctor.mjs && npm install && cd workers/gpu && uv sync && cd ../.. && git config core.hooksPath .githooks",
+    "doctor": "node scripts/doctor.mjs",
+    "verify": "node scripts/verify.mjs",
+    "package": "node scripts/package.mjs",
+    "lint": "eslint . && prettier --check . && node scripts/check-structure.mjs",
+    "format": "prettier --write .",
+    "test:scripts": "node --test scripts/tests/*.test.mjs",
+    "sf": "node packages/core/bin/sf.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.9",
+    "typescript-eslint": "^8.71.0"
+  }
+}

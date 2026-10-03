@@ -6,3 +6,10 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+coverage/
+release/
+verify-report.json
+.pytest_cache/
+.ruff_cache/
+*.tsbuildinfo
+test-results/

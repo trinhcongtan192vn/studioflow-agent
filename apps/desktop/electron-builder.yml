@@ -1,0 +1,25 @@
+# 001 FR-SC-016/017 — bản cài NSIS x64: chỉ vỏ app + core (core bundle trong out/main).
+appId: app.studioflow.agent
+productName: StudioFlow
+directories:
+  output: ../../release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Không ký số mã ở 001 (Clarifications 2026-10-03).
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  # Không xóa ngầm dữ liệu người dùng khi gỡ (FR-SC-017).
+  deleteAppDataOnUninstall: false
+  artifactName: StudioFlow-Setup-${version}.exe

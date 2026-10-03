@@ -1,0 +1,3 @@
+#!/bin/sh
+# 001 FR-SC-019 — bật bằng: git config core.hooksPath .githooks (npm run setup làm sẵn)
+exec node "$(git rev-parse --show-toplevel)/scripts/check-commit-msg.mjs" "$1"
