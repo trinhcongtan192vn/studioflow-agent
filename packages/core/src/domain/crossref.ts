@@ -10,10 +10,16 @@ import type { ValidationError } from './validate.js';
  * Kiểm chéo trong một video (FR-009, D6 gate storyboard): ID duy nhất, tham chiếu tồn tại, mỗi line
  * thuộc đúng một frame, speaker có cast.
  */
-export function crossCheckVideo(channelDir: string, videoId: string): ValidationError[] {
+export function crossCheckVideo(
+  channelDir: string,
+  videoId: string,
+  /** Nội dung thay cho file trên đĩa (kiểm trước khi ghi), khóa = tên file trong video. */
+  overrides: Record<string, string> = {},
+): ValidationError[] {
   const dir = path.join(channelDir, 'videos', videoId);
   const read = (f: string) =>
-    existsSync(path.join(dir, f)) ? readFileSync(path.join(dir, f), 'utf8') : undefined;
+    overrides[f] ??
+    (existsSync(path.join(dir, f)) ? readFileSync(path.join(dir, f), 'utf8') : undefined);
   const errors: ValidationError[] = [];
   const err = (code: ValidationError['code'], message: string, p = '/') =>
     errors.push({ code, path: p, message });

@@ -50,6 +50,21 @@
       "code": "E_CHANNEL_EXISTS",
       "when": "Khởi tạo kênh trong thư mục đã có channel.json",
       "source": "specs/002-domain-artifacts/spec.md"
+    },
+    {
+      "code": "E_SCRIPT_NOT_FOUND",
+      "when": "script.run: chương trình trong danh sách cho phép chưa được cài/không tìm thấy",
+      "source": "specs/003-gateway-core/research.md"
+    },
+    {
+      "code": "E_FILE_NOT_FOUND",
+      "when": "artifact.read/validate: file không tồn tại",
+      "source": "specs/003-gateway-core/research.md"
+    },
+    {
+      "code": "E_FILE_TOO_LARGE",
+      "when": "artifact.read: file lớn hơn 1 MB (không trả cho agent)",
+      "source": "specs/003-gateway-core/research.md"
     }
   ]
 }

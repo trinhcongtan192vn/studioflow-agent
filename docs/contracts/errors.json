@@ -166,6 +166,26 @@
       ]
     },
     {
+      "code": "E_FILE_NOT_FOUND",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/003-gateway-core/research.md",
+          "when": "artifact.read/validate: file không tồn tại"
+        }
+      ]
+    },
+    {
+      "code": "E_FILE_TOO_LARGE",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/003-gateway-core/research.md",
+          "when": "artifact.read: file lớn hơn 1 MB (không trả cho agent)"
+        }
+      ]
+    },
+    {
       "code": "E_GATE_FAILED",
       "retryable": false,
       "sources": [
@@ -426,6 +446,16 @@
         {
           "doc": "docs/05-spec-agent-runtime-policy.md",
           "when": "Lệnh/đối số ngoài danh sách cho phép"
+        }
+      ]
+    },
+    {
+      "code": "E_SCRIPT_NOT_FOUND",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/003-gateway-core/research.md",
+          "when": "script.run: chương trình trong danh sách cho phép chưa được cài/không tìm thấy"
         }
       ]
     },
