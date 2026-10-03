@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+.venv/
+__pycache__/
+*.log
+.DS_Store
+Thumbs.db
