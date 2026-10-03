@@ -93,6 +93,11 @@ class ClaudeSession implements AgentSession {
     }
   }
 
+  /** Id phiên SDK (để tiếp tục khi mở lại video, FR-CH-07). */
+  get sdkSessionId(): string | undefined {
+    return this.sdkSession;
+  }
+
   async interrupt(): Promise<void> {
     await this.current?.interrupt();
   }

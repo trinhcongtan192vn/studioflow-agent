@@ -108,8 +108,12 @@ export function createCore(opts: CoreOptions = {}): Core {
   // Text + refine-loop (009)
   const envMode = process.env.SF_LLM;
   const textMode =
-    opts.textMode ?? (envMode === 'record' || envMode === 'replay' ? envMode : undefined);
-  const textFixtureDir = opts.textFixtureDir ?? process.env.SF_LLM_FIXTURES;
+    opts.textMode ??
+    (envMode === 'record' || envMode === 'replay' ? envMode : undefined) ??
+    // test (D12): không gọi LLM thật ngoài test live
+    (process.env.SF_TEXT_MODE === 'replay' ? 'replay' : undefined);
+  const textFixtureDir =
+    opts.textFixtureDir ?? process.env.SF_LLM_FIXTURES ?? path.join(appDataDir, 'llm-fixtures');
   const text = createTextService({
     appDataDir,
     ...(opts.getSecret ? { getSecret: opts.getSecret } : {}),

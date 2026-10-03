@@ -1,0 +1,102 @@
+{
+  "request": {
+    "history": ["Chào bạn, hãy trả lời đúng một câu: video này có bao nhiêu line trong SCRIPT.md?"],
+    "kind": "main",
+    "model": "claude-sonnet-5-5",
+    "plugins": ["studioflow-core", "profile"],
+    "systemAppend": "Bạn là agent sản xuất video của StudioFlow. Quy tắc:\n1. Chỉ ghi file qua tool mcp__sf__artifact_write; chỉ chạy lệnh qua mcp__sf__script_run. Không cố dùng cách khác.\n2. Làm theo workflow hiện tại (xem mcp__sf__workflow_state). Khi xong một bước do bạn thực hiện, gọi mcp__sf__workflow_step_complete.\n3. Không tự duyệt thay người dùng. Điểm duyệt do hệ thống tạo; bạn chỉ gắn tóm tắt bằng mcp__sf__approval_annotate.\n4. Dùng capability theo tên, không nhắc tên model.\n5. Không sửa file của frame đã ghim nếu chưa được người dùng cho phép.\n6. Trả lời người dùng bằng ngôn ngữ của họ; nội dung video theo ngôn ngữ kênh.\n7. Khi thiếu thông tin, hỏi ngắn gọn thay vì đoán.\nĐường dẫn trong tool sf là tương đối thư mục video hiện tại (ví dụ SCRIPT.md)."
+  },
+  "response": [
+    {
+      "type": "tool_call",
+      "id": "toolu_01LSa16YCsic13P6xfguoFuG",
+      "name": "ToolSearch",
+      "input": {
+        "query": "select:mcp__sf__artifact_read",
+        "max_results": 1
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01LSa16YCsic13P6xfguoFuG",
+      "ok": true,
+      "summary": ""
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01Qw1bpqc1SFxTKfjqg47H6G",
+      "name": "mcp__sf__artifact_read",
+      "input": {
+        "path": "SCRIPT.md"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01Qw1bpqc1SFxTKfjqg47H6G",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"content\":\"---\\nschema_version: 1\\nvideo_id: vd_8m2pq7rt\\nlanguage: vi\\nstatus: approved\\n---\\nGhi chú tự do trước beat đầu tiên — parser giữ nguyên.\\n\\n## Mở đầu <!-- sf:beat id=bt"
+    },
+    {
+      "type": "text_delta",
+      "text": "S"
+    },
+    {
+      "type": "text_delta",
+      "text": "CRIPT.md có"
+    },
+    {
+      "type": "text_delta",
+      "text": " 3 line (`"
+    },
+    {
+      "type": "text_delta",
+      "text": "ln_2r7c4"
+    },
+    {
+      "type": "text_delta",
+      "text": "kxm`, `ln"
+    },
+    {
+      "type": "text_delta",
+      "text": "_9w3b6tq"
+    },
+    {
+      "type": "text_delta",
+      "text": "a`"
+    },
+    {
+      "type": "text_delta",
+      "text": ", `ln_5h8"
+    },
+    {
+      "type": "text_delta",
+      "text": "q2m3x`),"
+    },
+    {
+      "type": "text_delta",
+      "text": " t"
+    },
+    {
+      "type": "text_delta",
+      "text": "ính theo các"
+    },
+    {
+      "type": "text_delta",
+      "text": " marker `sf:line`"
+    },
+    {
+      "type": "text_delta",
+      "text": "."
+    },
+    {
+      "type": "usage",
+      "input_tokens": 6,
+      "output_tokens": 262,
+      "cost_usd": 0.07890459999999999
+    },
+    {
+      "type": "done",
+      "stop_reason": "end_turn"
+    }
+  ]
+}

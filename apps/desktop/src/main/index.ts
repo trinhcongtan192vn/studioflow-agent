@@ -1,14 +1,79 @@
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { getVersion } from '@studioflow/core';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  MessageChannelMain,
+  shell,
+  utilityProcess,
+  type UtilityProcess,
+} from 'electron';
+import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const SECRET_NAMES = ['openai', 'deepseek', 'anthropic'];
+const MAX_RESTARTS = 3;
+
+let win: BrowserWindow | undefined;
+let core: UtilityProcess | undefined;
+let restarts = 0;
+let quitting = false;
+
+/** Bí mật đọc ở `main` (D5 mục 5.4) rồi chuyển cho core; renderer không thấy giá trị. */
+function readSecrets(): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (process.platform !== 'win32' || process.env.SF_NO_CREDMAN === '1') return out;
+  for (const n of SECRET_NAMES) {
+    try {
+      const v = secretGet(n);
+      if (v) out[n] = v;
+    } catch {
+      /* Credential Manager không đọc được → bỏ qua */
+    }
+  }
+  return out;
+}
+
+/** Tiến trình `core` (tech-defaults: utilityProcess) + MessagePort renderer ↔ core. */
+function startCore(): void {
+  const entry = createRequire(import.meta.url).resolve('@studioflow/core/host-entry');
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (e): e is [string, string] => e[0] !== 'ELECTRON_RUN_AS_NODE' && e[1] !== undefined,
+    ),
+  );
+  core = utilityProcess.fork(entry, [], { serviceName: 'studioflow-core', env, stdio: 'inherit' });
+  const { port1, port2 } = new MessageChannelMain();
+  core.postMessage(
+    {
+      type: 'init',
+      ...(process.env.SF_APP_DATA ? { appDataDir: process.env.SF_APP_DATA } : {}),
+      secrets: {},
+    },
+    [port1],
+  );
+  const send = () => win?.webContents.postMessage('core-port', null, [port2]);
+  if (win?.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+  else send();
+  core.on('exit', (code) => {
+    if (quitting) return;
+    win?.webContents.send('core-status', { ok: false, code });
+    // `core` mất kết nối → khởi động lại tối đa 3 lần (FN-008 mục 4)
+    if (restarts++ < MAX_RESTARTS) startCore();
+  });
+  // bí mật nạp sau khi cửa sổ hiện (Credential Manager chậm ~1 s)
+  setTimeout(() => core?.postMessage({ type: 'secrets', secrets: readSecrets() }), 50);
+}
 
 function createWindow(): void {
-  const win = new BrowserWindow({
-    width: 1100,
-    height: 720,
+  win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1280,
+    minHeight: 800,
     title: 'StudioFlow',
     webPreferences: {
       preload: path.join(here, '../preload/index.cjs'),
@@ -16,23 +81,49 @@ function createWindow(): void {
       sandbox: true,
     },
   });
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    void win.loadFile(path.join(here, '../renderer/index.html'));
-  }
+  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
+  else void win.loadFile(path.join(here, '../renderer/index.html'));
 }
 
 // Phiên bản lấy từ API của core (constitution Điều II), không tính ở UI.
 ipcMain.handle('core:version', () => getVersion());
+ipcMain.handle('app:boot', () => ({ open_channel: process.env.SF_OPEN_CHANNEL ?? null }));
+ipcMain.handle('dialog:folder', async () => {
+  const r = await dialog.showOpenDialog(win!, { properties: ['openDirectory', 'createDirectory'] });
+  return r.canceled ? null : r.filePaths[0];
+});
+ipcMain.handle('dialog:files', async () => {
+  const r = await dialog.showOpenDialog(win!, { properties: ['openFile', 'multiSelections'] });
+  return r.canceled ? [] : r.filePaths;
+});
+ipcMain.handle('shell:open', (_e, p: string) => shell.openPath(p));
+ipcMain.handle('secrets:status', () =>
+  SECRET_NAMES.map((n) => ({ name: n, hint: process.platform === 'win32' ? secretHint(n) : null })),
+);
+ipcMain.handle('secrets:set', (_e, name: string, value: string) => {
+  if (!SECRET_NAMES.includes(name)) throw new Error(`unknown secret ${name}`);
+  secretSet(name, value);
+  core?.postMessage({ type: 'secrets', secrets: readSecrets() });
+  return { name, hint: secretHint(name) };
+});
+ipcMain.handle('secrets:delete', (_e, name: string) => {
+  const ok = secretDelete(name);
+  core?.postMessage({ type: 'secrets', secrets: readSecrets() });
+  return { name, deleted: ok };
+});
 
 void app.whenReady().then(() => {
   createWindow();
+  startCore();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
+app.on('before-quit', () => {
+  quitting = true;
+  core?.kill();
+});
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

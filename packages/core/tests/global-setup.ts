@@ -12,6 +12,8 @@ export default function setup(): void {
   });
   // test kín: không đọc khóa thật trong Credential Manager (test credman gọi trực tiếp)
   process.env.SF_NO_CREDMAN = '1';
+  // text.* không gọi LLM thật (D12) trừ khi test live đặt SF_LLM=record
+  if (process.env.SF_LLM !== 'record') process.env.SF_TEXT_MODE = 'replay';
   // engine audio-analysis (CPU, 012) chạy thật trong test: dùng venv của workers/gpu (uv sync)
   const venv = path.join(coreDir, '..', '..', 'workers', 'gpu', '.venv', 'Scripts', 'python.exe');
   if (!process.env.SF_PYTHON_AUDIO_ANALYSIS && existsSync(venv))

@@ -65,6 +65,11 @@
       "code": "E_FILE_TOO_LARGE",
       "when": "artifact.read: file lớn hơn 1 MB (không trả cho agent)",
       "source": "specs/003-gateway-core/research.md"
+    },
+    {
+      "code": "E_NOT_CHANNEL",
+      "when": "Thư mục mở không có channel.json (IPC channel.open)",
+      "source": "specs/008-desktop-shell-chat/spec.md"
     }
   ]
 }
