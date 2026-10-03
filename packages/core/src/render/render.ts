@@ -1,3 +1,4 @@
+import { withSpan } from '../trace/trace.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AudioMeta, RenderInput, RenderRecord, VideoState } from '../contracts/types.js';
@@ -160,14 +161,32 @@ export function creditsFor(d: RenderDeps, videoId: string): string {
  * `render.video` (D4): build graph → gate → `hyperframes render` → hậu kỳ (độ to, "NHÁP") →
  * `renders/<rd>/video.mp4` + `render.json`; phát hành kèm `CREDITS.txt`, `description.txt`.
  */
-export async function renderVideo(
+type RenderOpts = {
+  signal?: AbortSignal;
+  progress?: (done: number, total: number, message?: string) => void;
+};
+
+export function renderVideo(
   d: RenderDeps,
   videoId: string,
   input: RenderJobInput,
-  o: {
-    signal?: AbortSignal;
-    progress?: (done: number, total: number, message?: string) => void;
-  } = {},
+  o: RenderOpts = {},
+): Promise<RenderRecord> {
+  return withSpan('sf.render', { 'sf.mode': input.mode, 'sf.video_id': videoId }, async (span) => {
+    const r = await renderVideoInner(d, videoId, input, o);
+    span.setAttributes({
+      'sf.duration_ms': r.duration_ms ?? 0,
+      'sf.output_profile': r.output_profile,
+    });
+    return r;
+  });
+}
+
+async function renderVideoInner(
+  d: RenderDeps,
+  videoId: string,
+  input: RenderJobInput,
+  o: RenderOpts,
 ): Promise<RenderRecord> {
   const logger = d.logger ?? new Logger();
   const v = `videos/${videoId}`;

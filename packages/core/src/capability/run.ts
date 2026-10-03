@@ -1,3 +1,4 @@
+import { withSpan } from '../trace/trace.js';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { canonicalJson, sha256 } from '../domain/hash.js';
@@ -81,7 +82,27 @@ function touch(db: Db | undefined, key: string, channel: string, size?: number):
  * Chạy một capability qua adapter (D4 mục 4.2, 7): tra cache → chạy trong thư mục tạm → đưa đầu ra
  * vào đích qua module ghi → lưu cache → ghi provenance (D3 5.12) cho mỗi file đầu ra.
  */
-export async function runCapability<I, O>(
+export function runCapability<I, O>(
+  args: RunCapabilityArgs<I, O>,
+): Promise<RunCapabilityResult<O>> {
+  const m = args.adapter.manifest;
+  return withSpan(
+    'sf.provider.run',
+    {
+      'sf.capability': args.capability,
+      'sf.provider': m.id,
+      'sf.model': m.models?.[0],
+      'sf.video_id': args.videoId,
+    },
+    async (span) => {
+      const r = await runCapabilityInner(args);
+      span.setAttribute('sf.from_cache', r.from_cache);
+      return r;
+    },
+  );
+}
+
+async function runCapabilityInner<I, O>(
   args: RunCapabilityArgs<I, O>,
 ): Promise<RunCapabilityResult<O>> {
   const { store, adapter, capability, input } = args;

@@ -1,3 +1,4 @@
+import { currentTraceparent, withSpan } from '../trace/trace.js';
 import { EventEmitter } from 'node:events';
 import { errorRegistry } from '../contracts/errors.js';
 import type { JobInfo } from '../contracts/types.js';
@@ -76,6 +77,9 @@ export class JobQueue extends EventEmitter {
     this.schedule();
   }
 
+  /** Ngữ cảnh trace lúc xếp job (tool/bước) → span `sf.job` là con của nó (D11). */
+  private readonly traceparents = new Map<string, string>();
+
   enqueue(kind: string, spec: Omit<EnqueueSpec, 'kind'> & { parent_id?: string } = {}): QueuedJob {
     const def = this.kinds.get(kind);
     const ids = new Set(this.list({}).map((j) => j.id));
@@ -96,6 +100,8 @@ export class JobQueue extends EventEmitter {
     };
     this.order.set(job.id, this.seq++);
     this.save(job, def?.idempotent ?? true);
+    const tp = currentTraceparent();
+    if (tp) this.traceparents.set(job.id, tp);
     this.schedule();
     return job;
   }
@@ -320,7 +326,19 @@ export class JobQueue extends EventEmitter {
       },
     };
     try {
-      const result = await def.run(job, ctx);
+      const parent = this.traceparents.get(job.id);
+      this.traceparents.delete(job.id);
+      const result = await withSpan(
+        'sf.job',
+        {
+          'sf.job_id': job.id,
+          'sf.kind': job.kind,
+          'sf.engine': job.engine,
+          'sf.video_id': job.video_id,
+        },
+        () => def.run(job, ctx),
+        parent,
+      );
       if (ctrl.signal.aborted) throw new SfError('E_JOB_CANCELED', 'canceled');
       const failedKids = children.filter((c) => c.status !== 'succeeded').length;
       const status =

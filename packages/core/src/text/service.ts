@@ -9,6 +9,7 @@ import type {
 } from '../contracts/types.js';
 import { SfError } from '../errors.js';
 import { getSecretDefault } from '../secrets/credman.js';
+import { withSpan } from '../trace/trace.js';
 import { Logger } from '../log.js';
 import type { WriteStore } from '../store/writer.js';
 import { llmCall, LlmFixtureError, type LlmMode } from '../testing/llm-replay.js';
@@ -63,6 +64,16 @@ function pricing(appDataDir?: string) {
       table.find((p) => p.provider === provider && p.model === model && p.unit === unit)?.usd ?? 0;
     return (inp / 1e6) * rate('mtok_in') + (out / 1e6) * rate('mtok_out');
   };
+}
+
+/** `settings.trace.capture_content` (mặc định true, D11 mục 1). */
+function captureContent(appDataDir?: string): boolean {
+  const f = appDataDir ? path.join(appDataDir, 'settings.json') : undefined;
+  if (!f || !existsSync(f)) return true;
+  return (
+    (JSON.parse(readFileSync(f, 'utf8')) as { trace?: { capture_content?: boolean } }).trace
+      ?.capture_content !== false
+  );
 }
 
 /** Trích JSON từ câu trả lời (bỏ rào ```json …```). */
@@ -141,7 +152,43 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
       { appDataDir: opts.appDataDir, getSecret },
     );
 
-  async function call(
+  /** Lời gọi text trong span `sf.text.call` (D11): gen_ai.* + nội dung khi `trace.capture_content`. */
+  function call(
+    capability: string,
+    ref: ModelRef,
+    input: TextGenerateInput,
+    scope: CallScope,
+  ): Promise<TextGenerateOutput> {
+    return withSpan(
+      'sf.text.call',
+      {
+        'gen_ai.system': ref.provider,
+        'gen_ai.request.model': ref.model,
+        'sf.capability': capability,
+        'sf.video_id': scope.videoId,
+      },
+      async (span) => {
+        const out = await callInner(capability, ref, input, scope);
+        span.setAttributes({
+          'gen_ai.usage.input_tokens': out.usage.input,
+          'gen_ai.usage.output_tokens': out.usage.output,
+          'sf.cost_usd': out.cost_usd,
+        });
+        if (captureContent(opts.appDataDir)) {
+          span.setAttributes({
+            'input.value': input.messages
+              .map((m) => `[${m.role}] ${m.content}`)
+              .join('\n')
+              .slice(0, 20_000),
+            'output.value': out.text.slice(0, 20_000),
+          });
+        }
+        return out;
+      },
+    );
+  }
+
+  async function callInner(
     capability: string,
     ref: ModelRef,
     input: TextGenerateInput,

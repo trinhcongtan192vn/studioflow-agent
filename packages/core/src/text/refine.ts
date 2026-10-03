@@ -1,3 +1,4 @@
+import { withSpan } from '../trace/trace.js';
 import type { ReviewRound, TextGenerateOutput, TextReviewOutput } from '../contracts/types.js';
 import { SfError } from '../errors.js';
 import type { ObjectiveResult } from './objectives.js';
@@ -52,8 +53,24 @@ export async function runRefine(d: RefineDeps): Promise<RefineResult> {
   let incomplete = false;
   let prior: Issue[] = [];
   for (let r = 1; r <= d.max; r++) {
-    const checks = d.checks(draft);
-    const review = await d.review(draft, prior);
+    const { checks, review } = await withSpan(
+      'sf.refine.round',
+      { 'sf.round': r },
+      async (span) => {
+        const checks = d.checks(draft);
+        const review = await d.review(draft, prior);
+        const count = (sev: string) => review.issues.filter((i) => i.severity === sev).length;
+        span.setAttributes({
+          'sf.score': review.score,
+          'sf.producer_model': gen.model,
+          'sf.critic_model': review.model,
+          'sf.issues.critical': count('critical'),
+          'sf.issues.major': count('major'),
+          'sf.issues.minor': count('minor'),
+        });
+        return { checks, review };
+      },
+    );
     rounds.push({
       round: r,
       draft,
