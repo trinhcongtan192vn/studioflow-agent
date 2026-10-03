@@ -33,10 +33,10 @@ function editScript(dir: string, fn: (s: string) => string) {
 describe('build graph (004 US3)', () => {
   it('unbuilt video: every node missing; plan ordered by phase', () => {
     const { graph } = fx();
-    const st = graph.status(fixtureVideoId);
+    const st = graph.nodeStates(fixtureVideoId);
     expect(st.map((n) => n.id).sort()).toEqual([...ALL].sort());
     expect(new Set(st.map((n) => n.status))).toEqual(new Set(['missing']));
-    const plan = graph.plan(fixtureVideoId);
+    const plan = graph.planNodes(fixtureVideoId);
     expect(plan.jobs.map((j) => j.phase)).toEqual([
       'tts',
       'tts',
@@ -62,7 +62,7 @@ describe('build graph (004 US3)', () => {
     const { graph, dir } = fx();
     const r = await graph.build(fixtureVideoId);
     expect(r.status).toBe('succeeded');
-    expect(graph.status(fixtureVideoId).every((n) => n.status === 'fresh')).toBe(true);
+    expect(graph.nodeStates(fixtureVideoId).every((n) => n.status === 'fresh')).toBe(true);
     const g = JSON.parse(readFileSync(path.join(dir, V, '.sf/graph.json'), 'utf8'));
     expect(g.nodes['audio_meta']).toMatchObject({
       key: '',
@@ -74,7 +74,7 @@ describe('build graph (004 US3)', () => {
     });
     const meta = readFileSync(path.join(dir, V, 'audio_meta.json'), 'utf8');
     expect(validateArtifact(`${V}/audio_meta.json`, meta).errors).toEqual([]);
-    expect(graph.plan(fixtureVideoId).jobs).toEqual([]);
+    expect(graph.planNodes(fixtureVideoId).jobs).toEqual([]);
   });
 
   it('editing one line text plans exactly the six affected nodes (SC-001)', async () => {
@@ -82,7 +82,7 @@ describe('build graph (004 US3)', () => {
     await graph.build(fixtureVideoId);
     editScript(dir, (s) => s.replace('Bệ hạ…', 'Tâu bệ hạ…'));
     const stale = graph
-      .status(fixtureVideoId)
+      .nodeStates(fixtureVideoId)
       .filter((n) => n.status !== 'fresh')
       .map((n) => n.id);
     expect(stale.sort()).toEqual(
@@ -95,7 +95,7 @@ describe('build graph (004 US3)', () => {
         'index',
       ].sort(),
     );
-    expect(graph.plan(fixtureVideoId).jobs.map((j) => j.node)).toEqual([
+    expect(graph.planNodes(fixtureVideoId).jobs.map((j) => j.node)).toEqual([
       'audio.line:ln_9w3b6tqa',
       'asr.line:ln_9w3b6tqa',
       'audio_meta',
@@ -106,14 +106,14 @@ describe('build graph (004 US3)', () => {
     calls.length = 0;
     await graph.build(fixtureVideoId);
     expect(calls).toEqual(['audio.line:ln_9w3b6tqa', 'asr.line:ln_9w3b6tqa', 'captions', 'index']);
-    expect(graph.status(fixtureVideoId).every((n) => n.status === 'fresh')).toBe(true);
+    expect(graph.nodeStates(fixtureVideoId).every((n) => n.status === 'fresh')).toBe(true);
   });
 
   it('changing pause_after_ms does not regenerate audio', async () => {
     const { graph, dir } = fx();
     await graph.build(fixtureVideoId);
     editScript(dir, (s) => s.replace('pause_after_ms=300', 'pause_after_ms=800'));
-    const plan = graph.plan(fixtureVideoId).jobs.map((j) => j.node);
+    const plan = graph.planNodes(fixtureVideoId).jobs.map((j) => j.node);
     expect(plan).toEqual(['audio_meta', 'captions', 'frame_timing', 'index']);
   });
 
@@ -126,7 +126,7 @@ describe('build graph (004 US3)', () => {
       error: { message: 'tts crashed' },
     });
     expect(r.nodes['audio_meta']!.status).toBe('skipped');
-    const st = Object.fromEntries(graph.status(fixtureVideoId).map((n) => [n.id, n.status]));
+    const st = Object.fromEntries(graph.nodeStates(fixtureVideoId).map((n) => [n.id, n.status]));
     expect(st['audio.line:ln_9w3b6tqa']).toBe('failed');
     expect(st['audio.line:ln_2r7c4kxm']).toBe('fresh');
     expect(st['audio_meta']).toBe('missing');
@@ -134,7 +134,7 @@ describe('build graph (004 US3)', () => {
 
   it('node types without a builder are inactive (not planned, not dependencies)', async () => {
     const { graph, dir } = fx({ withAsr: false });
-    expect(graph.status(fixtureVideoId).some((n) => n.type === 'asr.line')).toBe(false);
+    expect(graph.nodeStates(fixtureVideoId).some((n) => n.type === 'asr.line')).toBe(false);
     const r = await graph.build(fixtureVideoId);
     expect(r.status).toBe('succeeded');
     const meta = JSON.parse(readFileSync(path.join(dir, V, 'audio_meta.json'), 'utf8'));
@@ -144,13 +144,38 @@ describe('build graph (004 US3)', () => {
   it('a corrupt graph.json is treated as unbuilt', async () => {
     const { graph, store } = fx();
     store.write(`${V}/.sf/graph.json`, '{nope', { by: 'test' });
-    expect(graph.status(fixtureVideoId).every((n) => n.status === 'missing')).toBe(true);
+    expect(graph.nodeStates(fixtureVideoId).every((n) => n.status === 'missing')).toBe(true);
   });
 
   it('estimates seconds from history after a build', async () => {
     const { graph, dir } = fx();
     await graph.build(fixtureVideoId);
     editScript(dir, (s) => s.replace('Bệ hạ…', 'Bệ hạ!'));
-    expect(graph.plan(fixtureVideoId).estimate.seconds).toEqual(expect.any(Number));
+    expect(graph.planNodes(fixtureVideoId).estimate.seconds).toEqual(expect.any(Number));
+  });
+});
+
+describe('graph.status / graph.plan follow D4 3.1 (004 fix)', () => {
+  it('NodeStatus and PlannedJob/PlanEstimate shapes', async () => {
+    const { graph } = fx();
+    const st = graph.status(fixtureVideoId);
+    expect(st[0]).toEqual({ key: 'audio.line:ln_2r7c4kxm', type: 'audio.line', status: 'missing' });
+    const plan = graph.plan(fixtureVideoId);
+    expect(plan.jobs[0]).toEqual({
+      kind: 'audio.line',
+      targets: ['audio.line:ln_2r7c4kxm'],
+      phase: 0,
+      est_ms: 0,
+      est_cost_usd: 0,
+      from_cache: false,
+    });
+    expect(plan.estimate).toEqual({
+      total_ms: 0,
+      total_cost_usd: 0,
+      jobs_count: 10,
+      cached_count: 0,
+    });
+    await graph.build(fixtureVideoId);
+    expect(graph.plan(fixtureVideoId).estimate.jobs_count).toBe(0);
   });
 });

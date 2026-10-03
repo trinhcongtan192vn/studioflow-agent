@@ -31,7 +31,9 @@ describeGpu('tts.omnivoice (006 SC-001)', () => {
         // giọng mẫu: auto voice tiếng Việt (research R5)
         const auto = await omni.worker.run(
           'auto',
-          { text: 'Xin chào, đây là giọng mẫu để thử nghiệm.' },
+          {
+            text: 'Xin chào các bạn, hôm nay chúng ta sẽ cùng nhau tìm hiểu một câu chuyện lịch sử thú vị của Việt Nam.',
+          },
           t.dir,
           { jobId: 'auto' },
         );
@@ -48,7 +50,8 @@ describeGpu('tts.omnivoice (006 SC-001)', () => {
             name: 'test',
             language: 'vi',
             ref_audio: 'uploads/ref.wav',
-            ref_text: 'Xin chào, đây là giọng mẫu để thử nghiệm.',
+            ref_text:
+              'Xin chào các bạn, hôm nay chúng ta sẽ cùng nhau tìm hiểu một câu chuyện lịch sử thú vị của Việt Nam.',
           },
           outputs: { voice: 'voices/vo_testtest/voice.pt', ref: 'voices/vo_testtest/ref.wav' },
         });

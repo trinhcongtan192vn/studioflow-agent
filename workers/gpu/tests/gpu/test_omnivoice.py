@@ -9,6 +9,11 @@ import pytest
 from sf_worker.audio import wav_info
 from tests.worker_helpers import WorkerProc
 
+REF_TEXT = (
+    "Xin chào các bạn, hôm nay chúng ta sẽ cùng nhau tìm hiểu "
+    "một câu chuyện lịch sử thú vị của Việt Nam."
+)
+
 ENV_PY = Path(
     os.environ.get("APPDATA", ""),
     "StudioFlow",
@@ -36,7 +41,7 @@ def test_clone_and_speak_vietnamese(tmp_path):
             {
                 "job_id": "a",
                 "task": "auto",
-                "input": {"text": "Xin chào, đây là giọng mẫu để thử nghiệm."},
+                "input": {"text": REF_TEXT},
                 "workdir": str(auto),
             },
         )
@@ -52,7 +57,7 @@ def test_clone_and_speak_vietnamese(tmp_path):
                 "task": "voice.profile",
                 "input": {
                     "ref_audio": str(auto / "out.wav"),
-                    "ref_text": "Xin chào, đây là giọng mẫu để thử nghiệm.",
+                    "ref_text": REF_TEXT,
                 },
                 "workdir": str(voice),
             },

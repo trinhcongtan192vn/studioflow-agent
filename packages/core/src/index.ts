@@ -87,9 +87,9 @@ export {
   type BuilderContext,
   type BuildOutput,
   type BuildResult,
-  type NodeStatus,
+  type NodeState_,
   type NodeType,
-  type PlannedJob,
+  type PlannedNode,
 } from './graph/graph.js';
 export { assembleAudioLines, computeFrameTiming, type FrameTiming } from './graph/timing.js';
 export { loadVideoModel, type VideoModel } from './graph/model.js';

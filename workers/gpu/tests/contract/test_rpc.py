@@ -116,3 +116,13 @@ def test_requests_are_served_while_a_task_runs(worker, tmp_path):
     assert worker.call("health")["result"]["ok"] is True
     assert worker.read_until(rid)["result"] == {"slept": True}
     assert threading.active_count() >= 1
+
+
+def test_library_prints_do_not_corrupt_the_protocol(tmp_path):
+    # engine fake: task "print" ghi ra stdout của Python; luồng JSON-RPC vẫn sạch
+    w = WorkerProc("fake")
+    try:
+        r = w.call("run", {"job_id": "p", "task": "print", "input": {}, "workdir": str(tmp_path)})
+        assert r["result"] == {"printed": True}
+    finally:
+        w.close()

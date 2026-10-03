@@ -18,7 +18,8 @@ class WorkerProc:
             [python or sys.executable, "-m", "sf_worker", "serve", "--engine", engine],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # stderr không được đọc → để kế thừa (PIPE không đọc sẽ đầy và chặn worker)
+            stderr=None,
             text=True,
             encoding="utf-8",
             env=env,
@@ -37,7 +38,7 @@ class WorkerProc:
         while True:
             line = self.p.stdout.readline()
             if not line:
-                raise RuntimeError(f"worker exited: {self.p.stderr.read()}")
+                raise RuntimeError(f"worker exited with {self.p.poll()}")
             msg = json.loads(line)
             if msg.get("id") == rid:
                 return msg

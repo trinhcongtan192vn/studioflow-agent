@@ -17,6 +17,13 @@ class OmniVoiceEngine:
     name = "omnivoice"
 
     def __init__(self) -> None:
+        # Import torch + omnivoice ở luồng chính: import lần đầu trong luồng `run` khi luồng
+        # chính đang chặn đọc stdin bị treo trên Windows (quan sát 2026-10-03).
+        try:
+            import omnivoice  # noqa: F401
+            import torch  # noqa: F401
+        except Exception:  # noqa: BLE001
+            pass  # health() sẽ báo thiếu phụ thuộc
         self.model = None
         self.device = "cpu"
         self._prompts: dict[str, Any] = {}

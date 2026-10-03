@@ -54,6 +54,9 @@ class FakeEngine:
                     raise EngineError("E_JOB_CANCELED", "canceled")
                 time.sleep(0.01)
             return {"slept": True}
+        if task == "print":
+            print("noisy library output")
+            return {"printed": True}
         if task == "crash":
             os._exit(3)
         raise EngineError("E_SCHEMA_INVALID", f"unknown task {task}")

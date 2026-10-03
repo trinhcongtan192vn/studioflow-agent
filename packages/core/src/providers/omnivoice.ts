@@ -34,7 +34,7 @@ export function createOmniVoiceProvider(opts: { appDataDir?: string } = {}) {
     engine: 'omnivoice',
     python,
     srcDir: WORKER_SRC,
-    env: { HF_HOME: path.join(appDataDir, 'models', 'hf') },
+    env: { HF_HOME: process.env.HF_HOME ?? path.join(appDataDir, 'models', 'hf') },
   });
   let healthy: boolean | undefined;
   const adapter: ProviderAdapter<AdapterInput, Record<string, unknown>> = {

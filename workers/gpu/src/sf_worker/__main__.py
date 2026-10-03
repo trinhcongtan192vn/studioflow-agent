@@ -33,7 +33,10 @@ def main(argv: list[str]) -> int:
             return 2
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stdin.reconfigure(encoding="utf-8")
-        Server(engine).serve()
+        # stdout chỉ dành cho JSON-RPC; mọi print của thư viện (model) chuyển sang stderr.
+        protocol_out = sys.stdout
+        sys.stdout = sys.stderr
+        Server(engine, out=protocol_out).serve()
         return 0
     return usage()
 

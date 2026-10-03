@@ -5,6 +5,7 @@ import { afterAll, expect, it } from 'vitest';
 import {
   createCore,
   createRuntime,
+  createOmniVoiceProvider,
   createVoiceProfile,
   enginePython,
   sessionOptionsFor,
@@ -36,10 +37,17 @@ async function chat(core: Core, videoId: string, text: string): Promise<AgentEve
     ),
   );
   const ev: AgentEvent[] = [];
-  for await (const e of s.send({ text })) ev.push(e);
+  for await (const e of s.send({ text })) {
+    if (e.type !== 'text_delta')
+      console.log('[m0]', new Date().toISOString(), JSON.stringify(e).slice(0, 300));
+    ev.push(e);
+  }
   await s.close();
   return ev;
 }
+
+const REF_TEXT =
+  'Xin chào các bạn, hôm nay chúng ta sẽ cùng nhau tìm hiểu một câu chuyện lịch sử thú vị của Việt Nam.';
 
 const READ_ONE =
   'Hãy đọc câu sau bằng giọng của kênh: "Xin chào các bạn, đây là bản thử giọng đọc." ' +
@@ -57,15 +65,22 @@ describeLive('M0 acceptance via chat (006 AC-M0-01/02)', () => {
         core.gateway.permissions.decide({ request_id: r.request_id, allow: true }),
       );
       try {
-        // giọng kênh: clone từ file mẫu trong fixture uploads (tạo bằng auto voice ở test gpu của worker)
+        // giọng kênh: tạo ref tiếng Việt bằng auto voice của OmniVoice rồi clone (006 research R5)
         const store = core.gateway.storeFor(ch.dir);
-        const ref = path.join(coreDir, 'tests', 'fixtures', 'audio', 'ref-vi-5s.wav');
-        store.write('uploads/ref.wav', readFileSync(ref), { by: 'test', validate: false });
+        const omni = createOmniVoiceProvider({ appDataDir: app.dir });
+        console.log('[m0] auto voice');
+        const auto = await omni.worker.run('auto', { text: REF_TEXT }, app.dir, { jobId: 'ref' });
+        await omni.worker.stop();
+        store.write('uploads/ref.wav', readFileSync(path.join(app.dir, auto.file as string)), {
+          by: 'test',
+          validate: false,
+        });
+        console.log('[m0] clone');
         const voice = await createVoiceProfile(core, store, {
           name: 'Thử',
           ref_audio: 'uploads/ref.wav',
           language: 'vi',
-          ref_text: 'Xin chào, đây là giọng mẫu để thử nghiệm.',
+          ref_text: REF_TEXT,
           appDataDir: app.dir,
         });
         const chJson = JSON.parse(readFileSync(path.join(ch.dir, 'channel.json'), 'utf8'));
@@ -74,6 +89,12 @@ describeLive('M0 acceptance via chat (006 AC-M0-01/02)', () => {
 
         const videoId = 'vd_8m2pq7rt';
         const v = path.join(ch.dir, 'videos', videoId);
+        console.log('[m0] chat');
+        core.queue.on(
+          'job.updated',
+          (j: { id: string; kind: string; status: string; progress: unknown }) =>
+            console.log('[m0] job', j.id, j.kind, j.status, JSON.stringify(j.progress)),
+        );
         const ev = await chat(core, videoId, READ_ONE);
         expect(ev.some((e) => e.type === 'tool_call' && e.name === 'mcp__sf__tts_synthesize')).toBe(
           true,

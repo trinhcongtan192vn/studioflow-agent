@@ -33,8 +33,8 @@ export function graphTools(s: GraphServices): ToolDefinition[] {
           nodes: input.scope
             ? nodes.filter(
                 (n) =>
-                  n.id === input.scope ||
-                  n.id.startsWith(`${input.scope}:`) ||
+                  n.key === input.scope ||
+                  n.key.startsWith(`${input.scope}:`) ||
                   n.type === input.scope,
               )
             : nodes,
@@ -111,7 +111,7 @@ export async function startGraphBuild(
     appDataDir: ctx.appDataDir,
     builders: s.builders,
   }).plan(videoId, targets);
-  const lines = plan.jobs.filter((j) => j.type === 'audio.line').length;
+  const lines = plan.jobs.filter((j) => j.kind === 'audio.line').length;
   const limit = Number(
     resolveConfig(
       'policy.batch.tts_lines',
