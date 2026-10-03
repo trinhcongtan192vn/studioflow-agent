@@ -1,0 +1,10 @@
+id: script-default
+version: 1
+scale: 10
+criteria:
+  - { id: hook, weight: 0.2, prompt: '30 giây đầu có giữ người xem không?' }
+  - { id: clarity, weight: 0.2, prompt: 'Ý có rõ, dễ theo không?' }
+  - { id: accuracy, weight: 0.2, prompt: 'Có khẳng định sai/thiếu căn cứ không?' }
+  - { id: voice, weight: 0.2, prompt: 'Có đúng giọng văn kênh không?' }
+  - { id: pacing, weight: 0.2, prompt: 'Nhịp có phù hợp đọc thành tiếng không?' }
+severity_rules: 'critical: sai sự thật/không dùng được; major: ảnh hưởng chất lượng rõ; minor: đánh bóng'

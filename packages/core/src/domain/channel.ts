@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ChannelConfig, Lang } from '../contracts/types.js';
 import { SfError } from '../errors.js';
+import { APP_PROMPTS_DIR } from '../text/prompts.js';
 import { WriteStore } from '../store/writer.js';
 import { newId } from './ids.js';
 import { validateArtifact } from './validate.js';
@@ -63,7 +64,24 @@ function profileTemplate(name: string): Record<string, string> {
     'profile/references/style-guide.md':
       '# Style guide\n\nGiọng văn, từ nên/không nên, ví dụ đoạn hay.\n',
     'profile/references/preferences.md': '# Sở thích người dùng\n\n(Ghi nhận qua chat.)\n',
+    ...defaultPromptPack(),
   };
+}
+
+/** Gói prompt mặc định chép vào kênh mới để người dùng chỉnh (D6 6.2, 009 FR-004). */
+function defaultPromptPack(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const e of readdirSync(APP_PROMPTS_DIR, { recursive: true, withFileTypes: true })) {
+    if (!e.isFile()) continue;
+    const rel = path
+      .relative(APP_PROMPTS_DIR, path.join(e.parentPath, e.name))
+      .replaceAll('\\', '/');
+    out[`profile/references/prompts/${rel}`] = readFileSync(
+      path.join(e.parentPath, e.name),
+      'utf8',
+    );
+  }
+  return out;
 }
 
 /** Khởi tạo kênh theo yêu cầu: `channel.json`, `profile/` mẫu, thư mục con; giữ file đang có. */

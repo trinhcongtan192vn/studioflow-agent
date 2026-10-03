@@ -1,0 +1,8 @@
+id: meta-default
+version: 1
+scale: 10
+criteria:
+  - { id: click, weight: 0.4, prompt: 'Tiêu đề có hấp dẫn mà không câu view sai sự thật không?' }
+  - { id: accuracy, weight: 0.3, prompt: 'Mô tả có đúng nội dung video không?' }
+  - { id: seo, weight: 0.3, prompt: 'Từ khóa/thẻ có phù hợp chủ đề không?' }
+severity_rules: 'critical: sai nội dung/vi phạm chính sách; major: kém hấp dẫn rõ; minor: đánh bóng'

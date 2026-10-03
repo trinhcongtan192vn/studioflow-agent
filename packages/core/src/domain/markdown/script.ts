@@ -1,6 +1,6 @@
 import type { Beat, Line, ScriptDoc, ScriptFrontMatter } from '../../contracts/types.js';
 import { SfError } from '../../errors.js';
-import { newId } from '../ids.js';
+import { newId, seededId } from '../ids.js';
 import { renderBody } from './blocks.js';
 import {
   parseError,
@@ -186,6 +186,7 @@ function withIdFirst(attrs: Attrs, id: string): Attrs {
 export function assignScriptIds(
   text: string,
   taken: ReadonlySet<string> = new Set(),
+  opts: { seed?: string } = {},
 ): { text: string; assigned: string[] } {
   const p = parseScript(text);
   const used = new Set<string>(taken);
@@ -198,7 +199,9 @@ export function assignScriptIds(
   const assigned: string[] = [];
   for (const it of items) {
     if (it.obj.attrs.id) continue;
-    const id = newId(it.kind, used);
+    const id = opts.seed
+      ? seededId(it.kind, `${opts.seed}:${assigned.length}`, used)
+      : newId(it.kind, used);
     used.add(id);
     it.obj.attrs = withIdFirst(it.obj.attrs, id);
     assigned.push(id);

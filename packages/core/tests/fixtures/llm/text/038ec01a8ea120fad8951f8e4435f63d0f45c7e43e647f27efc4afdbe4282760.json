@@ -1,0 +1,26 @@
+{
+  "request": {
+    "capability": "text.generate",
+    "input": {
+      "max_tokens": 2000,
+      "messages": [
+        {
+          "content": "Bạn là biên kịch cho kênh YouTube. Viết kịch bản lời dẫn cho video theo brief dưới đây.\n\n# Brief\nTiêu đề tạm: Bầu trời\nChủ đề: Vì sao bầu trời có màu xanh? Khán giả: học sinh cấp 2. Thông điệp: tán xạ Rayleigh giải thích màu trời.\n\n# Yêu cầu\n- Độ dài khoảng 113 từ (đọc thành tiếng).\n- Chia thành 5–9 beat; beat đầu là hook ≤ 30 giây.\n- Mỗi beat là một heading `## <tên beat> <!-- sf:beat -->`; mỗi câu/đoạn đọc là một line `<!-- sf:line speaker=narrator -->` theo sau là đoạn văn, cách nhau một dòng trống.\n- Tiêu chí được chấm: hook: 30 giây đầu có giữ người xem không?; clarity: Ý có rõ, dễ theo không?; accuracy: Có khẳng định sai/thiếu căn cứ không?; voice: Có đúng giọng văn kênh không?; pacing: Nhịp có phù hợp đọc thành tiếng không?\n- Chỉ trả về **phần thân kịch bản** theo định dạng trên — không front matter, không giải thích.\n\n\n## Giọng văn\n- Viết để **đọc thành tiếng**: câu ngắn, rõ, mỗi câu một ý; tránh mở ngoặc, liệt kê dài.\n- Xưng hô thân thiện, trực tiếp với người xem; không sáo rỗng, không phóng đại.\n- Ngôn ngữ video: vi.\n\n\n## Từ/cụm cấm\n- (kênh chưa khai báo từ cấm)\n\n\n## Quy tắc cho giọng đọc\n- Số, năm, đơn vị, viết tắt: viết thành chữ trong `<!-- sf:tts text=\"…\" -->` ngay sau đoạn (giữ dạng số ở phần hiển thị).\n- Không dùng ký hiệu đặc biệt (%, &, /) trong phần đọc; viết thành chữ.\n\n\n## Ví dụ định dạng\n```\n## Mở đầu <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nNăm 1428, Lê Lợi lên ngôi.\n<!-- sf:tts text=\"Năm một nghìn bốn trăm hai mươi tám, Lê Lợi lên ngôi.\" -->\n\n<!-- sf:line speaker=narrator -->\nMột triều đại mới bắt đầu.\n```\n",
+          "role": "user"
+        }
+      ],
+      "role": "primary"
+    },
+    "model": "claude-sonnet-5-5",
+    "provider": "text.claude"
+  },
+  "response": {
+    "text": "## Hook <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nBạn có bao giờ tự hỏi vì sao bầu trời màu xanh, chứ không phải màu đỏ hay vàng?\n<!-- sf:tts text=\"Bạn có bao giờ tự hỏi vì sao bầu trời màu xanh, chứ không phải màu đỏ hay vàng?\" -->\n\n<!-- sf:line speaker=narrator -->\nCâu trả lời nằm ngay trong ánh sáng mặt trời.\n<!-- sf:tts text=\"Câu trả lời nằm ngay trong ánh sáng mặt trời.\" -->\n\n## Ánh sáng nhiều màu <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nÁnh sáng mặt trời trông như màu trắng.\n<!-- sf:tts text=\"Ánh sáng mặt trời trông như màu trắng.\" -->\n\n<!-- sf:line speaker=narrator -->\nThật ra, nó là hỗn hợp của nhiều màu, từ đỏ đến tím.\n<!-- sf:tts text=\"Thật ra, nó là hỗn hợp của nhiều màu, từ đỏ đến tím.\" -->\n\n## Tán xạ Rayleigh <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nKhi đi vào khí quyển, ánh sáng va chạm với các phân tử khí và bị bắn đi mọi hướng.\n<!-- sf:tts text=\"Khi đi vào khí quyển, ánh sáng va chạm với các phân tử khí và bị bắn đi mọi hướng.\" -->\n\n<!-- sf:line speaker=narrator -->\nHiện tượng này gọi là tán xạ Rayleigh.\n<!-- sf:tts text=\"Hiện tượng này gọi là tán xạ Rayleigh.\" -->\n\n<!-- sf:line speaker=narrator -->\nÁnh sáng có bước sóng ngắn, như xanh lam, bị tán xạ mạnh hơn nhiều so với ánh sáng đỏ.\n<!-- sf:tts text=\"Ánh sáng có bước sóng ngắn, như xanh lam, bị tán xạ mạnh hơn nhiều so với ánh sáng đỏ.\" -->\n\n## Vì sao không phải màu tím <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nMàu tím còn bị tán xạ mạnh hơn.\n<!-- sf:tts text=\"Màu tím còn bị tán xạ mạnh hơn.\" -->\n\n<!-- sf:line speaker=narrator -->\nNhưng mặt trời phát ra ít ánh sáng tím, và mắt người nhạy với xanh lam hơn.\n<!-- sf:tts text=\"Nhưng mặt trời phát ra ít ánh sáng tím, và mắt người nhạy với xanh lam hơn.\" -->\n\n## Kết <!-- sf:beat -->\n\n<!-- sf:line speaker=narrator -->\nVậy nên, ở mọi hướng bạn nhìn lên, ánh sáng xanh tán xạ đều đến mắt bạn.\n<!-- sf:tts text=\"Vậy nên, ở mọi hướng bạn nhìn lên, ánh sáng xanh tán xạ đều đến mắt bạn.\" -->\n\n<!-- sf:line speaker=narrator -->\nĐó là lý do bầu trời có màu xanh.\n<!-- sf:tts text=\"Đó là lý do bầu trời có màu xanh.\" -->",
+    "usage": {
+      "input": 2,
+      "output": 1259
+    },
+    "cost_usd": 0.0383286,
+    "model": "claude-sonnet-5-5"
+  }
+}

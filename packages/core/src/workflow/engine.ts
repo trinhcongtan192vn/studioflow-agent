@@ -28,10 +28,19 @@ export interface StepRunContext {
   note?: string;
   signal: AbortSignal;
   appDataDir?: string;
+  /** Thư mục gói workflow (rubric `rubrics/` của gói, D6 4.3). */
+  packDir?: string;
 }
 
 /** Executor bước engine (D6 mục 2 cột "engine"); trả file đầu ra (tương đối video). */
-export type StepExecutor = (ctx: StepRunContext) => Promise<{ outputs?: string[] }>;
+export type StepExecutor = (ctx: StepRunContext) => Promise<StepExecutorResult>;
+
+/** `summary` gắn vào ghi chú approval, `refine` vào `steps[id].refine` (009 FR-009). */
+export interface StepExecutorResult {
+  outputs?: string[];
+  summary?: string;
+  refine?: StepState['refine'];
+}
 
 /** Giao bước agent cho phiên agent (008: phiên `main`); bước xong khi gọi `stepComplete`. */
 export type AgentStepRunner = (
@@ -420,9 +429,11 @@ export class WorkflowEngine extends EventEmitter {
       ...(note ? { note } : {}),
       signal: ctrl.signal,
       appDataDir: this.d.appDataDir,
+      ...(this.pack(st0)?.dir ? { packDir: this.pack(st0)!.dir } : {}),
     };
     const spec = STEP_LIBRARY[decl.uses];
     let outputs: string[] = spec.outputs(decl.params);
+    let extra: Omit<StepExecutorResult, 'outputs'> = {};
     try {
       if (spec.by === 'engine') {
         const exec = this.d.executors.get(decl.uses);
@@ -431,8 +442,9 @@ export class WorkflowEngine extends EventEmitter {
             'E_WORKFLOW_INCOMPATIBLE',
             `no executor for step type ${decl.uses} in this app version`,
           );
-        const r = await exec(ctx);
-        if (r.outputs?.length) outputs = r.outputs;
+        const { outputs: out, ...rest } = await exec(ctx);
+        if (out?.length) outputs = out;
+        extra = rest;
       } else {
         outputs = (await this.runAgent(decl, ctx, manifest)) ?? outputs;
       }
@@ -447,6 +459,7 @@ export class WorkflowEngine extends EventEmitter {
       const s = st.steps[decl.id]!;
       s.finished_at = now();
       s.outputs = outputs;
+      if (extra.refine) s.refine = extra.refine;
       if (failed.length) {
         s.status = 'failed';
         s.error = {
@@ -458,13 +471,13 @@ export class WorkflowEngine extends EventEmitter {
       }
       delete s.error;
       if (decl.approval?.required) {
-        st.approvals.push(
-          this.newApproval(
-            st,
-            decl.id,
-            outputs.filter((o) => this.hashOf(o) !== null),
-          ),
+        const a = this.newApproval(
+          st,
+          decl.id,
+          outputs.filter((o) => this.hashOf(o) !== null),
         );
+        if (extra.summary) a.note = extra.summary;
+        st.approvals.push(a);
         s.status = 'waiting_approval';
         this.writeState(st);
         return false;

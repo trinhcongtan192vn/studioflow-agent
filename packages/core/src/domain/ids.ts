@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 /** Tiền tố ID theo D3 mục 2. */
 export const ID_PREFIXES = [
@@ -43,4 +43,19 @@ export function newId(prefix: IdPrefix, taken?: ReadonlySet<string>): string {
 
 export function isId(prefix: IdPrefix, value: unknown): boolean {
   return typeof value === 'string' && new RegExp(`^${prefix}_[0-9a-z]{8}$`).test(value);
+}
+
+/**
+ * Như `newId` nhưng tất định theo `seed` (cùng nội dung → cùng ID) — dùng khi gán ID cho bản nháp LLM
+ * để bản ghi/phát lại (D12) ổn định.
+ */
+export function seededId(prefix: IdPrefix, seed: string, taken?: ReadonlySet<string>): string {
+  for (let n = 0; ; n++) {
+    let s = '';
+    for (const b of createHash('sha256').update(`${seed}:${n}`).digest()) {
+      if (b < 252 && s.length < 8) s += ALPHABET[b % 36];
+    }
+    const id = `${prefix}_${s.padEnd(8, '0')}`;
+    if (!taken?.has(id)) return id;
+  }
 }

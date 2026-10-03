@@ -10,6 +10,10 @@ import { registerDefaultProviders } from './providers/index.js';
 import { openDb, type Db } from './store/db.js';
 import { audioLineBuilder } from './tts/builder.js';
 import { defineTtsJobs, ttsTools } from './tts/tools.js';
+import type { LlmMode } from './testing/llm-replay.js';
+import { publishMetaExecutor, scriptExecutor } from './text/executors.js';
+import { registerTextObjectives } from './text/objectives.js';
+import { createTextService, type TextService } from './text/service.js';
 import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
@@ -24,6 +28,11 @@ export interface CoreOptions {
   dbFile?: string;
   /** Mặc định true: khôi phục job dở dang và bắt đầu chạy hàng đợi. */
   start?: boolean;
+  /** Ghi/phát lại lời gọi text (D12); mặc định theo `SF_LLM`/`SF_LLM_FIXTURES`. */
+  textFixtureDir?: string;
+  textMode?: LlmMode;
+  /** Khóa API provider text (mặc định biến môi trường, 009). */
+  getSecret?: (name: string) => string | undefined;
 }
 
 export interface Core {
@@ -36,6 +45,8 @@ export interface Core {
   gateway: Gateway;
   /** Workflow Engine (007). */
   workflows: WorkflowService;
+  /** Text providers (009). */
+  text: TextService;
   close(): void;
 }
 
@@ -75,6 +86,22 @@ export function createCore(opts: CoreOptions = {}): Core {
     appDataDir,
   });
   for (const t of workflowTools(workflows)) gateway.register(t);
+  // Text + refine-loop (009)
+  const envMode = process.env.SF_LLM;
+  const textMode =
+    opts.textMode ?? (envMode === 'record' || envMode === 'replay' ? envMode : undefined);
+  const textFixtureDir = opts.textFixtureDir ?? process.env.SF_LLM_FIXTURES;
+  const text = createTextService({
+    appDataDir,
+    ...(opts.getSecret ? { getSecret: opts.getSecret } : {}),
+    ...(textMode && textFixtureDir ? { mode: textMode, fixtureDir: textFixtureDir } : {}),
+  });
+  registerTextObjectives();
+  workflows.registerExecutor('script', scriptExecutor({ text, permissions: gateway.permissions }));
+  workflows.registerExecutor(
+    'publish-meta',
+    publishMetaExecutor({ text, permissions: gateway.permissions }),
+  );
   if (opts.start !== false) {
     queue.recover();
     queue.start();
@@ -88,6 +115,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     graph,
     gateway,
     workflows,
+    text,
     close() {
       if (closed) return;
       closed = true;
