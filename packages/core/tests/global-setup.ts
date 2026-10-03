@@ -10,6 +10,8 @@ export default function setup(): void {
   execFileSync(process.execPath, [tsc, '-p', path.join(coreDir, 'tsconfig.build.json')], {
     stdio: 'inherit',
   });
+  // test kín: không đọc khóa thật trong Credential Manager (test credman gọi trực tiếp)
+  process.env.SF_NO_CREDMAN = '1';
   // engine audio-analysis (CPU, 012) chạy thật trong test: dùng venv của workers/gpu (uv sync)
   const venv = path.join(coreDir, '..', '..', 'workers', 'gpu', '.venv', 'Scripts', 'python.exe');
   if (!process.env.SF_PYTHON_AUDIO_ANALYSIS && existsSync(venv))

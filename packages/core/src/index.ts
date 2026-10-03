@@ -264,3 +264,27 @@ export {
   type RenderJobInput,
 } from './render/render.js';
 export { renderTools, defineRenderJob, renderExecutor } from './render/tools.js';
+export {
+  loadCatalog,
+  installPlan,
+  installEntry,
+  entryStatus,
+  recordInstalled,
+  ffmpegPath,
+  uvPath,
+  ensureToolPaths,
+  DEFAULT_SETTINGS,
+  type CatalogEntry,
+  type CatalogFile,
+  type EntryStatus,
+  type InstallProfile,
+} from './models/install.js';
+export { downloadFile, sha256File, extractZip, bsdtar } from './store/download.js';
+export {
+  secretGet,
+  secretSet,
+  secretDelete,
+  secretHint,
+  getSecretDefault,
+  credTarget,
+} from './secrets/credman.js';
