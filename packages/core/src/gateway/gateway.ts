@@ -1,3 +1,4 @@
+import { withSpan } from '../trace/trace.js';
 import { Ajv, type ValidateFunction } from 'ajv';
 import { errorRegistry } from '../contracts/errors.js';
 import type { SessionContext, ToolResult } from '../contracts/types.js';
@@ -63,11 +64,34 @@ export class Gateway {
     return this.logger.addSink(sink);
   }
 
-  async call(
+  /** Gọi tool trong span `sf.tool` (D11 mục 1.1). */
+  call(
     session: SessionContext,
     name: string,
     input: unknown,
     opts: CallOptions = {},
+  ): Promise<ToolResult<unknown>> {
+    return withSpan(
+      'sf.tool',
+      {
+        'sf.tool_name': name,
+        'sf.session_id': session.session_id,
+        'sf.video_id': session.video_id,
+      },
+      async (span) => {
+        const r = await this.callInner(session, name, input, opts);
+        span.setAttribute('sf.ok', r.ok);
+        if (!r.ok) span.setAttribute('sf.error_code', r.error.code);
+        return r;
+      },
+    );
+  }
+
+  private async callInner(
+    session: SessionContext,
+    name: string,
+    input: unknown,
+    opts: CallOptions,
   ): Promise<ToolResult<unknown>> {
     const t0 = Date.now();
     let result: ToolResult<unknown>;

@@ -1,3 +1,4 @@
+import { currentTraceparent } from '../trace/trace.js';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { SfError } from '../errors.js';
@@ -122,7 +123,8 @@ export class PythonWorker {
     const onAbort = () => void this.call('cancel', { job_id: opts.jobId }).catch(() => {});
     opts.signal?.addEventListener('abort', onAbort);
     try {
-      return await this.call('run', { job_id: opts.jobId, task, input, workdir }, { jobId: opts.jobId, onProgress: opts.onProgress });
+      const traceparent = currentTraceparent();
+      return await this.call('run', { job_id: opts.jobId, task, input, workdir, ...(traceparent ? { traceparent } : {}) }, { jobId: opts.jobId, onProgress: opts.onProgress });
     } finally {
       opts.signal?.removeEventListener('abort', onAbort);
     }

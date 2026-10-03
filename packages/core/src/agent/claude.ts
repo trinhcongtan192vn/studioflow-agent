@@ -7,6 +7,8 @@ import type {
   UserMessage,
 } from '../contracts/types.js';
 import type { Gateway } from '../gateway/gateway.js';
+import { context, trace } from '@opentelemetry/api';
+import { clean, currentTraceparent, tracer } from '../trace/trace.js';
 import { agentErrorFrom, mapSdkMessage } from './events.js';
 import { buildSdkOptions, cleanEnv } from './options.js';
 
@@ -41,27 +43,53 @@ class ClaudeSession implements AgentSession {
 
   async *send(message: UserMessage): AsyncIterable<AgentEvent> {
     const query = this.deps.query ?? sdkQuery;
+    // span `sf.agent.session` (D11); tool gọi trong phiên là span con, TRACEPARENT xuống SDK
+    const span = tracer().startSpan('sf.agent.session', {
+      attributes: clean({
+        'sf.session_kind': this.opts.kind,
+        'sf.session_id': this.id,
+        'sf.video_id': this.opts.context.video_id,
+      }),
+    });
+    const ctx = trace.setSpan(context.active(), span);
+    let tokensIn = 0;
+    let tokensOut = 0;
     try {
       const apiKey = await this.deps.getApiKey?.();
-      const q = query({
-        prompt: renderUserMessage(message),
-        options: buildSdkOptions(this.opts, {
-          gateway: this.deps.gateway,
-          env: this.deps.env ?? process.env,
-          apiKey,
-          resume: this.sdkSession,
+      const tp = context.with(ctx, () => currentTraceparent());
+      const q = context.with(ctx, () =>
+        query({
+          prompt: renderUserMessage(message),
+          options: buildSdkOptions(this.opts, {
+            gateway: this.deps.gateway,
+            env: { ...(this.deps.env ?? process.env), ...(tp ? { TRACEPARENT: tp } : {}) },
+            apiKey,
+            resume: this.sdkSession,
+          }),
         }),
-      });
+      );
       this.current = q;
       for await (const m of q) {
         if ((m as { session_id?: string }).session_id)
           this.sdkSession = (m as { session_id: string }).session_id;
-        yield* mapSdkMessage(m);
+        for (const e of mapSdkMessage(m)) {
+          if (e.type === 'usage') {
+            tokensIn += e.input_tokens;
+            tokensOut += e.output_tokens;
+          }
+          yield e;
+        }
       }
     } catch (e) {
+      span.setAttribute('sf.error', String((e as Error).message).slice(0, 300));
       yield agentErrorFrom(e);
     } finally {
       this.current = undefined;
+      span.setAttributes({
+        'gen_ai.usage.input_tokens': tokensIn,
+        'gen_ai.usage.output_tokens': tokensOut,
+      });
+      span.end();
     }
   }
 

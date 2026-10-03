@@ -1,3 +1,4 @@
+import { withSpan } from '../trace/trace.js';
 import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync } from 'node:fs';
 import type {
@@ -406,8 +407,22 @@ export class WorkflowEngine extends EventEmitter {
     return v === c.equals;
   }
 
-  /** Chạy một bước; trả `true` nếu có thể chạy tiếp tự động. */
-  private async runStep(decl: StepDecl): Promise<boolean> {
+  /** Chạy một bước trong span `sf.workflow.step` (D11); trả `true` nếu có thể chạy tiếp tự động. */
+  private runStep(decl: StepDecl): Promise<boolean> {
+    const st = this.readState();
+    return withSpan(
+      'sf.workflow.step',
+      {
+        'sf.video_id': this.d.videoId,
+        'sf.workflow_id': st.workflow?.id,
+        'sf.step_id': decl.id,
+        'sf.attempt': (st.steps[decl.id]?.attempt ?? 0) + 1,
+      },
+      () => this.runStepInner(decl),
+    );
+  }
+
+  private async runStepInner(decl: StepDecl): Promise<boolean> {
     const st0 = this.readState();
     const manifest = this.manifestOf(st0);
     if (this.skip(decl)) {

@@ -1,8 +1,10 @@
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
 import { assetTools } from './assets/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
 import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
+import { attachTraceStore } from './trace/trace.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
 import { frameBuildExecutor } from './hf/frame-build.js';
@@ -67,6 +69,8 @@ export interface Core {
 export function createCore(opts: CoreOptions = {}): Core {
   const appDataDir = opts.appDataDir ?? defaultAppDataDir();
   const db = openDb(opts.dbFile ?? path.join(appDataDir, 'studioflow.db'));
+  // trace cục bộ (D11, 015): span ghi vào bảng `spans`; giữ `settings.trace.retention_days`
+  const detachTrace = attachTraceStore(db, retentionDays(appDataDir));
   const queue = new JobQueue({ db, backoffMs: opts.backoffMs });
   const providers = new ProviderRegistry();
   const graph = new BuilderRegistry();
@@ -163,9 +167,19 @@ export function createCore(opts: CoreOptions = {}): Core {
     close() {
       if (closed) return;
       closed = true;
+      detachTrace();
       queue.stop();
       void providerHandles.stop();
       db.close();
     },
   };
+}
+
+function retentionDays(appDataDir: string): number {
+  const f = path.join(appDataDir, 'settings.json');
+  if (!existsSync(f)) return 30;
+  return (
+    (JSON.parse(readFileSync(f, 'utf8')) as { trace?: { retention_days?: number } }).trace
+      ?.retention_days ?? 30
+  );
 }

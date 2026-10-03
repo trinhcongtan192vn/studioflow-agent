@@ -16,9 +16,16 @@ CREATE TABLE IF NOT EXISTS cache_entries (
   key TEXT NOT NULL, channel TEXT NOT NULL, size INTEGER NOT NULL, last_used TEXT NOT NULL,
   PRIMARY KEY (key, channel)
 );
+CREATE TABLE IF NOT EXISTS spans (
+  span_id TEXT PRIMARY KEY, trace_id TEXT NOT NULL, parent_id TEXT, name TEXT NOT NULL,
+  start_ms REAL NOT NULL, end_ms REAL NOT NULL, status TEXT NOT NULL, status_message TEXT,
+  video_id TEXT, attrs TEXT NOT NULL, events TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS spans_trace ON spans(trace_id);
+CREATE INDEX IF NOT EXISTS spans_video ON spans(video_id, start_ms);
 `;
 
-/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7). */
+/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7), `spans` (D11 mục 1). */
 export function openDb(file: string): Db {
   if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);

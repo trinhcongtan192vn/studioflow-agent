@@ -288,3 +288,12 @@ export {
   getSecretDefault,
   credTarget,
 } from './secrets/credman.js';
+export {
+  attachTraceStore,
+  withSpan,
+  tracer,
+  currentTraceparent,
+  listTraces,
+  getTrace,
+  type SpanRow,
+} from './trace/trace.js';
