@@ -1,0 +1,13 @@
+id: bad-order
+version: 1.0.0
+title: Thứ tự sai
+description: frame-build đọc lipsync nhưng lipsync đứng sau (E_STEP_ORDER)
+app_api: '>=1.0 <2.0'
+output_profiles: [yt-1080p30]
+requires: [tts.synthesize]
+steps:
+  - { id: script, uses: script, title: Kịch bản }
+  - { id: storyboard, uses: storyboard, title: Storyboard }
+  - { id: voice, uses: voice, title: Giọng }
+  - { id: frames, uses: frame-build, title: Frame }
+  - { id: lipsync, uses: lipsync, title: Lipsync }

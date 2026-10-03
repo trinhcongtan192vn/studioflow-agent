@@ -10,11 +10,16 @@ import { registerDefaultProviders } from './providers/index.js';
 import { openDb, type Db } from './store/db.js';
 import { audioLineBuilder } from './tts/builder.js';
 import { defineTtsJobs, ttsTools } from './tts/tools.js';
+import { defaultWorkflowDirs } from './workflow/packs.js';
+import { WorkflowService } from './workflow/service.js';
+import { workflowTools } from './workflow/tools.js';
 
 export interface CoreOptions {
   appDataDir?: string;
   permissionTimeoutMs?: number;
   backoffMs?: number[];
+  /** Thư mục gói workflow (mặc định D5 mục 3.2). */
+  workflowDirs?: string[];
   /** Mặc định `<appDataDir>/studioflow.db`; `:memory:` cho lệnh CLI ngắn. */
   dbFile?: string;
   /** Mặc định true: khôi phục job dở dang và bắt đầu chạy hàng đợi. */
@@ -29,6 +34,8 @@ export interface Core {
   /** Builder build graph — tính năng sau đăng ký `registerBuilder`. */
   graph: BuilderRegistry;
   gateway: Gateway;
+  /** Workflow Engine (007). */
+  workflows: WorkflowService;
   close(): void;
 }
 
@@ -58,10 +65,21 @@ export function createCore(opts: CoreOptions = {}): Core {
   };
   for (const t of ttsTools(tts)) gateway.register(t);
   defineTtsJobs(tts, appDataDir);
+  // Workflow (007)
+  const workflows = new WorkflowService({
+    dirs: opts.workflowDirs ?? defaultWorkflowDirs(appDataDir),
+    providers,
+    builders: graph,
+    storeFor: (dir) => gateway.storeFor(dir),
+    permissions: gateway.permissions,
+    appDataDir,
+  });
+  for (const t of workflowTools(workflows)) gateway.register(t);
   if (opts.start !== false) {
     queue.recover();
     queue.start();
   }
+  let closed = false;
   return {
     appDataDir,
     db,
@@ -69,7 +87,10 @@ export function createCore(opts: CoreOptions = {}): Core {
     providers,
     graph,
     gateway,
+    workflows,
     close() {
+      if (closed) return;
+      closed = true;
       queue.stop();
       void providerHandles.stop();
       db.close();

@@ -30,7 +30,7 @@ for (let n = 0; ; n++) s.write('videos/vd_aaaaaaaa/data.json', JSON.stringify({ 
     for (let i = 0; i < ITER; i++) {
       const child = spawn(process.execPath, [script], { stdio: 'ignore' });
       const exited = new Promise((r) => child.once('exit', r));
-      await new Promise((r) => setTimeout(r, 40 + Math.random() * 60));
+      await new Promise((r) => setTimeout(r, 120 + Math.random() * 180));
       child.kill('SIGKILL');
       await exited;
       const data = JSON.parse(readFileSync(target, 'utf8')) as { n: number; pad: string };
