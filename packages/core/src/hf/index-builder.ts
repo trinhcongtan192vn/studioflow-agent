@@ -6,7 +6,7 @@ import { markUsed, trackById } from '../music/library.js';
 import { renderBed, type MusicSegment } from '../music/mix.js';
 import type { FrameTiming } from '../graph/timing.js';
 import type { WriteStore } from '../store/writer.js';
-import { applyCaptionOverrides, buildCaptionsHtml } from './captions-html.js';
+import { applyCaptionOverrides, buildCaptionsHtml, lineWordsOf } from './captions-html.js';
 import { buildIndexHtml, type IndexInput } from './index-html.js';
 import { loadOutputProfile } from './outputs.js';
 
@@ -69,20 +69,24 @@ export const indexBuilder =
         read('caption-overrides.json') ?? 'null',
       ) as CaptionOverrides | null;
       const metaLine = new Map(meta.lines.map((l) => [l.line_id, l]));
-      const groups = applyCaptionOverrides(cg, overrides ?? undefined)
+      const groups = applyCaptionOverrides(cg, overrides, lineWordsOf(meta))
         .filter((g) => lineAbs.has(g.line_id) && metaLine.has(g.line_id))
         .map((g) => {
           const ml = metaLine.get(g.line_id)!;
           const shift = lineAbs.get(g.line_id)!.start_ms - ml.start_ms; // chuỗi lời đọc → mốc video
-          const orig = cg.groups.find((x) => x.id === g.id)!;
-          const overridden = g.text !== orig.text;
-          const words = overridden
-            ? [{ text: g.text, start_ms: g.start_ms + shift }]
+          const abs_start_ms = g.start_ms + shift;
+          const abs_end_ms = g.end_ms + shift;
+          // chữ sửa tay → một khối; còn lại tô từng từ, mốc kẹp trong cụm (mép đã kéo, 026)
+          const words = g.text_override
+            ? [{ text: g.text, start_ms: abs_start_ms }]
             : ml.words.slice(g.word_range[0], g.word_range[1] + 1).map((w) => ({
                 text: w.text,
-                start_ms: lineAbs.get(g.line_id)!.start_ms + w.start_ms,
+                start_ms: Math.min(
+                  abs_end_ms,
+                  Math.max(abs_start_ms, lineAbs.get(g.line_id)!.start_ms + w.start_ms),
+                ),
               }));
-          return { ...g, abs_start_ms: g.start_ms + shift, abs_end_ms: g.end_ms + shift, words };
+          return { ...g, abs_start_ms, abs_end_ms, words };
         });
       ctx.store.write(
         `${v}/compositions/captions.html`,

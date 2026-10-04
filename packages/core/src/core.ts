@@ -12,6 +12,7 @@ import { assetsExecutor } from './workflow/assets.js';
 import { storyboardExecutor } from './text/storyboard.js';
 import { studioTools } from './studio/tools.js';
 import { StudioEdits } from './studio/edit.js';
+import { CaptionPanel } from './captions/panel.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -85,6 +86,8 @@ export interface Core {
   edits: StudioEdits;
   /** Frame ghim lỗi thời (025). */
   pinned: PinnedDecider;
+  /** Bảng caption (026). */
+  captions: CaptionPanel;
   /** Embedding văn bản CLAP cho tìm nhạc (021). */
   embedder?: TextEmbedder;
   close(): void;
@@ -280,6 +283,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     studio,
     edits,
     pinned,
+    captions: new CaptionPanel(gateway),
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;

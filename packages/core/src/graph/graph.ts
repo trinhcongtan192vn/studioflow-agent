@@ -2,6 +2,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type {
   AudioMeta,
+  CaptionGroups,
+  CaptionOverrides,
   Frame,
   Line,
   NodeStatus,
@@ -13,6 +15,7 @@ import { readAsrState } from '../asr/state.js';
 import { SfError } from '../errors.js';
 import type { WriteStore } from '../store/writer.js';
 import { loadOutputProfile } from '../hf/outputs.js';
+import { effectiveCaptions, lineWordsOf } from '../hf/captions-html.js';
 import { loadVideoModel, voiceOf, type VideoModel } from './model.js';
 import {
   assembleAudioLines,
@@ -63,9 +66,17 @@ const ASSEMBLE_ORDER: NodeType[] = [
 /** Nút chỉ chạy khi được chọn làm mục tiêu (020 R4). */
 const EXPLICIT_ONLY = new Set<NodeType>(['render']);
 
-/** Nút chưa "xong" cho gate `graph_fresh`: không fresh/ghim; nút chỉ-khi-chọn (render) không tính (020). */
+/**
+ * Nút chưa "xong" cho gate `graph_fresh`: không fresh/ghim; nút chỉ-khi-chọn (render) không tính (020);
+ * override caption `orphan` chỉ để báo người dùng, không phải nút build (D3 5.8, 026).
+ */
 export function unsettled(n: { type: string; status: string }): boolean {
-  return n.status !== 'fresh' && n.status !== 'pinned' && !EXPLICIT_ONLY.has(n.type as NodeType);
+  return (
+    n.status !== 'fresh' &&
+    n.status !== 'pinned' &&
+    n.status !== 'orphan' &&
+    !EXPLICIT_ONLY.has(n.type as NodeType)
+  );
 }
 
 /** Kích thước ảnh theo `asset_request.aspect` (FN-018/023, 020 US1). */
@@ -532,6 +543,35 @@ export class BuildGraph {
 
   /** `graph.status` — `NodeStatus` của D4 mục 3.1 (`key` = id nút, ví dụ `audio.line:ln_…`). */
   status(videoId: string): NodeStatus[] {
+    return [...this.nodeStatus(videoId), ...this.captionOrphans(videoId)];
+  }
+
+  /** Override caption trỏ tới group đã biến mất → `orphan` (D3 5.8, 026). */
+  private captionOrphans(videoId: string): NodeStatus[] {
+    const v = path.join(this.store.root, 'videos', videoId);
+    const read = <T>(f: string): T | null => {
+      try {
+        return existsSync(path.join(v, f))
+          ? (JSON.parse(readFileSync(path.join(v, f), 'utf8')) as T)
+          : null;
+      } catch {
+        return null;
+      }
+    };
+    const ov = read<CaptionOverrides>('caption-overrides.json');
+    const cg = read<CaptionGroups>('caption_groups.json');
+    if (!ov || !cg) return [];
+    return effectiveCaptions(cg, ov, lineWordsOf(read<AudioMeta>('audio_meta.json'))).orphans.map(
+      (o) => ({
+        key: `caption_override:${o}`,
+        type: 'caption_override',
+        status: 'orphan',
+        reason: 'caption override refers to a caption group that no longer exists (D3 5.8)',
+      }),
+    );
+  }
+
+  private nodeStatus(videoId: string): NodeStatus[] {
     return this.nodeStates(videoId).map((n) => ({
       key: n.id,
       type: n.type,

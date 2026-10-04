@@ -1,4 +1,6 @@
+import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { Readable } from 'node:stream';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -7,6 +9,7 @@ import {
   dialog,
   ipcMain,
   MessageChannelMain,
+  protocol,
   shell,
   utilityProcess,
   type UtilityProcess,
@@ -14,6 +17,35 @@ import {
 import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// 026: renderer phát audio xem trước (`.sf/preview/*.wav`) của bảng caption qua `sf-media:` — chỉ đọc,
+// chỉ file dẫn xuất trong `.sf/preview/`.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'sf-media', privileges: { stream: true, supportFetchAPI: true, standard: false } },
+]);
+const MEDIA_OK = /[\\/]\.sf[\\/]preview[\\/][^\\/]+\.wav$/i;
+function registerMedia(): void {
+  protocol.handle('sf-media', (req) => {
+    const abs = path.normalize(decodeURI(new URL(req.url).pathname).replace(/^\/+/, ''));
+    if (!MEDIA_OK.test(abs) || abs.includes('..') || !existsSync(abs))
+      return new Response(null, { status: 404 });
+    // hỗ trợ Range để <audio> biết thời lượng và tua được
+    const size = statSync(abs).size;
+    const m = /bytes=(\d*)-(\d*)/.exec(req.headers.get('range') ?? '');
+    const start = m?.[1] ? Number(m[1]) : 0;
+    const end = m?.[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+    const body = Readable.toWeb(createReadStream(abs, { start, end })) as ReadableStream;
+    return new Response(body, {
+      status: m ? 206 : 200,
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(end - start + 1),
+        'Accept-Ranges': 'bytes',
+        ...(m ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
+      },
+    });
+  });
+}
 const SECRET_NAMES = ['openai', 'deepseek', 'anthropic', 'dashscope_api_key'];
 const MAX_RESTARTS = 3;
 
@@ -113,6 +145,7 @@ ipcMain.handle('secrets:delete', (_e, name: string) => {
 });
 
 void app.whenReady().then(() => {
+  registerMedia();
   createWindow();
   startCore();
   app.on('activate', () => {

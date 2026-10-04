@@ -203,7 +203,14 @@ export {
   type IndexInput,
   type IndexFrame,
 } from './hf/index-html.js';
-export { buildCaptionsHtml, applyCaptionOverrides } from './hf/captions-html.js';
+export {
+  buildCaptionsHtml,
+  applyCaptionOverrides,
+  effectiveCaptions,
+  captionViolations,
+  lineWordsOf,
+  type EffectiveGroup,
+} from './hf/captions-html.js';
 export {
   indexBuilder,
   ensureHfProject,
@@ -395,6 +402,14 @@ export {
   type StudioChange,
 } from './studio/diff.js';
 export { StudioEdits, type CommitResult } from './studio/edit.js';
+export { CaptionPanel, type CaptionsPanelData } from './captions/panel.js';
+export {
+  decodeWav,
+  ensurePreviewVoice,
+  previewVoiceRel,
+  previewWaveRel,
+  type Waveform,
+} from './captions/voice.js';
 export { startStudioProxy, studioWriteAllowed } from './studio/proxy.js';
 export { PinnedDecider } from './studio/pinned.js';
 export { watchVideo, readExternal, externalRel, type ExternalChanges } from './studio/watch.js';

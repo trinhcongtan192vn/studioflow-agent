@@ -284,3 +284,82 @@ pre {
   height: 88vh;
   background: var(--panel);
 }
+
+/* UI-11 bảng caption (026) */
+.captions {
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  outline: none;
+}
+.captions audio {
+  width: 100%;
+}
+.caption-now {
+  min-height: 1.4em;
+  font-weight: 700;
+  text-align: center;
+}
+.timeline {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.timeline .track {
+  position: relative;
+  height: 84px;
+}
+.timeline canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 48px;
+}
+.timeline .playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--warn);
+  pointer-events: none;
+}
+.timeline .cg {
+  position: absolute;
+  top: 52px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--user);
+  overflow: hidden;
+  cursor: pointer;
+}
+.timeline .cg.selected {
+  border-width: 2px;
+}
+.timeline .cg .label {
+  display: block;
+  padding: 4px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.timeline .cg .edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: var(--accent);
+  opacity: 0.5;
+}
+.timeline .cg .edge.start {
+  left: 0;
+}
+.timeline .cg .edge.end {
+  right: 0;
+}
+.cg-edit input {
+  margin-left: 8px;
+  min-width: 280px;
+}
