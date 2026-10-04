@@ -11,6 +11,8 @@ import { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
 import { assetsExecutor } from './workflow/assets.js';
 import { storyboardExecutor } from './text/storyboard.js';
 import { studioTools } from './studio/tools.js';
+import { StudioEdits } from './studio/edit.js';
+import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
 import { frameBuildExecutor } from './hf/frame-build.js';
@@ -79,6 +81,10 @@ export interface Core {
   text: TextService;
   /** Studio xem trước (017). */
   studio: StudioPreviews;
+  /** Studio chế độ chỉnh (025). */
+  edits: StudioEdits;
+  /** Frame ghim lỗi thời (025). */
+  pinned: PinnedDecider;
   /** Embedding văn bản CLAP cho tìm nhạc (021). */
   embedder?: TextEmbedder;
   close(): void;
@@ -221,7 +227,14 @@ export function createCore(opts: CoreOptions = {}): Core {
   });
   // Studio xem trước (017)
   const studio = new StudioPreviews();
-  for (const t of studioTools(studio)) gateway.register(t);
+  // Studio chế độ chỉnh + frame ghim (025)
+  const edits = new StudioEdits({ queue, builders: graph, appDataDir });
+  const pinned = new PinnedDecider({
+    builders: graph,
+    appDataDir,
+    rebuild: () => (workflows.agentRuntime ? workflows.rebuildFrame : undefined),
+  });
+  for (const t of studioTools(studio, edits, pinned)) gateway.register(t);
   // Render (013)
   for (const t of renderTools(tts)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
@@ -265,11 +278,14 @@ export function createCore(opts: CoreOptions = {}): Core {
     workflows,
     text,
     studio,
+    edits,
+    pinned,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;
       closed = true;
       studio.closeAll();
+      void edits.closeAll();
       detachTrace();
       if (getGpuScheduler() === gpu) setGpuScheduler(undefined);
       queue.stop();

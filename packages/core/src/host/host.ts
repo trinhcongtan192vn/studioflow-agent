@@ -21,6 +21,7 @@ import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '.
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
 import { validateChannel } from '../domain/channel-validate.js';
+import { watchVideo } from '../studio/watch.js';
 import { diskUsage } from '../disk/usage.js';
 import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
@@ -70,7 +71,10 @@ export class CoreHost extends EventEmitter {
     this.emit('event', name, data);
   }
 
+  private watcher?: { close(): void };
+
   close(): void {
+    this.watcher?.close();
     for (const s of this.sessions.values()) void s.session.close();
     this.core.close();
   }
@@ -362,6 +366,11 @@ export class CoreHost extends EventEmitter {
       case 'video.open': {
         const e = this.engine(p.channel, p.video);
         e.open();
+        // FR-WS-06: theo dõi video đang mở; sửa ngoài app → cảnh báo
+        this.watcher?.close();
+        this.watcher = watchVideo(this.store(p.channel), p.video, (rel) =>
+          this.send('file.external_change', { channel: p.channel, video: p.video, path: rel }),
+        );
         this.announceApprovals(p.channel, p.video, e);
         return { state: e.summary(), history: this.history(p.channel, p.video) };
       }
@@ -566,9 +575,22 @@ export class CoreHost extends EventEmitter {
         return { kind: 'binary', size };
       }
       case 'studio.open':
-        return c.studio.open(this.store(p.channel), p.video);
+        return p.mode === 'edit'
+          ? c.edits.open(this.store(p.channel), p.video)
+          : c.studio.open(this.store(p.channel), p.video);
       case 'studio.close':
-        return { closed: c.studio.close(this.store(p.channel), p.video) };
+        return c.edits.session(this.store(p.channel), p.video)
+          ? c.edits.close(this.store(p.channel), p.video, { discard: Boolean(p.discard) })
+          : { closed: c.studio.close(this.store(p.channel), p.video) };
+      case 'studio.commit':
+        return c.edits.commit(this.store(p.channel), p.video);
+      case 'frame.pinned_decide':
+        return c.pinned.decide(
+          this.store(p.channel),
+          p.video,
+          String(p.frame_id),
+          p.decision as 'keep' | 'reapply' | 'discard',
+        );
       case 'asr.accept': {
         const ctx = {
           session_id: 'ss_ui000001',

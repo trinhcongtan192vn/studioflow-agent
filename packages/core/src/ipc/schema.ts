@@ -137,8 +137,19 @@ export interface IpcMethods {
     params: ChannelRef & { path: string };
     result: { kind: 'text' | 'json' | 'binary'; content?: string; size: number };
   };
-  'studio.open': { params: VideoRef & { mode: 'preview' }; result: { url: string; port: number } };
-  'studio.close': { params: VideoRef; result: { closed: boolean } };
+  'studio.open': {
+    params: VideoRef & { mode: 'preview' | 'edit' };
+    result: { url: string; port?: number; session_id?: string; project_id?: string };
+  };
+  'studio.close': { params: VideoRef & { discard?: boolean }; result: { closed: boolean } };
+  'studio.commit': {
+    params: VideoRef;
+    result: { changed_files: string[]; pinned_frames: string[]; readback_changes: unknown[] };
+  };
+  'frame.pinned_decide': {
+    params: VideoRef & { frame_id: string; decision: 'keep' | 'reapply' | 'discard' };
+    result: unknown;
+  };
   'asr.accept': { params: VideoRef & { line_ids: string[] }; result: Record<string, never> };
 }
 
@@ -164,6 +175,8 @@ export interface IpcEvents {
     estimate?: unknown;
   };
   'core.health': { ok: boolean };
+  /** File trong video bị sửa ngoài app (FR-WS-06, 025). */
+  'file.external_change': { channel: string; video: string; path: string };
 }
 
 export type IpcMethod = keyof IpcMethods;
