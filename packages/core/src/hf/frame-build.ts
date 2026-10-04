@@ -258,6 +258,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     graph.markBuilt(
       ctx.videoId,
       built.map((id) => `frame_html:${id}`),
+      { contentOnly: true },
     );
     const notYet = model.frames.filter(
       (f) => !existsSync(ctx.store.abs(`${v}/compositions/frames/${f.id}.html`)),

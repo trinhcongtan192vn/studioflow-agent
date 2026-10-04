@@ -1,11 +1,17 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { EXTENSIONS_DIR } from '../agent/options.js';
 import { SfError } from '../errors.js';
 import { Logger } from '../log.js';
 import { sfIdsOf } from './frame-file.js';
+import {
+  createScratchDir,
+  linkOutsideProject,
+  unlinkOutsideProject,
+  writeOutsideProject,
+} from '../store/scratch.js';
 
 const req = createRequire(import.meta.url);
 
@@ -159,16 +165,63 @@ export async function hfLint(
   };
 }
 
+/**
+ * Hiệu ứng media (`data-color-grading`, 027) làm Chrome check quá giờ điều hướng (10 s cố định) mà không
+ * liên quan lỗi runtime/bố cục/tương phản → check trên bản tạm: HTML đã gỡ thuộc tính, thư mục khác là
+ * junction chỉ đọc. Không có hiệu ứng → undefined (check thẳng thư mục video).
+ */
+function gradedCopy(videoDir: string): { dir: string; dispose(): void } | undefined {
+  const html: string[] = [];
+  const walk = (rel: string) => {
+    for (const e of readdirSync(path.join(videoDir, rel), { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(r);
+      else if (e.name.endsWith('.html')) html.push(r);
+    }
+  };
+  if (existsSync(path.join(videoDir, 'compositions'))) walk('compositions');
+  if (existsSync(path.join(videoDir, 'index.html'))) html.push('index.html');
+  const strip = (s: string) => s.replace(/\s+data-color-grading\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  if (!html.some((f) => /data-color-grading/i.test(readSafe(path.join(videoDir, f)))))
+    return undefined;
+  const s = createScratchDir('sf-check-');
+  const links: string[] = [];
+  for (const e of readdirSync(videoDir, { withFileTypes: true })) {
+    if (e.name === 'compositions' || e.name === '.sf') continue;
+    const src = path.join(videoDir, e.name);
+    if (e.isDirectory()) {
+      linkOutsideProject(src, path.join(s.dir, e.name));
+      links.push(path.join(s.dir, e.name));
+    } else writeOutsideProject(path.join(s.dir, e.name), readFileSync(src));
+  }
+  for (const f of html)
+    writeOutsideProject(path.join(s.dir, f), strip(readFileSync(path.join(videoDir, f), 'utf8')));
+  return {
+    dir: s.dir,
+    dispose() {
+      for (const l of links) unlinkOutsideProject(l);
+      s.cleanup();
+    },
+  };
+}
+
 /** `hyperframes check --json` (lint + runtime + layout + contrast trong Chrome headless). */
 export async function hfCheck(
   videoDir: string,
   opts: { signal?: AbortSignal; watch?: string[]; samples?: number } = {},
 ) {
-  const r = await runHf(['check', '--json', '--samples', String(opts.samples ?? 5)], {
-    cwd: videoDir,
-    ...opts,
-    timeoutMs: 600_000,
-  });
+  const graded = gradedCopy(videoDir);
+  let r: HfRun;
+  try {
+    r = await runHf(['check', '--json', '--samples', String(opts.samples ?? 5)], {
+      cwd: graded?.dir ?? videoDir,
+      ...opts,
+      ...(graded ? { watch: [] } : {}),
+      timeoutMs: 600_000,
+    });
+  } finally {
+    graded?.dispose();
+  }
   if (!r.json)
     throw new SfError(
       'E_PROVIDER_FAILED',

@@ -1,0 +1,10 @@
+# Look tài liệu dịu: preset HyperFrames `muted-editorial` (027, FN-common mục 6).
+id: documentary-muted
+version: 1.0.0
+image_prompt: 'muted documentary color palette, soft natural light, low saturation'
+grading: { preset: muted-editorial, intensity: 0.8, details: { vignette: 0.2 } }
+# biến thể theo scene (`sf-scene.look: night`)
+variants:
+  night: { preset: night-lift, intensity: 0.7, details: { vignette: 0.3 } }
+  archive: { preset: mono-fade, intensity: 0.75, details: { grain: 0.2 } }
+palette: { ink: '#1d1f22', paper: '#ece6da', accent: '#b5562b' }

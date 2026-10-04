@@ -9,7 +9,7 @@ brief: { questions: ['Độ dài mục tiêu?'] }
 steps:
   - { id: script, uses: script, title: Kịch bản, approval: { required: true } }
   - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
-  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
+  - { id: look, uses: look, title: Look màu, skip_if: { config: look.id, equals: warm-archive } }
   - { id: voice, uses: voice, title: Giọng đọc }
   - {
       id: finalize,

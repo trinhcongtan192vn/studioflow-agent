@@ -6,6 +6,8 @@ import { setConfig } from '../config/resolve.js';
 import { sha256 } from '../domain/hash.js';
 import { newId } from '../domain/ids.js';
 import { parseStoryboard, serializeStoryboard } from '../domain/markdown/storyboard.js';
+import { lookFromGrading } from '../finish/grading.js';
+import { styleIds } from '../finish/styles.js';
 import { SfError } from '../errors.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
 import { hfLint } from '../hf/cli.js';
@@ -280,16 +282,22 @@ export class StudioEdits {
     const readback: CommitResult['readback_changes'] = [];
     for (const c of changes) {
       const fr = /^compositions\/frames\/(fr_[0-9a-z]{8})\.html$/.exec(c.file)?.[1];
-      if (fr && c.attr === 'data-color-grading' && c.after) {
+      // preset grade đổi trong Studio → look có cùng preset (027); grade tự do → chỉ là manual delta
+      const look =
+        fr && c.attr === 'data-color-grading' && c.after
+          ? lookFromGrading(c.after, styleIds(this.d.appDataDir), this.d.appDataDir)
+          : undefined;
+      if (fr && look && !readback.some((x) => x.kind === 'look' && x.target === fr)) {
         const sbRel = `${v}/STORYBOARD.md`;
         const p = parseStoryboard(readFileSync(store.abs(sbRel), 'utf8'));
         const blk = p.blocks.find(
           (b) => b.tag === 'sf-frame' && (b.data as { id?: string }).id === fr,
         );
         if (blk) {
-          blk.doc.setIn(['config', 'look.id'], c.after);
+          const data = blk.data as { config?: Record<string, unknown> };
+          data.config = { ...(data.config ?? {}), 'look.id': look };
           store.write(sbRel, serializeStoryboard(p), { by: 'studio.commit' });
-          readback.push({ kind: 'look', target: fr, value: c.after });
+          readback.push({ kind: 'look', target: fr, value: look });
         }
       }
       // mức nhạc nền (phần tử `#el-music` của index, D8 mục 3) → `music.volume_db` tầng video

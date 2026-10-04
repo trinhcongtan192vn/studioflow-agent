@@ -59,7 +59,7 @@ describe('index.html (011 US2)', () => {
       'src="audio/lines/ln_aaaaaaaa.wav" data-start="0.5" data-duration="2.5" data-track-index="10"',
     );
     expect(html).toContain(
-      'data-composition-src="compositions/captions.html" data-start="0" data-duration="9" data-track-index="2"',
+      'data-composition-src="compositions/captions.html" data-start="0" data-duration="9" data-track-index="3"',
     );
     expect(html).toContain('tl.to("#el-fr_aaaaaaaa", { opacity: 0, duration: 0.6');
     expect(html).toContain('tl.fromTo("#el-fr_bbbbbbbb"');

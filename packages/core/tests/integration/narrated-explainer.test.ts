@@ -103,6 +103,7 @@ let core: Core;
 let videoId = '';
 const v = () => path.join(c.dir, 'videos', videoId);
 const agentSteps: string[] = [];
+const asked: string[] = [];
 
 beforeAll(() => {
   process.env.SF_GPU = '0';
@@ -114,6 +115,11 @@ beforeAll(() => {
   core.workflows.registerExecutor('script', scriptExecutor({ text: stubText() }));
   core.workflows.registerExecutor('publish-meta', publishMetaExecutor({ text: stubText() }));
   core.workflows.setAgentRuntime(frameRuntime(() => core));
+  // người dùng đồng ý ghi đè STORYBOARD.md đã duyệt ở bước overlays (D5 5.1)
+  core.gateway.permissions.on('permission.requested', (r: { request_id: string; kind: string }) => {
+    asked.push(r.kind);
+    core.gateway.permissions.decide({ request_id: r.request_id, allow: true });
+  });
   // phiên main giả: bước agent storyboard/assets/music theo skill của gói
   core.workflows.setAgentRunner(async (instruction, ctx) => {
     const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
@@ -158,6 +164,19 @@ beforeAll(() => {
         frame(1, lines.slice(0, 2), beats[0]!, false),
         frame(2, lines.slice(2), beats[1]!, true),
       ].join('\n');
+      const w = await core.gateway.call(session, 'artifact.write', {
+        path: 'STORYBOARD.md',
+        content: sb,
+      });
+      if (!w.ok) throw new Error(JSON.stringify(w));
+      await ctx.stepComplete(['STORYBOARD.md']);
+    } else if (step === 'overlays') {
+      // 027: lower third ở frame đầu (khối của app, biến bắt buộc `title`)
+      const rel = `videos/${ctx.videoId}/STORYBOARD.md`;
+      const sb = readFileSync(ctx.store.abs(rel), 'utf8').replace(
+        'intent: "Hình minh họa 1"',
+        'intent: "Hình minh họa 1"\noverlays: [{ block: lower-third, vars: { title: "Tán xạ Rayleigh", subtitle: "Vật lý khí quyển" } }]',
+      );
       const w = await core.gateway.call(session, 'artifact.write', {
         path: 'STORYBOARD.md',
         content: sb,
@@ -212,9 +231,11 @@ describe('narrated-explainer end to end (016 FR-WF-05)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
+    // overlays sửa STORYBOARD.md đã duyệt → hỏi ghi đè (D5 5.1) + duyệt lại storyboard (D6 3.1)
+    expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
+    expect(asked).toContain('overwrite_approved');
     // assets do engine (nút asset, 023): không có layer cần ảnh thư viện → không giao agent
-    expect(agentSteps).toEqual(['storyboard', 'music']);
+    expect(agentSteps).toEqual(['storyboard', 'look', 'effects', 'overlays', 'music']);
     const st = state();
     expect(Object.fromEntries(Object.entries(st.steps).map(([k, s]) => [k, s.status]))).toEqual({
       design: 'done',
@@ -222,16 +243,22 @@ describe('narrated-explainer end to end (016 FR-WF-05)', () => {
       storyboard: 'done',
       voice: 'done',
       assets: 'done',
-      look: 'skipped',
+      look: 'done',
       frames: 'done',
-      effects: 'skipped',
-      overlays: 'skipped',
+      effects: 'done',
+      overlays: 'done',
       captions: 'done',
       music: 'done',
       finalize: 'done',
       meta: 'done',
       render: 'done',
     });
+    // 027: overlay ở tầng riêng (trên frame, dưới caption), biến đã điền
+    const index = readFileSync(path.join(v(), 'index.html'), 'utf8');
+    expect(index).toMatch(/data-sf-overlay="lower-third"[^>]*data-track-index="2"/);
+    expect(index).toMatch(/id="el-captions"[^>]*data-track-index="3"/);
+    const ov = /data-composition-src="(compositions\/overlays\/[^"]+)"/.exec(index)![1]!;
+    expect(readFileSync(path.join(v(), ov), 'utf8')).toContain('Tán xạ Rayleigh');
     const finalizeNote = st.approvals.find((a) => a.step_id === 'finalize')!.note!;
     expect(finalizeNote).toMatch(/Bản nháp: renders\/rd_[0-9a-z]{8}\/video\.mp4/);
     expect(existsSync(path.join(v(), '.sf', 'snapshots'))).toBe(true);

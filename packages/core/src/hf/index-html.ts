@@ -116,6 +116,8 @@ export interface IndexInput {
   frames: IndexFrame[];
   voices: { line_id: string; file: string; start_ms: number; duration_ms: number }[];
   captions: boolean;
+  /** Overlay (027): sub-composition đặt trên nội dung, dưới caption (FN-common mục 7). */
+  overlays?: { id: string; file: string; start_ms: number; duration_ms: number; block: string }[];
   total_ms: number;
   /** Bed nhạc đã trộn (012): thuộc tính D8 mục 3. */
   music?: {
@@ -137,9 +139,15 @@ export function buildIndexHtml(i: IndexInput): string {
       `      <div id="el-${p.id}" class="scene" data-sf-frame="${p.id}" data-composition-id="${p.id}" data-composition-src="compositions/frames/${p.id}.html" data-start="${p.start}" data-duration="${p.duration}" data-track-index="${n % 2}"></div>`,
     );
   });
+  // thứ tự tầng (FN-common 7): frame (0, 1) → overlay (2) → caption (3)
+  for (const o of i.overlays ?? []) {
+    body.push(
+      `      <div id="el-${o.id}" class="scene" data-sf-overlay="${o.block}" data-composition-id="${o.id}" data-composition-src="${o.file}" data-start="${r3(o.start_ms / 1000)}" data-duration="${r3(o.duration_ms / 1000)}" data-track-index="2"></div>`,
+    );
+  }
   if (i.captions) {
     body.push(
-      `      <div id="el-captions" class="scene" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="${total}" data-track-index="2"></div>`,
+      `      <div id="el-captions" class="scene" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="${total}" data-track-index="3"></div>`,
     );
   }
   for (const v of i.voices) {

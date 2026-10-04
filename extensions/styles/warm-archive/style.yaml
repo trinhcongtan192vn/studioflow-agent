@@ -1,0 +1,7 @@
+# Look ví dụ của D3 (`look.id: warm-archive`): ảnh tư liệu ấm, hơi phai (027).
+id: warm-archive
+version: 1.0.0
+grading: { preset: vintage-wash, intensity: 0.6, details: { vignette: 0.2 } }
+variants:
+  night: { preset: night-lift, intensity: 0.7 }
+palette: { ink: '#2b2118', paper: '#efe3cc', accent: '#9c4a26' }

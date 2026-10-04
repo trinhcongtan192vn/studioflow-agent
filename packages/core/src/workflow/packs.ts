@@ -12,7 +12,7 @@ import { satisfies } from './semver.js';
 /** Phiên bản API của app mà gói khai báo `app_api` (D13). */
 export const APP_API = '1.0.0';
 /** Giai đoạn hiện tại của app (D6 `skip_if.phase_before`). */
-export const APP_PHASE = 'M1';
+export const APP_PHASE = 'M3';
 const PHASES = ['M0', 'M1', 'M2', 'M3', 'M4', 'M5', 'M5b'];
 export const phaseBefore = (p: string): boolean => PHASES.indexOf(APP_PHASE) < PHASES.indexOf(p);
 

@@ -1,6 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { SfError } from '../errors.js';
-import type { Builder } from '../graph/graph.js';
+import { bakeKey, bakeLooks, type BakeItem } from '../finish/bake.js';
+import {
+  applyFinish,
+  effectCatalog,
+  frameFinish,
+  frameImageSources,
+  normalizeGrading,
+  type MediaEffect,
+} from '../finish/grading.js';
+import { contentInputHash, type Builder, type BuilderContext } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
 import { checkFrameFile } from './frame-file.js';
 
@@ -13,10 +22,60 @@ export type FrameRebuilder = (i: {
 }) => Promise<void>;
 
 /**
- * Builder nút `frame_html` (D4 mục 8.1): file frame hợp lệ chưa có bản ghi → nhận vào graph; thiếu hoặc
- * lỗi thời → phiên `frame` dựng lại đúng frame đó. Không có bộ dựng lại → `E_STEP_INCOMPLETE`.
+ * Hoàn thiện frame (027, FR-CP-04/05): look kênh/scene nướng vào ảnh (`public/looks/`, một lần render cho
+ * mọi ảnh của video còn thiếu — research R2); hiệu ứng media → `data-color-grading` áp lúc render.
  */
-export function frameHtmlBuilder(deps: { rebuild: () => FrameRebuilder | undefined }): Builder {
+async function finishFrame(ctx: BuilderContext, rel: string, appDataDir?: string): Promise<void> {
+  const frame = ctx.model.frames.find((f) => f.id === ctx.key)!;
+  const anyFx = ctx.model.frames.some((f) => f.effects?.length);
+  const cat: Map<string, MediaEffect> = anyFx ? await effectCatalog() : new Map();
+  const fin = frameFinish(ctx.model, frame, cat, appDataDir);
+  if (fin.unknown_effects.length)
+    throw new SfError(
+      'E_SCHEMA_INVALID',
+      `frame ${ctx.key}: unknown media effect(s) ${fin.unknown_effects.join(', ')}`,
+    );
+  const abs = ctx.store.abs(`${ctx.videoRel}/${rel}`);
+  const html = readFileSync(abs, 'utf8');
+  let baked: Map<string, string> | null = null;
+  if (fin.lookPatch) {
+    // gom mọi cặp (ảnh, look) của các frame đã có để nướng chung một lần render
+    const items: BakeItem[] = [];
+    for (const f of ctx.model.frames) {
+      const fa = ctx.store.abs(`${ctx.videoRel}/compositions/frames/${f.id}.html`);
+      if (!existsSync(fa)) continue;
+      const ff = frameFinish(ctx.model, f, cat, appDataDir);
+      if (!ff.lookPatch) continue;
+      const g = await normalizeGrading(ff.lookPatch);
+      for (const src of frameImageSources(readFileSync(fa, 'utf8')))
+        items.push({ src, grading: g });
+    }
+    const all = await bakeLooks(ctx.store, ctx.videoId, items, {
+      appDataDir,
+      signal: ctx.signal,
+    });
+    const g = await normalizeGrading(fin.lookPatch);
+    baked = new Map(
+      frameImageSources(html).flatMap((src) => {
+        const r = all.get(bakeKey({ src, grading: g }));
+        return r ? [[src, r] as [string, string]] : [];
+      }),
+    );
+  }
+  const fx = fin.fxPatch ? await normalizeGrading(fin.fxPatch) : null;
+  const next = applyFinish(html, { baked, fx });
+  if (next !== html) ctx.store.write(`${ctx.videoRel}/${rel}`, next, { by: 'graph.build' });
+}
+
+/**
+ * Builder nút `frame_html` (D4 mục 8.1): file frame hợp lệ chưa có bản ghi → nhận vào graph; chỉ phần
+ * hoàn thiện đổi → áp lại look/hiệu ứng, không gọi agent (027); thiếu hoặc nội dung lỗi thời → phiên
+ * `frame` dựng lại đúng frame đó. Không có bộ dựng lại → `E_STEP_INCOMPLETE`.
+ */
+export function frameHtmlBuilder(deps: {
+  rebuild: () => FrameRebuilder | undefined;
+  appDataDir?: string;
+}): Builder {
   return async (ctx) => {
     const rel = `compositions/frames/${ctx.key}.html`;
     const abs = ctx.store.abs(`${ctx.videoRel}/${rel}`);
@@ -24,7 +83,16 @@ export function frameHtmlBuilder(deps: { rebuild: () => FrameRebuilder | undefin
     const layerIds = frame.layers.map((l) => l.id);
     const valid = () =>
       existsSync(abs) && checkFrameFile(readFileSync(abs, 'utf8'), ctx.key, layerIds).length === 0;
-    if (!ctx.records[ctx.nodeId] && valid()) return { outputs: [rel] };
+    const content = ctx.def ? contentInputHash(ctx.def, ctx.records) : undefined;
+    const rec = ctx.records[ctx.nodeId];
+    const prevContent =
+      (rec?.meta as { content_hash?: string } | undefined)?.content_hash ?? rec?.input_hash;
+    const done = async () => {
+      await finishFrame(ctx, rel, deps.appDataDir);
+      return { outputs: [rel], ...(content ? { meta: { content_hash: content } } : {}) };
+    };
+    if (!rec && valid()) return done();
+    if (rec && content && prevContent === content && valid()) return done();
     const rebuild = deps.rebuild();
     if (!rebuild)
       throw new SfError(
@@ -38,6 +106,6 @@ export function frameHtmlBuilder(deps: { rebuild: () => FrameRebuilder | undefin
         : [`${rel} was not written`];
       throw new SfError('E_PROVIDER_FAILED', `frame ${ctx.key}: ${problems.join('; ')}`);
     }
-    return { outputs: [rel] };
+    return done();
   };
 }

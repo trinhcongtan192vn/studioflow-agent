@@ -3,6 +3,8 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
   type WriteStream,
 } from 'node:fs';
@@ -25,6 +27,23 @@ export function createScratchDir(prefix = 'sf-run-'): { dir: string; cleanup: ()
 export function writeOutsideProject(file: string, content: string | Buffer): void {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, content);
+}
+
+/**
+ * Bản xem chỉ đọc ngoài project (027): junction thư mục `target` tại `link` trong thư mục tạm; `dispose`
+ * gỡ junction trước khi xóa thư mục tạm (không đụng nội dung đích).
+ */
+export function linkOutsideProject(target: string, link: string): void {
+  mkdirSync(path.dirname(link), { recursive: true });
+  symlinkSync(target, link, 'junction');
+}
+
+export function unlinkOutsideProject(link: string): void {
+  try {
+    unlinkSync(link);
+  } catch {
+    /* không còn */
+  }
 }
 
 export function ensureOutsideDirs(...dirs: string[]): void {

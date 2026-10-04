@@ -1,0 +1,3 @@
+# Khối overlay của app (027, FN-common mục 6): mỗi khối `overlays/<id>/overlay.{yaml,html}`.
+id: core-overlays
+version: 1.0.0
