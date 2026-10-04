@@ -316,3 +316,33 @@ export { StudioPreviews, syncSnapshot, snapshotRel, snapshotMtime } from './stud
 export { studioTools } from './studio/tools.js';
 export { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
 export { audioDurationCheck, beatDurations, type BeatDuration } from './workflow/duration.js';
+export { ComfyServer, type ComfyServerOptions } from './comfy/server.js';
+export { ComfyClient, type ComfyImageRef } from './comfy/client.js';
+export {
+  attachImages,
+  fillWorkflow,
+  keepAlpha,
+  loadWorkflow,
+  type ComfyWorkflow,
+  type WorkflowVars,
+} from './comfy/workflow.js';
+export {
+  buildQwenWorkflow,
+  createQwen21ComfyProvider,
+  qwenMode,
+  snapSide,
+  QWEN21_PACK,
+  type QwenMode,
+} from './image/qwen21-comfy.js';
+export { createQwen20ApiProvider } from './image/qwen20-api.js';
+export { createRemoveBgProvider } from './image/remove-bg.js';
+export { createFakeImageProvider } from './image/fake.js';
+export { solidPng } from './image/png.js';
+export {
+  editImage,
+  generateImage,
+  removeBackground,
+  lookPrompt,
+  type ImageResult,
+} from './image/service.js';
+export { defineImageJobs, imageTools } from './image/tools.js';

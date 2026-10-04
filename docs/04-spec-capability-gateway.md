@@ -163,6 +163,7 @@ interface ProviderManifest {
   install_profile: 'minimal' | 'standard' | 'full'; cost: { kind: 'free' | 'per_token' | 'per_image' | 'per_second' };
   limits?: Record<string, number>; health: { method: string; timeout_ms: number };
   secrets?: string[]; network?: string[]; app_api: string;
+  defaults?: Record<string, unknown>;              // tham số mặc định của model (mục 9.2)
 }
 ```
 
@@ -325,7 +326,9 @@ interface JobInfo {
     - { name: qwen3vl_8b_w4a8.safetensors, url: "<url>", sha256: "<hash>", size: 6310000000, dest: text_encoders }
     - { name: qwen_image_2.1_vae_bf16.safetensors, url: "<url>", sha256: "<hash>", size: 680000000, dest: vae }
   install_profile: full
+  license: { id: qwen-research, url: "https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE", commercial: false }
 ```
+Mục có `license.commercial: false` chỉ cài khi người dùng xác nhận giấy phép (onboarding hiện điều khoản; CLI `--accept-license`); xác nhận ghi vào `settings.json.installed` (018).
 URL/sha256 cụ thể điền khi cài thử ở S16.
 - **Hồ sơ cài đặt:** `minimal` (agent, HyperFrames, FFmpeg) · `standard` (+ `tts.omnivoice`, `asr`, `audio.analysis`) · `full` (+ ComfyUI, Qwen-Image-2.1, `audio.clap`).
 - **Tải:** là job loại `download`; bất biến: báo dung lượng trước, tải tiếp được khi đứt, file chỉ xuất hiện ở đích sau khi khớp `sha256` (`E_DOWNLOAD_CHECKSUM`). Chi tiết: FN-014.

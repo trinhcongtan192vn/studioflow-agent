@@ -53,7 +53,7 @@ Vị trí: gói đi kèm bản cài ở `<install>/resources/extensions/<loại>
 - Ảnh xem trước `preview.png`.
 
 ## 6. Gói phong cách `extensions/styles/<id>/`
-`style.yaml` + tài nguyên: caption skin (id thành phần catalog + biến), preset overlay, bộ miệng `mouths/<set>/<view>/{closed,half,open}.svg`, LUT `.cube`, preset transition. Kênh tham chiếu bằng id qua khóa cấu hình (`caption.style`, `look.id`, `overlay.rules`…).
+`style.yaml` + tài nguyên: `image_prompt` (đoạn mô tả phong cách nối sau prompt khi sinh ảnh theo look, 018), caption skin (id thành phần catalog + biến), preset overlay, bộ miệng `mouths/<set>/<view>/{closed,half,open}.svg`, LUT `.cube`, preset transition. Kênh tham chiếu bằng id qua khóa cấu hình (`caption.style`, `look.id`, `overlay.rules`…).
 
 ## 7. Output profile `extensions/outputs/<id>/output.json`
 Theo `OutputProfile` (D3 mục 4); có thêm `id`, `version`, `app_api`. Test: render dự án mẫu với profile mới, kiểm vùng an toàn bằng snapshot.

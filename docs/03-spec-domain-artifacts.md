@@ -439,8 +439,9 @@ interface ChannelConfig extends Versioned {
 ```ts
 interface SettingsConfig extends Versioned {
   config: Partial<Record<ConfigKey, unknown>>;     // tầng app (mặc định của người dùng; thiếu khóa → mặc định trong bảng 7.2)
-  installed: { profile: 'minimal' | 'standard' | 'full'; components: { id: string; version: string; installed_at: Iso8601 }[] };
+  installed: { profile: 'minimal' | 'standard' | 'full'; components: { id: string; version: string; installed_at: Iso8601; license_accepted?: string }[] };   // license_accepted: id giấy phép người dùng đã xác nhận (018)
   provider_fallbacks: Partial<Record<string, string[]>>;   // capability → danh sách provider id theo thứ tự
+  provider_settings?: Partial<Record<string, Record<string, unknown>>>;   // cấu hình riêng provider không bí mật (ví dụ endpoint workspace của `image.qwen20-api`, 018)
   network: { allow: string[] };                    // domain cho phép (D5 mục 5.3)
   pricing: { provider: string; model: string; unit: 'mtok_in' | 'mtok_out' | 'image' | 'second'; usd: number }[];
   trace: { capture_content: boolean; retention_days: number; phoenix_enabled: boolean };   // mặc định true / 30 / false

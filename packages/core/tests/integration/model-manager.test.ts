@@ -2,7 +2,7 @@
 // Credential Manager thật (Windows).
 import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
@@ -25,6 +25,7 @@ import { tempDir } from '../domain-helpers.js';
 const blob = randomBytes(3 * 1024 * 1024);
 const sha = createHash('sha256').update(blob).digest('hex');
 let zip: Buffer;
+let nested: Buffer;
 let base = '';
 let cutOnce = true;
 let server: http.Server;
@@ -36,9 +37,14 @@ beforeAll(async () => {
   writeFileSync(path.join(t.dir, 'tool.exe'), 'fake exe');
   spawnSync(bsdtar(), ['-a', '-cf', path.join(t.dir, 'tool.zip'), '-C', t.dir, 'tool.exe']);
   zip = readFileSync(path.join(t.dir, 'tool.zip'));
+  // zip kiểu GitHub archive: một thư mục gốc
+  mkdirSync(path.join(t.dir, 'pkg-1.0'));
+  writeFileSync(path.join(t.dir, 'pkg-1.0', 'main.py'), 'print(1)');
+  spawnSync(bsdtar(), ['-a', '-cf', path.join(t.dir, 'pkg.zip'), '-C', t.dir, 'pkg-1.0']);
+  nested = readFileSync(path.join(t.dir, 'pkg.zip'));
   t.cleanup();
   server = http.createServer((req, res) => {
-    const body = req.url === '/tool.zip' ? zip : blob;
+    const body = req.url === '/tool.zip' ? zip : req.url === '/pkg.zip' ? nested : blob;
     const m = /bytes=(\d+)-/.exec(req.headers.range ?? '');
     const start = m ? Number(m[1]) : 0;
     res.writeHead(m ? 206 : 200, {
@@ -79,6 +85,19 @@ describe('catalog (014)', () => {
     expect(model).toMatchObject({ status: 'missing', bytes: 1624555275 });
     expect(plan.total_bytes).toBeGreaterThan(5e9);
     expect(installPlan(t.dir, 'minimal', c).entries.map((e) => e.key)).toEqual(['ffmpeg']);
+  });
+
+  it('full profile pins ComfyUI + Qwen-Image-2.1 with its non-commercial license (018)', () => {
+    const t = tempDir('app-');
+    cleanups.push(t.cleanup);
+    const full = installPlan(t.dir, 'full').entries;
+    const keys = full.map((e) => e.key);
+    expect(keys).toEqual(expect.arrayContaining(['comfyui', 'comfyui-env', 'qwen-image-2.1-q4']));
+    // mã ComfyUI cài trước môi trường Python (bước pip đọc requirements.txt của nó)
+    expect(keys.indexOf('comfyui')).toBeLessThan(keys.indexOf('comfyui-env'));
+    expect(full.find((e) => e.key === 'qwen-image-2.1-q4')).toMatchObject({
+      license: { id: 'qwen-research', commercial: false },
+    });
   });
 });
 
@@ -152,6 +171,45 @@ describe('download (014 FR-OP-04)', () => {
     });
     await expect(installEntry(t.dir, 'nope', { catalog })).rejects.toMatchObject({
       code: 'E_ID_UNKNOWN',
+    });
+  });
+
+  it('strips the archive root folder; a non-commercial license must be accepted (018)', async () => {
+    const t = tempDir('app-');
+    cleanups.push(t.cleanup);
+    const catalog: CatalogEntry[] = [
+      {
+        key: 'pkg',
+        title: 'Pkg 1.0',
+        install_profile: 'full',
+        license: { id: 'test-research', url: 'https://example.com/LICENSE', commercial: false },
+        files: [
+          {
+            name: 'pkg.zip',
+            url: `${base}/pkg.zip`,
+            sha256: createHash('sha256').update(nested).digest('hex'),
+            size: nested.length,
+            dest: 'providers/pkg/pkg.zip',
+            extract: 'providers/pkg/code',
+            strip: 1,
+          },
+        ],
+      },
+    ];
+    await expect(installEntry(t.dir, 'pkg', { catalog })).rejects.toMatchObject({
+      code: 'E_LICENSE_NOT_ACCEPTED',
+    });
+    expect(existsSync(path.join(t.dir, 'providers', 'pkg'))).toBe(false);
+    const st = await installEntry(t.dir, 'pkg', { catalog, acceptLicense: true });
+    expect(st.status).toBe('installed');
+    expect(readFileSync(path.join(t.dir, 'providers', 'pkg', 'code', 'main.py'), 'utf8')).toBe(
+      'print(1)',
+    );
+    const settings = readFileSync(path.join(t.dir, 'settings.json'), 'utf8');
+    expect(validateArtifact('settings.json', settings).errors).toEqual([]);
+    expect(JSON.parse(settings).installed.components[0]).toMatchObject({
+      id: 'pkg',
+      license_accepted: 'test-research',
     });
   });
 });

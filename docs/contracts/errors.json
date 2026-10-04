@@ -266,6 +266,16 @@
       ]
     },
     {
+      "code": "E_LICENSE_NOT_ACCEPTED",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/018-image-comfyui-qwen/spec.md",
+          "when": "Cài thành phần có giấy phép phi thương mại mà người dùng chưa xác nhận"
+        }
+      ]
+    },
+    {
       "code": "E_LLM_FIXTURE_MISSING",
       "retryable": false,
       "sources": [
@@ -386,6 +396,16 @@
         {
           "doc": "docs/04-spec-capability-gateway.md",
           "when": "Không có provider khả dụng"
+        }
+      ]
+    },
+    {
+      "code": "E_PROVIDER_UNSUPPORTED",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/018-image-comfyui-qwen/spec.md",
+          "when": "Provider đã chọn không hỗ trợ tùy chọn được yêu cầu (ví dụ ảnh trong suốt qua API)"
         }
       ]
     },

@@ -107,10 +107,22 @@ export function bsdtar(): string {
 }
 
 /** Giải nén zip vào thư mục (bsdtar có sẵn trên Windows 10+). */
-export function extractZip(zip: string, destDir: string, signal?: AbortSignal): Promise<void> {
+export function extractZip(
+  zip: string,
+  destDir: string,
+  signal?: AbortSignal,
+  strip?: number,
+): Promise<void> {
   mkdirSync(destDir, { recursive: true });
   return new Promise((resolve, reject) => {
-    const p = spawn(bsdtar(), ['-xf', zip, '-C', destDir], {
+    const args = [
+      '-xf',
+      zip,
+      '-C',
+      destDir,
+      ...(strip ? ['--strip-components', String(strip)] : []),
+    ];
+    const p = spawn(bsdtar(), args, {
       windowsHide: true,
       ...(signal ? { signal } : {}),
     });

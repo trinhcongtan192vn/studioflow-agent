@@ -1,0 +1,74 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "{{unet}}"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "{{clip}}",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "{{vae}}"
+    }
+  },
+  "4": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": ["2", 0],
+      "prompt": "{{prompt}}",
+      "negative_prompt": "{{negative}}",
+      "resolution": "{{resolution}}",
+      "vae": ["3", 0],
+      "images.image_1": ["9", 0]
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["4", 0],
+      "negative": ["4", 1],
+      "latent_image": ["4", 2],
+      "seed": "{{seed}}",
+      "steps": "{{steps}}",
+      "cfg": "{{cfg}}",
+      "sampler_name": "{{sampler}}",
+      "scheduler": "{{scheduler}}",
+      "denoise": 1
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["6", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["11", 0],
+      "filename_prefix": "sf"
+    }
+  },
+  "9": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{image_in}}"
+    }
+  },
+  "11": {
+    "class_type": "SplitImageWithAlpha",
+    "inputs": {
+      "image": ["7", 0]
+    }
+  }
+}

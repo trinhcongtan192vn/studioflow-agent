@@ -140,3 +140,67 @@
     steps:
       - ['librosa==0.11.0', 'pyloudnorm==0.1.1', 'soundfile==0.13.1']
     approx_size: 450000000
+# 018 — ComfyUI do app quản lý (D4 mục 9.2): mã ghim + custom node ComfyUI-GGUF ghim, môi trường Python
+# riêng, model Qwen-Image-2.1 (GGUF Q4 + Qwen3-VL w4a8 + VAE). Giấy phép Qwen Research: phi thương mại.
+- key: comfyui
+  title: ComfyUI v0.38.2 + ComfyUI-GGUF 6ea2651
+  install_profile: full
+  files:
+    - name: ComfyUI-0.38.2.zip
+      url: https://github.com/Comfy-Org/ComfyUI/archive/refs/tags/v0.38.2.zip
+      sha256: 6618fb4bd5c1447f2f8e9fdd81d6b28e39b82c49ffefa377f1503c52bb6dac49
+      size: 13194189
+      dest: providers/comfyui/downloads/ComfyUI-0.38.2.zip
+      extract: providers/comfyui/ComfyUI
+      strip: 1
+    - name: ComfyUI-GGUF-6ea2651.zip
+      url: https://github.com/city96/ComfyUI-GGUF/archive/6ea2651e7df66d7585f6ffee804b20e92fb38b8a.zip
+      sha256: aad273a0b774684285b4496f6edff7e2293bd29d71ef89926d6861bfdf4947ac
+      size: 38051
+      dest: providers/comfyui/downloads/ComfyUI-GGUF-6ea2651.zip
+      extract: providers/comfyui/ComfyUI/custom_nodes/ComfyUI-GGUF
+      strip: 1
+- key: comfyui-env
+  title: Môi trường Python ComfyUI (torch 2.8 cu128)
+  install_profile: full
+  python_env:
+    engine: comfyui
+    python: '3.12'
+    steps:
+      - [
+          'torch==2.8.0+cu128',
+          'torchvision==0.23.0+cu128',
+          'torchaudio==2.8.0+cu128',
+          '--extra-index-url',
+          'https://download.pytorch.org/whl/cu128',
+          '--index-strategy',
+          'unsafe-best-match',
+        ]
+      - ['-r', '{app_data}/providers/comfyui/ComfyUI/requirements.txt']
+      - ['-r', '{app_data}/providers/comfyui/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt']
+    approx_size: 6500000000
+- key: qwen-image-2.1-q4
+  title: Qwen-Image-2.1 (GGUF Q4 + Qwen3-VL 8B w4a8 + VAE)
+  install_profile: full
+  license:
+    {
+      id: qwen-research,
+      url: 'https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE',
+      commercial: false,
+    }
+  files:
+    - name: Qwen-Image-2.1-Q4.gguf
+      url: https://huggingface.co/realrebelai/Qwen-Image-2.1_GGUFs/resolve/main/Qwen-Image-2.1-Q4.gguf
+      sha256: 51998ad7c068ce7d68e233237537900ffe874ab4d5c72e20758f5f18ceb15b8a
+      size: 5959127264
+      dest: models/diffusion_models/Qwen-Image-2.1-Q4.gguf
+    - name: qwen3vl_8b_w4a8.safetensors
+      url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_w4a8.safetensors
+      sha256: 7754425e55e7bea2bfde4dde59a4cc236cb44e5ee9c215ea66ef8d47012824eb
+      size: 6312105364
+      dest: models/text_encoders/qwen3vl_8b_w4a8.safetensors
+    - name: qwen_image_2.1_vae_bf16.safetensors
+      url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors
+      sha256: bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9
+      size: 675509688
+      dest: models/vae/qwen_image_2.1_vae_bf16.safetensors

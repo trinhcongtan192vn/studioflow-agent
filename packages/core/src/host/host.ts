@@ -511,7 +511,14 @@ export class CoreHost extends EventEmitter {
         const ids = plan.entries
           .filter((e) => e.status === 'missing' || e.status === 'partial')
           .map(
-            (e) => c.queue.enqueue('download', { payload: { key: e.key, profile: p.profile } }).id,
+            (e) =>
+              c.queue.enqueue('download', {
+                payload: {
+                  key: e.key,
+                  profile: p.profile,
+                  ...(p.accept_licenses ? { accept_license: true } : {}),
+                },
+              }).id,
           );
         return { job_ids: ids };
       }

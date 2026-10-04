@@ -19,7 +19,15 @@ export interface CatalogFile {
   size?: number;
   dest: string;
   extract?: string;
+  /** Bỏ N cấp thư mục đầu khi giải nén (zip GitHub archive có một thư mục gốc, 018). */
+  strip?: number;
   content?: string;
+}
+
+export interface CatalogLicense {
+  id: string;
+  url: string;
+  commercial: boolean;
 }
 
 export interface CatalogEntry {
@@ -28,7 +36,10 @@ export interface CatalogEntry {
   install_profile: InstallProfile;
   satisfied_by_path?: string;
   files?: CatalogFile[];
+  /** Bước pip có thể dùng `{app_data}` (đường dẫn app-data). */
   python_env?: { engine: string; python: string; steps: string[][]; approx_size: number };
+  /** Giấy phép phi thương mại → cài phải có xác nhận của người dùng (D4 mục 10, 018). */
+  license?: CatalogLicense;
 }
 
 export const CATALOG_FILE = path.join(EXTENSIONS_DIR, 'providers', 'models.yaml');
@@ -91,11 +102,17 @@ export interface EntryStatus {
   status: 'installed' | 'system' | 'missing' | 'partial';
   /** Byte cần tải (ước tính cho môi trường Python). */
   bytes: number;
+  license?: CatalogLicense;
 }
 
 /** Trạng thái một thành phần (kiểm kích thước file; sha256 kiểm khi cài). */
 export function entryStatus(appDataDir: string, e: CatalogEntry): EntryStatus {
-  const base = { key: e.key, title: e.title, install_profile: e.install_profile };
+  const base = {
+    key: e.key,
+    title: e.title,
+    install_profile: e.install_profile,
+    ...(e.license ? { license: e.license } : {}),
+  };
   if (e.python_env) {
     const ok = existsSync(enginePython(e.python_env.engine, appDataDir));
     return {
@@ -161,6 +178,7 @@ export function recordInstalled(
   appDataDir: string,
   e: CatalogEntry,
   profile?: InstallProfile,
+  licenseOk?: boolean,
 ): void {
   const store = new WriteStore(appDataDir);
   const f = store.abs('settings.json');
@@ -168,7 +186,12 @@ export function recordInstalled(
     ? (JSON.parse(readFileSync(f, 'utf8')) as SettingsConfig)
     : structuredClone(DEFAULT_SETTINGS);
   const comps = s.installed.components.filter((c) => c.id !== e.key);
-  comps.push({ id: e.key, version: e.title, installed_at: new Date().toISOString() });
+  comps.push({
+    id: e.key,
+    version: e.title,
+    installed_at: new Date().toISOString(),
+    ...(e.license && licenseOk ? { license_accepted: e.license.id } : {}),
+  });
   s.installed = {
     profile: profile && RANK[profile] > RANK[s.installed.profile] ? profile : s.installed.profile,
     components: comps,
@@ -188,13 +211,21 @@ export async function installEntry(
     progress?: (done: number, total: number, message?: string) => void;
     catalog?: CatalogEntry[];
     profile?: InstallProfile;
+    /** Người dùng đã xác nhận giấy phép phi thương mại của thành phần (018). */
+    acceptLicense?: boolean;
   } = {},
 ): Promise<EntryStatus> {
   const e = (o.catalog ?? loadCatalog()).find((x) => x.key === key);
   if (!e) throw new SfError('E_ID_UNKNOWN', `unknown component ${key}`);
+  const accepted = o.acceptLicense || licenseAccepted(appDataDir, e);
+  if (e.license && !e.license.commercial && !accepted)
+    throw new SfError(
+      'E_LICENSE_NOT_ACCEPTED',
+      `${e.title} uses the "${e.license.id}" license (non-commercial: ${e.license.url}); accept it to install`,
+    );
   const st = entryStatus(appDataDir, e);
   if (st.status === 'installed' || st.status === 'system') {
-    recordInstalled(appDataDir, e, o.profile);
+    recordInstalled(appDataDir, e, o.profile, accepted);
     return st;
   }
   if (e.python_env) {
@@ -212,7 +243,13 @@ export async function installEntry(
       o.progress?.(i + 1, e.python_env.steps.length + 1, `pip install ${pkgs[0]}`);
       await run(
         uv,
-        ['pip', 'install', '--python', enginePython(e.python_env.engine, appDataDir), ...pkgs],
+        [
+          'pip',
+          'install',
+          '--python',
+          enginePython(e.python_env.engine, appDataDir),
+          ...pkgs.map((a) => a.replaceAll('{app_data}', appDataDir)),
+        ],
         o.signal,
       );
     }
@@ -230,13 +267,28 @@ export async function installEntry(
           ...(o.signal ? { signal: o.signal } : {}),
           progress: (d) => o.progress?.(base + d, total, f.name),
         });
-        if (f.extract) await extractZip(abs, path.join(appDataDir, f.extract), o.signal);
+        if (f.extract) await extractZip(abs, path.join(appDataDir, f.extract), o.signal, f.strip);
       }
       base += f.size ?? 0;
     }
   }
-  recordInstalled(appDataDir, e, o.profile);
+  recordInstalled(appDataDir, e, o.profile, accepted);
   return entryStatus(appDataDir, e);
+}
+
+function readSettings(appDataDir: string): SettingsConfig | undefined {
+  const f = path.join(appDataDir, 'settings.json');
+  return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as SettingsConfig) : undefined;
+}
+
+/** Đã xác nhận giấy phép trước đó (ghi trong `settings.installed`). */
+export function licenseAccepted(appDataDir: string, e: CatalogEntry): boolean {
+  if (!e.license) return true;
+  return Boolean(
+    readSettings(appDataDir)?.installed.components.some(
+      (c) => c.id === e.key && c.license_accepted === e.license!.id,
+    ),
+  );
 }
 
 /** Thêm thư mục bin của FFmpeg/uv do app tải vào PATH của tiến trình (HyperFrames, FFmpeg dùng chung). */

@@ -1,0 +1,10 @@
+id: bg.hf-remove-background
+version: 1.0.0
+capabilities: [image.remove_bg]
+contract_versions: { image.remove_bg: '1' }
+runtime: node
+resource: cpu
+install_profile: minimal
+cost: { kind: free }
+health: { method: cli, timeout_ms: 10000 }
+app_api: '>=0.1 <2.0'

@@ -1,0 +1,11 @@
+id: image.fake
+version: 1.0.0
+capabilities: [image.generate, image.edit]
+contract_versions: { image.generate: '1', image.edit: '1' }
+runtime: node
+resource: cpu
+install_profile: minimal
+cost: { kind: free }
+limits: { min_side: 16, max_side: 4096, max_refs: 10 }
+health: { method: none, timeout_ms: 1000 }
+app_api: '>=0.1 <2.0'

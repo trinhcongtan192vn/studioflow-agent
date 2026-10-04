@@ -4,6 +4,7 @@ import path from 'node:path';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
 import { Logger } from '../log.js';
+import { getSecretDefault } from '../secrets/credman.js';
 import type { Db } from '../store/db.js';
 import { splitVideoPath } from '../store/paths.js';
 import { createScratchDir } from '../store/scratch.js';
@@ -32,6 +33,25 @@ export function isCacheable(capability: string, input: unknown): boolean {
   return true;
 }
 
+/** Phần khóa cache của một lần chạy (D4 mục 7). */
+export function cacheKeyParts<I>(
+  adapter: ProviderAdapter<I, unknown>,
+  capability: string,
+  input: I,
+  seed?: number,
+): CacheKeyInput {
+  const m = adapter.manifest;
+  return {
+    capability,
+    contract_version: m.contract_versions[capability] ?? '1',
+    provider_id: m.id,
+    provider_version: m.version,
+    model_file_hash: adapter.modelFileHash ?? null,
+    input: adapter.cacheKeyParts(input),
+    seed: seed ?? null,
+  };
+}
+
 export const cacheDir = (key: string): string => `cache/objects/${key.slice(0, 2)}/${key}`;
 
 export interface RunCapabilityArgs<I, O> {
@@ -48,6 +68,8 @@ export interface RunCapabilityArgs<I, O> {
   progress?: (done: number, total: number, message?: string) => void;
   jobId?: string;
   logger?: Logger;
+  /** Nguồn bí mật (mặc định biến môi trường → Credential Manager). */
+  getSecret?: (name: string) => string | undefined;
 }
 
 export interface RunCapabilityResult<O> {
@@ -107,15 +129,7 @@ async function runCapabilityInner<I, O>(
 ): Promise<RunCapabilityResult<O>> {
   const { store, adapter, capability, input } = args;
   const m = adapter.manifest;
-  const keyParts: CacheKeyInput = {
-    capability,
-    contract_version: m.contract_versions[capability] ?? '1',
-    provider_id: m.id,
-    provider_version: m.version,
-    model_file_hash: adapter.modelFileHash ?? null,
-    input: adapter.cacheKeyParts(input),
-    seed: args.seed ?? null,
-  };
+  const keyParts = cacheKeyParts(adapter, capability, input, args.seed);
   const key = cacheKey(keyParts);
   const cacheable = isCacheable(capability, input);
   const cdir = cacheDir(key);
@@ -145,8 +159,14 @@ async function runCapabilityInner<I, O>(
         logger: args.logger ?? new Logger(),
         span: {},
         resolveInput: (p) => store.abs(p),
+        // chỉ provider khai báo `secrets` (D4 mục 4.2)
         secrets: async (name) => {
-          throw new SfError('E_AUTH_REQUIRED', `secret ${name} is not available to ${m.id}`);
+          const v = m.secrets?.includes(name)
+            ? (args.getSecret ?? getSecretDefault)(name)
+            : undefined;
+          if (!v)
+            throw new SfError('E_AUTH_REQUIRED', `secret ${name} is not available to ${m.id}`);
+          return v;
         },
       })) as Record<string, unknown>;
       output = { ...out };

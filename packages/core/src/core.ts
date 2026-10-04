@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
 import { assetTools } from './assets/tools.js';
+import { defineImageJobs, imageTools } from './image/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
 import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
 import { attachTraceStore } from './trace/trace.js';
@@ -128,6 +129,9 @@ export function createCore(opts: CoreOptions = {}): Core {
   // HyperFrames adapter, frame build, asset (011)
   graph.registerBuilder('index', indexBuilder({ appDataDir }));
   for (const t of assetTools()) gateway.register(t);
+  // Ảnh (018): image.generate / image.edit / image.remove_bg
+  for (const t of imageTools(tts)) gateway.register(t);
+  defineImageJobs(tts, appDataDir);
   // Kho nhạc (012)
   for (const t of musicTools(tts, appDataDir)) gateway.register(t);
   defineMusicJobs(tts, appDataDir);
@@ -137,11 +141,12 @@ export function createCore(opts: CoreOptions = {}): Core {
     engine: 'download',
     idempotent: true,
     run: async (job, ctx) => {
-      const p = job.payload as { key: string; profile?: InstallProfile };
+      const p = job.payload as { key: string; profile?: InstallProfile; accept_license?: boolean };
       return installEntry(appDataDir, p.key, {
         signal: ctx.signal,
         progress: ctx.progress,
         ...(p.profile ? { profile: p.profile } : {}),
+        ...(p.accept_license ? { acceptLicense: true } : {}),
       });
     },
   });

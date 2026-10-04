@@ -92,6 +92,7 @@ export function getSecretDefault(name: string): string | undefined {
       openai: process.env.OPENAI_API_KEY,
       deepseek: process.env.DEEPSEEK_API_KEY,
       anthropic: process.env.SF_ANTHROPIC_API_KEY,
+      dashscope_api_key: process.env.DASHSCOPE_API_KEY,
     } as Record<string, string | undefined>
   )[name];
   if (env) return env;

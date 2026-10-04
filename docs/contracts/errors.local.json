@@ -70,6 +70,16 @@
       "code": "E_NOT_CHANNEL",
       "when": "Thư mục mở không có channel.json (IPC channel.open)",
       "source": "specs/008-desktop-shell-chat/spec.md"
+    },
+    {
+      "code": "E_PROVIDER_UNSUPPORTED",
+      "when": "Provider đã chọn không hỗ trợ tùy chọn được yêu cầu (ví dụ ảnh trong suốt qua API)",
+      "source": "specs/018-image-comfyui-qwen/spec.md"
+    },
+    {
+      "code": "E_LICENSE_NOT_ACCEPTED",
+      "when": "Cài thành phần có giấy phép phi thương mại mà người dùng chưa xác nhận",
+      "source": "specs/018-image-comfyui-qwen/spec.md"
     }
   ]
 }
