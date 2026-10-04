@@ -97,6 +97,10 @@
             "additionalProperties": false
           }
         },
+        "config_defaults": {
+          "type": "object",
+          "additionalProperties": {}
+        },
         "steps": {
           "type": "array",
           "items": {

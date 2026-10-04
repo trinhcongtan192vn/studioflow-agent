@@ -180,15 +180,23 @@ export function buildCaptionsHtml(i: {
   })[];
   style?: string;
 }): string {
-  const fontPx = Math.round(i.height * 0.045);
+  // kiểu caption (`caption.style`, FN-common 3; 029 tĩnh cho essay, 030 karaoke lớn giữa màn hình cho shorts)
+  const style = i.style ?? 'caption-highlight';
+  const karaoke = style === 'caption-pill-karaoke';
+  const highlight = style !== 'caption-static';
+  const base = Math.min(i.width, i.height);
+  const fontPx = karaoke ? Math.round(base * 0.075) : Math.round(i.height * 0.045);
   const bottom = Math.round(i.height * 0.06);
+  const place = karaoke
+    ? `top: ${Math.round(i.height * 0.58)}px; transform: translateY(-50%);`
+    : `bottom: ${bottom}px;`;
   const clips = i.groups.map((g, n) => {
     const words = g.words
       .map((w, k) => `<span class="w" id="cap-${g.id}-${k}">${esc(w.text)}</span>`)
       .join(' ');
     return `    <div class="clip cap" id="cap-${g.id}" data-sf-caption="${g.id}" data-start="${r3(g.abs_start_ms / 1000)}" data-duration="${r3(Math.max(1, g.abs_end_ms - g.abs_start_ms) / 1000)}" data-track-index="${n % 2}"><div class="pill">${words}</div></div>`;
   });
-  const tweens = i.groups.flatMap((g) =>
+  const tweens = (highlight ? i.groups : []).flatMap((g) =>
     g.words.map(
       (w, k) => `    tl.set("#cap-${g.id}-${k}", { color: "#FFD54A" }, ${r3(w.start_ms / 1000)});`,
     ),
@@ -198,8 +206,8 @@ export function buildCaptionsHtml(i: {
     <script src="${GSAP_SRC}"></script>
     <style>
       #root { position: relative; width: ${i.width}px; height: ${i.height}px; }
-      .cap { position: absolute; left: 0; right: 0; bottom: ${bottom}px; display: flex; justify-content: center; }
-      .pill { max-width: ${Math.round(i.width * 0.8)}px; padding: ${Math.round(fontPx * 0.3)}px ${Math.round(fontPx * 0.6)}px; border-radius: ${Math.round(fontPx * 0.4)}px; background: rgba(0, 0, 0, 0.62); color: #ffffff; font-family: sans-serif; font-weight: 700; font-size: ${fontPx}px; line-height: 1.25; text-align: center; }
+      .cap { position: absolute; left: 0; right: 0; ${place} display: flex; justify-content: center; }
+      .pill { max-width: ${Math.round(i.width * (karaoke ? 0.86 : 0.8))}px; padding: ${Math.round(fontPx * 0.3)}px ${Math.round(fontPx * 0.6)}px; border-radius: ${Math.round(fontPx * 0.4)}px; background: rgba(0, 0, 0, 0.62); color: #ffffff; font-family: sans-serif; font-weight: 700; font-size: ${fontPx}px; line-height: 1.25; text-align: center; }
       .w { color: #ffffff; }
     </style>
 ${clips.join('\n')}

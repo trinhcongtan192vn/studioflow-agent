@@ -75,7 +75,12 @@ export function loadVideoModel(
     videoId,
     videoDir,
     language: script?.front.language ?? channel.language,
-    lines: script?.lines ?? [],
+    // khoảng lặng mặc định sau line (`voice.pause_after_ms`, 029; essay 600 ms)
+    lines: withDefaultPause(script?.lines ?? [], () =>
+      Number(
+        resolveConfig('voice.pause_after_ms', { channelDir, videoId }, { appDataDir }).value ?? 0,
+      ),
+    ),
     frames: sb?.frames ?? [],
     scenes: sb?.scenes ?? [],
     cast,
@@ -94,4 +99,16 @@ export function loadVideoModel(
 export function voiceOf(model: VideoModel, line: Line): string | null {
   if (line.speaker === 'narrator') return model.config<string | null>('voice.id');
   return (model.cast[line.speaker]?.voice_id as string | undefined) ?? null;
+}
+
+/** Line không khai báo `pause_after_ms` nhận `voice.pause_after_ms` (D3 7.2, 029). */
+export function withDefaultPause<L extends { pause_after_ms?: number }>(
+  lines: L[],
+  pause: () => number,
+): L[] {
+  if (lines.every((l) => l.pause_after_ms !== undefined)) return lines;
+  const p = pause();
+  return p > 0
+    ? lines.map((l) => (l.pause_after_ms === undefined ? { ...l, pause_after_ms: p } : l))
+    : lines;
 }

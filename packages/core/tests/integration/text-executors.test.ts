@@ -158,5 +158,9 @@ describe('text executors (009 FR-008)', () => {
 
   it('stripWrapping removes fences and front matter', () => {
     expect(stripWrapping('```md\n---\na: 1\n---\nX\n```')).toBe('X\n');
+    // tiêu đề beat sai cấp được đưa về `##`
+    expect(
+      stripWrapping('# Mở đầu <!-- sf:beat id=bt_aaaaaaaa -->\n### Kết <!-- sf:beat -->'),
+    ).toBe('## Mở đầu <!-- sf:beat id=bt_aaaaaaaa -->\n## Kết <!-- sf:beat -->\n');
   });
 });

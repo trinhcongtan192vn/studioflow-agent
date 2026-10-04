@@ -452,7 +452,7 @@ interface SettingsConfig extends Versioned {
 ## 7. Cấu hình theo tầng
 
 ### 7.1 Tầng và nguồn
-`app` (`settings.json`.config) → `channel` (`channel.json`.config) → `video` (`state.json`.config_overrides; riêng `output.profile` đọc từ `state.json.output_profile`) → `scene` (`sf-scene`.config) → `frame` (`sf-frame`.config). Tầng sau ghi đè tầng trước theo khóa. Thiếu ở mọi tầng → giá trị mặc định (tech-defaults mục 7).
+`app` (`settings.json`.config) → `channel` (`channel.json`.config) → `workflow` (`config_defaults` trong `workflow.yaml` của workflow đã chọn, D6 mục 1.2; giá trị riêng của dạng video như caption dọc của shorts) → `video` (`state.json`.config_overrides; riêng `output.profile` đọc từ `state.json.output_profile`) → `scene` (`sf-scene`.config) → `frame` (`sf-frame`.config). Tầng sau ghi đè tầng trước theo khóa. Thiếu ở mọi tầng → giá trị mặc định (tech-defaults mục 7).
 
 ### 7.2 Khóa cấu hình
 `type ConfigKey` = các khóa trong bảng (khóa có `<…>` là mẫu). Thêm khóa = thêm dòng vào bảng (tăng phiên bản tài liệu).
@@ -462,6 +462,7 @@ interface SettingsConfig extends Versioned {
 | `output.profile` | string | app, channel, video |
 | `workflow.default` | string | app, channel |
 | `voice.id` | VoiceId | channel, video |
+| `voice.pause_after_ms` | Ms | channel, video |
 | `look.id` | string | mọi tầng |
 | `font.family` | string | app, channel |
 | `caption.style` | string | channel, video |

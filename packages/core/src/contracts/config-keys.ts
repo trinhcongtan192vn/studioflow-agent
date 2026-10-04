@@ -31,6 +31,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "voice.pause_after_ms",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
       "key": "look.id",
       "pattern": false,
       "type": "string",

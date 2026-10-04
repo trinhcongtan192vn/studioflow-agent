@@ -4,7 +4,59 @@ import { SfError } from '../errors.js';
 import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
 import type { WriteStore } from '../store/writer.js';
 import { DEFAULTS, PATTERN_DEFAULTS } from './defaults.js';
-import { checkConfigTier, configKeySpec, patternArg, requireKey, type ConfigTier } from './keys.js';
+import {
+  checkConfigTier,
+  configKeySpec,
+  patternArg,
+  requireKey,
+  workflowTierAllowed,
+  type ConfigTier,
+} from './keys.js';
+import { parse } from 'yaml';
+import { readdirSync, statSync } from 'node:fs';
+import { EXTENSIONS_DIR } from '../paths.js';
+
+const wfCache = new Map<
+  string,
+  { mtime: number; id?: string; defaults?: Record<string, unknown> }
+>();
+
+/** `config_defaults` của workflow theo id (thư mục gói: app-data trước, rồi gói đi kèm app, D5 3.2). */
+function workflowManifestFile(
+  id: string,
+  appDataDir?: string,
+): { file: string; defaults?: Record<string, unknown> } | undefined {
+  const env = process.env.SF_WORKFLOW_DIRS;
+  const dirs = env
+    ? env.split(path.delimiter).filter(Boolean)
+    : [
+        path.join(appDataDir ?? defaultAppDataDir(), 'extensions', 'workflows'),
+        path.join(EXTENSIONS_DIR, 'workflows'),
+      ];
+  for (const d of dirs) {
+    if (!existsSync(d)) continue;
+    for (const name of readdirSync(d)) {
+      const f = path.join(d, name, 'workflow.yaml');
+      if (!existsSync(f)) continue;
+      const mtime = statSync(f).mtimeMs;
+      let c = wfCache.get(f);
+      if (!c || c.mtime !== mtime) {
+        try {
+          const y = parse(readFileSync(f, 'utf8')) as {
+            id?: string;
+            config_defaults?: Record<string, unknown>;
+          };
+          c = { mtime, id: y?.id, defaults: y?.config_defaults };
+        } catch {
+          c = { mtime };
+        }
+        wfCache.set(f, c);
+      }
+      if (c.id === id) return { file: f, defaults: c.defaults };
+    }
+  }
+  return undefined;
+}
 
 export interface ResolvedValue<T = unknown> {
   value: T;
@@ -82,6 +134,13 @@ export function resolveConfig<T = unknown>(
   if (scope.videoId) {
     const vRel = `videos/${scope.videoId}`;
     const state = readJson(path.join(scope.channelDir, 'videos', scope.videoId, 'state.json'));
+    // tầng workflow (D3 7.1, 029): `config_defaults` của workflow đã chọn
+    const wf = (state?.workflow as { id?: string } | null | undefined)?.id;
+    if (wf && workflowTierAllowed(spec)) {
+      const m = workflowManifestFile(wf, opts.appDataDir);
+      if (m && m.defaults && key in m.defaults)
+        result = { value: m.defaults[key], source: 'workflow', path: m.file };
+    }
     if (state) {
       take('video', state.config_overrides, `${vRel}/state.json`);
       if (key === 'output.profile' && state.output_profile) {

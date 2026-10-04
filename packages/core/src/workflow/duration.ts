@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { AudioMeta } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
+import { withDefaultPause } from '../graph/model.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import type { FrameTiming } from '../graph/timing.js';
@@ -30,7 +31,10 @@ export function beatDurations(store: WriteStore, videoId: string): BeatDuration[
   if (!meta || !existsSync(scriptF)) return [];
   const audio = new Map(meta.lines.map((l) => [l.line_id as string, l.duration_ms]));
   const doc = toScriptDoc(parseScript(readFileSync(scriptF, 'utf8')));
-  const byId = new Map(doc.lines.map((l) => [l.id as string, l]));
+  const lines = withDefaultPause(doc.lines, () =>
+    Number(resolveConfig('voice.pause_after_ms', { channelDir: store.root, videoId }).value ?? 0),
+  );
+  const byId = new Map(lines.map((l) => [l.id as string, l]));
   let t = 0;
   return doc.beats.map((b) => {
     const start = t;

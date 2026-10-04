@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
 import type { SessionContext, SessionOptions } from '../contracts/types.js';
 import type { Gateway } from '../gateway/gateway.js';
@@ -13,10 +12,8 @@ export const DEFAULT_MODEL = 'claude-sonnet-5-5';
 /** `maxTurns` theo loại phiên (tech-defaults mục 2). */
 export const MAX_TURNS = { main: 60, frame: 30, producer: 10, critic: 10 } as const;
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-/** Thư mục gói mở rộng đi kèm app (D3 mục 1); `SF_EXTENSIONS_DIR` ghi đè khi đóng gói. */
-export const EXTENSIONS_DIR =
-  process.env.SF_EXTENSIONS_DIR ?? path.resolve(here, '..', '..', '..', '..', 'extensions');
+import { EXTENSIONS_DIR } from '../paths.js';
+export { EXTENSIONS_DIR };
 export const STUDIOFLOW_CORE_PLUGIN = path.join(EXTENSIONS_DIR, 'studioflow-core');
 
 /** `SessionOptions` (D5 mục 1) cho một loại phiên. */

@@ -1,3 +1,4 @@
+import { configKeySpec, typeMatches, workflowTierAllowed } from '../config/keys.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
@@ -39,6 +40,22 @@ export function loadPack(dir: string, providers?: ProviderRegistry): WorkflowPac
   }
   if (errors.length === 0) {
     errors.push(...validateManifest(manifest));
+    // tầng cấu hình workflow (029): khóa đã biết, cho phép ở tầng kênh/video, đúng kiểu
+    for (const [k, v] of Object.entries(manifest.config_defaults ?? {})) {
+      const spec = configKeySpec(k);
+      if (!spec)
+        errors.push({ code: 'E_CONFIG_UNKNOWN_KEY', message: `config_defaults: unknown key ${k}` });
+      else if (!workflowTierAllowed(spec))
+        errors.push({
+          code: 'E_CONFIG_SCOPE',
+          message: `config_defaults: ${k} is not allowed at channel/video tier`,
+        });
+      else if (!typeMatches(spec.type, v))
+        errors.push({
+          code: 'E_SCHEMA_INVALID',
+          message: `config_defaults: ${k} must be ${spec.type}`,
+        });
+    }
     if (!satisfies(APP_API, manifest.app_api)) {
       errors.push({
         code: 'E_WORKFLOW_INCOMPATIBLE',

@@ -1,0 +1,46 @@
+# Workflow `essay-audiobook` (FN-029, D6 mục 1) — tiểu luận/sách nói nhịp chậm, hình tối giản, trích dẫn nổi bật.
+id: essay-audiobook
+version: 1.0.0
+title: Tiểu luận / sách nói
+description: Tiểu luận hoặc sách nói 10–40 phút về tâm lý, triết học, tóm tắt sách — nhịp chậm, nhiều khoảng lặng, hình tối giản, trích dẫn nổi bật, chia chương.
+app_api: '>=1.0 <2.0'
+upstream: { hyperframes_workflow: faceless-explainer, hyperframes_version: '0.8.115' }
+output_profiles: [yt-1080p30]
+requires: [tts.synthesize, asr.align]
+optional: [image.generate]
+brief:
+  questions:
+    - Chủ đề / câu hỏi trung tâm của bài?
+    - Tác phẩm và tác giả gốc (nếu tóm tắt sách)?
+    - Các trích dẫn cần có (nguyên văn, kèm nguồn)?
+    - Khán giả là ai, họ nên nghĩ khác đi điều gì sau khi nghe?
+    - Độ dài mục tiêu (mặc định 20 phút)?
+# tầng cấu hình workflow (D3 7.1): caption tĩnh, cụm dài; nhạc nền nhỏ; khoảng lặng sau mỗi câu
+config_defaults:
+  caption.style: caption-static
+  caption.max_words: 10
+  music.volume_db: -21
+  voice.pause_after_ms: 600
+steps:
+  - { id: design, uses: design-system, title: Design system }
+  - id: script
+    uses: script
+    title: Kịch bản
+    params: { mode: narration }
+    refine: { enabled: true, rubric: script-essay }
+    approval: { required: true }
+  - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
+  - { id: voice, uses: voice, title: Giọng đọc }
+  - { id: assets, uses: assets, title: Hình ảnh }
+  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
+  - { id: frames, uses: frame-build, title: Dựng frame }
+  - { id: effects, uses: effects, title: Hiệu ứng, skip_if: { phase_before: M3 } }
+  - { id: overlays, uses: overlays, title: Overlay, skip_if: { phase_before: M3 } }
+  - { id: captions, uses: captions, title: Phụ đề }
+  - { id: music, uses: music, title: Nhạc nền }
+  - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }
+  - id: meta
+    uses: publish-meta
+    title: Tiêu đề, mô tả, chương
+    refine: { enabled: true, rubric: meta-default }
+  - { id: render, uses: render, title: Render phát hành, params: { mode: release } }
