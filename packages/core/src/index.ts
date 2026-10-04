@@ -314,3 +314,4 @@ export {
 export { setHostSecrets } from './secrets/credman.js';
 export { StudioPreviews, syncSnapshot, snapshotRel, snapshotMtime } from './studio/preview.js';
 export { studioTools } from './studio/tools.js';
+export { captionsExecutor, finalizeExecutor, durationCheck } from './workflow/finalize.js';

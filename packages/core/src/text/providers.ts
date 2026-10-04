@@ -11,6 +11,9 @@ export interface TextProvider {
 }
 
 /** `text.claude`: Agent SDK một lượt, không tool, không cấu hình người dùng (005 R1, 009 R1). */
+/** Thông báo hết hạn mức của gói Claude / API (không phải nội dung). */
+export const LIMIT_TEXT = /hit your (session|usage|weekly) limit|usage limit|rate limit|resets \d/i;
+
 export function claudeTextProvider(
   opts: { query?: typeof sdkQuery; getApiKey?: () => string | undefined } = {},
 ): TextProvider {
@@ -40,6 +43,13 @@ export function claudeTextProvider(
       for await (const m of q) {
         if (m.type !== 'result') continue;
         if (m.subtype !== 'success') throw new SfError('E_PROVIDER_FAILED', `claude: ${m.subtype}`);
+        // hết hạn mức gói Claude: SDK trả thông báo như một "kết quả" không token → lỗi rate limit
+        if (
+          (m as { is_error?: boolean }).is_error ||
+          (!m.usage.output_tokens && LIMIT_TEXT.test(m.result))
+        ) {
+          throw new SfError('E_RUNTIME_RATE_LIMIT', `claude: ${m.result.slice(0, 200)}`);
+        }
         return {
           text: m.result,
           usage: { input: m.usage.input_tokens ?? 0, output: m.usage.output_tokens ?? 0 },

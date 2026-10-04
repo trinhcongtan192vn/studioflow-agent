@@ -122,7 +122,11 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('frames', 'audio', 'captions', 'music'),
     writes: r('index'),
     outputs: r(),
-    gates: () => [{ kind: 'graph_fresh', nodes: '*' }],
+    // D6 mục 2: graph_fresh * + thời lượng trong check.duration_tolerance của mục tiêu
+    gates: () => [
+      { kind: 'graph_fresh', nodes: '*' },
+      { kind: 'objective', check: 'duration' },
+    ],
   },
   'publish-meta': {
     by: 'engine',

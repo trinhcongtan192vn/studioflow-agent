@@ -244,6 +244,11 @@ export class WorkflowEngine extends EventEmitter {
       if (!a) throw new SfError('E_ID_UNKNOWN', `approval ${approvalId} not found`);
       a.status = 'approved';
       a.decided_at = now();
+      // duyệt nội dung hiện tại: duyệt lại sau khi mất hiệu lực (file đổi) cập nhật hash
+      for (const f of Object.keys(a.artifact_hashes)) {
+        const h = this.hashOf(f);
+        if (h) a.artifact_hashes[f] = h;
+      }
       if (a.step_id === 'brief') this.startWorkflow(st);
       else if (st.steps[a.step_id]) st.steps[a.step_id]!.status = 'done';
       this.writeState(st);
@@ -526,7 +531,7 @@ export class WorkflowEngine extends EventEmitter {
       );
     const spec = STEP_LIBRARY[decl.uses];
     const instruction = [
-      `Thực hiện bước ${decl.id} của workflow ${manifest.id} theo skill.`,
+      `Thực hiện bước ${decl.id} của workflow ${manifest.id} theo skill ${manifest.id}.`,
       `Đầu vào: ${spec.reads(decl.params).join(', ')}.`,
       `Đầu ra: ${spec.outputs(decl.params).join(', ') || spec.writes(decl.params).join(', ')}.`,
       ...(ctx.note ? [`Yêu cầu sửa của người dùng: ${ctx.note}`] : []),

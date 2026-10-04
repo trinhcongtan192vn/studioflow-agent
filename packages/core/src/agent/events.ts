@@ -83,6 +83,7 @@ export function agentErrorFrom(e: unknown): AgentEvent {
   let code = 'E_INTERNAL';
   if (/api key|\/login|unauthori[sz]ed|401|authentication|not logged in/i.test(message))
     code = 'E_AUTH_REQUIRED';
-  else if (/rate.?limit|429|overloaded|usage limit/i.test(message)) code = 'E_RUNTIME_RATE_LIMIT';
+  else if (/rate.?limit|429|overloaded|usage limit|session limit/i.test(message))
+    code = 'E_RUNTIME_RATE_LIMIT';
   return { type: 'error', code, message };
 }
