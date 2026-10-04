@@ -68,7 +68,9 @@ export interface FrameBuildResult {
  */
 export function frameBuildExecutor(d: FrameBuildDeps) {
   const logger = d.logger ?? new Logger();
-  return async (ctx: StepRunContext & { only?: string[] }): Promise<FrameBuildResult> => {
+  return async (
+    ctx: StepRunContext & { only?: string[]; inGraph?: boolean },
+  ): Promise<FrameBuildResult> => {
     const runtime = d.runtime();
     if (!runtime)
       throw new SfError(
@@ -84,10 +86,20 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       appDataDir: ctx.appDataDir,
       builders: d.builders,
     });
-    const pre = await graph.build(ctx.videoId, {
-      targets: ['frame_timing', ...(d.builders.active('captions') ? ['captions'] : [])],
-      signal: ctx.signal,
-    });
+    // trong graph.build (nút frame_html, 020): thời gian/asset đã có trong bản ghi → không build lồng
+    const pre = ctx.inGraph
+      ? {
+          status: 'succeeded' as const,
+          nodes: {} as Record<string, { status: string; error?: { message: string } }>,
+        }
+      : await graph.build(ctx.videoId, {
+          targets: [
+            'frame_timing',
+            ...(d.builders.active('captions') ? ['captions'] : []),
+            ...(d.builders.active('asset') ? ['asset'] : []),
+          ],
+          signal: ctx.signal,
+        });
     if (pre.status !== 'succeeded') {
       const bad = Object.entries(pre.nodes)
         .filter(([, n]) => n.status === 'failed')
@@ -97,11 +109,18 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         `audio/timing not ready: ${bad.join('; ') || pre.status}`,
       );
     }
-    const timing = (
+    const records = (
       JSON.parse(readFileSync(ctx.store.abs(`${v}/.sf/graph.json`), 'utf8')) as {
         nodes: Record<string, { meta?: unknown }>;
       }
-    ).nodes['frame_timing']!.meta as FrameTiming;
+    ).nodes;
+    const timing = records['frame_timing']!.meta as FrameTiming;
+    // asset do nút `asset` sinh (020): layer → asset_id
+    const generated = Object.fromEntries(
+      Object.entries(records)
+        .filter(([id, r]) => id.startsWith('asset:') && (r.meta as { asset_id?: string })?.asset_id)
+        .map(([id, r]) => [id.slice('asset:'.length), (r.meta as { asset_id: string }).asset_id]),
+    );
     const model = loadVideoModel(ctx.store.root, ctx.videoId, ctx.appDataDir);
     const frameMdRel = `${v}/frame.md`;
     if (!existsSync(ctx.store.abs(frameMdRel)))
@@ -118,7 +137,8 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         model,
         timing,
         frameId: f.id,
-        assets: stageFrameAssets(ctx.store, ctx.videoId, f.layers),
+        assets: stageFrameAssets(ctx.store, ctx.videoId, f.layers, generated),
+        generated,
       });
       packets.set(f.id, {
         packet,
@@ -232,6 +252,13 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     if (failures.length)
       throw new SfError('E_GATE_FAILED', `frames failed: ${failures.join('; ')}`);
     const built = todo.map(([id]) => id);
+    if (ctx.inGraph)
+      return { outputs: built.map((id) => `compositions/frames/${id}.html`), built, skipped: [] };
+    // ghi nhận frame đã dựng vào build graph (nút frame_html, 020) để graph.build sau không dựng lại
+    graph.markBuilt(
+      ctx.videoId,
+      built.map((id) => `frame_html:${id}`),
+    );
     const notYet = model.frames.filter(
       (f) => !existsSync(ctx.store.abs(`${v}/compositions/frames/${f.id}.html`)),
     );

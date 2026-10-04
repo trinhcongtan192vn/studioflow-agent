@@ -354,3 +354,8 @@ export {
 } from './jobs/gpu.js';
 export { setGpuScheduler, getGpuScheduler } from './capability/run.js';
 export { resolveAppConfig } from './config/resolve.js';
+export { assetBuilder, assetPlanner, imagePrice } from './image/asset-builder.js';
+export { frameHtmlBuilder, type FrameRebuilder } from './hf/frame-builder.js';
+export { creditsBuilder, renderBuilder, renderPlanner } from './render/graph-builders.js';
+export { audioLinePlanner } from './tts/builder.js';
+export { sceneSeed, unsettled, type PlanInfo, type Planner } from './graph/graph.js';

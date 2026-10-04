@@ -63,6 +63,19 @@ export class WorkflowService {
     this.agentRuntime = rt;
   }
 
+  /** Bộ dựng lại frame cho nút `frame_html` (020 R1): executor frame-build cho một frame, trong graph. */
+  rebuildFrame = async (i: {
+    store: WriteStore;
+    videoId: string;
+    frameId: string;
+    signal: AbortSignal;
+  }): Promise<void> => {
+    const exec = this.executors.get('frame-build');
+    if (!exec) throw new SfError('E_STEP_INCOMPLETE', 'frame-build executor is not registered');
+    const ctx = this.engine(i.store.root, i.videoId).frameBuildContext(i.signal);
+    await exec({ ...ctx, only: [i.frameId], inGraph: true } as typeof ctx);
+  };
+
   engine(channelDir: string, videoId: string): WorkflowEngine {
     const store = this.d.storeFor(channelDir);
     const key = `${store.root}|${videoId}`;

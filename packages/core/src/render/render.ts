@@ -6,7 +6,7 @@ import { sha256 } from '../domain/hash.js';
 import { newId } from '../domain/ids.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { isSfError, SfError } from '../errors.js';
-import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
+import { BuildGraph, unsettled, type BuilderRegistry } from '../graph/graph.js';
 import { hfCheck } from '../hf/cli.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { readChannelAssets } from '../hf/packet.js';
@@ -79,7 +79,7 @@ export async function releaseGates(
   const gates: Gate[] = [];
   const stale = new BuildGraph({ store: d.store, appDataDir: d.appDataDir, builders: d.builders })
     .status(videoId)
-    .filter((n) => n.status !== 'fresh');
+    .filter(unsettled);
   gates.push({
     gate: 'graph_fresh',
     pass: stale.length === 0,
@@ -163,6 +163,8 @@ export function creditsFor(d: RenderDeps, videoId: string): string {
  */
 type RenderOpts = {
   signal?: AbortSignal;
+  /** Đang ở trong `graph.build` (nút `render`, 020): không build lại (tránh khóa lồng). */
+  skipBuild?: boolean;
   progress?: (done: number, total: number, message?: string) => void;
 };
 
@@ -208,11 +210,16 @@ async function renderVideoInner(
   const scratch = createScratchDir('sf-render-');
   try {
     progress(1, 'build graph');
-    const built = await new BuildGraph({
-      store: d.store,
-      appDataDir: d.appDataDir,
-      builders: d.builders,
-    }).build(videoId, { ...(o.signal ? { signal: o.signal } : {}) });
+    const built = o.skipBuild
+      ? {
+          status: 'succeeded' as const,
+          nodes: {} as Record<string, { status: string; error?: { message: string } }>,
+        }
+      : await new BuildGraph({
+          store: d.store,
+          appDataDir: d.appDataDir,
+          builders: d.builders,
+        }).build(videoId, { ...(o.signal ? { signal: o.signal } : {}) });
     if (!existsSync(d.store.abs(`${v}/index.html`))) {
       const failed = Object.entries(built.nodes)
         .filter(([, n]) => n.status === 'failed')

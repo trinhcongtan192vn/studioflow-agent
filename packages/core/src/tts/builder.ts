@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { ProviderRegistry } from '../capability/registry.js';
-import { runCapability } from '../capability/run.js';
+import { cacheDir, cacheKey, cacheKeyParts, runCapability } from '../capability/run.js';
 import { sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
-import type { Builder } from '../graph/graph.js';
+import type { Builder, Planner } from '../graph/graph.js';
 import { readAsrState } from '../asr/state.js';
 import { voiceOf } from '../graph/model.js';
 import type { Db } from '../store/db.js';
@@ -16,6 +16,36 @@ export function voiceFile(
 ): { file?: string; hash: string | null } {
   const abs = store.abs(`voices/${voiceId}/voice.pt`);
   return existsSync(abs) ? { file: abs, hash: sha256(readFileSync(abs)) } : { hash: null };
+}
+
+/** Planner `audio.line` (020 R5): engine của provider và trúng cache (khóa như lúc build). */
+export function audioLinePlanner(deps: { providers: ProviderRegistry }): Planner {
+  return ({ store, model, def }) => {
+    const line = def.line!;
+    const voice = voiceOf(model, line);
+    const id = model.config<string | null>('provider.tts.synthesize');
+    let adapter = id ? deps.providers.get(id) : undefined;
+    if (!adapter && process.env.SF_GPU === '0')
+      adapter = deps.providers
+        .forCapability('tts.synthesize')
+        .find((a) => a.manifest.id.endsWith('.fake'));
+    if (!adapter || !voice) return {};
+    const vf = voiceFile(store, voice);
+    const regen = readAsrState(model.videoDir).regen[line.id] ?? 0;
+    const input = {
+      text: line.tts_text ?? line.text,
+      language: model.language,
+      voice_id: voice,
+      ...(line.emotion ? { emotion: line.emotion } : {}),
+      voice_hash: vf.hash,
+      ...(regen ? { seed: regen } : {}),
+    };
+    const key = cacheKey(cacheKeyParts(adapter, 'tts.synthesize', input, regen || undefined));
+    return {
+      ...(adapter.manifest.engine ? { engine: adapter.manifest.engine } : {}),
+      from_cache: existsSync(store.abs(`${cacheDir(key)}/meta.json`)),
+    };
+  };
 }
 
 /** Builder nút `audio.line` (D4 mục 8.1): TTS một line qua provider giải theo D4 mục 4.4. */

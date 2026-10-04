@@ -26,7 +26,10 @@ import { JobQueue } from './jobs/queue.js';
 import { jobTools } from './jobs/tools.js';
 import { registerDefaultProviders } from './providers/index.js';
 import { openDb, type Db } from './store/db.js';
-import { audioLineBuilder } from './tts/builder.js';
+import { audioLineBuilder, audioLinePlanner } from './tts/builder.js';
+import { assetBuilder, assetPlanner } from './image/asset-builder.js';
+import { frameHtmlBuilder } from './hf/frame-builder.js';
+import { creditsBuilder, renderBuilder, renderPlanner } from './render/graph-builders.js';
 import { defineTtsJobs, ttsTools } from './tts/tools.js';
 import type { LlmMode } from './testing/llm-replay.js';
 import { publishMetaExecutor, scriptExecutor } from './text/executors.js';
@@ -111,6 +114,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   // TTS (006): provider mặc định, builder audio.line, tool voice/tts.
   const providerHandles = registerDefaultProviders(providers, { appDataDir });
   graph.registerBuilder('audio.line', audioLineBuilder({ providers, db, appDataDir }));
+  graph.registerPlanner('audio.line', audioLinePlanner({ providers }));
   const tts = {
     queue,
     builders: graph,
@@ -157,6 +161,18 @@ export function createCore(opts: CoreOptions = {}): Core {
   // Ảnh (018): image.generate / image.edit / image.remove_bg
   for (const t of imageTools(tts)) gateway.register(t);
   defineImageJobs(tts, appDataDir);
+  // Build graph đầy đủ (020): asset, frame_html (dựng lại bằng phiên frame khi có runtime), credits, render
+  graph.registerBuilder('asset', assetBuilder({ providers, db, appDataDir }));
+  graph.registerPlanner('asset', assetPlanner({ providers, appDataDir }));
+  graph.registerBuilder(
+    'frame_html',
+    frameHtmlBuilder({
+      rebuild: () => (workflows.agentRuntime ? workflows.rebuildFrame : undefined),
+    }),
+  );
+  graph.registerBuilder('credits', creditsBuilder({ appDataDir }));
+  graph.registerBuilder('render', renderBuilder({ builders: graph, appDataDir }));
+  graph.registerPlanner('render', renderPlanner);
   // Kho nhạc (012)
   for (const t of musicTools(tts, appDataDir)) gateway.register(t);
   defineMusicJobs(tts, appDataDir);

@@ -81,10 +81,12 @@ export function finalizeExecutor(core: Core): StepExecutor {
     for (const f of loadVideoModel(ctx.store.root, ctx.videoId).frames) {
       const rel = `videos/${ctx.videoId}/compositions/frames/${f.id}.html`;
       if (!existsSync(ctx.store.abs(rel)))
-        ctx.store.write(rel, `<template><div data-composition-id="${f.id}"></div></template>`, {
-          by: 'test',
-          validate: false,
-        });
+        // frame giả hợp lệ (checkFrameFile): đủ data-sf-id của layer + timeline đăng ký (020 nhận vào graph)
+        ctx.store.write(
+          rel,
+          `<template><div data-composition-id="${f.id}">${f.layers.map((l) => `<div data-sf-id="${l.id}"></div>`).join('')}<script>window.__timelines = window.__timelines || {}; window.__timelines["${f.id}"] = gsap.timeline({ paused: true });</script></div></template>`,
+          { by: 'test', validate: false },
+        );
     }
     await new BuildGraph({
       store: ctx.store,

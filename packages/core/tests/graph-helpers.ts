@@ -1,4 +1,4 @@
-import { BuildGraph, WriteStore } from '../src/index.js';
+import { BuildGraph, loadVideoModel, WriteStore } from '../src/index.js';
 import { copyChannel, fixtureAppData, fixtureVideoId } from './domain-helpers.js';
 
 export const V = `videos/${fixtureVideoId}`;
@@ -52,4 +52,22 @@ export function graphFixture(opts: { failAudio?: string; withAsr?: boolean } = {
     return { outputs: ['index.html'] };
   });
   return { dir: c.dir, store, graph, calls, cleanup: c.cleanup };
+}
+
+/** File frame hợp lệ (qua `checkFrameFile`): đủ data-sf-id của layer + timeline đăng ký. */
+export function validFrameHtml(frameId: string, layerIds: string[], tag = ''): string {
+  return `<template><div data-composition-id="${frameId}">${layerIds.map((id) => `<div data-sf-id="${id}">${tag}</div>`).join('')}<script>window.__timelines = window.__timelines || {}; window.__timelines["${frameId}"] = gsap.timeline({ paused: true });</script></div></template>`;
+}
+
+/** Ghi frame giả hợp lệ cho mọi frame của video (nút frame_html nhận vào graph, 020). */
+export function writeValidFrames(store: WriteStore, videoId: string): void {
+  for (const f of loadVideoModel(store.root, videoId).frames)
+    store.write(
+      `videos/${videoId}/compositions/frames/${f.id}.html`,
+      validFrameHtml(
+        f.id,
+        f.layers.map((l) => l.id),
+      ),
+      { by: 'test', validate: false },
+    );
 }
