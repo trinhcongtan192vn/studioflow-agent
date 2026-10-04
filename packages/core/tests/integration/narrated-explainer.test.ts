@@ -213,7 +213,8 @@ describe('narrated-explainer end to end (016 FR-WF-05)', () => {
       await e.approve(pending.id);
     }
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
-    expect(agentSteps).toEqual(['storyboard', 'assets', 'music']);
+    // assets do engine (nút asset, 023): không có layer cần ảnh thư viện → không giao agent
+    expect(agentSteps).toEqual(['storyboard', 'music']);
     const st = state();
     expect(Object.fromEntries(Object.entries(st.steps).map(([k, s]) => [k, s.status]))).toEqual({
       design: 'done',

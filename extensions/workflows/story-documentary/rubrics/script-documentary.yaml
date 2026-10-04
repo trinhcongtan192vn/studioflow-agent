@@ -1,0 +1,27 @@
+id: script-documentary
+version: 1
+scale: 10
+criteria:
+  - {
+      id: hook,
+      weight: 0.15,
+      prompt: '30 giây đầu có đặt câu hỏi/khoảnh khắc lịch sử giữ người xem không?',
+    }
+  - {
+      id: accuracy,
+      weight: 0.3,
+      prompt: 'Mốc thời gian, địa danh, nhân vật, số liệu có đúng và có căn cứ không?',
+    }
+  - {
+      id: narrative,
+      weight: 0.2,
+      prompt: 'Câu chuyện có mạch nguyên nhân – diễn biến – kết quả rõ ràng không?',
+    }
+  - { id: clarity, weight: 0.15, prompt: 'Người không chuyên có theo được không?' }
+  - { id: voice, weight: 0.1, prompt: 'Có đúng giọng văn kênh không?' }
+  - {
+      id: pacing,
+      weight: 0.1,
+      prompt: 'Nhịp có phù hợp đọc thành tiếng, có chỗ ngắt khi chuyển cảnh?',
+    }
+severity_rules: 'critical: sai sự thật lịch sử; major: thiếu mốc/nhân vật quan trọng hoặc mạch truyện rối; minor: đánh bóng'

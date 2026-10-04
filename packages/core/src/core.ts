@@ -8,6 +8,8 @@ import { ensureToolPaths, installEntry, type InstallProfile } from './models/ins
 import { attachTraceStore } from './trace/trace.js';
 import { StudioPreviews } from './studio/preview.js';
 import { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
+import { assetsExecutor } from './workflow/assets.js';
+import { storyboardExecutor } from './text/storyboard.js';
 import { studioTools } from './studio/tools.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -205,6 +207,17 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor('captions', captionsExecutor(graph));
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('design-system', designSystemExecutor());
+  // story-documentary (023): storyboard refine (phiên producer) + assets (nút asset)
+  workflows.registerExecutor(
+    'storyboard',
+    storyboardExecutor({
+      text,
+      gateway,
+      runtime: () => workflows.agentRuntime,
+      permissions: gateway.permissions,
+    }),
+  );
+  workflows.registerExecutor('assets', assetsExecutor(graph));
   workflows.registerExecutor(
     'frame-build',
     frameBuildExecutor({ builders: graph, gateway, runtime: () => workflows.agentRuntime }),

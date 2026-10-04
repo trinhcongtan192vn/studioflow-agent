@@ -57,7 +57,7 @@ const issuesText = (issues: Issue[]) =>
     .map((i) => `- [${i.severity}]${i.location ? ` (${i.location})` : ''} ${i.text}`)
     .join('\n');
 
-interface StepEnv {
+export interface StepEnv {
   ctx: StepRunContext;
   v: string;
   read(rel: string): string;
@@ -68,7 +68,7 @@ interface StepEnv {
   cfg(key: string): unknown;
 }
 
-function stepEnv(ctx: StepRunContext): StepEnv {
+export function stepEnv(ctx: StepRunContext): StepEnv {
   const v = `videos/${ctx.videoId}`;
   const read = (rel: string) => readFileSync(ctx.store.abs(rel), 'utf8');
   const b = parseBlocksDoc(read(`${v}/BRIEF.md`));
@@ -104,7 +104,7 @@ function stepEnv(ctx: StepRunContext): StepEnv {
   };
 }
 
-interface Plan {
+export interface Plan {
   enabled: boolean;
   rubric?: Rubric;
   min: number;
@@ -115,7 +115,7 @@ interface Plan {
   critic: ModelRef;
 }
 
-function refinePlan(
+export function refinePlan(
   env: StepEnv,
   text: TextService,
   packDir: string | undefined,
@@ -145,7 +145,7 @@ function refinePlan(
 }
 
 /** Ngân sách video (D6 4.1): ước lượng mỗi vòng; thiếu → hỏi; cạn giữa chừng → `incomplete`. */
-async function budgetGuard(
+export async function budgetGuard(
   env: StepEnv,
   perRound: number,
   rounds: number,
@@ -316,7 +316,7 @@ async function refineText(
   });
 }
 
-function finish(
+export function finish(
   env: StepEnv,
   artifact: string,
   plan: Plan,

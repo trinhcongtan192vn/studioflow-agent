@@ -33,6 +33,12 @@ export interface StepRunContext {
   packDir?: string;
   /** Chờ phiên `frame` báo `workflow.step_complete` kèm `frame_id` (011). */
   waitFrame?: (frameId: string) => Promise<FrameCompletion>;
+  /** Giao bước cho phiên `main` theo skill của gói (executor có phần agent, 023); `extra` nối vào chỉ dẫn. */
+  agent?: (extra?: string) => Promise<string[] | undefined>;
+  /** Chờ `workflow.step_complete` của bước (phiên `producer` do executor mở, 023); gọi trước khi mở phiên. */
+  waitComplete?: () => Promise<string[]>;
+  /** Chỉ dẫn giao bước như bước agent; `extra` nối vào trước lời nhắc báo xong. */
+  instruction?: (extra?: string) => string;
 }
 
 export interface FrameCompletion {
@@ -460,6 +466,10 @@ export class WorkflowEngine extends EventEmitter {
       ...(this.pack(st0)?.dir ? { packDir: this.pack(st0)!.dir } : {}),
       waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
     };
+    ctx.agent = (more) => this.runAgent(decl, ctx, manifest, more);
+    ctx.instruction = (more) => this.instructionFor(decl, ctx, manifest, more);
+    ctx.waitComplete = () =>
+      new Promise<string[]>((resolve) => this.completions.set(decl.id, resolve));
     const spec = STEP_LIBRARY[decl.uses];
     let outputs: string[] = spec.outputs(decl.params);
     let extra: Omit<StepExecutorResult, 'outputs'> = {};
@@ -518,10 +528,29 @@ export class WorkflowEngine extends EventEmitter {
     });
   }
 
+  /** Chỉ dẫn giao bước cho agent (bước agent và executor có phần agent, 023). */
+  private instructionFor(
+    decl: StepDecl,
+    ctx: StepRunContext,
+    manifest: WorkflowManifest,
+    extra?: string,
+  ): string {
+    const spec = STEP_LIBRARY[decl.uses];
+    return [
+      `Thực hiện bước ${decl.id} của workflow ${manifest.id} theo skill ${manifest.id}.`,
+      `Đầu vào: ${spec.reads(decl.params).join(', ')}.`,
+      `Đầu ra: ${spec.outputs(decl.params).join(', ') || spec.writes(decl.params).join(', ')}.`,
+      ...(ctx.note ? [`Yêu cầu sửa của người dùng: ${ctx.note}`] : []),
+      ...(extra ? [extra] : []),
+      `Khi xong gọi mcp__sf__workflow_step_complete với step_id "${decl.id}".`,
+    ].join('\n');
+  }
+
   private async runAgent(
     decl: StepDecl,
     ctx: StepRunContext,
     manifest: WorkflowManifest,
+    extra?: string,
   ): Promise<string[] | undefined> {
     const runner = this.d.agentRunner();
     if (!runner)
@@ -529,14 +558,7 @@ export class WorkflowEngine extends EventEmitter {
         'E_STEP_INCOMPLETE',
         `step ${decl.id} needs an agent session (no agent session attached)`,
       );
-    const spec = STEP_LIBRARY[decl.uses];
-    const instruction = [
-      `Thực hiện bước ${decl.id} của workflow ${manifest.id} theo skill ${manifest.id}.`,
-      `Đầu vào: ${spec.reads(decl.params).join(', ')}.`,
-      `Đầu ra: ${spec.outputs(decl.params).join(', ') || spec.writes(decl.params).join(', ')}.`,
-      ...(ctx.note ? [`Yêu cầu sửa của người dùng: ${ctx.note}`] : []),
-      `Khi xong gọi mcp__sf__workflow_step_complete với step_id "${decl.id}".`,
-    ].join('\n');
+    const instruction = this.instructionFor(decl, ctx, manifest, extra);
     let outputs: string[] | undefined;
     let finished = false;
     this.completions.set(decl.id, (o) => {
