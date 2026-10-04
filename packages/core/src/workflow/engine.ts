@@ -279,6 +279,15 @@ export class WorkflowEngine extends EventEmitter {
       pack.manifest.steps.map((s) => [s.id, { status: 'pending', attempt: 0 } as StepState]),
     );
     st.phase = 'workflow';
+    // 030: shorts cắt từ video dài → video nguồn đọc được (artifact.read `video:<vd>/…`)
+    const source = brief.front.source_video_id as string | null | undefined;
+    if (source) {
+      if (!existsSync(this.d.store.abs(`videos/${source}/state.json`)))
+        throw new SfError('E_ID_UNKNOWN', `source video ${source} does not exist in this channel`);
+      st.read_only_videos = [
+        ...new Set([...(st.read_only_videos ?? []), source]),
+      ] as VideoState['read_only_videos'];
+    }
     brief.front = { ...brief.front, approved_at: now() };
     this.d.store.write(`${this.v}/BRIEF.md`, serializeBlocksDoc(brief), { by: 'workflow.approve' });
   }

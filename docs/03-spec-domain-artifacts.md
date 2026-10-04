@@ -485,6 +485,7 @@ interface SettingsConfig extends Versioned {
 | `policy.auto_approve.paid_api` | boolean | video |
 | `check.duration_tolerance` | number (tỉ lệ) | channel, video |
 | `meta.title_max` / `meta.description_max` | number (ký tự) | channel, video |
+| `meta.hashtags` | string[] | channel, video |
 | `policy.batch.tts_lines` / `policy.batch.images` | number | app |
 | `policy.paid_api.per_call_usd` | number | app |
 | `policy.budget_warn_ratio` | number (tỉ lệ) | app |

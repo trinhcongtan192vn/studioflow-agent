@@ -3,7 +3,8 @@
 // phiên frame giả; HyperFrames (lint/check/snapshot/render) và FFmpeg thật.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { describeStudio } from '../../src/testing/gpu.js';
 import {
   createCore,
   createVideo,
@@ -212,7 +213,7 @@ afterAll(() => {
 
 const state = () => JSON.parse(readFileSync(path.join(v(), 'state.json'), 'utf8')) as VideoState;
 
-describe('narrated-explainer end to end (016 FR-WF-05)', () => {
+describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
   it('runs every step to a release MP4 through the approval points', async () => {
     const e = core.workflows.engine(c.dir, videoId);
     expect(

@@ -16,6 +16,22 @@ export interface SessionPath {
 
 const VIDEO_PREFIX = /^video:(vd_[0-9a-z]{8})\/(.*)$/;
 
+/** `state.json.read_only_videos` của video đang làm (030: shorts từ video dài; engine đặt khi bắt đầu). */
+function stateReadOnly(session: SessionContext): string[] {
+  if (!session.video_id) return [];
+  try {
+    const st = JSON.parse(
+      readFileSync(
+        path.join(session.channel_dir, 'videos', session.video_id, 'state.json'),
+        'utf8',
+      ),
+    ) as { read_only_videos?: string[] };
+    return st.read_only_videos ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Đường dẫn do agent đưa (tương đối video/kênh, D4 mục 2.2) → đường dẫn tương đối kênh.
  * `video:<vd>/…` chỉ để đọc video trong `read_only_videos`.
@@ -31,7 +47,11 @@ export function sessionPath(
     const vd = m[1]!;
     if (mode === 'write')
       throw new SfError('E_SCOPE_DENIED', `cannot write into another video (${vd})`);
-    if (vd !== session.video_id && !(session.read_only_videos ?? []).includes(vd as never)) {
+    if (
+      vd !== session.video_id &&
+      !(session.read_only_videos ?? []).includes(vd as never) &&
+      !stateReadOnly(session).includes(vd)
+    ) {
       throw new SfError('E_SCOPE_DENIED', `video ${vd} is not readable in this session`);
     }
     const inner = normalizeRel(m[2]!);

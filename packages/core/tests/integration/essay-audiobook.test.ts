@@ -3,7 +3,8 @@
 // 600 ms, nhạc −21 dB), chương khớp mốc beat trên timeline.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { describeStudio } from '../../src/testing/gpu.js';
 import {
   createCore,
   createVideo,
@@ -147,7 +148,7 @@ afterAll(() => {
 
 const state = () => JSON.parse(readFileSync(path.join(v(), 'state.json'), 'utf8')) as VideoState;
 
-describe('essay-audiobook end to end (029 FR-WF-07)', () => {
+describeStudio('essay-audiobook end to end (029 FR-WF-07)', () => {
   it('runs to a release MP4 with the workflow config tier, static captions and chapters', async () => {
     const e = core.workflows.engine(c.dir, videoId);
     expect(

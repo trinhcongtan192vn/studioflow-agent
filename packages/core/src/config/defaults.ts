@@ -11,6 +11,7 @@ export const DEFAULTS: Record<string, unknown> = {
   'caption.style': 'caption-highlight',
   'caption.max_words': 7,
   'overlay.rules': [],
+  'meta.hashtags': [],
   // D4 mục 4.3: phụ thuộc khóa API đã cấu hình → giải động ở 009.
   'text.producer': null,
   'text.critic': null,

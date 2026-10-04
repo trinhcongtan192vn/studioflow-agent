@@ -403,10 +403,19 @@ export function scriptExecutor(d: TextExecutorDeps) {
       (rel) => env.read(rel),
       ctx.appDataDir,
     );
-    const extra =
-      mode === 'screenplay' && existsSync(ctx.store.abs(`${env.v}/STORY.md`))
-        ? `\n\n# Dàn ý (STORY.md)\n${bodyOf(env.read(`${env.v}/STORY.md`))}`
+    // 030: shorts cắt từ video dài — kịch bản nguồn (chỉ đọc) kèm chỉ dẫn giữ nguyên chữ line dùng lại
+    const source = parseBlocksDoc(env.read(`${env.v}/BRIEF.md`)).front.source_video_id as
+      string | null | undefined;
+    const sourceScript =
+      source && existsSync(ctx.store.abs(`videos/${source}/SCRIPT.md`))
+        ? `\n\n# Kịch bản video nguồn (${source}) — cắt từ đây\nGiữ NGUYÊN VĂN chữ của các line dùng lại (để dùng lại audio đã đọc); chỉ viết mới câu mở (hook) và câu kết nếu cần. Không chép ID line/beat của video nguồn.\n\n${bodyOf(
+            env.read(`videos/${source}/SCRIPT.md`),
+          ).replace(/\s+id=(ln|bt)_[0-9a-z]{8}/g, '')}`
         : '';
+    const extra =
+      (mode === 'screenplay' && existsSync(ctx.store.abs(`${env.v}/STORY.md`))
+        ? `\n\n# Dàn ý (STORY.md)\n${bodyOf(env.read(`${env.v}/STORY.md`))}`
+        : '') + sourceScript;
     const r = await refineText(env, d, plan, {
       prompt: (v) =>
         buildPrompt(
@@ -477,9 +486,13 @@ export function publishMetaExecutor(d: TextExecutorDeps) {
         chapters: chs,
         status: 'draft',
       };
+      // `meta.hashtags` (030: shorts → #shorts) thêm cuối mô tả nếu chưa có
+      const hashtags = (env.cfg('meta.hashtags') as string[] | null) ?? [];
+      const missing = hashtags.filter((h) => !m.description.includes(h));
+      const desc = m.description.trim() + (missing.length ? `\n\n${missing.join(' ')}` : '');
       return `---\n${Object.entries(front)
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-        .join('\n')}\n---\n${m.description.trim()}\n`;
+        .join('\n')}\n---\n${desc}\n`;
     };
     const normalize = (t: string) => {
       try {

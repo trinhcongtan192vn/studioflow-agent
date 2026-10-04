@@ -1,0 +1,22 @@
+# Rubric kịch bản Shorts (FN-030): Hook → Insight → Paradox trong ≤ 60 giây.
+id: script-shorts
+version: 1
+scale: 10
+criteria:
+  - {
+      id: hook,
+      weight: 0.35,
+      prompt: 'Câu đầu (≤ 5 giây đọc) có giữ người xem lướt qua không — câu hỏi, con số bất ngờ hoặc nghịch lý?',
+    }
+  - { id: insight, weight: 0.3, prompt: 'Có đúng một ý trung tâm, nói rõ, cụ thể, không lan man?' }
+  - {
+      id: payoff,
+      weight: 0.2,
+      prompt: 'Kết bằng nghịch lý/bất ngờ hoặc câu đọng lại khiến muốn xem lại hoặc bình luận?',
+    }
+  - {
+      id: tightness,
+      weight: 0.15,
+      prompt: 'Câu ngắn, không chữ thừa; ba beat Hook → Insight → Paradox rõ ràng?',
+    }
+severity_rules: 'critical: không có hook hoặc nhiều hơn một ý chính; major: dài dòng, kết hụt; minor: đánh bóng câu chữ'
