@@ -16,7 +16,9 @@ import { indexBuilder } from './hf/index-builder.js';
 import { captionsBuilder } from './asr/captions.js';
 import { asrTools, defineAsrJobs } from './asr/tools.js';
 import { ProviderRegistry } from './capability/registry.js';
-import { defaultAppDataDir } from './config/resolve.js';
+import { defaultAppDataDir, resolveAppConfig } from './config/resolve.js';
+import { getGpuScheduler, setGpuScheduler } from './capability/run.js';
+import { GpuScheduler } from './jobs/gpu.js';
 import { createGateway, type Gateway } from './gateway/index.js';
 import { BuilderRegistry } from './graph/graph.js';
 import { defineGraphJob, graphTools } from './graph/tools.js';
@@ -47,6 +49,8 @@ export interface CoreOptions {
   /** Ghi/phát lại lời gọi text (D12); mặc định theo `SF_LLM`/`SF_LLM_FIXTURES`. */
   textFixtureDir?: string;
   textMode?: LlmMode;
+  /** Cửa sổ gom `graph.build` từ chat (019); mặc định `SF_BATCH_WINDOW_MS` hoặc 3 000 ms. */
+  batchWindowMs?: number;
   /** Khóa API provider text (mặc định biến môi trường, 009). */
   getSecret?: (name: string) => string | undefined;
 }
@@ -77,11 +81,31 @@ export function createCore(opts: CoreOptions = {}): Core {
   const db = openDb(opts.dbFile ?? path.join(appDataDir, 'studioflow.db'));
   // trace cục bộ (D11, 015): span ghi vào bảng `spans`; giữ `settings.trace.retention_days`
   const detachTrace = attachTraceStore(db, retentionDays(appDataDir));
-  const queue = new JobQueue({ db, backoffMs: opts.backoffMs });
   const providers = new ProviderRegistry();
+  // lịch GPU (019, D4 mục 6): engine → lớp tài nguyên từ manifest provider; ngân sách tầng app
+  const gpu = new GpuScheduler({
+    resourceOf: (e) => {
+      if (e === 'render') return 'gpu-light';
+      const r = providers.forEngine(e).map((a) => a.manifest.resource);
+      return r.includes('gpu-heavy')
+        ? 'gpu-heavy'
+        : r.includes('gpu-light')
+          ? 'gpu-light'
+          : undefined;
+    },
+    budgetOf: (e) => Number(resolveAppConfig(`gpu.vram_budget_gb.${e}`, { appDataDir })) || 0,
+    total: () => Number(resolveAppConfig('gpu.vram_total_gb', { appDataDir })) || 0,
+    holdsVram: (e) => providers.forEngine(e).some((a) => a.release),
+    release: async (e) => {
+      await Promise.all(providers.forEngine(e).map((a) => a.release?.('offload')));
+    },
+  });
+  setGpuScheduler(gpu);
+  const queue = new JobQueue({ db, backoffMs: opts.backoffMs, gpu });
   const graph = new BuilderRegistry();
   const gateway = createGateway({ appDataDir, permissionTimeoutMs: opts.permissionTimeoutMs });
-  for (const t of [...jobTools(queue), ...graphTools({ queue, builders: graph })])
+  const batchWindowMs = opts.batchWindowMs ?? Number(process.env.SF_BATCH_WINDOW_MS ?? 3000);
+  for (const t of [...jobTools(queue), ...graphTools({ queue, builders: graph, batchWindowMs })])
     gateway.register(t);
   defineGraphJob(queue, graph, (dir) => gateway.storeFor(dir));
   // TTS (006): provider mặc định, builder audio.line, tool voice/tts.
@@ -93,6 +117,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     providers,
     db,
     storeFor: (dir: string) => gateway.storeFor(dir),
+    batchWindowMs,
   };
   for (const t of ttsTools(tts)) gateway.register(t);
   defineTtsJobs(tts, appDataDir);
@@ -190,6 +215,7 @@ export function createCore(opts: CoreOptions = {}): Core {
       closed = true;
       studio.closeAll();
       detachTrace();
+      if (getGpuScheduler() === gpu) setGpuScheduler(undefined);
       queue.stop();
       void providerHandles.stop();
       db.close();

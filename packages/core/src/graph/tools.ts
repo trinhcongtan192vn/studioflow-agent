@@ -7,6 +7,13 @@ import { BuildGraph, type BuilderRegistry } from './graph.js';
 export interface GraphServices {
   queue: JobQueue;
   builders: BuilderRegistry;
+  /** Cửa sổ gom thay đổi lẻ từ chat (D4 mục 6 quy tắc 5; tech-defaults 3 s). */
+  batchWindowMs?: number;
+}
+
+/** Gộp mục tiêu: `null` (toàn bộ) thắng; còn lại hợp không trùng. */
+function mergeTargets(a: string[] | null, b: string[] | null): string[] | null {
+  return a === null || b === null ? null : [...new Set([...a, ...b])];
 }
 
 function videoOf(ctx: ToolContext): string {
@@ -128,10 +135,22 @@ export async function startGraphBuild(
     });
     if (!ok) throw new SfError('E_PERMISSION_DECLINED', `user declined generating ${lines} lines`);
   }
+  // gom (019): job graph.build cùng video còn chờ → gộp mục tiêu vào đó
+  const pending = s.queue
+    .list({ status: 'queued', video_id: videoId })
+    .find((j) => j.kind === 'graph.build' && j.channel_dir === ctx.store.root && !j.parent_id);
+  if (pending) {
+    const p = pending.payload as { targets: string[] | null; appDataDir: string | null };
+    if (
+      s.queue.updatePayload(pending.id, { ...p, targets: mergeTargets(p.targets, targets ?? null) })
+    )
+      return { job_id: pending.id, plan };
+  }
   const job = s.queue.enqueue('graph.build', {
     video_id: videoId,
     channel_dir: ctx.store.root,
     payload: { targets: targets ?? null, appDataDir: ctx.appDataDir ?? null },
+    ...(s.batchWindowMs ? { not_before_ms: s.batchWindowMs } : {}),
   });
   return { job_id: job.id, plan };
 }
