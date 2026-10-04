@@ -1,0 +1,12 @@
+id: audio.clap
+version: 1.0.0
+capabilities: [music.embed]
+contract_versions: { music.embed: '1' }
+runtime: python-worker
+engine: clap
+resource: cpu
+models: [clap-model, clap-env]
+install_profile: full
+cost: { kind: free }
+health: { method: health, timeout_ms: 120000 }
+app_api: '>=0.1 <2.0'

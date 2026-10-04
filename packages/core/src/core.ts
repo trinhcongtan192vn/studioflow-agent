@@ -25,6 +25,7 @@ import { defineGraphJob, graphTools } from './graph/tools.js';
 import { JobQueue } from './jobs/queue.js';
 import { jobTools } from './jobs/tools.js';
 import { registerDefaultProviders } from './providers/index.js';
+import type { TextEmbedder } from './music/clap.js';
 import { openDb, type Db } from './store/db.js';
 import { audioLineBuilder, audioLinePlanner } from './tts/builder.js';
 import { assetBuilder, assetPlanner } from './image/asset-builder.js';
@@ -72,6 +73,8 @@ export interface Core {
   text: TextService;
   /** Studio xem trước (017). */
   studio: StudioPreviews;
+  /** Embedding văn bản CLAP cho tìm nhạc (021). */
+  embedder?: TextEmbedder;
   close(): void;
 }
 
@@ -174,7 +177,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   graph.registerBuilder('render', renderBuilder({ builders: graph, appDataDir }));
   graph.registerPlanner('render', renderPlanner);
   // Kho nhạc (012)
-  for (const t of musicTools(tts, appDataDir)) gateway.register(t);
+  for (const t of musicTools(tts, appDataDir, providerHandles.embedder)) gateway.register(t);
   defineMusicJobs(tts, appDataDir);
   // Trình quản lý model (014): công cụ đã tải vào PATH; job `download` cài một thành phần
   ensureToolPaths(appDataDir);
@@ -226,6 +229,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     workflows,
     text,
     studio,
+    ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;
       closed = true;

@@ -204,3 +204,62 @@
       sha256: bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9
       size: 675509688
       dest: models/vae/qwen_image_2.1_vae_bf16.safetensors
+# 021 — CLAP (laion/clap-htsat-unfused, Apache-2.0) cho tìm nhạc bằng mô tả (engine clap, CPU).
+# laion/larger_clap_music trên HF cho embedding văn bản suy biến (021 research R1) → không dùng.
+- key: clap-model
+  title: CLAP laion/clap-htsat-unfused @ 8fa0f1c
+  install_profile: full
+  files:
+    - name: config.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/config.json
+      sha256: 9efb9557bc804f2ca6e394486af2e45dfed0b18554909735a99c6220b84e4288
+      size: 5390
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/config.json
+    - name: merges.txt
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/merges.txt
+      sha256: fe36cab26d4f4421ed725e10a2e9ddb7f799449c603a96e7f29b5a3c82a95862
+      size: 456356
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/merges.txt
+    - name: preprocessor_config.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/preprocessor_config.json
+      sha256: 9739f58296aa6f9ac18008fd0150fb2649bc554985fbde86d0a4041c882ac753
+      size: 541
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/preprocessor_config.json
+    - name: pytorch_model.bin
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/pytorch_model.bin
+      sha256: 1cd3c601bc4afe0fa87be3de4c13dd2cfadd249fac1e29acf74a9b296c3219bb
+      size: 614525833
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/pytorch_model.bin
+    - name: special_tokens_map.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/special_tokens_map.json
+      sha256: 06e405a36dfe4b9604f484f6a1e619af1a7f7d09e34a8555eb0b77b66318067f
+      size: 280
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/special_tokens_map.json
+    - name: tokenizer.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/tokenizer.json
+      sha256: 77ef92283d67f0d97e1454909a964afcbfa2019f0fb9f18f8e88d5c25c3ba729
+      size: 2108746
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/tokenizer.json
+    - name: tokenizer_config.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/tokenizer_config.json
+      sha256: 377f91458f7729a4574a84c77bdce67dbc3c58c1a345a29bbf8c4eb1307948a3
+      size: 384
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/tokenizer_config.json
+    - name: vocab.json
+      url: https://huggingface.co/laion/clap-htsat-unfused/resolve/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/vocab.json
+      sha256: ed19656ea1707df69134c4af35c8ceda2cc9860bf2c3495026153a133670ab5e
+      size: 798293
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/snapshots/8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a/vocab.json
+    - name: refs/main
+      content: 8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a
+      dest: models/hf/hub/models--laion--clap-htsat-unfused/refs/main
+- key: clap-env
+  title: Môi trường Python CLAP (torch 2.8 CPU, transformers)
+  install_profile: full
+  python_env:
+    engine: clap
+    python: '3.12'
+    steps:
+      - ['torch==2.8.0', '--index-url', 'https://download.pytorch.org/whl/cpu']
+      - ['transformers==4.57.1', 'librosa==0.11.0', 'soundfile==0.13.1']
+    approx_size: 1200000000

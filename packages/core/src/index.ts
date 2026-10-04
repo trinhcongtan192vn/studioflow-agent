@@ -359,3 +359,12 @@ export { frameHtmlBuilder, type FrameRebuilder } from './hf/frame-builder.js';
 export { creditsBuilder, renderBuilder, renderPlanner } from './render/graph-builders.js';
 export { audioLinePlanner } from './tts/builder.js';
 export { sceneSeed, unsettled, type PlanInfo, type Planner } from './graph/graph.js';
+export {
+  createClapProvider,
+  type TextEmbedder,
+  type EmbedInput,
+  type EmbedOutput,
+} from './music/clap.js';
+export { readNpyF32, cosine } from './music/npy.js';
+export { findMusicSemantic } from './music/find.js';
+export { embedTrack, embedMissing } from './music/library.js';

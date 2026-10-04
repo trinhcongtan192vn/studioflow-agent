@@ -4,7 +4,8 @@ import type { ToolDefinition } from '../gateway/types.js';
 import type { JobQueue } from '../jobs/queue.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
-import { findMusic } from './find.js';
+import type { TextEmbedder } from './clap.js';
+import { findMusicSemantic } from './find.js';
 import { addTracks, type AddInput } from './library.js';
 
 export interface MusicServices {
@@ -51,7 +52,11 @@ export function defineMusicJobs(s: MusicServices, appDataDir: string): void {
 }
 
 /** Tool `music.library.add`, `music.find`, `sfx.find` (D8 mục 2). */
-export function musicTools(s: MusicServices, appDataDir: string): ToolDefinition[] {
+export function musicTools(
+  s: MusicServices,
+  appDataDir: string,
+  embedder?: TextEmbedder,
+): ToolDefinition[] {
   return [
     {
       name: 'music.library.add',
@@ -90,17 +95,17 @@ export function musicTools(s: MusicServices, appDataDir: string): ToolDefinition
     {
       name: 'music.find',
       description:
-        'Tìm nhạc trong kho kênh + app: lọc cứng tags/bpm/energy/min_duration_ms, xếp hạng theo query.',
+        'Tìm nhạc trong kho kênh + app: lọc cứng tags/bpm/energy/min_duration_ms, xếp hạng theo query. query là mô tả tự nhiên (tâm trạng, nhịp, nhạc cụ) — viết bằng tiếng Anh để khớp ngữ nghĩa (CLAP), ví dụ người dùng nói "căng thẳng, chậm, piano" → "tense, slow, piano".',
       input: FIND_INPUT,
       handler: async (i: MusicFindInput, ctx) =>
-        findMusic({ channel: ctx.store, appDataDir }, i, 'music'),
+        findMusicSemantic({ channel: ctx.store, appDataDir, embedder }, i, 'music'),
     },
     {
       name: 'sfx.find',
       description: 'Tìm SFX trong kho kênh + app (như music.find, chỉ kind = sfx).',
       input: FIND_INPUT,
       handler: async (i: MusicFindInput, ctx) =>
-        findMusic({ channel: ctx.store, appDataDir }, i, 'sfx'),
+        findMusicSemantic({ channel: ctx.store, appDataDir, embedder }, i, 'sfx'),
     },
   ];
 }

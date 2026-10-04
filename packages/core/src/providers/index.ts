@@ -5,6 +5,8 @@ import { createFakeImageProvider } from '../image/fake.js';
 import { createQwen20ApiProvider } from '../image/qwen20-api.js';
 import { createQwen21ComfyProvider } from '../image/qwen21-comfy.js';
 import { createRemoveBgProvider } from '../image/remove-bg.js';
+import { createClapProvider } from '../music/clap.js';
+import type { TextEmbedder } from '../music/clap.js';
 import { createAudioAnalysisProvider } from '../music/provider.js';
 import { createFakeTtsProvider } from './fake.js';
 import { createOmniVoiceProvider } from './omnivoice.js';
@@ -16,10 +18,13 @@ import { createOmniVoiceProvider } from './omnivoice.js';
 export function registerDefaultProviders(
   registry: ProviderRegistry,
   opts: { appDataDir?: string } = {},
-): { stop(): Promise<void> } {
+): { stop(): Promise<void>; embedder?: TextEmbedder } {
   // phân tích nhạc chạy CPU → luôn là provider thật (D12: chỉ LLM/GPU được giả lập)
   const analysis = createAudioAnalysisProvider(opts);
   registry.register(analysis.adapter);
+  // CLAP (021, CPU): luôn là provider thật; health báo thiếu môi trường/model
+  const clap = createClapProvider(opts);
+  registry.register(clap.adapter);
   // ảnh (018): tách nền CPU và API có phí luôn đăng ký (health báo thiếu cấu hình/khóa)
   registry.register(createRemoveBgProvider());
   registry.register(createQwen20ApiProvider(opts));
@@ -27,7 +32,10 @@ export function registerDefaultProviders(
     registry.register(createFakeTtsProvider());
     registry.register(createFakeAsrProvider());
     registry.register(createFakeImageProvider());
-    return { stop: () => analysis.worker.stop() };
+    return {
+      stop: async () => void (await Promise.all([analysis.worker.stop(), clap.worker.stop()])),
+      embedder: clap.embedder,
+    };
   }
   const omni = createOmniVoiceProvider(opts);
   registry.register(omni.adapter);
@@ -36,7 +44,13 @@ export function registerDefaultProviders(
   registry.register(createQwen21ComfyProvider({ server: comfy }).adapter);
   return {
     stop: async () =>
-      void (await Promise.all([omni.worker.stop(), analysis.worker.stop(), comfy.stop()])),
+      void (await Promise.all([
+        omni.worker.stop(),
+        analysis.worker.stop(),
+        clap.worker.stop(),
+        comfy.stop(),
+      ])),
+    embedder: clap.embedder,
   };
 }
 
