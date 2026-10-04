@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
 import { core } from './rpc';
+import { CaptionPanel } from './CaptionPanel';
 
 const ICON: Record<string, string> = {
   pending: '○',
@@ -234,6 +235,8 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       ) : (
         studio
       )}
+      {/* UI-11 bảng caption dưới khung xem trước (D9 mục 6, 026) */}
+      <CaptionPanel key={video} channel={channel} video={video} />
     </div>
   );
 }

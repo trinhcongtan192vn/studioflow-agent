@@ -6,6 +6,7 @@ import { sessionOptionsFor } from '../agent/options.js';
 import type {
   AgentRuntime,
   AgentSession,
+  CaptionOverrides,
   MusicFindInput,
   SessionContext,
   SettingsConfig,
@@ -368,9 +369,21 @@ export class CoreHost extends EventEmitter {
         e.open();
         // FR-WS-06: theo dõi video đang mở; sửa ngoài app → cảnh báo
         this.watcher?.close();
-        this.watcher = watchVideo(this.store(p.channel), p.video, (rel) =>
+        const store = this.store(p.channel);
+        const watch = watchVideo(store, p.video, (rel) =>
           this.send('file.external_change', { channel: p.channel, video: p.video, path: rel }),
         );
+        const prefix = `videos/${p.video}/`;
+        const unsubscribe = store.subscribe((rel, hash) => {
+          if (rel.startsWith(prefix) && !rel.startsWith(`${prefix}.sf/`))
+            this.send('artifact.changed', { channel: p.channel, path: rel, hash });
+        });
+        this.watcher = {
+          close: () => {
+            unsubscribe();
+            watch.close();
+          },
+        };
         this.announceApprovals(p.channel, p.video, e);
         return { state: e.summary(), history: this.history(p.channel, p.video) };
       }
@@ -591,6 +604,17 @@ export class CoreHost extends EventEmitter {
           String(p.frame_id),
           p.decision as 'keep' | 'reapply' | 'discard',
         );
+      case 'captions.load':
+        return c.captions.load(this.store(p.channel), p.video);
+      case 'captions.save': {
+        const r = await c.captions.save(
+          this.store(p.channel),
+          p.video,
+          p.overrides as CaptionOverrides,
+          p.base_hash ? String(p.base_hash) : null,
+        );
+        return { hash: r.hash };
+      }
       case 'asr.accept': {
         const ctx = {
           session_id: 'ss_ui000001',

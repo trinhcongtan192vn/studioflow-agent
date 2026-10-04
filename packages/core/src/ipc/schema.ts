@@ -1,6 +1,12 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
-import type { AgentEvent, JobInfo, VideoStateSummary } from '../contracts/types.js';
+import type {
+  AgentEvent,
+  CaptionOverrides,
+  JobInfo,
+  VideoStateSummary,
+} from '../contracts/types.js';
+import type { CaptionsPanelData } from '../captions/panel.js';
 
 export interface ChannelRef {
   channel: string;
@@ -150,6 +156,11 @@ export interface IpcMethods {
     params: VideoRef & { frame_id: string; decision: 'keep' | 'reapply' | 'discard' };
     result: unknown;
   };
+  'captions.load': { params: VideoRef; result: CaptionsPanelData };
+  'captions.save': {
+    params: VideoRef & { overrides: CaptionOverrides; base_hash: string | null };
+    result: { hash: string };
+  };
   'asr.accept': { params: VideoRef & { line_ids: string[] }; result: Record<string, never> };
 }
 
@@ -175,6 +186,8 @@ export interface IpcEvents {
     estimate?: unknown;
   };
   'core.health': { ok: boolean };
+  /** File trong video đang mở được ghi qua module ghi (D10 mục 4; bảng caption tải lại, 026). */
+  'artifact.changed': { channel: string; path: string; hash: string };
   /** File trong video bị sửa ngoài app (FR-WS-06, 025). */
   'file.external_change': { channel: string; video: string; path: string };
 }

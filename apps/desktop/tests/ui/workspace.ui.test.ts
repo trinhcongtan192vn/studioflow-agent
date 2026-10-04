@@ -1,7 +1,7 @@
 // 008 · FR-CH-02/07, FR-WS-02 — vỏ desktop thật (Electron + core trong utilityProcess): mở kênh,
 // danh sách video, explorer chỉ đọc, chat với Claude qua phiên `main` (record khi SF_LLM=record,
 // replay khi không), lịch sử còn sau khi mở lại, tab Job/Trace.
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,6 +85,27 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('studio')).toHaveAttribute('src', /#project\/vd_8m2pq7rt$/, {
       timeout: 60_000,
     });
+    // UI-11 bảng caption dưới khung xem trước (026): audio xem trước qua sf-media:, sửa chữ → tự lưu
+    const captions = win.getByTestId('captions');
+    await expect(captions.getByTestId('cg-cg_m1x8d0rq')).toBeVisible({ timeout: 30_000 });
+    const dur = await captions
+      .locator('audio')
+      .evaluate(
+        (a: HTMLAudioElement) =>
+          new Promise<number>((r) =>
+            a.readyState >= 1
+              ? r(a.duration)
+              : a.addEventListener('loadedmetadata', () => r(a.duration)),
+          ),
+      );
+    expect(dur).toBeCloseTo(2.7, 1);
+    await captions.getByTestId('cg-cg_m1x8d0rq').click();
+    await captions.getByLabel('Chữ hiển thị').fill('Năm 1428 — sửa tay');
+    await expect(captions).toContainText('Đã lưu caption.', { timeout: 10_000 });
+    const ov = JSON.parse(
+      readFileSync(path.join(channel, 'videos', 'vd_8m2pq7rt', 'caption-overrides.json'), 'utf8'),
+    );
+    expect(ov.groups.cg_m1x8d0rq).toEqual({ end_ms: 1300, text: 'Năm 1428 — sửa tay' });
     // tab Job / Trace
     await win.getByRole('button', { name: 'Trace' }).click();
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');
