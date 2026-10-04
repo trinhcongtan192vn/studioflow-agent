@@ -40,6 +40,11 @@ export class ProviderRegistry {
     return this.adapters.get(id);
   }
 
+  /** Provider chạy trên một engine (lịch GPU, 019). */
+  forEngine(engine: string): AnyAdapter[] {
+    return [...this.adapters.values()].filter((a) => a.manifest.engine === engine);
+  }
+
   forCapability(capability: string): AnyAdapter[] {
     return [...this.adapters.values()].filter((a) => a.manifest.capabilities.includes(capability));
   }

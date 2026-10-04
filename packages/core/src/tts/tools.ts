@@ -19,6 +19,8 @@ export interface TtsServices {
   providers: ProviderRegistry;
   db?: Db;
   storeFor(dir: string): WriteStore;
+  /** Cửa sổ gom `graph.build` (019). */
+  batchWindowMs?: number;
 }
 
 function channelLanguage(store: WriteStore): string {

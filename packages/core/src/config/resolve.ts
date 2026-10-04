@@ -45,6 +45,14 @@ function defaultValue(key: string): unknown {
   return (arg !== undefined ? PATTERN_DEFAULTS[spec.key]?.[arg] : undefined) ?? null;
 }
 
+/** Khóa chỉ có tầng app (ví dụ `gpu.*`): mặc định → `settings.json`.config, không cần kênh. */
+export function resolveAppConfig<T = unknown>(key: string, opts: ResolveOptions = {}): T {
+  requireKey(key);
+  const settings = readJson(path.join(opts.appDataDir ?? defaultAppDataDir(), 'settings.json'));
+  const cfg = settings?.config as Record<string, unknown> | undefined;
+  return (cfg && key in cfg ? cfg[key] : defaultValue(key)) as T;
+}
+
 /** `resolveConfig` (D3 mục 7.3): app → channel → video → scene → frame, tầng sau thắng. */
 export function resolveConfig<T = unknown>(
   key: string,

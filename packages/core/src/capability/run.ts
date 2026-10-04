@@ -4,6 +4,7 @@ import path from 'node:path';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
 import { Logger } from '../log.js';
+import type { GpuScheduler } from '../jobs/gpu.js';
 import { getSecretDefault } from '../secrets/credman.js';
 import type { Db } from '../store/db.js';
 import { splitVideoPath } from '../store/paths.js';
@@ -19,6 +20,17 @@ export interface CacheKeyInput {
   model_file_hash: string | null;
   input: unknown;
   seed: number | null;
+}
+
+let gpuScheduler: GpuScheduler | undefined;
+
+/** Lịch GPU dùng chung của tiến trình core (019): mọi lời gọi provider có `engine` GPU lấy lease. */
+export function setGpuScheduler(s: GpuScheduler | undefined): void {
+  gpuScheduler = s;
+}
+
+export function getGpuScheduler(): GpuScheduler | undefined {
+  return gpuScheduler;
 }
 
 /** Khóa cache (D4 mục 7). */
@@ -152,23 +164,27 @@ async function runCapabilityInner<I, O>(
     try {
       const ctrl = new AbortController();
       args.signal?.addEventListener('abort', () => ctrl.abort());
-      const out = (await adapter.run(input, {
-        signal: ctrl.signal,
-        workdir: scratch.dir,
-        progress: args.progress ?? (() => {}),
-        logger: args.logger ?? new Logger(),
-        span: {},
-        resolveInput: (p) => store.abs(p),
-        // chỉ provider khai báo `secrets` (D4 mục 4.2)
-        secrets: async (name) => {
-          const v = m.secrets?.includes(name)
-            ? (args.getSecret ?? getSecretDefault)(name)
-            : undefined;
-          if (!v)
-            throw new SfError('E_AUTH_REQUIRED', `secret ${name} is not available to ${m.id}`);
-          return v;
-        },
-      })) as Record<string, unknown>;
+      // lịch GPU (019): giữ lease engine trong suốt lần chạy adapter (cache hit không cần GPU)
+      const lease = m.engine ? await gpuScheduler?.acquire(m.engine, args.signal) : undefined;
+      const out = (await adapter
+        .run(input, {
+          signal: ctrl.signal,
+          workdir: scratch.dir,
+          progress: args.progress ?? (() => {}),
+          logger: args.logger ?? new Logger(),
+          span: {},
+          resolveInput: (p) => store.abs(p),
+          // chỉ provider khai báo `secrets` (D4 mục 4.2)
+          secrets: async (name) => {
+            const v = m.secrets?.includes(name)
+              ? (args.getSecret ?? getSecretDefault)(name)
+              : undefined;
+            if (!v)
+              throw new SfError('E_AUTH_REQUIRED', `secret ${name} is not available to ${m.id}`);
+            return v;
+          },
+        })
+        .finally(() => lease?.release())) as Record<string, unknown>;
       output = { ...out };
       const files: Record<string, string> = {};
       let size = 0;

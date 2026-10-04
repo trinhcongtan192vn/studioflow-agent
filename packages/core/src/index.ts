@@ -346,3 +346,11 @@ export {
   type ImageResult,
 } from './image/service.js';
 export { defineImageJobs, imageTools } from './image/tools.js';
+export {
+  GpuScheduler,
+  type GpuLease,
+  type GpuResource,
+  type GpuSchedulerOptions,
+} from './jobs/gpu.js';
+export { setGpuScheduler, getGpuScheduler } from './capability/run.js';
+export { resolveAppConfig } from './config/resolve.js';

@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { getGpuScheduler } from '../capability/run.js';
 import { SfError } from '../errors.js';
 import { hfInstall } from '../hf/cli.js';
 
@@ -30,8 +31,28 @@ export async function hfRender(
   },
 ): Promise<{ ms: number; log: string }> {
   const { bin } = hfInstall();
-  const t0 = Date.now();
   if (o.signal?.aborted) throw new SfError('E_JOB_CANCELED', 'canceled');
+  // lịch GPU (019): render (Chrome + FFmpeg) là engine gpu-light `render`; vào lại nếu job render giữ lease
+  const lease = await getGpuScheduler()?.acquire('render', o.signal);
+  try {
+    return await hfRenderInner(bin, videoDir, out, o);
+  } finally {
+    lease?.release();
+  }
+}
+
+async function hfRenderInner(
+  bin: string,
+  videoDir: string,
+  out: string,
+  o: {
+    fps: number;
+    crf: number;
+    signal?: AbortSignal;
+    progress?: (pct: number, message?: string) => void;
+  },
+): Promise<{ ms: number; log: string }> {
+  const t0 = Date.now();
   return new Promise((resolve, reject) => {
     const p = spawn(
       process.execPath,

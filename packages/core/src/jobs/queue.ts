@@ -5,6 +5,7 @@ import type { JobInfo } from '../contracts/types.js';
 import { newId } from '../domain/ids.js';
 import { isSfError, SfError } from '../errors.js';
 import type { Db } from '../store/db.js';
+import type { GpuLease, GpuScheduler } from './gpu.js';
 
 /** Job trong hàng đợi: `JobInfo` (D4 mục 5) + dữ liệu nội bộ. */
 export type QueuedJob = JobInfo & { payload?: unknown; parent_id?: string; channel_dir?: string };
@@ -34,6 +35,8 @@ export interface EnqueueSpec {
   payload?: unknown;
   priority?: 0 | 1 | 2;
   max_attempts?: number;
+  /** Chưa chạy trước N ms (cửa sổ gom thay đổi lẻ, 019). */
+  not_before_ms?: number;
 }
 
 const TERMINAL = new Set(['succeeded', 'failed', 'canceled', 'partial']);
@@ -66,10 +69,19 @@ export class JobQueue extends EventEmitter {
   private readonly backoff: number[];
   private readonly maxParallel: number;
 
-  constructor(private readonly opts: { db: Db; backoffMs?: number[]; maxParallel?: number }) {
+  constructor(
+    private readonly opts: {
+      db: Db;
+      backoffMs?: number[];
+      maxParallel?: number;
+      gpu?: GpuScheduler;
+    },
+  ) {
     super();
     this.backoff = opts.backoffMs ?? [2000, 10_000]; // tech-defaults mục 3
     this.maxParallel = opts.maxParallel ?? 4;
+    // lease GPU được trả (kể cả từ lời gọi provider ngoài hàng đợi) → thử chạy job đang chờ (019)
+    opts.gpu?.on('released', () => this.schedule());
   }
 
   define(kind: string, def: JobKind): void {
@@ -99,6 +111,7 @@ export class JobQueue extends EventEmitter {
       ...(spec.channel_dir ? { channel_dir: spec.channel_dir } : {}),
     };
     this.order.set(job.id, this.seq++);
+    if (spec.not_before_ms) this.notBefore.set(job.id, Date.now() + spec.not_before_ms);
     this.save(job, def?.idempotent ?? true);
     const tp = currentTraceparent();
     if (tp) this.traceparents.set(job.id, tp);
@@ -128,6 +141,17 @@ export class JobQueue extends EventEmitter {
           (!filter.status || j.status === filter.status) &&
           (!filter.video_id || j.video_id === filter.video_id),
       );
+  }
+
+  /** Đổi payload job còn `queued` (gộp mục tiêu `graph.build`, 019); trả false nếu đã chạy. */
+  updatePayload(id: string, payload: unknown): boolean {
+    const job = this.get(id);
+    if (!job || job.status !== 'queued' || this.running.has(id)) return false;
+    job.payload = payload;
+    this.opts.db
+      .prepare('UPDATE jobs SET payload = ? WHERE id = ?')
+      .run(JSON.stringify(payload), id);
+    return true;
   }
 
   cancel(id: string): QueuedJob {
@@ -277,13 +301,19 @@ export class JobQueue extends EventEmitter {
           (this.order.get(a.id) ?? 0) - (this.order.get(b.id) ?? 0),
       );
     for (const job of candidates) {
+      let lease: GpuLease | undefined;
       if (job.engine) {
         if (this.engineBusy.has(job.engine)) continue;
+        // lịch GPU (D4 mục 6): engine GPU không vừa → chờ, không chiếm chỗ
+        if (this.opts.gpu?.isGpu(job.engine)) {
+          lease = this.opts.gpu.tryAcquire(job.engine);
+          if (!lease) continue;
+        }
       } else if (
         [...this.running.keys()].filter((id) => !this.get(id)?.engine).length >= this.maxParallel
       )
         continue;
-      void this.run(job);
+      void this.run(job, lease);
     }
     const waits = [...this.notBefore.values()].filter((v) => v > t);
     if (waits.length) {
@@ -292,7 +322,7 @@ export class JobQueue extends EventEmitter {
     }
   }
 
-  private async run(job: QueuedJob): Promise<void> {
+  private async run(job: QueuedJob, lease?: GpuLease): Promise<void> {
     const def = this.kinds.get(job.kind)!;
     const ctrl = new AbortController();
     this.running.set(job.id, ctrl);
@@ -326,6 +356,7 @@ export class JobQueue extends EventEmitter {
       },
     };
     try {
+      await lease?.ready;
       const parent = this.traceparents.get(job.id);
       this.traceparents.delete(job.id);
       const result = await withSpan(
@@ -372,6 +403,7 @@ export class JobQueue extends EventEmitter {
     } finally {
       this.running.delete(job.id);
       if (job.engine) this.engineBusy.delete(job.engine);
+      lease?.release();
       this.schedule();
     }
   }
