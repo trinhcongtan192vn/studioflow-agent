@@ -63,7 +63,8 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('STORYBOARD'),
     writes: r('assets'),
     outputs: r('assets/manifest.json'),
-    gates: () => [],
+    // D6 mục 2: mọi layer có asset (023)
+    gates: () => [{ kind: 'objective', check: 'assets_resolved' }],
   },
   lipsync: {
     by: 'engine',

@@ -1,0 +1,30 @@
+id: storyboard-default
+version: 1
+scale: 10
+criteria:
+  - {
+      id: visual,
+      weight: 0.3,
+      prompt: 'Hình ảnh mỗi frame có minh họa đúng và rõ nội dung các line của nó không?',
+    }
+  - {
+      id: variety,
+      weight: 0.2,
+      prompt: 'Nhịp hình ảnh giữa các frame có biến hóa hợp lý, không lặp lại nhàm chán?',
+    }
+  - {
+      id: feasibility,
+      weight: 0.2,
+      prompt: 'Có dựng được bằng đồ họa code / ảnh sinh trong thời lượng frame không?',
+    }
+  - {
+      id: consistency,
+      weight: 0.15,
+      prompt: 'Scene, look, nhân vật và phong cách có nhất quán suốt video?',
+    }
+  - {
+      id: accuracy,
+      weight: 0.15,
+      prompt: 'Chi tiết thông tin/lịch sử trên hình (chữ, bản đồ, mốc) có đúng không?',
+    }
+severity_rules: 'critical: không dựng được/sai sự thật trên hình; major: frame không khớp lời đọc hoặc lặp nặng; minor: đánh bóng'
