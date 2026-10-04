@@ -12,6 +12,7 @@ import type { JobQueue } from '../jobs/queue.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
 import { voiceFile } from './builder.js';
+import { CALIBRATION_TEXT, countWords, recordVoiceWpm } from './rate.js';
 
 export interface TtsServices {
   queue: JobQueue;
@@ -74,6 +75,21 @@ export async function createVoiceProfile(
   store.write(`${base}/profile.json`, `${JSON.stringify(profile, null, 2)}\n`, {
     by: 'voice.profile',
   });
+  // tốc độ đọc của giọng mới: đọc đoạn hiệu chuẩn rồi đo (016 R4); lỗi không chặn việc tạo giọng
+  const calib = CALIBRATION_TEXT[input.language];
+  if (calib) {
+    try {
+      const r = await speak(
+        s,
+        store,
+        { voice_id: voiceId, text: calib, language: input.language, appDataDir: input.appDataDir },
+        opts,
+      );
+      recordVoiceWpm(store, voiceId, countWords(calib) / (r.duration_ms / 60000));
+    } catch {
+      /* đo lại sau video đầu tiên */
+    }
+  }
   return {
     voice_id: voiceId,
     files: ['voice.pt', 'ref.wav', 'profile.json'].map((f) => `${base}/${f}`),

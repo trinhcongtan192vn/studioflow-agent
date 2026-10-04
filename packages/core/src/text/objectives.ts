@@ -3,6 +3,8 @@ import { resolveConfig } from '../config/resolve.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { validateArtifact } from '../domain/validate.js';
+import { WriteStore } from '../store/writer.js';
+import { readingRate } from '../tts/rate.js';
 import { registerObjective } from '../workflow/gates.js';
 import { bannedTerms, loadPromptPack } from './prompts.js';
 
@@ -50,7 +52,8 @@ export function checkScript(content: string, ctx: ObjectiveContext): ObjectiveRe
   }
   const doc = toScriptDoc(parseScript(content));
   const lang = String(doc.front.language);
-  const wpm = cfg(ctx, `script.wpm.${lang}`) || 150;
+  // tốc độ đọc theo giọng của kênh (016 R4), không cố định
+  const wpm = readingRate(new WriteStore(ctx.channelDir), ctx.videoId, lang, ctx.appDataDir);
   const total = doc.lines.reduce((s, l) => s + words(l.text), 0);
   const pauses = doc.lines.reduce((s, l) => s + (l.pause_after_ms ?? 0), 0);
   const out: ObjectiveResult[] = [{ id: 'schema', pass: true }];
