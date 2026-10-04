@@ -136,6 +136,7 @@ export async function speak(
 /** Loại job `voice.profile`, `voice.preview` (engine omnivoice — chạy nối tiếp). */
 export function defineTtsJobs(s: TtsServices, appDataDir?: string): void {
   s.queue.define('voice.profile', {
+    needsDisk: true,
     engine: 'omnivoice',
     idempotent: true,
     run: async (job, ctx) => {
@@ -149,6 +150,7 @@ export function defineTtsJobs(s: TtsServices, appDataDir?: string): void {
     },
   });
   s.queue.define('voice.preview', {
+    needsDisk: true,
     engine: 'omnivoice',
     idempotent: true,
     run: async (job, ctx) => {

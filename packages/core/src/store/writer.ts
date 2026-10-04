@@ -173,12 +173,29 @@ export class WriteStore {
     return { path: dst.rel, hash };
   }
 
-  /** Xóa dữ liệu dẫn xuất (D4 mục 11): chỉ trong `cache/` hoặc `.sf/` (trừ `.sf/backups`). */
-  removeDerived(rel: string): void {
+  /**
+   * Xóa dữ liệu dẫn xuất (D4 mục 11): `cache/`, `.sf/` (sao lưu `.sf/backups` chỉ khi người dùng chọn),
+   * render nháp `videos/<vd>/renders/<rd>` (không bao giờ render phát hành) (024).
+   */
+  removeDerived(rel: string, opts: { userRequested?: boolean } = {}): void {
     const t = resolveInside(this.root, rel);
+    const backups = /(^|\/)\.sf\/backups(\/|$)/.test(t.rel);
+    const render = /^videos\/vd_[0-9a-z]{8}\/renders\/rd_[0-9a-z]{8}$/.exec(t.rel);
+    let draftRender = false;
+    if (render) {
+      try {
+        const rec = JSON.parse(readFileSync(path.join(t.abs, 'render.json'), 'utf8')) as {
+          mode?: string;
+        };
+        draftRender = rec.mode !== 'release';
+      } catch {
+        draftRender = false;
+      }
+    }
     const derived =
       /^cache\//.test(t.rel) ||
-      (/(^|\/)\.sf\//.test(t.rel) && !/(^|\/)\.sf\/backups(\/|$)/.test(t.rel));
+      (/(^|\/)\.sf\//.test(t.rel) && (!backups || Boolean(opts.userRequested))) ||
+      draftRender;
     if (!derived)
       throw new SfError('E_PATH_OUTSIDE', `${t.rel} is not derived data; it cannot be removed`);
     rmSync(t.abs, { recursive: true, force: true });

@@ -83,6 +83,7 @@ export function defineGraphJob(
   storeFor: (dir: string) => import('../store/writer.js').WriteStore,
 ): void {
   queue.define('graph.build', {
+    needsDisk: true,
     idempotent: true,
     async run(job, ctx) {
       const p = job.payload as { targets: string[] | null; appDataDir: string | null };

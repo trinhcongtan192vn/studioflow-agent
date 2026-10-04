@@ -38,18 +38,21 @@ export function defineImageJobs(s: ImageToolServices, appDataDir?: string): void
     jobId: job.id,
   });
   s.queue.define('image.generate', {
+    needsDisk: true,
     engine: 'comfyui',
     idempotent: true,
     run: (job, ctx) =>
       generateImage(s, s.storeFor(job.channel_dir!), job.payload as GenerateInput, opts(job, ctx)),
   });
   s.queue.define('image.edit', {
+    needsDisk: true,
     engine: 'comfyui',
     idempotent: true,
     run: (job, ctx) =>
       editImage(s, s.storeFor(job.channel_dir!), job.payload as EditInput, opts(job, ctx)),
   });
   s.queue.define('image.remove_bg', {
+    needsDisk: true,
     idempotent: true,
     run: (job, ctx) =>
       removeBackground(

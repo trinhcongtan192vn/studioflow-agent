@@ -5,10 +5,77 @@ const LABEL: Record<string, string> = {
   openai: 'OpenAI',
   deepseek: 'DeepSeek',
   anthropic: 'Anthropic (dự phòng)',
+  dashscope_api_key: 'Qwen-Image API (DashScope)',
 };
 
+type Usage = {
+  disk: { free_bytes: number; total_bytes: number; level: 'ok' | 'warn' | 'low' };
+  app: { models_bytes: number; providers_bytes: number };
+  channel?: {
+    cache_bytes: number;
+    renders: { draft_bytes: number; release_bytes: number };
+    backups_bytes: number;
+    reclaimable: Record<'cache' | 'drafts' | 'backups' | 'snapshots', number>;
+  };
+};
+const gb = (b: number) => `${(b / 1e9).toFixed(2)} GB`;
+const CLEAN: { id: 'cache' | 'drafts' | 'backups' | 'snapshots'; label: string }[] = [
+  { id: 'cache', label: 'Cache (sinh lại được)' },
+  { id: 'drafts', label: 'Render nháp cũ (giữ 5 bản mới nhất)' },
+  { id: 'snapshots', label: 'Ảnh chụp cũ (giữ 10)' },
+  { id: 'backups', label: 'Bản sao lưu' },
+];
+
+/** UI-10 Dung lượng (024): theo kênh đang mở + model của app; nút dọn hiện số byte giải phóng. */
+function Storage({ channel }: { channel?: string }) {
+  const [u, setU] = useState<Usage>();
+  const load = () =>
+    void core.call('disk.usage', channel ? { channel } : {}).then((x) => setU(x as Usage));
+  useEffect(load, [channel]);
+  if (!u) return <p className="muted">Đang tính dung lượng…</p>;
+  return (
+    <div aria-label="Dung lượng">
+      <p className={u.disk.level === 'ok' ? '' : 'error'}>
+        Ổ đĩa còn {gb(u.disk.free_bytes)} / {gb(u.disk.total_bytes)}
+        {u.disk.level === 'low'
+          ? ' — dưới 5 GB: đã tạm dừng sinh/render'
+          : u.disk.level === 'warn'
+            ? ' — sắp đầy (dưới 15 GB)'
+            : ''}
+      </p>
+      <p className="muted">
+        Model: {gb(u.app.models_bytes)} · Môi trường engine: {gb(u.app.providers_bytes)}
+      </p>
+      {u.channel && (
+        <>
+          <p className="muted">
+            Render phát hành: {gb(u.channel.renders.release_bytes)} (không tự xóa) · Render nháp:{' '}
+            {gb(u.channel.renders.draft_bytes)}
+          </p>
+          {CLEAN.map((c) => (
+            <div key={c.id} className="row">
+              <span style={{ width: 260 }}>{c.label}</span>
+              <span className="muted" style={{ width: 90 }}>
+                {gb(u.channel!.reclaimable[c.id])}
+              </span>
+              <button
+                disabled={!u.channel!.reclaimable[c.id]}
+                onClick={() =>
+                  void core.call('disk.clean', { channel: channel!, targets: [c.id] }).then(load)
+                }
+              >
+                Dọn
+              </button>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 /** UI-09 Cài đặt (M1): khóa API (chỉ 4 ký tự cuối, lưu Credential Manager ở `main`), model viết. */
-export function Settings({ onClose }: { onClose: () => void }) {
+export function Settings({ onClose, channel }: { onClose: () => void; channel?: string }) {
   const [secrets, setSecrets] = useState<{ name: string; hint: string | null }[]>([]);
   const [value, setValue] = useState<Record<string, string>>({});
   const [producer, setProducer] = useState('');
@@ -69,6 +136,8 @@ export function Settings({ onClose }: { onClose: () => void }) {
             Lưu
           </button>
         </div>
+        <h3>Dung lượng</h3>
+        <Storage {...(channel ? { channel } : {})} />
         <button onClick={onClose}>Đóng</button>
       </div>
     </div>

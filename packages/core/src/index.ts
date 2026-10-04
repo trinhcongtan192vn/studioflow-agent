@@ -376,3 +376,14 @@ export {
 } from './domain/channel-validate.js';
 export { storyboardExecutor, checkStoryboard, type StoryboardDeps } from './text/storyboard.js';
 export { assetsExecutor, unresolvedAssets } from './workflow/assets.js';
+export {
+  diskUsage,
+  channelUsage,
+  diskSpace,
+  sizeOf,
+  DISK_MIN_BYTES,
+  DISK_WARN_BYTES,
+  type DiskUsage,
+  type ChannelUsage,
+} from './disk/usage.js';
+export { cleanChannel, enforceCacheBudget, type CleanTarget } from './disk/clean.js';

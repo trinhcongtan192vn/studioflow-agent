@@ -149,7 +149,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           </div>
         </div>
       )}
-      {settings && <Settings onClose={() => setSettings(false)} />}
+      {settings && <Settings channel={channel} onClose={() => setSettings(false)} />}
     </div>
   );
 }

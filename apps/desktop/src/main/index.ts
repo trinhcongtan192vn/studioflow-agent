@@ -14,7 +14,7 @@ import {
 import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SECRET_NAMES = ['openai', 'deepseek', 'anthropic'];
+const SECRET_NAMES = ['openai', 'deepseek', 'anthropic', 'dashscope_api_key'];
 const MAX_RESTARTS = 3;
 
 let win: BrowserWindow | undefined;

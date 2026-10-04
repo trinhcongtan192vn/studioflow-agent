@@ -90,6 +90,10 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');
     await win.getByRole('button', { name: 'Job' }).click();
     await expect(win.getByText('Mọi video')).toBeVisible();
+    // UI-10 Dung lượng (024) trong Cài đặt
+    await win.getByTitle('Cài đặt').click();
+    await expect(win.getByLabel('Dung lượng')).toContainText('Ổ đĩa còn', { timeout: 30_000 });
+    await expect(win.getByLabel('Dung lượng')).toContainText('Cache');
   } finally {
     await app.close();
   }

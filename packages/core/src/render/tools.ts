@@ -15,6 +15,7 @@ export interface RenderServices {
 /** Job `render` (engine `render`): không idempotent → tắt app giữa chừng = `E_JOB_INTERRUPTED` (AC-M1-05). */
 export function defineRenderJob(s: RenderServices, appDataDir?: string): void {
   s.queue.define('render', {
+    needsDisk: true,
     engine: 'render',
     idempotent: false,
     run: async (job, ctx) =>

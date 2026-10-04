@@ -21,6 +21,8 @@ import { ProviderRegistry } from './capability/registry.js';
 import { defaultAppDataDir, resolveAppConfig } from './config/resolve.js';
 import { getGpuScheduler, setGpuScheduler } from './capability/run.js';
 import { GpuScheduler } from './jobs/gpu.js';
+import { DISK_MIN_BYTES, diskSpace } from './disk/usage.js';
+import { enforceCacheBudget } from './disk/clean.js';
 import { createGateway, type Gateway } from './gateway/index.js';
 import { BuilderRegistry } from './graph/graph.js';
 import { defineGraphJob, graphTools } from './graph/tools.js';
@@ -55,6 +57,8 @@ export interface CoreOptions {
   /** Ghi/phát lại lời gọi text (D12); mặc định theo `SF_LLM`/`SF_LLM_FIXTURES`. */
   textFixtureDir?: string;
   textMode?: LlmMode;
+  /** Ngưỡng đĩa tối thiểu cho job sinh/render (024, FN-024: 5 GB). */
+  diskMinBytes?: number;
   /** Cửa sổ gom `graph.build` từ chat (019); mặc định `SF_BATCH_WINDOW_MS` hoặc 3 000 ms. */
   batchWindowMs?: number;
   /** Khóa API provider text (mặc định biến môi trường, 009). */
@@ -109,9 +113,28 @@ export function createCore(opts: CoreOptions = {}): Core {
     },
   });
   setGpuScheduler(gpu);
-  const queue = new JobQueue({ db, backoffMs: opts.backoffMs, gpu });
+  const diskMin = opts.diskMinBytes ?? DISK_MIN_BYTES;
+  const queue = new JobQueue({
+    db,
+    backoffMs: opts.backoffMs,
+    gpu,
+    diskLow: (job) => diskSpace(job.channel_dir ?? appDataDir).free_bytes < diskMin,
+  });
   const graph = new BuilderRegistry();
   const gateway = createGateway({ appDataDir, permissionTimeoutMs: opts.permissionTimeoutMs });
+  // hạn mức cache kênh sau mỗi job (D4 mục 7, 024): tối đa 1 lần/phút mỗi kênh
+  const trimmed = new Map<string, number>();
+  queue.on('job.updated', (j: { id: string; status: string }) => {
+    if (!['succeeded', 'failed', 'partial'].includes(j.status)) return;
+    const dir = queue.get(j.id)?.channel_dir;
+    if (!dir || Date.now() - (trimmed.get(dir) ?? 0) < 60_000) return;
+    trimmed.set(dir, Date.now());
+    try {
+      enforceCacheBudget({ db, store: gateway.storeFor(dir), appDataDir });
+    } catch {
+      /* cấu hình kênh lỗi: channel.validate báo */
+    }
+  });
   const batchWindowMs = opts.batchWindowMs ?? Number(process.env.SF_BATCH_WINDOW_MS ?? 3000);
   for (const t of [...jobTools(queue), ...graphTools({ queue, builders: graph, batchWindowMs })])
     gateway.register(t);
