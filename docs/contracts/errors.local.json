@@ -80,6 +80,11 @@
       "code": "E_LICENSE_NOT_ACCEPTED",
       "when": "Cài thành phần có giấy phép phi thương mại mà người dùng chưa xác nhận",
       "source": "specs/018-image-comfyui-qwen/spec.md"
+    },
+    {
+      "code": "E_CHANNEL_INVALID",
+      "when": "sf channel validate: hồ sơ kênh có lỗi (D6 mục 6.3)",
+      "source": "specs/022-channel-profile-validate/spec.md"
     }
   ]
 }

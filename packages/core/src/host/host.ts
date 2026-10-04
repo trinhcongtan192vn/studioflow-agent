@@ -20,6 +20,7 @@ import { isSfError, SfError } from '../errors.js';
 import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '../ipc/schema.js';
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
+import { validateChannel } from '../domain/channel-validate.js';
 import { findMusic } from '../music/find.js';
 import { appLibrary, readMusicManifest } from '../music/library.js';
 import { WriteStore } from '../store/writer.js';
@@ -332,7 +333,12 @@ export class CoreHost extends EventEmitter {
         if (d.kind !== 'channel')
           throw new SfError('E_NOT_CHANNEL', `${p.channel} has no channel.json`);
         this.rememberChannel(path.resolve(p.channel));
-        return { config: d.config, videos: this.videos(path.resolve(p.channel)) };
+        return {
+          config: d.config,
+          videos: this.videos(path.resolve(p.channel)),
+          // D6 mục 6.3: kiểm hồ sơ kênh khi mở (022)
+          validation: validateChannel(path.resolve(p.channel), { appDataDir: c.appDataDir }),
+        };
       }
       case 'channel.init': {
         const config = initChannel(path.resolve(p.channel), {

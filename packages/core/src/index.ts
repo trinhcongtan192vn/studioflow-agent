@@ -368,3 +368,9 @@ export {
 export { readNpyF32, cosine } from './music/npy.js';
 export { findMusicSemantic } from './music/find.js';
 export { embedTrack, embedMissing } from './music/library.js';
+export {
+  validateChannel,
+  styleDirs,
+  type ChannelIssue,
+  type ChannelValidation,
+} from './domain/channel-validate.js';

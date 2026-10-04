@@ -8,6 +8,7 @@ import { parseBlocksDoc } from '../../domain/markdown/blocks.js';
 import { assignScriptIds } from '../../domain/markdown/script.js';
 import { assignStoryboardIds } from '../../domain/markdown/storyboard.js';
 import { validateArtifact } from '../../domain/validate.js';
+import { validateChannel } from '../../domain/channel-validate.js';
 import { SfError } from '../../errors.js';
 import { globToRegExp } from '../glob.js';
 import { checkOwner, checkWriteScope, sessionPath } from '../session.js';
@@ -162,7 +163,15 @@ export const artifactTools: ToolDefinition[] = [
           throw new SfError('E_PERMISSION_DECLINED', `user declined overwriting ${sp.inner}`);
       }
       const r = ctx.store.write(sp.rel, content, { by: 'artifact.write' });
-      return { hash: r.hash, ...(assigned.length ? { assigned_ids: assigned } : {}) };
+      // D6 mục 6.3: ghi hồ sơ kênh → kiểm lại (không chặn ghi; agent thấy lỗi để sửa)
+      const profileWrite = sp.rel === 'channel.json' || sp.rel.startsWith('profile/');
+      return {
+        hash: r.hash,
+        ...(assigned.length ? { assigned_ids: assigned } : {}),
+        ...(profileWrite
+          ? { channel_validation: validateChannel(ctx.store.root, { appDataDir: ctx.appDataDir }) }
+          : {}),
+      };
     },
   },
   {
