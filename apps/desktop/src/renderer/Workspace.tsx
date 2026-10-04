@@ -14,6 +14,8 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [video, setVideo] = useState<string>();
   const [state, setState] = useState<VideoStateSummary>();
   const [tree, setTree] = useState<ExplorerNode>();
+  // FR-WS-06: file bị sửa ngoài app (025)
+  const [external, setExternal] = useState<string[]>([]);
   const [file, setFile] = useState<{
     path: string;
     kind: string;
@@ -33,6 +35,9 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
     const offs = [
       core.on('workflow.updated', (s) => {
         if (s.video_id === video) setState(s);
+      }),
+      core.on('file.external_change', (d) => {
+        if (d.video === video) setExternal((x) => [...new Set([...x, d.path])]);
       }),
     ];
     // Phím tắt: Ctrl+1..5 chuyển tab, Ctrl+R render nháp (FN-008 mục 5)
@@ -77,6 +82,15 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             ⚙
           </button>
         </div>
+        {external.length > 0 && (
+          <p className="error" role="alert">
+            File bị sửa ngoài app: {external.join(', ')} — app sẽ không tự ghi đè; nhờ agent kiểm
+            tra hoặc dựng lại.{' '}
+            <button className="link" onClick={() => setExternal([])}>
+              Ẩn
+            </button>
+          </p>
+        )}
         <h3>Video</h3>
         <ul className="list" data-testid="video-list">
           {videos.map((v) => (

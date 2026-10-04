@@ -387,3 +387,14 @@ export {
   type ChannelUsage,
 } from './disk/usage.js';
 export { cleanChannel, enforceCacheBudget, type CleanTarget } from './disk/clean.js';
+export {
+  diffHtml,
+  applyDelta,
+  parseStyle,
+  stripStudioMarks,
+  type StudioChange,
+} from './studio/diff.js';
+export { StudioEdits, type CommitResult } from './studio/edit.js';
+export { startStudioProxy, studioWriteAllowed } from './studio/proxy.js';
+export { PinnedDecider } from './studio/pinned.js';
+export { watchVideo, readExternal, externalRel, type ExternalChanges } from './studio/watch.js';

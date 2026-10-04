@@ -85,6 +85,11 @@
       "code": "E_CHANNEL_INVALID",
       "when": "sf channel validate: hồ sơ kênh có lỗi (D6 mục 6.3)",
       "source": "specs/022-channel-profile-validate/spec.md"
+    },
+    {
+      "code": "E_STUDIO_UNCOMMITTED",
+      "when": "studio.close khi còn thay đổi chưa commit (gọi lại với discard hoặc commit trước)",
+      "source": "specs/025-studio-commit/spec.md"
     }
   ]
 }

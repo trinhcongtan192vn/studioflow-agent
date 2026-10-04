@@ -80,6 +80,20 @@ export class WriteStore {
     return [...this.entries];
   }
 
+  private readonly listeners = new Set<(rel: string, hash: string) => void>();
+
+  /** Nghe mọi lần ghi của module ghi (file watcher phân biệt ghi của app với sửa ngoài app, 025). */
+  subscribe(fn: (rel: string, hash: string) => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  private record(rel: string, hash: string, by: string): void {
+    this.entries.push({ path: rel, hash, by, ts: new Date().toISOString() });
+    if (this.entries.length > LOG_LIMIT) this.entries.splice(0, this.entries.length - LOG_LIMIT);
+    for (const fn of this.listeners) fn(rel, hash);
+  }
+
   ensureDir(rel: string): void {
     mkdirSync(resolveInside(this.root, rel).abs, { recursive: true });
   }
@@ -102,8 +116,7 @@ export class WriteStore {
     }
     this.atomicWrite(path.join(base, '.sf', 'tmp'), target.abs, content);
     const hash = sha256(content);
-    this.entries.push({ path: target.rel, hash, by: opts.by, ts: new Date().toISOString() });
-    if (this.entries.length > LOG_LIMIT) this.entries.splice(0, this.entries.length - LOG_LIMIT);
+    this.record(target.rel, hash, opts.by);
     return { path: target.rel, hash, ...(backup ? { backup } : {}) };
   }
 
@@ -127,7 +140,7 @@ export class WriteStore {
     }
     renameSync(tmp, dst.abs);
     const hash = sha256(readFileSync(dst.abs));
-    this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
+    this.record(dst.rel, hash, opts.by);
     return { path: dst.rel, hash };
   }
 
@@ -151,7 +164,7 @@ export class WriteStore {
     const target = resolveInside(this.root, rel);
     mkdirSync(path.dirname(target.abs), { recursive: true });
     appendFileSync(target.abs, `${line.replace(/\r?\n/g, ' ')}\n`);
-    this.entries.push({ path: target.rel, hash: '', by: opts.by, ts: new Date().toISOString() });
+    this.record(target.rel, '', opts.by);
   }
 
   /**
@@ -169,7 +182,7 @@ export class WriteStore {
     copyFileSync(absSrc, tmp);
     renameSync(tmp, dst.abs);
     const hash = sha256(readFileSync(dst.abs));
-    this.entries.push({ path: dst.rel, hash, by: opts.by, ts: new Date().toISOString() });
+    this.record(dst.rel, hash, opts.by);
     return { path: dst.rel, hash };
   }
 
@@ -198,7 +211,8 @@ export class WriteStore {
       draftRender;
     if (!derived)
       throw new SfError('E_PATH_OUTSIDE', `${t.rel} is not derived data; it cannot be removed`);
-    rmSync(t.abs, { recursive: true, force: true });
+    // Windows: tiến trình vừa dừng (Studio) có thể còn giữ file vài trăm ms → thử lại
+    rmSync(t.abs, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
   }
 
   private atomicWrite(tmpDir: string, abs: string, content: string | Buffer): void {

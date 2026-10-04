@@ -2,7 +2,8 @@
 // file cảnh đổi, đóng không để tiến trình (SF_GPU=0).
 import { lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { describeStudio } from '../../src/testing/gpu.js';
 import {
   BuildGraph,
   buildFramePacket,
@@ -65,7 +66,7 @@ afterAll(() => {
   t.cleanup();
 });
 
-describe('Studio preview (017 FR-ST-01)', () => {
+describeStudio('Studio preview (017 FR-ST-01)', () => {
   it('serves the pinned Studio on a read-only snapshot and resyncs on change', async () => {
     const before = readFileSync(path.join(v, 'index.html'), 'utf8');
     const r = (await core.gateway.call(session, 'studio.open', { mode: 'preview' })) as {
@@ -101,10 +102,6 @@ describe('Studio preview (017 FR-ST-01)', () => {
       data: { url: string };
     };
     expect(again.data.url).toBe(r.data.url);
-    expect(await core.gateway.call(session, 'studio.open', { mode: 'edit' })).toMatchObject({
-      ok: false,
-      error: { code: 'E_TOOL_DENIED' },
-    });
     expect(await core.gateway.call(session, 'studio.close', {})).toMatchObject({
       ok: true,
       data: { closed: true },

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readdirSync, statSync, watch, type FSWatcher } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { SfError } from '../errors.js';
 import { hfInstall } from '../hf/cli.js';
@@ -57,6 +58,57 @@ export function syncSnapshot(store: WriteStore, videoId: string): string {
   return store.abs(snap);
 }
 
+/**
+ * `hyperframes preview` bản ghim trên một thư mục dự án (bản chụp 017 hoặc bản làm việc 025), cổng tự do
+ * trên 127.0.0.1; chờ máy chủ trả lời.
+ */
+export async function startHfStudio(
+  dir: string,
+  o: { timeoutMs?: number } = {},
+): Promise<{ child: ChildProcess; port: number; url: string }> {
+  const port = await freePort();
+  const { bin } = hfInstall();
+  const child = spawn(
+    process.execPath,
+    [bin, 'preview', dir, '--port', String(port), '--no-open', '--foreground', '--force-new'],
+    {
+      // cwd ngoài thư mục dự án: Windows không xóa được thư mục đang là cwd của tiến trình (025)
+      cwd: tmpdir(),
+      env: {
+        ...process.env,
+        HYPERFRAMES_NO_TELEMETRY: '1',
+        HYPERFRAMES_SKIP_SKILLS: '1',
+        DO_NOT_TRACK: '1',
+      },
+      windowsHide: true,
+    },
+  );
+  let log = '';
+  child.stdout?.on('data', (d: Buffer) => (log = (log + d.toString('utf8')).slice(-4000)));
+  child.stderr?.on('data', (d: Buffer) => (log = (log + d.toString('utf8')).slice(-4000)));
+  const url = `http://127.0.0.1:${port}/#project/${path.basename(dir)}`;
+  const t0 = Date.now();
+  for (;;) {
+    if (child.exitCode !== null)
+      throw new SfError('E_STUDIO_PROCESS', `hyperframes preview exited: ${log.slice(-500)}`);
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/`);
+      if (r.ok) break;
+    } catch {
+      /* chưa sẵn sàng */
+    }
+    if (Date.now() - t0 > (o.timeoutMs ?? 60_000)) {
+      if (child.pid) killTree(child.pid);
+      throw new SfError(
+        'E_STUDIO_PROCESS',
+        `hyperframes preview did not start: ${log.slice(-500)}`,
+      );
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return { child, port, url };
+}
+
 interface Running {
   child: ChildProcess;
   url: string;
@@ -88,46 +140,7 @@ export class StudioPreviews {
       );
     }
     const dir = syncSnapshot(store, videoId);
-    const port = await freePort();
-    const { bin } = hfInstall();
-    const child = spawn(
-      process.execPath,
-      [bin, 'preview', '.', '--port', String(port), '--no-open', '--foreground', '--force-new'],
-      {
-        cwd: dir,
-        env: {
-          ...process.env,
-          HYPERFRAMES_NO_TELEMETRY: '1',
-          HYPERFRAMES_SKIP_SKILLS: '1',
-          DO_NOT_TRACK: '1',
-        },
-        windowsHide: true,
-      },
-    );
-    let log = '';
-    child.stdout?.on('data', (d: Buffer) => (log = (log + d.toString('utf8')).slice(-4000)));
-    child.stderr?.on('data', (d: Buffer) => (log = (log + d.toString('utf8')).slice(-4000)));
-    const url = `http://127.0.0.1:${port}/#project/${path.basename(dir)}`;
-    // chờ máy chủ trả lời
-    const t0 = Date.now();
-    for (;;) {
-      if (child.exitCode !== null)
-        throw new SfError('E_PROVIDER_FAILED', `hyperframes preview exited: ${log.slice(-500)}`);
-      try {
-        const r = await fetch(`http://127.0.0.1:${port}/`);
-        if (r.ok) break;
-      } catch {
-        /* chưa sẵn sàng */
-      }
-      if (Date.now() - t0 > (o.timeoutMs ?? 60_000)) {
-        if (child.pid) killTree(child.pid);
-        throw new SfError(
-          'E_PROVIDER_FAILED',
-          `hyperframes preview did not start: ${log.slice(-500)}`,
-        );
-      }
-      await new Promise((r) => setTimeout(r, 250));
-    }
+    const { child, url, port } = await startHfStudio(dir, o);
     const run: Running = { child, url };
     const videoDir = store.abs(`videos/${videoId}`);
     try {

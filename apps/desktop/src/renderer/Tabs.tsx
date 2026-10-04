@@ -148,6 +148,7 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
   const [msg, setMsg] = useState('');
   const [url, setUrl] = useState<string>();
   const [wide, setWide] = useState(false);
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
     setUrl(undefined);
   }, [video]);
@@ -162,13 +163,42 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       setMsg((e as Error).message);
     }
   };
-  // UI-05 / D9 mục 2: Studio xem trước (chỉ đọc) nhúng trong panel; tự tải lại khi file cảnh đổi
-  const openStudio = async () => {
+  // UI-05 / D9 mục 2–3: Studio xem trước (chỉ đọc) hoặc chế độ chỉnh (025) nhúng trong panel
+  const openStudio = async (mode: 'preview' | 'edit') => {
     try {
-      setUrl((await core.call('studio.open', { channel, video, mode: 'preview' })).url);
+      setUrl((await core.call('studio.open', { channel, video, mode })).url);
+      setEditing(mode === 'edit');
+      setMsg(mode === 'edit' ? 'Đang chỉnh trong Studio — agent tạm không ghi file cảnh.' : '');
     } catch (e) {
       setMsg((e as Error).message);
     }
+  };
+  const commit = async () => {
+    try {
+      const r = await core.call('studio.commit', { channel, video });
+      setMsg(
+        r.changed_files.length
+          ? `Đã lưu ${r.changed_files.length} file; frame chỉnh tay: ${r.pinned_frames.join(', ') || '—'}.`
+          : 'Không có thay đổi để lưu.',
+      );
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  const closeStudio = async () => {
+    try {
+      await core.call('studio.close', { channel, video });
+    } catch (e) {
+      // D9 3.5: còn thay đổi chưa lưu → hỏi người dùng
+      if (!/E_STUDIO_UNCOMMITTED|uncommitted/.test((e as Error).message)) {
+        setMsg((e as Error).message);
+        return;
+      }
+      if (!window.confirm('Còn thay đổi chưa lưu trong Studio. Bỏ các thay đổi đó?')) return;
+      await core.call('studio.close', { channel, video, discard: true });
+    }
+    setUrl(undefined);
+    setEditing(false);
   };
   const studio = url && (
     <iframe
@@ -184,16 +214,14 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
         {url ? (
           <>
             <button onClick={() => setWide(!wide)}>{wide ? 'Thu nhỏ' : 'Mở rộng'}</button>
-            <button
-              onClick={() =>
-                void core.call('studio.close', { channel, video }).then(() => setUrl(undefined))
-              }
-            >
-              Đóng Studio
-            </button>
+            {editing && <button onClick={() => void commit()}>Lưu thay đổi Studio</button>}
+            <button onClick={() => void closeStudio()}>Đóng Studio</button>
           </>
         ) : (
-          <button onClick={() => void openStudio()}>Mở Studio xem trước</button>
+          <>
+            <button onClick={() => void openStudio('preview')}>Mở Studio xem trước</button>
+            <button onClick={() => void openStudio('edit')}>Chỉnh trong Studio</button>
+          </>
         )}
         <button onClick={() => void render('draft')}>Render nháp</button>
         <button onClick={() => void render('release')}>Render phát hành</button>

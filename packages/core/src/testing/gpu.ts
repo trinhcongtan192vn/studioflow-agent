@@ -8,7 +8,7 @@ export function gpuEnabled(): boolean {
   return process.env.SF_GPU !== '0';
 }
 
-const LOCK = path.join(os.tmpdir(), 'studioflow-gpu-test.lock');
+const lockFile = (name: string) => path.join(os.tmpdir(), `studioflow-${name}-test.lock`);
 
 function alive(pid: number): boolean {
   try {
@@ -23,7 +23,8 @@ function alive(pid: number): boolean {
  * Khóa GPU giữa các tiến trình test (019): mỗi file test chạy ở worker riêng nên lịch GPU trong tiến
  * trình không phối hợp được — ComfyUI (~13 GB) và OmniVoice cùng lúc sẽ tràn VRAM 16 GB.
  */
-async function acquireGpuLock(): Promise<void> {
+export async function acquireTestLock(name: string): Promise<void> {
+  const LOCK = lockFile(name);
   for (;;) {
     try {
       const fd = openSync(LOCK, 'wx');
@@ -43,7 +44,8 @@ async function acquireGpuLock(): Promise<void> {
   }
 }
 
-function releaseGpuLock(): void {
+export function releaseTestLock(name: string): void {
+  const LOCK = lockFile(name);
   try {
     if (Number(readFileSync(LOCK, 'utf8')) === process.pid) rmSync(LOCK, { force: true });
   } catch {
@@ -54,7 +56,18 @@ function releaseGpuLock(): void {
 /** `describe` cho test nhãn `gpu`: báo "skipped" khi `SF_GPU=0`; giữ khóa GPU trong suốt nhóm test. */
 export const describeGpu = ((name: string, fn: () => void) =>
   describe.skipIf(!gpuEnabled())(name, () => {
-    beforeAll(acquireGpuLock, 60 * 60_000);
-    afterAll(releaseGpuLock);
+    beforeAll(() => acquireTestLock('gpu'), 60 * 60_000);
+    afterAll(() => releaseTestLock('gpu'));
+    fn();
+  })) as unknown as typeof describe;
+
+/**
+ * `describe` giữ khóa `studio` (025): `hyperframes preview --force-new` của một tiến trình test có thể
+ * đóng Studio của tiến trình khác → các file test Studio chạy lần lượt.
+ */
+export const describeStudio = ((name: string, fn: () => void) =>
+  describe(name, () => {
+    beforeAll(() => acquireTestLock('studio'), 30 * 60_000);
+    afterAll(() => releaseTestLock('studio'));
     fn();
   })) as unknown as typeof describe;

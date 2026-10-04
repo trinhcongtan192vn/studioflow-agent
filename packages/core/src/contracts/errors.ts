@@ -551,6 +551,16 @@ export const errorRegistry = {
       ]
     },
     {
+      "code": "E_STUDIO_UNCOMMITTED",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/025-studio-commit/spec.md",
+          "when": "studio.close khi còn thay đổi chưa commit (gọi lại với discard hoặc commit trước)"
+        }
+      ]
+    },
+    {
       "code": "E_TEST_FAILED",
       "retryable": false,
       "sources": [

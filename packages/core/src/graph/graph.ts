@@ -34,7 +34,8 @@ export type NodeType =
   | 'credits'
   | 'render';
 export type Phase = 'tts' | 'asr' | 'image' | 'lipsync' | 'assemble';
-export type NodeState = 'fresh' | 'stale' | 'missing' | 'pinned' | 'pinned_stale' | 'failed';
+export type NodeState =
+  'fresh' | 'stale' | 'missing' | 'pinned' | 'pinned_stale' | 'failed' | 'external_change';
 
 const PHASES: Phase[] = ['tts', 'asr', 'image', 'lipsync', 'assemble'];
 const PHASE_OF: Record<NodeType, Phase> = {
@@ -457,6 +458,19 @@ export class BuildGraph {
     );
   }
 
+  /** File của video bị sửa ngoài app, app chưa ghi lại (`.sf/external.json`, 025). */
+  private externalFiles(model: VideoModel): Set<string> {
+    const f = path.join(model.videoDir, '.sf', 'external.json');
+    if (!existsSync(f)) return new Set();
+    try {
+      return new Set(
+        Object.keys((JSON.parse(readFileSync(f, 'utf8')) as { files?: object }).files ?? {}),
+      );
+    } catch {
+      return new Set();
+    }
+  }
+
   /** `state.json.pinned_frames` (D3 5.5) — frame có chỉnh tay. */
   private pinnedFrames(model: VideoModel): Set<string> {
     const f = path.join(model.videoDir, 'state.json');
@@ -483,8 +497,9 @@ export class BuildGraph {
     const defs = this.nodes(model);
     const status = new Map<string, NodeState>();
     const pinned = this.pinnedFrames(model);
+    const ext = this.externalFiles(model);
     const ok = (x: NodeState | undefined) =>
-      x === 'fresh' || x === 'pinned' || x === 'pinned_stale';
+      x === 'fresh' || x === 'pinned' || x === 'pinned_stale' || x === 'external_change';
     for (const d of defs) {
       const rec = g.nodes[d.id];
       const ih = this.inputHash(d, g.nodes);
@@ -492,6 +507,8 @@ export class BuildGraph {
       // D9 mục 5: frame chỉnh tay — giữ nguyên; đầu vào đổi từ lúc ghim → cần người dùng quyết định
       if (d.type === 'frame_html' && pinned.has(d.key))
         s = rec?.input_hash === ih ? 'pinned' : 'pinned_stale';
+      // FR-WS-06: đầu ra bị sửa ngoài app → không tự ghi đè (D9 3.6)
+      else if (rec?.outputs?.some((o) => ext.has(o))) s = 'external_change';
       else if (!rec) s = 'missing';
       else if (rec.status === 'failed') s = rec.input_hash === ih ? 'failed' : 'stale';
       else if (!this.outputsExist(model.videoId, rec)) s = 'missing';
@@ -524,7 +541,9 @@ export class BuildGraph {
             decision_required: true,
             reason: 'frame was edited by hand and its inputs changed (D9 section 5)',
           }
-        : {}),
+        : n.status === 'external_change'
+          ? { decision_required: true, reason: 'output was changed outside the app (FR-WS-06)' }
+          : {}),
     }));
   }
 
@@ -573,7 +592,7 @@ export class BuildGraph {
     const g = this.load(videoId);
     const { defs, status } = this.evaluate(this.model(videoId), g);
     const wanted = targets?.length ? closure(defs, targets) : undefined;
-    const skip = new Set<NodeState>(['fresh', 'pinned', 'pinned_stale']);
+    const skip = new Set<NodeState>(['fresh', 'pinned', 'pinned_stale', 'external_change']);
     const jobs = defs
       .filter(
         (d) =>
