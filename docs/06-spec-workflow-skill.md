@@ -171,7 +171,7 @@ engine tạo approval kèm tóm tắt các vòng
 
 ### 4.2 Kiểm tra khách quan
 
-Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc nội dung, kịch bản và từng cảnh nên không có hằng số từ/phút. Kịch bản chỉ nhận thời lượng mục tiêu (cả video và gợi ý từng beat); thời lượng được kiểm trên audio đã sinh (`audio_duration`). Lệch → sửa beat lệch rồi `voice` chỉ sinh lại line đổi.
+Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc nội dung, kịch bản và từng cảnh nên không có hằng số từ/phút. Kịch bản chỉ nhận thời lượng mục tiêu của video (`{{target_duration}}`); thời lượng được kiểm trên audio đã sinh (`audio_duration`). Lệch → sửa beat lệch rồi `voice` chỉ sinh lại line đổi.
 
 | Id | Áp cho | Kiểm |
 |---|---|---|
