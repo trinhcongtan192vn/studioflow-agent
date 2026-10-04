@@ -52,7 +52,11 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('SCRIPT', 'CAST'),
     writes: r('audio'),
     outputs: r('audio_meta.json'),
-    gates: () => [{ kind: 'graph_fresh', nodes: 'audio.line:*' }],
+    // D6 mục 2/4.2: thời lượng đo trên audio thật (không ước từ số từ/phút)
+    gates: () => [
+      { kind: 'graph_fresh', nodes: 'audio.line:*' },
+      { kind: 'objective', check: 'audio_duration' },
+    ],
   },
   assets: {
     by: 'agent',
@@ -122,15 +126,15 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('frames', 'audio', 'captions', 'music'),
     writes: r('index'),
     outputs: r(),
-    // D6 mục 2: graph_fresh * + thời lượng trong check.duration_tolerance của mục tiêu
+    // D6 mục 2: graph_fresh * + thời lượng timeline trong check.duration_tolerance của mục tiêu
     gates: () => [
       { kind: 'graph_fresh', nodes: '*' },
-      { kind: 'objective', check: 'duration' },
+      { kind: 'objective', check: 'audio_duration', params: { source: 'timeline' } },
     ],
   },
   'publish-meta': {
     by: 'engine',
-    reads: r('BRIEF', 'SCRIPT'),
+    reads: r('BRIEF', 'SCRIPT', 'audio'),
     writes: r('publish'),
     outputs: r('publish.md'),
     gates: () => [valid('publish.md'), { kind: 'objective', check: 'meta_limits' }],

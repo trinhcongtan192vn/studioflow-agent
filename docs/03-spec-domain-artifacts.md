@@ -469,7 +469,6 @@ interface SettingsConfig extends Versioned {
 | `provider.<capability>` | string | app, channel, video |
 | `text.producer` / `text.critic` / `text.aux` | string (`<provider>/<model>`) | app, channel, video |
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | number | channel, video |
-| `script.wpm.<lang>` | number | channel, video |
 | `frame.min_duration_ms` | Ms | channel, video, scene, frame |
 | `frame_build.parallel` | number | app |
 | `budget.tokens_per_video` | number | app, channel, video |
@@ -482,7 +481,6 @@ interface SettingsConfig extends Versioned {
 | `lipsync.enabled` | boolean | channel, video, frame |
 | `policy.auto_approve.batch_gen` | boolean | video |
 | `policy.auto_approve.paid_api` | boolean | video |
-| `check.length_tolerance` | number (tỉ lệ) | channel, video |
 | `check.duration_tolerance` | number (tỉ lệ) | channel, video |
 | `meta.title_max` / `meta.description_max` | number (ký tự) | channel, video |
 | `policy.batch.tts_lines` / `policy.batch.images` | number | app |

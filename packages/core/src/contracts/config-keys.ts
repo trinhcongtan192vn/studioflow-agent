@@ -145,15 +145,6 @@ export const configKeyTable = {
       ]
     },
     {
-      "key": "script.wpm.<lang>",
-      "pattern": true,
-      "type": "number",
-      "tiers": [
-        "channel",
-        "video"
-      ]
-    },
-    {
       "key": "frame.min_duration_ms",
       "pattern": false,
       "type": "number",
@@ -260,15 +251,6 @@ export const configKeyTable = {
       "pattern": false,
       "type": "boolean",
       "tiers": [
-        "video"
-      ]
-    },
-    {
-      "key": "check.length_tolerance",
-      "pattern": false,
-      "type": "number",
-      "tiers": [
-        "channel",
         "video"
       ]
     },

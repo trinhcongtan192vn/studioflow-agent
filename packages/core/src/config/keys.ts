@@ -26,7 +26,7 @@ export function configKeySpec(key: string): ConfigKeySpec | undefined {
   return exact.get(key) ?? patterns.find((p) => p.re.test(key))?.spec;
 }
 
-/** Phần thay cho `<…>` của khóa mẫu (ví dụ `script.wpm.de` → `de`). */
+/** Phần thay cho `<…>` của khóa mẫu (ví dụ `asr.wer_threshold.de` → `de`). */
 export function patternArg(key: string): string | undefined {
   return patterns.find((p) => p.re.test(key))?.re.exec(key)?.[1];
 }

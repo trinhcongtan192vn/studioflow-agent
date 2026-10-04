@@ -15,7 +15,6 @@ export type ConfigKey =
   | 'refine.min_rounds'
   | 'refine.max_rounds'
   | 'refine.threshold'
-  | `script.wpm.${string}`
   | 'frame.min_duration_ms'
   | 'frame_build.parallel'
   | 'budget.tokens_per_video'
@@ -28,7 +27,6 @@ export type ConfigKey =
   | 'lipsync.enabled'
   | 'policy.auto_approve.batch_gen'
   | 'policy.auto_approve.paid_api'
-  | 'check.length_tolerance'
   | 'check.duration_tolerance'
   | 'meta.title_max'
   | 'meta.description_max'

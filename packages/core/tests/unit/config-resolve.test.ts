@@ -72,7 +72,6 @@ describe('resolveConfig (002 US4)', () => {
   });
 
   it('pattern keys resolve with sub-table defaults', () => {
-    expect(resolveConfig('script.wpm.de', { channelDir: fixtureChannel }, opts).value).toBe(130);
     expect(resolveConfig('asr.wer_threshold.vi', { channelDir: fixtureChannel }, opts).value).toBe(
       0.15,
     );
@@ -106,7 +105,9 @@ describe('resolveConfig (002 US4)', () => {
       tiers: ['channel', 'video', 'scene', 'frame'],
     });
     expect(configKeySpec('look.id')!.tiers).toEqual(['app', 'channel', 'video', 'scene', 'frame']);
-    expect(configKeySpec('script.wpm.vi')).toMatchObject({ key: 'script.wpm.<lang>' });
+    expect(configKeySpec('asr.wer_threshold.vi')).toMatchObject({
+      key: 'asr.wer_threshold.<lang>',
+    });
   });
 
   it('tier check: disallowed tier → E_CONFIG_SCOPE; wrong type → E_SCHEMA_INVALID', () => {

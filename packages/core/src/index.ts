@@ -314,12 +314,5 @@ export {
 export { setHostSecrets } from './secrets/credman.js';
 export { StudioPreviews, syncSnapshot, snapshotRel, snapshotMtime } from './studio/preview.js';
 export { studioTools } from './studio/tools.js';
-export { captionsExecutor, finalizeExecutor, durationCheck } from './workflow/finalize.js';
-export {
-  readingRate,
-  voiceWpm,
-  recordVoiceWpm,
-  learnFromVideo,
-  countWords,
-  CALIBRATION_TEXT,
-} from './tts/rate.js';
+export { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
+export { audioDurationCheck, beatDurations, type BeatDuration } from './workflow/duration.js';

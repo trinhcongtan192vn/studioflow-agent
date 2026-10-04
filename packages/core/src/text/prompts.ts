@@ -43,7 +43,7 @@ export function loadPromptPack(channelDir: string): PromptPack {
 }
 
 export type PromptVars = Record<
-  'brief' | 'target_words' | 'language' | 'rubric_short' | 'issues' | 'draft',
+  'brief' | 'target_duration' | 'language' | 'rubric_short' | 'issues' | 'draft',
   string | number
 >;
 

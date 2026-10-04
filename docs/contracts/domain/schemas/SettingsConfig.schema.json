@@ -36,7 +36,6 @@
             "lipsync.enabled": {},
             "policy.auto_approve.batch_gen": {},
             "policy.auto_approve.paid_api": {},
-            "check.length_tolerance": {},
             "check.duration_tolerance": {},
             "meta.title_max": {},
             "meta.description_max": {},

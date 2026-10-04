@@ -1,4 +1,4 @@
-// 009 · US5 · FR-006 — kiểm khách quan D6 4.2.
+// 009 · US5 · FR-006 — kiểm khách quan D6 4.2 (thời lượng kiểm trên audio thật: audio-duration.test, 016 R4).
 import { describe, expect, it } from 'vitest';
 import { checkMeta, checkScript } from '../../src/index.js';
 import { fixtureAppData, fixtureChannel, fixtureVideoId } from '../domain-helpers.js';
@@ -8,7 +8,6 @@ const ctx = (over: object = {}) => ({
   channelDir: fixtureChannel,
   videoId: fixtureVideoId,
   appDataDir: fixtureAppData,
-  targetDurationMs: 6000,
   banned: ['tuyệt vời nhất'],
   ...over,
 });
@@ -18,25 +17,14 @@ const line = (id: string, text: string, extra = '') =>
   `<!-- sf:line id=${id} speaker=narrator${extra} -->\n${text}\n\n`;
 
 describe('checkScript (009 US5)', () => {
-  it('passes a script on target (150 wpm → 15 words for 6 s)', () => {
+  it('passes a well-formed script (no word-count/wpm check)', () => {
     const r = checkScript(script(line('ln_aaaaaaaa', words(15))), ctx());
     expect(Object.fromEntries(r.map((x) => [x.id, x.pass]))).toEqual({
       schema: true,
-      length: true,
-      read_time: true,
       beat_structure: true,
       banned_terms: true,
       tts_normalized: true,
     });
-  });
-
-  it('length/read_time fail outside tolerance', () => {
-    const r = checkScript(script(line('ln_aaaaaaaa', words(40))), ctx());
-    expect(r.find((x) => x.id === 'length')).toMatchObject({
-      pass: false,
-      detail: expect.stringContaining('40'),
-    });
-    expect(r.find((x) => x.id === 'read_time')!.pass).toBe(false);
   });
 
   it('banned terms, digits without tts, empty beats, broken schema', () => {
@@ -76,14 +64,6 @@ describe('checkScript (009 US5)', () => {
     expect(r.find((x) => x.id === 'beat_structure')).toMatchObject({
       pass: false,
       detail: expect.stringContaining('5'),
-    });
-  });
-
-  it('no target duration → length/read_time pass with a note', () => {
-    const r = checkScript(script(line('ln_aaaaaaaa', words(15))), ctx({ targetDurationMs: null }));
-    expect(r.find((x) => x.id === 'length')).toMatchObject({
-      pass: true,
-      detail: expect.stringContaining('no target'),
     });
   });
 });

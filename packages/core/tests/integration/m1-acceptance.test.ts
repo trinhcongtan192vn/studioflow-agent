@@ -126,18 +126,7 @@ describeLive('M1 acceptance: narrated-explainer from idea to release MP4 (AC-M1-
           const st0 = JSON.parse(
             readFileSync(path.join(channel, 'videos', videoId, 'state.json'), 'utf8'),
           ) as VideoState;
-          // SF_M1_WPM: hiệu chuẩn tốc độ đọc của giọng (tầng kênh); SF_M1_REWIND: bước chạy lại
-          if (process.env.SF_M1_WPM) {
-            const chf = path.join(channel, 'channel.json');
-            const chj = JSON.parse(readFileSync(chf, 'utf8'));
-            chj.config['script.wpm.vi'] = Number(process.env.SF_M1_WPM);
-            store.write(
-              'channel.json',
-              `${JSON.stringify(chj, null, 2)}
-`,
-              { by: 'test' },
-            );
-          }
+          // SF_M1_REWIND: bước chạy lại
           const failed =
             process.env.SF_M1_REWIND ??
             Object.entries(st0.steps).find(([, s]) => s.status === 'failed')?.[0];

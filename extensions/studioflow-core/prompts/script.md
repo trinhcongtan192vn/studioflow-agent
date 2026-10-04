@@ -4,7 +4,7 @@ Bạn là biên kịch cho kênh YouTube. Viết kịch bản lời dẫn cho vi
 {{brief}}
 
 # Yêu cầu
-- Độ dài khoảng {{target_words}} từ (đọc thành tiếng).
+- Thời lượng đọc thành tiếng khoảng {{target_duration}}; nhịp theo nội dung từng cảnh.
 - Chia thành 5–9 beat; beat đầu là hook ≤ 30 giây.
 - Mỗi beat là một heading `## <tên beat> <!-- sf:beat -->`; mỗi câu/đoạn đọc là một line `<!-- sf:line speaker=narrator -->` theo sau là đoạn văn, cách nhau một dòng trống.
 - Tiêu chí được chấm: {{rubric_short}}
