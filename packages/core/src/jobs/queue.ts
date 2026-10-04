@@ -24,6 +24,8 @@ export interface JobKind {
   /** Chạy lại an toàn sau khi app tắt giữa chừng (D4 mục 5 khôi phục). */
   idempotent: boolean;
   run(job: QueuedJob, ctx: JobContext): Promise<unknown>;
+  /** Job sinh/render: không chạy khi đĩa thấp (`E_DISK_LOW`, D4 mục 11, 024). */
+  needsDisk?: boolean;
   /** Gọi khi khôi phục đánh dấu job không idempotent là `E_JOB_INTERRUPTED` (ví dụ render, 013). */
   onInterrupted?(job: QueuedJob): void;
 }
@@ -75,6 +77,8 @@ export class JobQueue extends EventEmitter {
       backoffMs?: number[];
       maxParallel?: number;
       gpu?: GpuScheduler;
+      /** Đĩa dưới ngưỡng tối thiểu cho job này (024)? */
+      diskLow?: (job: QueuedJob) => boolean;
     },
   ) {
     super();
@@ -356,6 +360,11 @@ export class JobQueue extends EventEmitter {
       },
     };
     try {
+      if (def.needsDisk && this.opts.diskLow?.(job))
+        throw new SfError(
+          'E_DISK_LOW',
+          'disk space is below the minimum; free space in Settings → Storage',
+        );
       await lease?.ready;
       const parent = this.traceparents.get(job.id);
       this.traceparents.delete(job.id);

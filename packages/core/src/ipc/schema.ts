@@ -125,6 +125,11 @@ export interface IpcMethods {
     params: { profile: 'minimal' | 'standard' | 'full'; accept_licenses?: boolean };
     result: { job_ids: string[] };
   };
+  'disk.usage': { params: { channel?: string }; result: unknown };
+  'disk.clean': {
+    params: { channel: string; targets: ('cache' | 'drafts' | 'backups' | 'snapshots')[] };
+    result: { freed_bytes: number; removed: string[] };
+  };
   'trace.list': { params: { video?: string; limit?: number }; result: { traces: unknown[] } };
   'trace.get': { params: { trace_id: string }; result: { spans: unknown[] } };
   'explorer.tree': { params: ChannelRef; result: ExplorerNode };

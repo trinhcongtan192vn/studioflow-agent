@@ -21,6 +21,8 @@ import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '.
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
 import { validateChannel } from '../domain/channel-validate.js';
+import { diskUsage } from '../disk/usage.js';
+import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
 import { appLibrary, readMusicManifest } from '../music/library.js';
 import { WriteStore } from '../store/writer.js';
@@ -528,6 +530,16 @@ export class CoreHost extends EventEmitter {
           );
         return { job_ids: ids };
       }
+      case 'disk.usage':
+        return diskUsage({
+          appDataDir: c.appDataDir,
+          ...(p.channel ? { channelDir: path.resolve(String(p.channel)) } : {}),
+        });
+      case 'disk.clean':
+        return cleanChannel(
+          { db: c.db, store: this.store(String(p.channel)) },
+          p.targets as CleanTarget[],
+        );
       case 'trace.list':
         return {
           traces: listTraces(c.db, {
