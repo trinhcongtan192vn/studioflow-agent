@@ -17,6 +17,7 @@ import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
 import { defineFinishJobs, finishTools } from './finish/tools.js';
 import { finishStepExecutor } from './finish/check.js';
+import './hf/safe-area.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';

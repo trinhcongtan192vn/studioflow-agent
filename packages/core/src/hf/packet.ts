@@ -84,6 +84,7 @@ export function buildFramePacket(i: {
     .filter((l) => l.asset_id && !i.assets.some((a) => a.asset_id === l.asset_id))
     .map((l) => l.id);
   const cutoff = Math.round(profile.height * 0.83);
+  const karaoke = model.config('caption.style') === 'caption-pill-karaoke';
   return {
     video_id: model.videoId as FramePacket['video_id'],
     frame,
@@ -106,8 +107,14 @@ export function buildFramePacket(i: {
     assets: i.assets,
     output_path: `compositions/frames/${frame.id}.html`,
     rules: [
-      `Canvas ${profile.width}×${profile.height}; vùng an toàn ${Math.round(profile.safe_area.left * 100)}% mỗi cạnh.`,
-      `Dải caption: mọi nội dung nằm trên y ≤ ${cutoff}px (17% dưới dành cho caption).`,
+      // vùng an toàn lệch (shorts, 030) → nêu từng cạnh theo px; đều → câu cũ (giữ bản ghi LLM)
+      Object.values(profile.safe_area).every((x) => x === profile.safe_area.left)
+        ? `Canvas ${profile.width}×${profile.height}; vùng an toàn ${Math.round(profile.safe_area.left * 100)}% mỗi cạnh.`
+        : `Canvas ${profile.width}×${profile.height}; vùng an toàn (chữ phải nằm trong): x ${Math.round(profile.width * profile.safe_area.left)}–${Math.round(profile.width * (1 - profile.safe_area.right))}px, y ${Math.round(profile.height * profile.safe_area.top)}–${Math.round(profile.height * (1 - profile.safe_area.bottom))}px.`,
+      // 030: caption karaoke ở giữa màn hình (shorts) → dải giữ chỗ khác
+      karaoke
+        ? `Dải caption: y ${Math.round(profile.height * 0.5)}–${Math.round(profile.height * 0.66)}px để trống cho caption lớn; đặt chữ của frame phía trên hoặc dưới dải này.`
+        : `Dải caption: mọi nội dung nằm trên y ≤ ${cutoff}px (17% dưới dành cho caption).`,
       `Ngôn ngữ chữ trên hình: ${model.language}. Chỉ dùng font-family chung (sans-serif, serif, system-ui, monospace) — không đặt tên font không có file.`,
       `Thời lượng frame ${place.duration.toFixed(3)} s${place.tail ? ` (gồm ${place.tail.toFixed(3)} s giữ khung cuối cho transition sang frame sau)` : ''}; mọi clip kéo tới hết thời lượng.`,
       ...(missingAssets.length

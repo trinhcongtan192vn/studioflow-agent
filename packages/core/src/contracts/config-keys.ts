@@ -291,6 +291,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "meta.hashtags",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel",
+        "video"
+      ]
+    },
+    {
       "key": "policy.batch.tts_lines",
       "pattern": false,
       "type": "number",

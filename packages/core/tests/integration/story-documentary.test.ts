@@ -3,7 +3,8 @@
 // giả; asset sinh qua nút `asset`; HyperFrames + FFmpeg thật.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { describeStudio } from '../../src/testing/gpu.js';
 import {
   createCore,
   createVideo,
@@ -257,7 +258,7 @@ afterAll(() => {
 
 const state = () => JSON.parse(readFileSync(path.join(v(), 'state.json'), 'utf8')) as VideoState;
 
-describe('story-documentary end to end (023 FR-WF-06)', () => {
+describeStudio('story-documentary end to end (023 FR-WF-06)', () => {
   it('runs every step to a release MP4 with generated images and a refined storyboard', async () => {
     const e = core.workflows.engine(c.dir, videoId);
     expect(

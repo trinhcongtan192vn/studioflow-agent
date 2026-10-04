@@ -1,0 +1,10 @@
+{
+  "id": "yt-shorts-1080x1920",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "safe_area": { "top": 0.08, "right": 0.12, "bottom": 0.2, "left": 0.06 },
+  "max_duration_ms": 60000,
+  "video": { "codec": "h264", "crf": 18 },
+  "audio": { "codec": "aac", "sample_rate": 48000, "loudness_lufs": -14 }
+}

@@ -113,6 +113,7 @@
 | `policy.auto_approve.paid_api` | false |
 | `check.duration_tolerance` | 0.10 |
 | `meta.title_max` / `meta.description_max` | 100 / 5000 |
+| `meta.hashtags` | `[]` (thêm cuối mô tả; shorts `#shorts`) |
 | `policy.batch.tts_lines` / `policy.batch.images` | 20 / 5 |
 | `policy.paid_api.per_call_usd` | 0.5 |
 | `policy.budget_warn_ratio` | 0.8 |

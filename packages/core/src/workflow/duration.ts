@@ -6,6 +6,7 @@ import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import type { FrameTiming } from '../graph/timing.js';
 import type { WriteStore } from '../store/writer.js';
+import { loadOutputProfile } from '../hf/outputs.js';
 import { registerObjective } from './gates.js';
 
 /**
@@ -86,6 +87,47 @@ export function audioDurationCheck(
 
 registerObjective('audio_duration', (g, params) =>
   audioDurationCheck(
+    g.store,
+    g.videoId,
+    g.appDataDir,
+    params?.source === 'timeline' ? 'timeline' : 'audio',
+  ),
+);
+
+/**
+ * Trần thời lượng theo output profile (FN-030 mục 4): tổng audio thật (bước `voice`) hoặc timeline
+ * (`finalize`) ≤ `max_duration_ms` của profile; profile không có trần → qua.
+ */
+export function maxDurationCheck(
+  store: WriteStore,
+  videoId: string,
+  appDataDir: string | undefined,
+  source: 'audio' | 'timeline',
+): { pass: boolean; detail?: string } {
+  const scope = { channelDir: store.root, videoId };
+  const profile = loadOutputProfile(
+    resolveConfig('output.profile', scope, { appDataDir }).value as string | null,
+  );
+  if (!profile.max_duration_ms) return { pass: true };
+  const total =
+    source === 'timeline'
+      ? (timingOf(store, videoId)?.total_ms ?? 0)
+      : beatDurations(store, videoId).reduce((s, b) => s + b.duration_ms, 0);
+  return total <= profile.max_duration_ms
+    ? { pass: true }
+    : {
+        pass: false,
+        detail: `${sec(total)} exceeds ${profile.id} max ${sec(profile.max_duration_ms)}; beats: ${beatDurations(
+          store,
+          videoId,
+        )
+          .map((b) => `${b.title} ${sec(b.duration_ms)}`)
+          .join(', ')}`,
+      };
+}
+
+registerObjective('max_duration', (g, params) =>
+  maxDurationCheck(
     g.store,
     g.videoId,
     g.appDataDir,
