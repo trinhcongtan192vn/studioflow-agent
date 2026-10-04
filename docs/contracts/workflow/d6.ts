@@ -11,6 +11,7 @@ export interface WorkflowManifest {
   optional?: string[];
   brief?: { questions: string[] };          // câu hỏi thêm cho router khi chốt brief (mục 3.0)
   scripts?: { id: string; command: string; args_schema?: object; writes?: string[] }[];
+  config_defaults?: Record<string, unknown>; // tầng cấu hình `workflow` (D3 mục 7.1): chỉ khóa cho phép ở tầng channel hoặc video
   steps: StepDecl[];                        // không gồm brief (brief là pha trước workflow)
 }
 

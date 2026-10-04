@@ -2,7 +2,11 @@ import { configKeyTable } from '../contracts/config-keys.js';
 import { SfError } from '../errors.js';
 import { isId } from '../domain/ids.js';
 
-export type ConfigTier = 'app' | 'channel' | 'video' | 'scene' | 'frame';
+export type ConfigTier = 'app' | 'channel' | 'workflow' | 'video' | 'scene' | 'frame';
+
+/** Tầng `workflow` (D3 7.1, 029): khóa được đặt ở tầng kênh hoặc video. */
+export const workflowTierAllowed = (s: ConfigKeySpec) =>
+  s.tiers.includes('channel') || s.tiers.includes('video');
 export type ConfigValueType = 'string' | 'number' | 'boolean' | 'string[]' | 'VoiceId';
 
 export interface ConfigKeySpec {

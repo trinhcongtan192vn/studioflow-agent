@@ -3,6 +3,7 @@ export type ConfigKey =
   | 'output.profile'
   | 'workflow.default'
   | 'voice.id'
+  | 'voice.pause_after_ms'
   | 'look.id'
   | 'font.family'
   | 'caption.style'

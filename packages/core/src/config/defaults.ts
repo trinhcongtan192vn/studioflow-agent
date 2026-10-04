@@ -5,6 +5,7 @@ export const DEFAULTS: Record<string, unknown> = {
   'output.profile': 'yt-1080p30',
   'workflow.default': 'narrated-explainer',
   'voice.id': null,
+  'voice.pause_after_ms': 0,
   'look.id': 'neutral',
   'font.family': 'Be Vietnam Pro',
   'caption.style': 'caption-highlight',

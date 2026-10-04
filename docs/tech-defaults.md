@@ -94,6 +94,7 @@
 | `font.family` | `Be Vietnam Pro` |
 | `caption.style` | `caption-highlight` |
 | `caption.max_words` | 7 |
+| `voice.pause_after_ms` | 0 (khoảng lặng sau line không khai báo `pause_after_ms`; essay 600) |
 | `overlay.rules` | `[]` |
 | `provider.<capability>` | theo D4 mục 4.3 |
 | `text.producer` / `text.critic` / `text.aux` | theo D4 mục 4.3 |

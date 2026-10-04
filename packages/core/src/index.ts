@@ -92,7 +92,7 @@ export {
   type PlannedNode,
 } from './graph/graph.js';
 export { assembleAudioLines, computeFrameTiming, type FrameTiming } from './graph/timing.js';
-export { loadVideoModel, type VideoModel } from './graph/model.js';
+export { loadVideoModel, withDefaultPause, type VideoModel } from './graph/model.js';
 export { createCore, type Core, type CoreOptions } from './core.js';
 export { canonicalJson } from './domain/hash.js';
 

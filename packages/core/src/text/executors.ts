@@ -9,7 +9,8 @@ import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
 import { CORE_VERSION } from '../version.js';
 import type { StepRunContext } from '../workflow/engine.js';
-import { beatDurations } from '../workflow/duration.js';
+import { beatDurations, timingOf } from '../workflow/duration.js';
+import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { assertDifferentModels, type ModelRef } from './models.js';
 import { checkMeta, checkScript, objectiveContext, type ObjectiveResult } from './objectives.js';
 import { buildPrompt, loadPromptPack, type PromptVars } from './prompts.js';
@@ -48,6 +49,8 @@ export function stripWrapping(text: string): string {
     const end = t.indexOf('\n---', 4);
     if (end > 0) t = t.slice(end + 4).trim();
   }
+  // tiêu đề beat sai cấp (`#`, `###`…) → `##` theo D3 (lỗi định dạng thường gặp của producer)
+  t = t.replace(/^#{1,6}(\s+.*<!--\s*sf:beat\b)/gm, '##$1');
   return `${t}\n`;
 }
 
@@ -422,12 +425,22 @@ export function scriptExecutor(d: TextExecutorDeps) {
   };
 }
 
-/** Chương theo beat, mốc lấy từ audio thật (`audio_meta.json`; bước `meta` chạy sau `voice`). */
+/**
+ * Chương theo beat, mốc lấy từ audio thật (`audio_meta.json`; bước `meta` chạy sau `voice`). Đã có
+ * timeline (`frame_timing`) → mốc tuyệt đối của line đầu beat trên video (029: chương khớp mốc beat).
+ */
 function chapters(env: StepEnv): { start_ms: number; title: string }[] {
-  return beatDurations(env.ctx.store, env.ctx.videoId).map((b) => ({
-    start_ms: b.start_ms,
-    title: b.title,
-  }));
+  const beats = beatDurations(env.ctx.store, env.ctx.videoId);
+  const timing = timingOf(env.ctx.store, env.ctx.videoId);
+  const scriptF = env.ctx.store.abs(`${env.v}/SCRIPT.md`);
+  const firstLine = new Map<string, string>();
+  if (timing && existsSync(scriptF))
+    for (const b of toScriptDoc(parseScript(readFileSync(scriptF, 'utf8'))).beats)
+      if (b.line_ids[0]) firstLine.set(b.id, b.line_ids[0]);
+  return beats.map((b) => {
+    const at = timing?.lines.find((l) => l.id === firstLine.get(b.beat_id))?.start_ms;
+    return { start_ms: at ?? b.start_ms, title: b.title };
+  });
 }
 
 /** Executor bước `publish-meta` (D6 mục 2): tiêu đề/mô tả/thẻ/chương → `publish.md`. */

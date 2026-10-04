@@ -32,6 +32,7 @@ export const schemas = {
               "output.profile": {},
               "workflow.default": {},
               "voice.id": {},
+              "voice.pause_after_ms": {},
               "look.id": {},
               "font.family": {},
               "caption.style": {},
@@ -113,6 +114,7 @@ export const schemas = {
               "output.profile": {},
               "workflow.default": {},
               "voice.id": {},
+              "voice.pause_after_ms": {},
               "look.id": {},
               "font.family": {},
               "caption.style": {},
@@ -2990,6 +2992,10 @@ export const schemas = {
               ],
               "additionalProperties": false
             }
+          },
+          "config_defaults": {
+            "type": "object",
+            "additionalProperties": {}
           },
           "steps": {
             "type": "array",

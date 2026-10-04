@@ -136,6 +136,7 @@ describeLive('M2 acceptance: story-documentary from brief to release MP4 (AC-M2-
           JSON.parse(
             readFileSync(path.join(channel, 'videos', videoId, 'state.json'), 'utf8'),
           ) as VideoState;
+        let fixes = 0;
         for (let i = 0; i < 20; i++) {
           await e.idle();
           const st = state();
@@ -148,6 +149,22 @@ describeLive('M2 acceptance: story-documentary from brief to release MP4 (AC-M2-
             ),
           );
           const failed = Object.entries(st.steps).find(([, s]) => s.status === 'failed');
+          // thời lượng đo trên audio thật lệch mục tiêu (D6 4.2): như người dùng — nhờ agent sửa beat
+          // lệch trong SCRIPT.md qua chat rồi chạy lại voice (chỉ line đổi được sinh lại)
+          if (
+            failed?.[0] === 'voice' &&
+            /audio_duration/.test(failed[1].error?.message ?? '') &&
+            fixes++ < 2
+          ) {
+            console.log('[m2] fix duration', failed[1].error?.message);
+            await host.call('chat.send', {
+              channel,
+              video: videoId,
+              text: `Bước giọng đọc chưa đạt thời lượng: ${failed[1].error?.message}. Hãy sửa SCRIPT.md: rút gọn (hoặc thêm) nội dung ở đúng các beat lệch để tổng thời lượng về gần mục tiêu, giữ nguyên ID line còn dùng. Chỉ sửa SCRIPT.md, không chạy bước nào.`,
+            });
+            await e.rewind('voice');
+            continue;
+          }
           if (failed)
             throw new Error(`step ${failed[0]} failed: ${JSON.stringify(failed[1].error)}`);
           if (st.steps.render?.status === 'done') break;
