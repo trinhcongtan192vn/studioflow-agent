@@ -173,6 +173,7 @@ function runtime(): AgentRuntime {
 const c = copyChannel();
 const t = tempDir('app-');
 const agentSteps: string[] = [];
+const treatments: { mode: string; within_budget: boolean; applied: string[] }[] = [];
 const v = () => path.join(c.dir, 'videos', videoId);
 
 beforeAll(() => {
@@ -193,6 +194,10 @@ beforeAll(() => {
     }),
   );
   core.workflows.setAgentRuntime(runtime());
+  // người dùng đồng ý sửa STORYBOARD.md đã duyệt (D5 5.1)
+  core.gateway.permissions.on('permission.requested', (r: { request_id: string }) =>
+    core.gateway.permissions.decide({ request_id: r.request_id, allow: true }),
+  );
   core.workflows.setAgentRunner(async (instruction, ctx) => {
     const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
     agentSteps.push(step);
@@ -206,7 +211,31 @@ beforeAll(() => {
       const r = await core.gateway.call(session, 'music.find', { query: 'epic, slow, drums' });
       expect(r).toMatchObject({ ok: false, error: { code: 'E_MUSIC_NOT_FOUND' } });
     }
-    await ctx.stepComplete(step === 'music' ? ['STORYBOARD.md'] : []);
+    if (step === 'effects') {
+      // 027: dry-run rồi áp hạt phim cho frame dùng ảnh nền đầu tiên (FN-common 6)
+      const g = JSON.parse(
+        readFileSync(ctx.store.abs(`videos/${ctx.videoId}/.sf/graph.json`), 'utf8'),
+      ) as { nodes: Record<string, { meta?: { asset_id?: string } }> };
+      const asset = Object.entries(g.nodes)
+        .filter(([id]) => id.startsWith('asset:'))
+        .map(([, n]) => n.meta!.asset_id!)
+        .sort()[0]!;
+      for (const mode of ['dry_run', 'apply']) {
+        const j = (await core.gateway.call(session, 'media.treatment', {
+          asset_id: asset,
+          effect: 'grain',
+          mode,
+        })) as { ok: boolean; job_id: string };
+        expect(j.ok).toBe(true);
+        const w = (await core.gateway.call(session, 'job.wait', {
+          job_id: j.job_id,
+          timeout_ms: 60_000,
+        })) as { data: { status: string; result: (typeof treatments)[number] } };
+        expect(w.data.status).toBe('succeeded');
+        treatments.push(w.data.result);
+      }
+    }
+    await ctx.stepComplete(step === 'music' || step === 'effects' ? ['STORYBOARD.md'] : []);
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Khởi nghĩa Lam Sơn' }).video_id;
@@ -247,9 +276,14 @@ describe('story-documentary end to end (023 FR-WF-06)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
-    // assets do engine (nút asset), chỉ music giao phiên main
-    expect(agentSteps).toEqual(['music']);
+    // effects sửa STORYBOARD.md đã duyệt → duyệt lại storyboard (D6 3.1)
+    expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
+    // assets do engine (nút asset); look/effects/overlays (027) + music giao phiên main
+    expect(agentSteps).toEqual(['look', 'effects', 'overlays', 'music']);
+    expect(treatments.map((t) => [t.mode, t.within_budget, t.applied.length])).toEqual([
+      ['dry_run', true, 0],
+      ['apply', true, 1],
+    ]);
     expect(kinds.filter((k) => k === 'producer')).toHaveLength(2); // refine min 2 vòng
     const st = state();
     expect(st.steps.storyboard!.refine).toMatchObject({ rounds: 2 });
@@ -262,6 +296,23 @@ describe('story-documentary end to end (023 FR-WF-06)', () => {
       .map(([, n]) => n.meta!.asset_id!);
     expect(assetIds).toHaveLength(2);
     for (const a of assetIds) expect(existsSync(path.join(v(), 'public', `${a}.png`))).toBe(true);
+    // look kênh (warm-archive) + hạt phim → data-color-grading đã chuẩn hóa trên ảnh của frame
+    const fr = treatments[1]!.applied[0]!;
+    const html = readFileSync(path.join(v(), 'compositions', 'frames', `${fr}.html`), 'utf8');
+    // look kênh nướng vào ảnh (027 R2): src → public/looks/…, gốc giữ ở data-sf-src
+    const img = /<img[^>]*>/.exec(html)![0];
+    const baked = /\ssrc="([^"]+)"/.exec(img)![1]!;
+    expect(baked).toMatch(/^public\/looks\/as_[0-9a-z]{8}-[0-9a-f]{12}\.png$/);
+    expect(existsSync(path.join(v(), baked))).toBe(true);
+    expect(img).toMatch(/data-sf-src="public\/as_[0-9a-z]{8}\.png"/);
+    // hạt phim (hiệu ứng) áp lúc render: data-color-grading đã chuẩn hóa
+    const grading = JSON.parse(
+      /data-color-grading="([^"]+)"/
+        .exec(img)![1]!
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&'),
+    );
+    expect(grading).toMatchObject({ preset: null, details: { grain: 0.25 } });
     const release = st.steps.render!.outputs!.find((o) => o.endsWith('video.mp4'))!;
     expect(existsSync(path.join(v(), release))).toBe(true);
   }, 900_000);

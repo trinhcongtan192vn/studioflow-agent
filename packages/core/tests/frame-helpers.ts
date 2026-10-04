@@ -4,11 +4,14 @@ import type { FramePacket } from '../src/index.js';
 export function sampleFrame(p: FramePacket, drop?: string): string {
   const id = p.frame.id;
   const d = (p.timing.duration_ms / 1000).toFixed(3);
+  // nền có ảnh trong packet → <img> phủ khung (như frame worker thật; 027 grade ảnh này)
+  const bgAsset = p.assets?.[0];
   const layers = p.frame.layers
     .filter((l) => l.id !== drop)
-    .map(
-      (l, i) =>
-        `    <div class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" style="position:absolute;left:${120 + i * 40}px;top:${160 + i * 120}px;font-family:sans-serif;font-size:96px;color:#f4f1ea">${l.text ?? l.kind}</div>`,
+    .map((l, i) =>
+      l.kind === 'background' && bgAsset
+        ? `    <img class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" src="${bgAsset.file}" alt="" style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:cover">`
+        : `    <div class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" style="position:absolute;left:${120 + i * 40}px;top:${160 + i * 120}px;font-family:sans-serif;font-size:96px;color:#f4f1ea;background:rgba(10,12,16,0.85);padding:8px 24px">${l.text ?? l.kind}</div>`,
     );
   return `<template>
   <div id="root" data-composition-id="${id}" data-width="1920" data-height="1080" data-start="0" data-duration="${d}">

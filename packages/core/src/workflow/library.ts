@@ -106,21 +106,24 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('profile'),
     writes: r('STORYBOARD'),
     outputs: r('STORYBOARD.md'),
-    gates: () => [],
+    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
+    gates: () => [{ kind: 'objective', check: 'look_valid' }],
   },
   effects: {
     by: 'agent',
     reads: r('profile'),
     writes: r('STORYBOARD'),
     outputs: r('STORYBOARD.md'),
-    gates: () => [],
+    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
+    gates: () => [{ kind: 'objective', check: 'effects_valid' }],
   },
   overlays: {
     by: 'agent',
     reads: r('profile'),
     writes: r('STORYBOARD'),
     outputs: r('STORYBOARD.md'),
-    gates: () => [],
+    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
+    gates: () => [{ kind: 'objective', check: 'overlays_valid' }],
   },
   finalize: {
     by: 'engine',

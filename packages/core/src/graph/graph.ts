@@ -16,6 +16,8 @@ import { SfError } from '../errors.js';
 import type { WriteStore } from '../store/writer.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { effectiveCaptions, lineWordsOf } from '../hf/captions-html.js';
+import { frameLook } from '../finish/grading.js';
+import { overlayBlocksHash } from '../finish/overlays.js';
 import { loadVideoModel, voiceOf, type VideoModel } from './model.js';
 import {
   assembleAudioLines,
@@ -63,6 +65,44 @@ const ASSEMBLE_ORDER: NodeType[] = [
   'credits',
   'render',
 ];
+/** Frame không gồm phần hoàn thiện (look, hiệu ứng, overlay — 027). */
+export function contentOf(f: Frame): Frame {
+  const { effects: _e, overlays: _o, ...rest } = f;
+  void _e;
+  void _o;
+  if (!rest.config || !('look.id' in rest.config)) return rest;
+  const { ['look.id']: _l, ...cfg } = rest.config;
+  void _l;
+  if (Object.keys(cfg).length) return { ...rest, config: cfg };
+  const { config: _c, ...r } = rest;
+  void _c;
+  return r;
+}
+
+/** Phần hoàn thiện của frame trong hash `frame_html` (027); không grade, không hiệu ứng → không có. */
+export function finishPart(model: VideoModel, f: Frame, appDataDir?: string) {
+  const look = frameLook(model, f, appDataDir);
+  if (!look.grading && !f.effects?.length) return undefined;
+  return { look, effects: f.effects ?? [] };
+}
+
+/** Hash đầu vào của nút bỏ phần hoàn thiện — builder `frame_html` biết chỉ cần áp lại look (027). */
+export function contentInputHash(def: NodeDef, records: Record<string, NodeRecord>): string {
+  const all =
+    typeof def.parts === 'function'
+      ? ((def.parts as (r: typeof records) => Record<string, unknown>)(records) ?? {})
+      : ((def.parts ?? {}) as Record<string, unknown>);
+  const { finish: _f, ...parts } = all;
+  void _f;
+  return sha256(
+    canonicalJson({
+      type: def.type,
+      parts,
+      deps: (def.hashDeps ?? def.deps).map((d) => records[d]?.output_hash ?? null),
+    }),
+  );
+}
+
 /** Nút chỉ chạy khi được chọn làm mục tiêu (020 R4). */
 const EXPLICIT_ONLY = new Set<NodeType>(['render']);
 
@@ -399,8 +439,12 @@ export class BuildGraph {
           parts: (records: Record<string, NodeRecord>) => {
             const t = records['frame_timing']?.meta as FrameTiming | undefined;
             const ft = t?.frames.find((x) => x.id === f.id);
+            // 027: look/hiệu ứng (hoàn thiện) tách khỏi nội dung — đổi chỉ hoàn thiện thì không gọi agent;
+            // overlay thuộc nút index
+            const finish = finishPart(model, f, this.opts.appDataDir);
             return {
-              frame: f,
+              frame: contentOf(f),
+              ...(finish ? { finish } : {}),
               lines: model.lines
                 .filter((l) => f.line_ids.includes(l.id))
                 .map((l) => [l.id, l.text]),
@@ -430,6 +474,13 @@ export class BuildGraph {
     add('index', ['frame_timing', 'captions', ...frameNodes], {
       frames_html: frameHtml,
       overrides: model.hashOf('caption-overrides.json'),
+      // 027: overlay theo frame + mẫu khối đang dùng (chỉ khi có — giữ hash dự án cũ)
+      ...(model.frames.some((f) => f.overlays?.length)
+        ? {
+            overlays: model.frames.filter((f) => f.overlays?.length).map((f) => [f.id, f.overlays]),
+            overlay_blocks: overlayBlocksHash(model, this.opts.appDataDir),
+          }
+        : {}),
       // 011: nền từ frame.md, kích thước theo output profile, transition vào của frame
       frame_md: model.hashOf('frame.md'),
       profile: model.config('output.profile'),
@@ -670,7 +721,7 @@ export class BuildGraph {
   }
 
   /** Ghi nhận nút đã được dựng ngoài `graph.build` (bước frame-build của workflow, 020 R1). */
-  markBuilt(videoId: string, nodeIds: string[]): void {
+  markBuilt(videoId: string, nodeIds: string[], opts: { contentOnly?: boolean } = {}): void {
     const g = this.load(videoId);
     const defs = new Map(this.nodes(this.model(videoId)).map((d) => [d.id, d]));
     for (const id of nodeIds) {
@@ -678,10 +729,13 @@ export class BuildGraph {
       if (!def) continue;
       const outputs = def.type === 'frame_html' ? [`compositions/frames/${def.key}.html`] : [];
       if (!outputs.every((o) => existsSync(this.store.abs(`videos/${videoId}/${o}`)))) continue;
+      // contentOnly (027): frame vừa do agent dựng, chưa hoàn thiện → lần build sau chỉ áp look/hiệu ứng
+      const content = opts.contentOnly ? contentInputHash(def, g.nodes) : undefined;
       g.nodes[id] = {
         key: def.key,
         type: def.type,
-        input_hash: this.inputHash(def, g.nodes),
+        input_hash: content ?? this.inputHash(def, g.nodes),
+        ...(content ? { meta: { content_hash: content } } : {}),
         output_hash: this.outputHash(videoId, outputs, undefined),
         status: 'fresh',
         updated_at: new Date().toISOString(),

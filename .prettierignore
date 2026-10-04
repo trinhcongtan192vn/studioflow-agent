@@ -13,3 +13,5 @@ package-lock.json
 verify-report.json
 packages/core/src/contracts
 node_modules/.cache
+# mẫu overlay có chỗ thay {{…}} trong CSS/JS (027)
+extensions/styles/*/overlays/*/overlay.html

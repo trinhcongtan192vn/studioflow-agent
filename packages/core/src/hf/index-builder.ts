@@ -9,6 +9,8 @@ import type { WriteStore } from '../store/writer.js';
 import { applyCaptionOverrides, buildCaptionsHtml, lineWordsOf } from './captions-html.js';
 import { buildIndexHtml, type IndexInput } from './index-html.js';
 import { loadOutputProfile } from './outputs.js';
+import { overlayInstances } from '../finish/overlays.js';
+import { SfError } from '../errors.js';
 
 /** `hyperframes.json` của video (D4 mục 9.1) — theo mẫu `hyperframes init` v0.8.115. */
 export const HYPERFRAMES_JSON = {
@@ -105,6 +107,13 @@ export const indexBuilder =
     }
     const music = await musicBed(ctx, timing, voices, deps.appDataDir);
     if (music) outputs.push(music.file, ...music.copies);
+    // overlay theo frame (027, FR-CP-05)
+    const ov = overlayInstances(ctx.model, timing, profile, deps.appDataDir);
+    if (ov.problems.length) throw new SfError('E_SCHEMA_INVALID', ov.problems.join('; '));
+    for (const o of ov.instances) {
+      ctx.store.write(`${v}/${o.file}`, o.html, { by: 'graph.build', validate: false });
+      outputs.push(o.file);
+    }
     const html = buildIndexHtml({
       width: profile.width,
       height: profile.height,
@@ -120,6 +129,7 @@ export const indexBuilder =
       }),
       voices,
       captions: outputs.includes('compositions/captions.html'),
+      overlays: ov.instances,
       ...(music ? { music: music.element } : {}),
       total_ms: timing.total_ms,
     });

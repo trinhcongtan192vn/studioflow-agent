@@ -55,3 +55,15 @@ Với mỗi layer cần ảnh thật (`image`): tìm trong thư viện kênh b�
 ## Bước `music`
 
 Với mỗi scene có `music.query`: gọi `music.find` (query từ scene, `min_duration_ms` ≈ thời lượng video nếu biết). Có kết quả → đặt `music: { track_id: mt_…, volume_db: -18 }` trong khối `sf-scene` (giữ `query`). Không có kết quả (`E_MUSIC_NOT_FOUND`, kể cả khi kho nhạc trống) là **trường hợp bình thường**: thử lại một lần với ít bộ lọc hơn; vẫn không có → **bắt buộc** đặt `music: none` cho scene đó, vẫn ghi `STORYBOARD.md` và gọi `workflow.step_complete` — không dừng chờ người dùng, không bịa `track_id`; trong câu trả lời nhắc người dùng có thể nạp nhạc rồi quay lại bước này. Một bài cho cả video trừ khi storyboard có nhiều scene. Ghi `STORYBOARD.md` bằng `artifact.write`, rồi `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
+
+## Bước `look` (M3)
+
+Chỉ dẫn của engine có danh mục look (gói phong cách + biến thể) và look hiện tại của từng frame. Look kênh là `{{config:look.id}}`. Mặc định giữ look kênh; chỉ đặt `look` cho scene khi không khí khác rõ (đêm, hồi tưởng, tư liệu cũ): ghi `look: <biến thể>` (ví dụ `night`) hoặc `look: <gói khác>` vào `sf-scene`; ngoại lệ một frame thì `config: { look.id: … }` trong `sf-frame`. Muốn so sánh trước: `grade.compare {asset_ids: [ảnh tiêu biểu], looks: [...]}` rồi xem `contact_sheet`. Look được nướng vào ảnh khi dựng frame (chữ/hình HTML không đổi màu). Không có gì cần đổi → không ghi file. Xong: `workflow.step_complete {step_id: "look", outputs: ["STORYBOARD.md"]}`.
+
+## Bước `effects` (M3)
+
+Hiệu ứng media dùng tiết chế, phục vụ nội dung (hồi tưởng → `grain`, tư liệu cũ → `filmArtifacts`, nhấn mạnh → `bloom`). Hiệu ứng `[nặng]` làm render chậm: tôn trọng ngân sách trong chỉ dẫn (2 mỗi phút video). Với mỗi ảnh cần hiệu ứng: `media.treatment {asset_id, effect, mode: "dry_run"}` → đọc kết quả (`within_budget`, frame bị ảnh hưởng) → nếu ổn thì `mode: "apply"` (app ghi `sf-frame.effects`, người dùng được hỏi vì storyboard đã duyệt). Mức tùy chọn: `grain:0.3`. Không cần hiệu ứng → không làm gì. Xong: `workflow.step_complete {step_id: "effects", outputs: ["STORYBOARD.md"]}`.
+
+## Bước `overlays` (M3)
+
+Đề xuất overlay theo quy tắc kênh `{{config:overlay.rules}}` (ví dụ lower third khi nhân vật/địa danh xuất hiện lần đầu, nhãn địa điểm khi đổi bối cảnh). Ghi vào `sf-frame`: `overlays: [{ block: lower-third, vars: { title: "…", subtitle: "…" } }]` — chỉ dùng khối trong danh mục, đủ biến bắt buộc (dấu `*`), chữ ngắn (≤ 40 ký tự). Thẻ mô phỏng nền tảng thật (bình luận, bài đăng mạng xã hội) chỉ dùng với nội dung có thật. Mỗi frame tối đa một overlay. Ghi bằng `artifact.write` (giữ mọi `id`), rồi `workflow.step_complete {step_id: "overlays", outputs: ["STORYBOARD.md"]}`.

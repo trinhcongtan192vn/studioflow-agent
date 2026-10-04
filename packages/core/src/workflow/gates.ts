@@ -34,7 +34,7 @@ const read = (ctx: GateContext, f: string) => {
 type ObjectiveFn = (
   ctx: GateContext,
   params?: Record<string, unknown>,
-) => { pass: boolean; detail?: string };
+) => { pass: boolean; detail?: string } | Promise<{ pass: boolean; detail?: string }>;
 
 const OBJECTIVES: Record<string, ObjectiveFn> = {
   coverage(ctx) {
@@ -154,7 +154,7 @@ export async function evaluateGate(g: GateDecl, ctx: GateContext): Promise<GateR
           pass: false,
           detail: `objective check ${g.check} is not available`,
         };
-      return { gate: g.kind, target: g.check, ...fn(ctx, g.params) };
+      return { gate: g.kind, target: g.check, ...(await fn(ctx, g.params)) };
     }
   }
 }

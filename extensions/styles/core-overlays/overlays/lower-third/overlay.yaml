@@ -1,0 +1,9 @@
+id: lower-third
+title: Lower third (tên + chú thích)
+tags: [lower-third, person, place]
+duration_ms: 4800
+# vào sau đầu frame (ms)
+delay_ms: 400
+vars:
+  - { id: title, label: Dòng chính, required: true }
+  - { id: subtitle, label: Dòng phụ, required: false, default: '' }

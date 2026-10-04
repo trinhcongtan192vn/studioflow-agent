@@ -1,0 +1,8 @@
+id: location-tag
+title: Nhãn địa điểm / thời gian
+tags: [location, place, time]
+duration_ms: 4000
+delay_ms: 300
+vars:
+  - { id: place, label: Địa điểm, required: true }
+  - { id: time, label: Thời gian, required: false, default: '' }

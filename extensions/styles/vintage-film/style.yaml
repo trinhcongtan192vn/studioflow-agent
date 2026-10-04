@@ -1,0 +1,8 @@
+# Look phim cũ: preset HyperFrames `vintage-wash` + hạt phim (027).
+id: vintage-film
+version: 1.0.0
+image_prompt: 'vintage film photograph, warm faded tones, soft grain'
+grading: { preset: vintage-wash, intensity: 0.85, details: { grain: 0.25, vignette: 0.3 } }
+variants:
+  bright: { preset: warm-daylight, intensity: 0.8 }
+palette: { ink: '#2a2118', paper: '#f2e6cf', accent: '#a8452a' }

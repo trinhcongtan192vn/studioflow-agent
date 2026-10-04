@@ -13,6 +13,8 @@ import { storyboardExecutor } from './text/storyboard.js';
 import { studioTools } from './studio/tools.js';
 import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
+import { defineFinishJobs, finishTools } from './finish/tools.js';
+import { finishStepExecutor } from './finish/check.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -205,6 +207,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     'frame_html',
     frameHtmlBuilder({
       rebuild: () => (workflows.agentRuntime ? workflows.rebuildFrame : undefined),
+      appDataDir,
     }),
   );
   graph.registerBuilder('credits', creditsBuilder({ appDataDir }));
@@ -238,12 +241,17 @@ export function createCore(opts: CoreOptions = {}): Core {
     rebuild: () => (workflows.agentRuntime ? workflows.rebuildFrame : undefined),
   });
   for (const t of studioTools(studio, edits, pinned)) gateway.register(t);
+  // Look, hiệu ứng, overlay (027)
+  defineFinishJobs({ queue, storeFor: (d) => gateway.storeFor(d) }, appDataDir);
+  for (const t of finishTools({ queue, storeFor: (d) => gateway.storeFor(d) })) gateway.register(t);
   // Render (013)
   for (const t of renderTools(tts)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
   workflows.registerExecutor('captions', captionsExecutor(graph));
+  for (const k of ['look', 'effects', 'overlays'] as const)
+    workflows.registerExecutor(k, finishStepExecutor(k));
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('design-system', designSystemExecutor());
   // story-documentary (023): storyboard refine (phiên producer) + assets (nút asset)

@@ -17,6 +17,7 @@ import type { BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
 import { evaluateGate, type GateResult } from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
+import { resolveConfig } from '../config/resolve.js';
 import { phaseBefore, type WorkflowPack } from './packs.js';
 
 export interface StepRunContext {
@@ -413,8 +414,12 @@ export class WorkflowEngine extends EventEmitter {
     const c = decl.skip_if;
     if (!c) return false;
     if ('phase_before' in c) return phaseBefore(c.phase_before);
-    const st = this.readState();
-    const v = (st.config_overrides as Record<string, unknown>)[c.config];
+    // giá trị đã giải theo tầng app → kênh → video (D3 7.1), ví dụ `lipsync.enabled` đặt ở kênh (027)
+    const v = resolveConfig(
+      c.config,
+      { channelDir: this.d.store.root, videoId: this.d.videoId },
+      { appDataDir: this.d.appDataDir },
+    ).value;
     return v === c.equals;
   }
 

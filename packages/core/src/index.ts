@@ -403,6 +403,28 @@ export {
 } from './studio/diff.js';
 export { StudioEdits, type CommitResult } from './studio/edit.js';
 export { CaptionPanel, type CaptionsPanelData } from './captions/panel.js';
+export { stylePack, overlayBlocks, type StylePack, type OverlayBlock } from './finish/styles.js';
+export {
+  applyFinish,
+  frameImageSources,
+  effectCatalog,
+  frameFinish,
+  frameLook,
+  lookFromGrading,
+  normalizeGrading,
+  parseEffect,
+  type FrameFinish,
+  type MediaEffect,
+} from './finish/grading.js';
+export { overlayInstances, overlayProblems, type OverlayInstance } from './finish/overlays.js';
+export { bakeLooks, bakedRel } from './finish/bake.js';
+export {
+  finishCatalog,
+  finishReport,
+  HEAVY_PER_MINUTE,
+  type FinishReport,
+} from './finish/check.js';
+export { contentInputHash, contentOf } from './graph/graph.js';
 export {
   decodeWav,
   ensurePreviewVoice,
