@@ -1,4 +1,5 @@
 import { alignVideo } from '../asr/regen.js';
+import { learnFromVideo } from '../tts/rate.js';
 import type { ProviderRegistry } from '../capability/registry.js';
 import type { AgentRuntime } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
@@ -128,6 +129,8 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
         bad.map(([id, n]) => `${id}: ${n.error?.message}`).join('; ') || 'voice build failed',
       );
     }
+    // tốc độ đọc thật của giọng → kịch bản sau đúng độ dài hơn (016 R4)
+    learnFromVideo(ctx.store, ctx.videoId, ctx.appDataDir);
     return {
       outputs: ['audio_meta.json', ...(builders.active('captions') ? ['caption_groups.json'] : [])],
       ...(r.mismatched.length

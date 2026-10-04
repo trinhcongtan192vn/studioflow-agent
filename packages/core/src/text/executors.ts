@@ -7,6 +7,7 @@ import { assignScriptIds, parseScript, toScriptDoc } from '../domain/markdown/sc
 import { validateArtifact } from '../domain/validate.js';
 import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
+import { readingRate } from '../tts/rate.js';
 import { CORE_VERSION } from '../version.js';
 import type { StepRunContext } from '../workflow/engine.js';
 import { assertDifferentModels, type ModelRef } from './models.js';
@@ -340,7 +341,7 @@ export function scriptExecutor(d: TextExecutorDeps) {
     const plan = refinePlan(env, d.text, ctx.packDir, 'script-default');
     const pack = loadPromptPack(ctx.channelDir);
     const scope = { channelDir: ctx.channelDir, videoId: ctx.videoId, appDataDir: ctx.appDataDir };
-    const wpm = Number(env.cfg(`script.wpm.${env.language}`)) || 150;
+    const wpm = readingRate(ctx.store, ctx.videoId, env.language, ctx.appDataDir);
     const targetWords = env.targetMs ? Math.round((env.targetMs / 60000) * wpm) : 300;
     const maxTokens = Math.max(2000, targetWords * 6);
     if (mode === 'outline') {
@@ -415,7 +416,12 @@ function chapters(env: StepEnv): { start_ms: number; title: string }[] {
   const rel = `${env.v}/SCRIPT.md`;
   if (!existsSync(env.ctx.store.abs(rel))) return [];
   const doc = toScriptDoc(parseScript(env.read(rel)));
-  const wpm = Number(env.cfg(`script.wpm.${doc.front.language}`)) || 150;
+  const wpm = readingRate(
+    env.ctx.store,
+    env.ctx.videoId,
+    String(doc.front.language),
+    env.ctx.appDataDir,
+  );
   const byId = new Map(doc.lines.map((l) => [l.id, l]));
   let t = 0;
   return doc.beats.map((b) => {
