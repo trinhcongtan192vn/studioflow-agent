@@ -71,6 +71,9 @@
                   },
                   "installed_at": {
                     "$ref": "#/definitions/Iso8601"
+                  },
+                  "license_accepted": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -95,6 +98,13 @@
             "items": {
               "type": "string"
             }
+          }
+        },
+        "provider_settings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {}
           }
         },
         "network": {

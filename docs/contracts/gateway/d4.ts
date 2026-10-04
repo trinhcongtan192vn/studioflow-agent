@@ -66,6 +66,7 @@ export interface ProviderManifest {
   install_profile: 'minimal' | 'standard' | 'full'; cost: { kind: 'free' | 'per_token' | 'per_image' | 'per_second' };
   limits?: Record<string, number>; health: { method: string; timeout_ms: number };
   secrets?: string[]; network?: string[]; app_api: string;
+  defaults?: Record<string, unknown>;              // tham số mặc định của model (mục 9.2)
 }
 
 export interface JobInfo {

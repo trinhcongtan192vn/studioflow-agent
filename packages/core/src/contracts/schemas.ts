@@ -170,6 +170,9 @@ export const schemas = {
                     },
                     "installed_at": {
                       "$ref": "#/definitions/Iso8601"
+                    },
+                    "license_accepted": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -194,6 +197,13 @@ export const schemas = {
               "items": {
                 "type": "string"
               }
+            }
+          },
+          "provider_settings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {}
             }
           },
           "network": {
@@ -3342,6 +3352,10 @@ export const schemas = {
           },
           "app_api": {
             "type": "string"
+          },
+          "defaults": {
+            "type": "object",
+            "additionalProperties": {}
           }
         },
         "required": [

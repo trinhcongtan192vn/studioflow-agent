@@ -121,7 +121,8 @@ export interface IpcMethods {
   'settings.set': { params: { key: string; value: unknown }; result: { ok: boolean } };
   'install.plan': { params: { profile: 'minimal' | 'standard' | 'full' }; result: unknown };
   'install.start': {
-    params: { profile: 'minimal' | 'standard' | 'full' };
+    /** accept_licenses: người dùng đã xác nhận giấy phép phi thương mại hiện trong kế hoạch (018). */
+    params: { profile: 'minimal' | 'standard' | 'full'; accept_licenses?: boolean };
     result: { job_ids: string[] };
   };
   'trace.list': { params: { video?: string; limit?: number }; result: { traces: unknown[] } };

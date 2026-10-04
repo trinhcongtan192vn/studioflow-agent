@@ -1,0 +1,22 @@
+id: image.qwen21-comfy
+version: 1.0.0
+capabilities: [image.generate, image.edit]
+contract_versions: { image.generate: '1', image.edit: '1' }
+runtime: comfyui
+engine: comfyui
+resource: gpu-heavy
+models: [qwen-image-2.1-q4, comfyui, comfyui-env]
+install_profile: full
+cost: { kind: free }
+limits: { min_side: 256, max_side: 2048, max_refs: 10 }
+health: { method: system_stats, timeout_ms: 120000 }
+app_api: '>=0.1 <2.0'
+# FN-018 + spike S2 (018 research R1): GGUF Q4 + Qwen3-VL w4a8 + VAE bf16, euler/simple, cfg 1, 15 bước
+defaults:
+  unet: Qwen-Image-2.1-Q4.gguf
+  clip: qwen3vl_8b_w4a8.safetensors
+  vae: qwen_image_2.1_vae_bf16.safetensors
+  steps: 15
+  cfg: 1.0
+  sampler: euler
+  scheduler: simple

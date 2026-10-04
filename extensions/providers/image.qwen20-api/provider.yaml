@@ -1,0 +1,16 @@
+id: image.qwen20-api
+version: 1.0.0
+capabilities: [image.generate, image.edit]
+contract_versions: { image.generate: '1', image.edit: '1' }
+runtime: cloud
+resource: network
+install_profile: minimal
+cost: { kind: per_image }
+limits: { min_side: 512, max_side: 2048, max_refs: 3 }
+health: { method: secret, timeout_ms: 5000 }
+secrets: [dashscope_api_key]
+network: ['*.maas.aliyuncs.com', '*.aliyuncs.com']
+app_api: '>=0.1 <2.0'
+# Alibaba Cloud Model Studio (018 research R6); endpoint workspace: settings.json provider_settings."image.qwen20-api".endpoint
+defaults:
+  model: qwen-image-2.0

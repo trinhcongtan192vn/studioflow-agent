@@ -113,6 +113,10 @@
         },
         "app_api": {
           "type": "string"
+        },
+        "defaults": {
+          "type": "object",
+          "additionalProperties": {}
         }
       },
       "required": [

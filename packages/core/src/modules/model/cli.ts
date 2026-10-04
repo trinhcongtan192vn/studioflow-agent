@@ -29,7 +29,7 @@ export const commands: CliCommand[] = [
     name: 'install',
     summary:
       'Download/install one component (or every missing one of --profile); resumes, checks sha256',
-    options: { profile: { type: 'string' } },
+    options: { profile: { type: 'string' }, 'accept-license': { type: 'boolean' } },
     positionals: ['key'],
     async run(input) {
       const appDataDir = defaultAppDataDir();
@@ -52,6 +52,7 @@ export const commands: CliCommand[] = [
           await installEntry(appDataDir, k, {
             catalog,
             ...(profile ? { profile } : {}),
+            ...(input['accept-license'] ? { acceptLicense: true } : {}),
             progress: (d, t, m) => {
               const pct = t ? Math.floor((d / t) * 100) : 0;
               if (pct !== last) process.stderr.write(`\r${k}: ${pct}% ${m ?? ''}   `);
