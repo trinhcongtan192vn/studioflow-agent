@@ -5,7 +5,9 @@ import { assetTools } from './assets/tools.js';
 import { defineImageJobs, imageTools } from './image/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
 import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
-import { attachTraceStore } from './trace/trace.js';
+import { attachTraceStore, type Pricing } from './trace/trace.js';
+import { PhoenixServer } from './trace/phoenix.js';
+import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
 import { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
 import { assetsExecutor } from './workflow/assets.js';
@@ -90,6 +92,8 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** Phoenix cục bộ (028). */
+  phoenix: PhoenixServer;
   /** Embedding văn bản CLAP cho tìm nhạc (021). */
   embedder?: TextEmbedder;
   close(): void;
@@ -103,7 +107,19 @@ export function createCore(opts: CoreOptions = {}): Core {
   const appDataDir = opts.appDataDir ?? defaultAppDataDir();
   const db = openDb(opts.dbFile ?? path.join(appDataDir, 'studioflow.db'));
   // trace cục bộ (D11, 015): span ghi vào bảng `spans`; giữ `settings.trace.retention_days`
-  const detachTrace = attachTraceStore(db, retentionDays(appDataDir));
+  // 028: bảng `usage` ghi từ span; giá ước tính theo `settings.pricing` (đọc lúc ghi)
+  const detachTrace = attachTraceStore(db, retentionDays(appDataDir), {
+    pricing: () => (traceSettings(appDataDir).pricing ?? []) as Pricing,
+  });
+  // Phoenix cục bộ (FR-OB-04) khi `settings.trace.phoenix_enabled`
+  const phoenix = new PhoenixServer(appDataDir);
+  if (traceSettings(appDataDir).trace?.phoenix_enabled)
+    phoenix.enable().catch((e: unknown) =>
+      new Logger().write('warn', 'sf.phoenix', {
+        code: 'E_PHOENIX_UNAVAILABLE',
+        msg: String((e as Error).message),
+      }),
+    );
   const providers = new ProviderRegistry();
   // lịch GPU (019, D4 mục 6): engine → lớp tài nguyên từ manifest provider; ngân sách tầng app
   const gpu = new GpuScheduler({
@@ -292,11 +308,13 @@ export function createCore(opts: CoreOptions = {}): Core {
     edits,
     pinned,
     captions: new CaptionPanel(gateway),
+    phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;
       closed = true;
       studio.closeAll();
+      phoenix.stop();
       void edits.closeAll();
       detachTrace();
       if (getGpuScheduler() === gpu) setGpuScheduler(undefined);
@@ -305,6 +323,18 @@ export function createCore(opts: CoreOptions = {}): Core {
       db.close();
     },
   };
+}
+
+function traceSettings(appDataDir: string): {
+  trace?: { phoenix_enabled?: boolean };
+  pricing?: unknown[];
+} {
+  const f = path.join(appDataDir, 'settings.json');
+  try {
+    return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {};
+  } catch {
+    return {};
+  }
 }
 
 function retentionDays(appDataDir: string): number {

@@ -3,10 +3,12 @@
 import type {
   AgentEvent,
   CaptionOverrides,
+  ContextRef,
   JobInfo,
   VideoStateSummary,
 } from '../contracts/types.js';
 import type { CaptionsPanelData } from '../captions/panel.js';
+import type { CostReport } from '../trace/cost.js';
 
 export interface ChannelRef {
   channel: string;
@@ -66,6 +68,8 @@ export interface IpcMethods {
       video?: string;
       text: string;
       attachments?: { path: string; mime: string }[];
+      /** FR-CH-04 (028): ngữ cảnh chọn trong xem trước. */
+      context_refs?: ContextRef[];
     };
     result: { session_id: string };
   };
@@ -156,6 +160,9 @@ export interface IpcMethods {
     params: VideoRef & { frame_id: string; decision: 'keep' | 'reapply' | 'discard' };
     result: unknown;
   };
+  'cost.report': { params: VideoRef; result: CostReport & { csv: string } };
+  /** Bật/tắt Phoenix cục bộ (FR-OB-04, 028); lưu `settings.trace.phoenix_enabled`. */
+  'trace.phoenix': { params: { enabled: boolean }; result: { enabled: boolean; url: string } };
   'captions.load': { params: VideoRef; result: CaptionsPanelData };
   'captions.save': {
     params: VideoRef & { overrides: CaptionOverrides; base_hash: string | null };

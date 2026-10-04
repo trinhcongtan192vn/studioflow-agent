@@ -303,6 +303,12 @@ export {
   listTraces,
   getTrace,
   type SpanRow,
+  setPhoenixExport,
+  flushPhoenix,
+  usageOf,
+  PHOENIX_URL,
+  type Pricing,
+  type UsageRow,
 } from './trace/trace.js';
 export { CoreHost } from './host/host.js';
 export {
@@ -418,6 +424,15 @@ export {
 } from './finish/grading.js';
 export { overlayInstances, overlayProblems, type OverlayInstance } from './finish/overlays.js';
 export { bakeLooks, bakedRel } from './finish/bake.js';
+export { costReport, costCsv, type CostReport, type CostTotals } from './trace/cost.js';
+export { PhoenixServer, phoenixHealthy } from './trace/phoenix.js';
+export {
+  evalCompare,
+  evalVideos,
+  wordDiffRatio,
+  MAJOR_EDIT_RATIO,
+  type EvalRow,
+} from './eval/compare.js';
 export {
   finishCatalog,
   finishReport,

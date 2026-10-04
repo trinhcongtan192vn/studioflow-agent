@@ -7,6 +7,7 @@ import type {
   AgentRuntime,
   AgentSession,
   CaptionOverrides,
+  ContextRef,
   MusicFindInput,
   SessionContext,
   SettingsConfig,
@@ -23,6 +24,7 @@ import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
 import { validateChannel } from '../domain/channel-validate.js';
 import { watchVideo } from '../studio/watch.js';
+import { costCsv, costReport } from '../trace/cost.js';
 import { diskUsage } from '../disk/usage.js';
 import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
@@ -247,14 +249,21 @@ export class CoreHost extends EventEmitter {
     text: string,
     attachments: { path: string; mime: string }[] = [],
     role: 'user' | 'system' = 'user',
+    contextRefs: ContextRef[] = [],
   ) {
     const s = await this.session(channel, video);
-    this.log(channel, s.chatRel, { role, content: text });
+    this.log(channel, s.chatRel, {
+      role,
+      content: text,
+      ...(contextRefs.length ? { context_refs: contextRefs } : {}),
+    });
     let assistant = '';
     const tools = new Map<string, { name: string; input: unknown }>();
     for await (const e of s.session.send({
       text,
       ...(attachments.length ? { attachments } : {}),
+      // FR-CH-04 (028): frame/mốc/phần tử/cụm phụ đề chọn trong xem trước
+      ...(contextRefs.length ? { context_refs: contextRefs } : {}),
     })) {
       this.send('chat.event', {
         ...e,
@@ -393,6 +402,8 @@ export class CoreHost extends EventEmitter {
           p.video || undefined,
           String(p.text),
           (p.attachments as { path: string; mime: string }[]) ?? [],
+          'user',
+          (p.context_refs as ContextRef[] | undefined) ?? [],
         );
       case 'chat.interrupt':
         await this.sessions.get(`${path.resolve(p.channel)}|${p.video ?? ''}`)?.session.interrupt();
@@ -604,6 +615,18 @@ export class CoreHost extends EventEmitter {
           String(p.frame_id),
           p.decision as 'keep' | 'reapply' | 'discard',
         );
+      case 'cost.report': {
+        const r = costReport(c.db, this.store(p.channel), p.video, c.appDataDir);
+        return { ...r, csv: costCsv(r) };
+      }
+      case 'trace.phoenix': {
+        const s = this.settings();
+        if (p.enabled) await c.phoenix.enable();
+        else c.phoenix.disable();
+        s.trace = { ...s.trace, phoenix_enabled: Boolean(p.enabled) };
+        this.saveSettings(s);
+        return { enabled: Boolean(p.enabled), url: c.phoenix.url };
+      }
       case 'captions.load':
         return c.captions.load(this.store(p.channel), p.video);
       case 'captions.save': {

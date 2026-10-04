@@ -6,6 +6,7 @@ import path from 'node:path';
 import { SfError } from '../errors.js';
 import { hfInstall } from '../hf/cli.js';
 import { Logger } from '../log.js';
+import { BRIDGE_PATH, startStudioProxy } from './proxy.js';
 import { killTree } from '../render/hf-render.js';
 import type { WriteStore } from '../store/writer.js';
 
@@ -112,6 +113,7 @@ export async function startHfStudio(
 interface Running {
   child: ChildProcess;
   url: string;
+  proxy?: { port: number; close(): Promise<void> };
   watcher?: FSWatcher;
   timer?: NodeJS.Timeout;
 }
@@ -140,8 +142,13 @@ export class StudioPreviews {
       );
     }
     const dir = syncSnapshot(store, videoId);
-    const { child, url, port } = await startHfStudio(dir, o);
-    const run: Running = { child, url };
+    const hf = await startHfStudio(dir, o);
+    // 028: qua proxy chỉ đọc + trang cầu nối cùng origin (WebMCP: mốc đầu phát, phần tử đang chọn)
+    const proxy = await startStudioProxy(hf.port, { readOnly: true });
+    const child = hf.child;
+    const port = proxy.port;
+    const url = `http://127.0.0.1:${port}${BRIDGE_PATH}${new URL(hf.url).hash}`;
+    const run: Running = { child, url, proxy };
     const videoDir = store.abs(`videos/${videoId}`);
     try {
       run.watcher = watch(videoDir, { recursive: true }, (_ev, file) => {
@@ -189,6 +196,7 @@ export class StudioPreviews {
   private stop(r: Running): void {
     clearTimeout(r.timer);
     r.watcher?.close();
+    void r.proxy?.close();
     if (r.child.pid && r.child.exitCode === null) killTree(r.child.pid);
   }
 }

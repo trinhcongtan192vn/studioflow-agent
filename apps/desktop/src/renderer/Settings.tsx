@@ -26,6 +26,39 @@ const CLEAN: { id: 'cache' | 'drafts' | 'backups' | 'snapshots'; label: string }
   { id: 'backups', label: 'Bản sao lưu' },
 ];
 
+/** FR-OB-04 (028): bật Phoenix cục bộ để xem trace chi tiết. */
+function Phoenix() {
+  const [on, setOn] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    void core
+      .call('settings.get', {})
+      .then((s) =>
+        setOn(Boolean((s as { trace?: { phoenix_enabled?: boolean } }).trace?.phoenix_enabled)),
+      );
+  }, []);
+  const toggle = async (enabled: boolean) => {
+    setMsg(enabled ? 'Đang khởi động Phoenix…' : '');
+    try {
+      const r = await core.call('trace.phoenix', { enabled });
+      setOn(r.enabled);
+      setMsg(r.enabled ? `Phoenix: ${r.url}` : '');
+    } catch (e) {
+      setOn(false);
+      setMsg((e as Error).message);
+    }
+  };
+  return (
+    <div className="row" aria-label="Phoenix">
+      <label>
+        <input type="checkbox" checked={on} onChange={(e) => void toggle(e.target.checked)} /> Gửi
+        trace sang Phoenix cục bộ (127.0.0.1:6006)
+      </label>
+      <span className="muted">{msg}</span>
+    </div>
+  );
+}
+
 /** UI-10 Dung lượng (024): theo kênh đang mở + model của app; nút dọn hiện số byte giải phóng. */
 function Storage({ channel }: { channel?: string }) {
   const [u, setU] = useState<Usage>();
@@ -136,6 +169,8 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
             Lưu
           </button>
         </div>
+        <h3>Trace</h3>
+        <Phoenix />
         <h3>Dung lượng</h3>
         <Storage {...(channel ? { channel } : {})} />
         <button onClick={onClose}>Đóng</button>

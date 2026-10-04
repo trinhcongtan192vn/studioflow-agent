@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatLine, IpcEvents } from '@studioflow/core';
 import { core } from './rpc';
+import {
+  clearContextRefs,
+  contextLabel,
+  onContextRefs,
+  removeContextRef,
+  type ContextRef,
+} from './context-refs';
 
 type Item =
   | { type: 'line'; line: ChatLine }
@@ -35,6 +42,10 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
   const [streaming, setStreaming] = useState('');
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<{ path: string; mime: string }[]>([]);
+  // FR-CH-04 (028): ngữ cảnh chọn trong Xem trước / bảng caption
+  const [refs, setRefs] = useState<ContextRef[]>([]);
+  useEffect(() => onContextRefs(setRefs), []);
+  useEffect(() => clearContextRefs, [channel, video]);
   const [note, setNote] = useState('');
   const end = useRef<HTMLDivElement>(null);
 
@@ -101,6 +112,7 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
         ...(video ? { video } : {}),
         text,
         ...(attachments.length ? { attachments } : {}),
+        ...(refs.length ? { context_refs: refs } : {}),
       });
     } catch (e) {
       setItems((s) => [
@@ -109,6 +121,7 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
       ]);
     } finally {
       setAttachments([]);
+      clearContextRefs();
       setBusy(false);
     }
   };
@@ -239,6 +252,18 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
         <div ref={end} />
       </div>
       <div className="composer">
+        {refs.length > 0 && (
+          <div className="chips" data-testid="context-chips">
+            {refs.map((r) => (
+              <span key={contextLabel(r)} className="chip">
+                {contextLabel(r)}{' '}
+                <button className="link" title="Bỏ" onClick={() => removeContextRef(r)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         {attachments.length > 0 && (
           <div className="chips">
             {attachments.map((a) => (

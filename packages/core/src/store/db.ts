@@ -23,9 +23,16 @@ CREATE TABLE IF NOT EXISTS spans (
 );
 CREATE INDEX IF NOT EXISTS spans_trace ON spans(trace_id);
 CREATE INDEX IF NOT EXISTS spans_video ON spans(video_id, start_ms);
+CREATE TABLE IF NOT EXISTS usage (
+  ts TEXT NOT NULL, channel_id TEXT, video_id TEXT, step_id TEXT, kind TEXT NOT NULL,
+  provider TEXT, model TEXT, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+  units REAL NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0, source TEXT NOT NULL,
+  span_id TEXT, trace_id TEXT
+);
+CREATE INDEX IF NOT EXISTS usage_video ON usage(video_id, step_id);
 `;
 
-/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7), `spans` (D11 mục 1). */
+/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7), `spans` (D11 mục 1), `usage` (D11 mục 3, 028). */
 export function openDb(file: string): Db {
   if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
