@@ -16,7 +16,7 @@ import { killTree } from '../render/hf-render.js';
 import type { WriteStore } from '../store/writer.js';
 import { diffHtml, stripStudioMarks, type StudioChange } from './diff.js';
 import { startHfStudio } from './preview.js';
-import { startStudioProxy } from './proxy.js';
+import { BRIDGE_PATH, startStudioProxy } from './proxy.js';
 
 /** File cảnh chép vào bản làm việc (D9 3.1); `public/`, `audio/` là junction chỉ đọc. */
 const WORK_FILES = [
@@ -148,7 +148,7 @@ export class StudioEdits {
         projects?: { id: string }[];
       };
       const project = listed.projects?.[0]?.id ?? id;
-      const url = `http://127.0.0.1:${proxy.port}/#project/${project}`;
+      const url = `http://127.0.0.1:${proxy.port}${BRIDGE_PATH}#project/${project}`;
       this.sessions.set(this.key(store, videoId), {
         id,
         work,

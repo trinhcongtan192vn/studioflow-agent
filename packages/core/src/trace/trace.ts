@@ -12,29 +12,156 @@ import {
   W3CTraceContextPropagator,
   type ExportResult,
 } from '@opentelemetry/core';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
   BasicTracerProvider,
+  BatchSpanProcessor,
   SimpleSpanProcessor,
   type ReadableSpan,
   type SpanExporter,
+  type SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { maskSecrets } from '../log.js';
 import type { Db } from '../store/db.js';
 
 const hr = (t: [number, number]) => t[0] * 1000 + t[1] / 1e6;
 
+/** Giá (D11 mục 3, `settings.pricing`) cho chi phí ước tính. */
+export type Pricing = { provider: string; model: string; unit: string; usd: number }[];
+
+/** Span đang mở: cha + thuộc tính (tìm bước/video của span dùng tài nguyên khi nó kết thúc, 028). */
+const open = new Map<string, { parent?: string; attrs: Attributes; at: number }>();
+
+class OpenSpanTracker implements SpanProcessor {
+  onStart(span: Span): void {
+    const r = span as unknown as ReadableSpan;
+    open.set(r.spanContext().spanId, {
+      parent: r.parentSpanContext?.spanId,
+      attrs: r.attributes,
+      at: Date.now(),
+    });
+  }
+  onEnd(): void {}
+  async forceFlush(): Promise<void> {}
+  async shutdown(): Promise<void> {}
+}
+
+function inherited(spanId: string | undefined, key: string): unknown {
+  for (let id = spanId, n = 0; id && n < 64; n++) {
+    const o = open.get(id);
+    if (!o) return undefined;
+    if (o.attrs[key] !== undefined) return o.attrs[key];
+    id = o.parent;
+  }
+  return undefined;
+}
+
+export interface UsageRow {
+  kind: 'llm' | 'image_api' | 'gpu';
+  provider: string | null;
+  model: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  units: number;
+  cost_usd: number;
+  source: 'reported' | 'estimated';
+}
+
+/** Bản ghi chi phí từ một span đã kết thúc (D11 mục 3): cùng nguồn với trace → báo cáo khớp trace (AC-M3-04). */
+export function usageOf(s: ReadableSpan, pricing: Pricing = []): UsageRow[] {
+  const a = s.attributes;
+  const num = (k: string) => Number(a[k] ?? 0) || 0;
+  const str = (k: string) => (a[k] === undefined ? null : String(a[k]));
+  if (s.name === 'sf.text.call' || s.name === 'sf.agent.session') {
+    const tin = num('gen_ai.usage.input_tokens');
+    const tout = num('gen_ai.usage.output_tokens');
+    if (!tin && !tout && !num('sf.cost_usd')) return [];
+    return [
+      {
+        kind: 'llm',
+        provider: str('gen_ai.system') ?? (s.name === 'sf.agent.session' ? 'claude' : null),
+        model: str('gen_ai.request.model'),
+        input_tokens: tin,
+        output_tokens: tout,
+        units: 0,
+        cost_usd: num('sf.cost_usd'),
+        source: 'reported',
+      },
+    ];
+  }
+  if (s.name === 'sf.provider.run' && a['sf.from_cache'] === false) {
+    const out: UsageRow[] = [];
+    const provider = str('sf.provider');
+    const model = str('sf.model');
+    if (num('sf.gpu_ms') > 0)
+      out.push({
+        kind: 'gpu',
+        provider,
+        model,
+        input_tokens: 0,
+        output_tokens: 0,
+        units: Math.round(num('sf.gpu_ms')) / 1000,
+        cost_usd: 0,
+        source: 'reported',
+      });
+    if (a['sf.cost_kind'] === 'per_image') {
+      const price = pricing.find(
+        (p) => p.unit === 'image' && p.provider === provider && (!model || p.model === model),
+      );
+      out.push({
+        kind: 'image_api',
+        provider,
+        model,
+        input_tokens: 0,
+        output_tokens: 0,
+        units: num('sf.units') || 1,
+        cost_usd: Math.round((price?.usd ?? 0) * (num('sf.units') || 1) * 1e6) / 1e6,
+        source: 'estimated',
+      });
+    }
+    return out;
+  }
+  return [];
+}
+
 /** Exporter ghi span vào bảng `spans` của `studioflow.db` (tech-defaults: exporter tự viết, D11 mục 1). */
 class SqliteExporter implements SpanExporter {
-  readonly sinks = new Set<Db>();
+  readonly sinks = new Map<Db, { pricing: () => Pricing }>();
   export(spans: ReadableSpan[], done: (r: ExportResult) => void): void {
-    for (const db of this.sinks) {
+    for (const [db, sink] of this.sinks) {
       try {
         const st = db.prepare(
           'INSERT OR REPLACE INTO spans (span_id, trace_id, parent_id, name, start_ms, end_ms, status, status_message, video_id, attrs, events) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         );
+        const us = db.prepare(
+          'INSERT INTO usage (ts, channel_id, video_id, step_id, kind, provider, model, input_tokens, output_tokens, units, cost_usd, source, span_id, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        );
         for (const s of spans) {
           const ctx = s.spanContext();
           const attrs = JSON.parse(maskSecrets(JSON.stringify(s.attributes))) as Attributes;
+          // chi phí theo video → bước (028): bước/video lấy từ span tổ tiên còn mở
+          const parent = s.parentSpanContext?.spanId;
+          const pick = (k: string) =>
+            (attrs[k] as string | undefined) ??
+            (inherited(parent, k) as string | undefined) ??
+            null;
+          for (const u of usageOf(s, sink.pricing()))
+            us.run(
+              new Date(hr(s.endTime)).toISOString(),
+              pick('sf.channel_id'),
+              pick('sf.video_id'),
+              pick('sf.step_id'),
+              u.kind,
+              u.provider,
+              u.model,
+              u.input_tokens,
+              u.output_tokens,
+              u.units,
+              u.cost_usd,
+              u.source,
+              ctx.spanId,
+              ctx.traceId,
+            );
           st.run(
             ctx.spanId,
             ctx.traceId,
@@ -55,28 +182,77 @@ class SqliteExporter implements SpanExporter {
         /* E_TRACE_STORE: không chặn việc chính (D11 mục 5) */
       }
     }
+    for (const s of spans) open.delete(s.spanContext().spanId);
+    // span mồ côi (không bao giờ kết thúc) → dọn sau 1 ngày
+    if (open.size > 10_000)
+      for (const [id, o] of open) if (Date.now() - o.at > 86_400_000) open.delete(id);
     done({ code: ExportResultCode.SUCCESS });
   }
   async shutdown(): Promise<void> {}
 }
 
 const exporter = new SqliteExporter();
+
+/** Xuất thêm sang Phoenix cục bộ khi bật (D11 mục 1, FR-OB-04; OTLP HTTP — tech-defaults). */
+class PhoenixProcessor implements SpanProcessor {
+  inner?: BatchSpanProcessor;
+  url?: string;
+  onStart(): void {}
+  onEnd(span: ReadableSpan): void {
+    this.inner?.onEnd(span);
+  }
+  async forceFlush(): Promise<void> {
+    await this.inner?.forceFlush();
+  }
+  async shutdown(): Promise<void> {
+    await this.inner?.shutdown();
+  }
+}
+const phoenix = new PhoenixProcessor();
+
+export const PHOENIX_URL = 'http://127.0.0.1:6006';
+
+/** Bật/tắt xuất span sang Phoenix (`settings.trace.phoenix_enabled`). */
+export function setPhoenixExport(enabled: boolean, base = PHOENIX_URL): void {
+  install();
+  const url = `${base}/v1/traces`;
+  if (enabled && phoenix.url === url) return;
+  void phoenix.inner?.shutdown();
+  phoenix.inner = undefined;
+  phoenix.url = undefined;
+  if (!enabled) return;
+  phoenix.inner = new BatchSpanProcessor(new OTLPTraceExporter({ url }), {
+    scheduledDelayMillis: 500,
+  });
+  phoenix.url = url;
+}
+
+/** Đẩy span đang chờ sang Phoenix (test, đóng app). */
+export async function flushPhoenix(): Promise<void> {
+  await phoenix.forceFlush();
+}
 let installed = false;
 
 /** Cài provider OTel toàn cục một lần (AsyncLocalStorage để span lồng tự động). */
 function install(): void {
   if (installed) return;
   installed = true;
-  const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
+  const provider = new BasicTracerProvider({
+    spanProcessors: [new OpenSpanTracker(), new SimpleSpanProcessor(exporter), phoenix],
+  });
   trace.setGlobalTracerProvider(provider);
   context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
   propagation.setGlobalPropagator(new W3CTraceContextPropagator());
 }
 
 /** Gắn DB nhận span (mỗi `createCore`); trả hàm gỡ. Dọn span quá `retentionDays`. */
-export function attachTraceStore(db: Db, retentionDays = 30): () => void {
+export function attachTraceStore(
+  db: Db,
+  retentionDays = 30,
+  opts: { pricing?: () => Pricing } = {},
+): () => void {
   install();
-  exporter.sinks.add(db);
+  exporter.sinks.set(db, { pricing: opts.pricing ?? (() => []) });
   try {
     db.prepare('DELETE FROM spans WHERE start_ms < ?').run(Date.now() - retentionDays * 86_400_000);
   } catch {

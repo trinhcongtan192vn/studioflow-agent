@@ -74,10 +74,24 @@ describeStudio('Studio preview (017 FR-ST-01)', () => {
       data: { url: string; port: number };
     };
     expect(r.ok).toBe(true);
-    expect(r.data.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#project\/vd_8m2pq7rt$/);
+    // 028: qua proxy + trang cầu nối cùng origin (WebMCP)
+    expect(r.data.url).toMatch(
+      /^http:\/\/127\.0\.0\.1:\d+\/__sf\/bridge\.html#project\/vd_8m2pq7rt$/,
+    );
     const res = await fetch(`http://127.0.0.1:${r.data.port}/`);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('<!doctype html>');
+    const bridge = await fetch(`http://127.0.0.1:${r.data.port}/__sf/bridge.html`);
+    expect(await bridge.text()).toContain("s.src = '/' + location.hash");
+    // xem trước chỉ đọc: API ghi bị chặn ở proxy
+    const put = await fetch(
+      `http://127.0.0.1:${r.data.port}/api/projects/vd_8m2pq7rt/files/index.html`,
+      {
+        method: 'PUT',
+        body: 'x',
+      },
+    );
+    expect(put.status).toBe(403);
     const snap = path.join(c.dir, ...snapshotRel(fixtureVideoId).split('/'));
     // Studio tự ghi lại index.html của dự án nó mở (S6: chuẩn hóa HTML) → chỉ bản chụp đổi
     expect(readFileSync(path.join(snap, 'index.html'), 'utf8')).toContain(

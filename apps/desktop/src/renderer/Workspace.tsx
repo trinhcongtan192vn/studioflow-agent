@@ -3,10 +3,10 @@ import type { ExplorerNode, VideoStateSummary } from '@studioflow/core';
 import { Chat } from './Chat';
 import { core } from './rpc';
 import { Settings } from './Settings';
-import { JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
+import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
 type Video = { id: string; title: string; phase: string; updated_at: string };
-const TABS = ['Tiến độ', 'Xem trước', 'Job', 'Nhạc', 'Trace'] as const;
+const TABS = ['Tiến độ', 'Xem trước', 'Job', 'Nhạc', 'Trace', 'Chi phí'] as const;
 
 /** UI-03 Không gian kênh (FN-008 mục 1). */
 export function Workspace({ channel, onClose }: { channel: string; onClose: () => void }) {
@@ -142,6 +142,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           {tab === 'Job' && <JobsTab video={video} />}
           {tab === 'Nhạc' && <MusicTab channel={channel} />}
           {tab === 'Trace' && <TraceTab video={video} />}
+          {tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
         </div>
       </aside>
       {file && (

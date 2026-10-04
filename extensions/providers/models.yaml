@@ -263,3 +263,14 @@
       - ['torch==2.8.0', '--index-url', 'https://download.pytorch.org/whl/cpu']
       - ['transformers==4.57.1', 'librosa==0.11.0', 'soundfile==0.13.1']
     approx_size: 1200000000
+
+# 028: Arize Phoenix cục bộ (tùy chọn, FR-OB-04) — `phoenix serve` nhận OTLP HTTP ở 127.0.0.1:6006
+- key: phoenix-env
+  title: Arize Phoenix (xem trace chi tiết, tùy chọn)
+  install_profile: full
+  python_env:
+    engine: phoenix
+    python: '3.12'
+    steps:
+      - ['arize-phoenix==20.19.0']
+    approx_size: 900000000

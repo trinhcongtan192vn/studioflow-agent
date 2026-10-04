@@ -129,8 +129,15 @@ export function runCapability<I, O>(
       'sf.video_id': args.videoId,
     },
     async (span) => {
-      const r = await runCapabilityInner(args);
-      span.setAttribute('sf.from_cache', r.from_cache);
+      const r = await runCapabilityInner(args, (ms) => {
+        // thời gian chiếm GPU (lease engine) + loại phí → bảng `usage` (D11 mục 3, 028)
+        if (m.engine) span.setAttribute('sf.gpu_ms', ms);
+      });
+      span.setAttributes({
+        'sf.from_cache': r.from_cache,
+        'sf.cost_kind': m.cost.kind,
+        'sf.units': 1,
+      });
       return r;
     },
   );
@@ -138,6 +145,7 @@ export function runCapability<I, O>(
 
 async function runCapabilityInner<I, O>(
   args: RunCapabilityArgs<I, O>,
+  onRunMs: (ms: number) => void = () => {},
 ): Promise<RunCapabilityResult<O>> {
   const { store, adapter, capability, input } = args;
   const m = adapter.manifest;
@@ -166,6 +174,7 @@ async function runCapabilityInner<I, O>(
       args.signal?.addEventListener('abort', () => ctrl.abort());
       // lịch GPU (019): giữ lease engine trong suốt lần chạy adapter (cache hit không cần GPU)
       const lease = m.engine ? await gpuScheduler?.acquire(m.engine, args.signal) : undefined;
+      const tRun = Date.now();
       const out = (await adapter
         .run(input, {
           signal: ctrl.signal,
@@ -184,7 +193,10 @@ async function runCapabilityInner<I, O>(
             return v;
           },
         })
-        .finally(() => lease?.release())) as Record<string, unknown>;
+        .finally(() => {
+          lease?.release();
+          onRunMs(Date.now() - tRun);
+        })) as Record<string, unknown>;
       output = { ...out };
       const files: Record<string, string> = {};
       let size = 0;

@@ -85,6 +85,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('studio')).toHaveAttribute('src', /#project\/vd_8m2pq7rt$/, {
       timeout: 60_000,
     });
+    // FR-CH-04 (028): mốc đầu phát của Studio → chip ngữ cảnh trên ô chat (WebMCP qua postMessage)
+    await win.getByRole('button', { name: 'Đính kèm mốc hiện tại' }).click();
+    await expect(win.getByTestId('context-chips')).toContainText(/Mốc \d+\.\d{2} s/, {
+      timeout: 60_000,
+    });
     // UI-11 bảng caption dưới khung xem trước (026): audio xem trước qua sf-media:, sửa chữ → tự lưu
     const captions = win.getByTestId('captions');
     await expect(captions.getByTestId('cg-cg_m1x8d0rq')).toBeVisible({ timeout: 30_000 });
@@ -106,6 +111,9 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
       readFileSync(path.join(channel, 'videos', 'vd_8m2pq7rt', 'caption-overrides.json'), 'utf8'),
     );
     expect(ov.groups.cg_m1x8d0rq).toEqual({ end_ms: 1300, text: 'Năm 1428 — sửa tay' });
+    // UI-12 Chi phí (028)
+    await win.getByRole('button', { name: 'Chi phí' }).click();
+    await expect(win.getByTestId('cost')).toContainText('Tổng');
     // tab Job / Trace
     await win.getByRole('button', { name: 'Trace' }).click();
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { core } from './rpc';
+import { addContextRef } from './context-refs';
 import {
   canSplit,
   dragEdge,
@@ -293,6 +294,18 @@ export function CaptionPanel({ channel, video }: { channel: string; video: strin
               onClick={() => apply(mergeNext(state, selected.id, newGroupId(taken)))}
             >
               Gộp với cụm sau
+            </button>
+            {/* FR-CH-04 (028) */}
+            <button
+              onClick={() =>
+                addContextRef({
+                  kind: 'caption_group',
+                  id: selected.id,
+                  time_ms: selected.start_ms,
+                })
+              }
+            >
+              Đính kèm vào chat
             </button>
           </div>
         </div>

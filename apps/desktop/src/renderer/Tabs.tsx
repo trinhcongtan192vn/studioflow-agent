@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
 import { core } from './rpc';
 import { CaptionPanel } from './CaptionPanel';
+import { addContextRef } from './context-refs';
+import { StudioBridge } from './studio-bridge';
 
 const ICON: Record<string, string> = {
   pending: '○',
@@ -150,10 +152,34 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
   const [url, setUrl] = useState<string>();
   const [wide, setWide] = useState(false);
   const [editing, setEditing] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const bridge = useRef<StudioBridge>();
   useEffect(() => {
     setUrl(undefined);
   }, [video]);
+  useEffect(() => {
+    bridge.current?.dispose();
+    bridge.current = url && frameRef.current ? new StudioBridge(frameRef.current) : undefined;
+    return () => bridge.current?.dispose();
+  }, [url, wide]);
   if (!video) return <p className="muted">Chọn một video.</p>;
+  // FR-CH-04 (028): đính kèm mốc đầu phát / phần tử đang chọn trong Studio làm ngữ cảnh chat
+  const attachTime = async () => {
+    try {
+      addContextRef({ kind: 'time', time_ms: await bridge.current!.currentTimeMs() });
+      setMsg('Đã đính kèm mốc hiện tại vào chat.');
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  const attachSelection = async () => {
+    try {
+      addContextRef(await bridge.current!.selection());
+      setMsg('Đã đính kèm phần tử đang chọn vào chat.');
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
   const render = async (mode: 'draft' | 'release') => {
     try {
       const r = await core.call('render.start', { channel, video, mode });
@@ -203,6 +229,9 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
   };
   const studio = url && (
     <iframe
+      ref={frameRef}
+      // WebMCP của Studio cần quyền `tools` qua chuỗi iframe (028)
+      allow="tools; clipboard-read; clipboard-write; fullscreen"
       data-testid="studio"
       title="Studio"
       src={url}
@@ -215,6 +244,8 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
         {url ? (
           <>
             <button onClick={() => setWide(!wide)}>{wide ? 'Thu nhỏ' : 'Mở rộng'}</button>
+            <button onClick={() => void attachTime()}>Đính kèm mốc hiện tại</button>
+            <button onClick={() => void attachSelection()}>Đính kèm phần tử đang chọn</button>
             {editing && <button onClick={() => void commit()}>Lưu thay đổi Studio</button>}
             <button onClick={() => void closeStudio()}>Đóng Studio</button>
           </>
@@ -318,6 +349,17 @@ type SpanRow = {
 export function TraceTab({ video }: { video?: string }) {
   const [traces, setTraces] = useState<SpanRow[]>([]);
   const [spans, setSpans] = useState<SpanRow[] | null>(null);
+  // FR-OB-04 (028): bật Phoenix → nút mở trace chi tiết
+  const [phoenix, setPhoenix] = useState(false);
+  useEffect(() => {
+    void core
+      .call('settings.get', {})
+      .then((s) =>
+        setPhoenix(
+          Boolean((s as { trace?: { phoenix_enabled?: boolean } }).trace?.phoenix_enabled),
+        ),
+      );
+  }, []);
   useEffect(() => {
     void core
       .call('trace.list', { ...(video ? { video } : {}), limit: 50 })
@@ -327,6 +369,11 @@ export function TraceTab({ video }: { video?: string }) {
     return (
       <div data-testid="trace-spans">
         <button onClick={() => setSpans(null)}>← Danh sách</button>
+        {phoenix && (
+          <a href={PHOENIX} target="_blank" rel="noreferrer">
+            Mở trong Phoenix
+          </a>
+        )}
         <ul className="spans">
           {spans.map((s) => (
             <li key={s.span_id} style={{ paddingLeft: (s.depth ?? 0) * 14 }} className={s.status}>
@@ -366,5 +413,99 @@ export function TraceTab({ video }: { video?: string }) {
       ))}
       {!traces.length && <li className="muted">Chưa có trace.</li>}
     </ul>
+  );
+}
+
+type CostTotals = {
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  gpu_s: number;
+  images: number;
+};
+const KIND: Record<string, string> = { llm: 'LLM', image_api: 'API ảnh', gpu: 'GPU' };
+
+const PHOENIX = 'http://127.0.0.1:6006';
+
+/** UI-12 Báo cáo chi phí (D11 mục 3, FR-OB-03, 028): video → bước → loại; so ngân sách; xuất CSV. */
+export function CostTab({ channel, video }: { channel: string; video?: string }) {
+  const [r, setR] = useState<{
+    total: CostTotals;
+    steps: { step_id: string | null; total: CostTotals; kinds: Record<string, CostTotals> }[];
+    budget: {
+      tokens_used: number;
+      api_cost_usd: number;
+      limit_tokens: number | null;
+      limit_api_cost_usd: number | null;
+    };
+    estimated: boolean;
+    csv: string;
+  }>();
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    setR(undefined);
+    if (!video) return;
+    void core
+      .call('cost.report', { channel, video })
+      .then((x) => setR(x as never))
+      .catch((e: Error) => setMsg(e.message));
+  }, [channel, video]);
+  if (!video) return <p className="muted">Chọn một video.</p>;
+  if (!r) return <p className="muted">{msg || 'Đang tải…'}</p>;
+  const usd = (x: number) => `$${x.toFixed(4)}`;
+  const download = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([r.csv], { type: 'text/csv' }));
+    a.download = `chi-phi-${video}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const row = (label: string, t: CostTotals, key: string, strong = false) => (
+    <tr key={key} className={strong ? 'strong' : undefined}>
+      <td>{label}</td>
+      <td>{t.input_tokens.toLocaleString('vi-VN')}</td>
+      <td>{t.output_tokens.toLocaleString('vi-VN')}</td>
+      <td>{usd(t.cost_usd)}</td>
+      <td>{t.gpu_s ? `${t.gpu_s.toFixed(1)} s` : ''}</td>
+      <td>{t.images || ''}</td>
+    </tr>
+  );
+  return (
+    <div data-testid="cost">
+      <div className="row">
+        <span>
+          Ngân sách: {r.budget.tokens_used.toLocaleString('vi-VN')}
+          {r.budget.limit_tokens ? ` / ${r.budget.limit_tokens.toLocaleString('vi-VN')}` : ''} token
+          · {usd(r.budget.api_cost_usd)}
+          {r.budget.limit_api_cost_usd ? ` / ${usd(r.budget.limit_api_cost_usd)}` : ''}
+        </span>
+        <button onClick={download}>Xuất CSV</button>
+      </div>
+      <table className="cost">
+        <thead>
+          <tr>
+            <th>Bước / loại</th>
+            <th>Token vào</th>
+            <th>Token ra</th>
+            <th>Chi phí</th>
+            <th>GPU</th>
+            <th>Ảnh API</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.steps.flatMap((s) => [
+            row(s.step_id ?? '(chat)', s.total, `${s.step_id}`, true),
+            ...Object.entries(s.kinds).map(([k, t]) =>
+              row(`  ${KIND[k] ?? k}`, t, `${s.step_id}:${k}`),
+            ),
+          ])}
+          {row('Tổng', r.total, 'total', true)}
+        </tbody>
+      </table>
+      {r.estimated && (
+        <p className="muted">Chi phí API ảnh là ước tính theo bảng giá trong cài đặt.</p>
+      )}
+    </div>
   );
 }
