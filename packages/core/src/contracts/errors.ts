@@ -67,6 +67,16 @@ export const errorRegistry = {
       ]
     },
     {
+      "code": "E_CHANNEL_INVALID",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "specs/022-channel-profile-validate/spec.md",
+          "when": "sf channel validate: hồ sơ kênh có lỗi (D6 mục 6.3)"
+        }
+      ]
+    },
+    {
       "code": "E_CLI_BAD_JSON",
       "retryable": false,
       "sources": [
