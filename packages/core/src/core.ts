@@ -6,6 +6,7 @@ import { defineMusicJobs, musicTools } from './music/tools.js';
 import { ensureToolPaths, installEntry, type InstallProfile } from './models/install.js';
 import { attachTraceStore } from './trace/trace.js';
 import { StudioPreviews } from './studio/preview.js';
+import { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
 import { studioTools } from './studio/tools.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -151,6 +152,9 @@ export function createCore(opts: CoreOptions = {}): Core {
   for (const t of renderTools(tts)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
+  // narrated-explainer (016): bước engine còn lại
+  workflows.registerExecutor('captions', captionsExecutor(graph));
+  workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('design-system', designSystemExecutor());
   workflows.registerExecutor(
     'frame-build',

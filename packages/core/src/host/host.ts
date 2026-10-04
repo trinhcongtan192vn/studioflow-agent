@@ -29,6 +29,7 @@ import type { WorkflowEngine } from '../workflow/engine.js';
 
 interface OpenSession {
   id: string;
+  packDir?: string;
   session: AgentSession;
   chatRel: string;
 }
@@ -178,10 +179,20 @@ export class CoreHost extends EventEmitter {
       .filter((l) => !(l.role === 'system' && l.content.startsWith('sdk_session:')));
   }
 
+  private workflowPackDir(channel: string, video: string): string | undefined {
+    const f = path.join(path.resolve(channel), 'videos', video, 'state.json');
+    if (!existsSync(f)) return undefined;
+    const id = (JSON.parse(readFileSync(f, 'utf8')) as VideoState).workflow?.id;
+    return id ? this.core.workflows.packs().find((p) => p.manifest.id === id)?.dir : undefined;
+  }
+
   private async session(channel: string, video?: string): Promise<OpenSession> {
     const key = `${path.resolve(channel)}|${video ?? ''}`;
+    // plugin gói workflow của video (D5 mục 3) — đổi workflow → mở phiên mới
+    const packDir = video ? this.workflowPackDir(channel, video) : undefined;
     const open = this.sessions.get(key);
-    if (open) return open;
+    if (open && open.packDir === packDir) return open;
+    if (open) void open.session.close();
     const prev = this.latestChat(channel, video);
     const id = prev ? path.basename(prev, '.jsonl') : newId('ss');
     const resume = prev
@@ -200,9 +211,17 @@ export class CoreHost extends EventEmitter {
       ...(video ? { video_id: video as SessionContext['video_id'] } : {}),
     };
     const session = await this.runtime.openSession(
-      sessionOptionsFor('main', ctx, this.core.gateway, resume ? { resume } : {}),
+      sessionOptionsFor('main', ctx, this.core.gateway, {
+        ...(resume ? { resume } : {}),
+        ...(packDir ? { plugins: [packDir] } : {}),
+      }),
     );
-    const s = { id, session, chatRel: `${this.chatDir(channel, video)}/${id}.jsonl` };
+    const s = {
+      id,
+      session,
+      chatRel: `${this.chatDir(channel, video)}/${id}.jsonl`,
+      ...(packDir ? { packDir } : {}),
+    };
     this.sessions.set(key, s);
     return s;
   }

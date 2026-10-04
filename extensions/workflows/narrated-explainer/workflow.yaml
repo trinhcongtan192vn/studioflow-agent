@@ -1,0 +1,39 @@
+# Workflow `narrated-explainer` (FN-016, D6 mục 1) — fork từ HyperFrames `faceless-explainer`.
+id: narrated-explainer
+version: 1.0.0
+title: Video thuyết minh
+description: Video thuyết minh 3–15 phút một người dẫn — khoa học phổ thông, giải thích khái niệm, tóm tắt sách; hình chủ yếu là đồ họa động vẽ bằng code.
+app_api: '>=1.0 <2.0'
+upstream: { hyperframes_workflow: faceless-explainer, hyperframes_version: '0.8.115' }
+output_profiles: [yt-1080p30]
+requires: [tts.synthesize, asr.align]
+optional: [image.generate]
+brief:
+  questions:
+    - Chủ đề của video là gì?
+    - Khán giả là ai?
+    - Thông điệp chính muốn người xem nhớ?
+    - Độ dài mục tiêu (mặc định 8 phút)?
+steps:
+  - { id: design, uses: design-system, title: Design system }
+  - id: script
+    uses: script
+    title: Kịch bản
+    params: { mode: narration }
+    refine: { enabled: true, rubric: script-default }
+    approval: { required: true }
+  - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
+  - { id: voice, uses: voice, title: Giọng đọc }
+  - { id: assets, uses: assets, title: Hình ảnh }
+  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
+  - { id: frames, uses: frame-build, title: Dựng frame }
+  - { id: effects, uses: effects, title: Hiệu ứng, skip_if: { phase_before: M3 } }
+  - { id: overlays, uses: overlays, title: Overlay, skip_if: { phase_before: M3 } }
+  - { id: captions, uses: captions, title: Phụ đề }
+  - { id: music, uses: music, title: Nhạc nền }
+  - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }
+  - id: meta
+    uses: publish-meta
+    title: Tiêu đề và mô tả
+    refine: { enabled: true, rubric: meta-default }
+  - { id: render, uses: render, title: Render phát hành, params: { mode: release } }

@@ -152,6 +152,14 @@ describe('steps, gates, approvals (007 US2, FR-WF-03/04)', () => {
     writeFileSync(p, readFileSync(p, 'utf8').replace('Bệ hạ…', 'Tâu bệ hạ…'));
     expect(stepStatus(fx).script).toBe('waiting_approval');
     expect(pending(fx)).toHaveLength(2);
+    // duyệt lại nội dung mới → giữ trạng thái duyệt (hash cập nhật; 016 phát hiện khi nghiệm thu)
+    const again = state(fx).approvals.find(
+      (a: { step_id: string; status: string }) => a.step_id === 'script' && a.status === 'pending',
+    )!;
+    e.pause();
+    await e.approve(again.id);
+    expect(stepStatus(fx).script).toBe('done');
+    expect(e.summary().pending_approvals).not.toContain(again.id);
   });
 
   it('agent steps must report completion (E_STEP_INCOMPLETE)', async () => {
