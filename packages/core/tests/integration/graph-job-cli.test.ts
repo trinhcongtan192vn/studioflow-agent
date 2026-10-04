@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createCore, type PermissionRequest } from '../../src/index.js';
 import { runSf } from '../helpers.js';
+import { writeValidFrames } from '../graph-helpers.js';
 import {
   copyChannel,
   fixtureAppData,
@@ -39,6 +40,13 @@ function core() {
   }));
   // chưa có frame trong test này → index giả (011)
   app.graph.registerBuilder('index', async () => ({ meta: { index: 'stub' } }));
+  // ảnh sinh + credits giả (020): test này không có GPU/provider ảnh
+  app.graph.registerBuilder('asset', async (ctx) => {
+    const file = `public/${ctx.key}.png`;
+    ctx.store.write(`${ctx.videoRel}/${file}`, Buffer.from('png'), { by: 'test', validate: false });
+    return { outputs: [file], meta: { asset_id: 'as_00000000' } };
+  });
+  app.graph.registerBuilder('credits', async () => ({ meta: { credits: 'stub' } }));
   const session = {
     session_id: 'ss_test0001' as const,
     kind: 'main' as const,
@@ -54,12 +62,17 @@ describe('graph.* / job.* tools (004 US5)', () => {
     const st = await app.gateway.call(session, 'graph.status', {});
     expect(st).toMatchObject({ ok: true, data: { nodes: expect.any(Array) } });
     const plan = await app.gateway.call(session, 'graph.plan', {});
-    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(10); // 3 audio.line + 3 asr.line + audio_meta + captions + frame_timing (010) + index (011)
+    expect((plan as { data: { jobs: unknown[] } }).data.jobs.length).toBe(14); // 3 audio.line + 3 asr.line + audio_meta + captions + frame_timing (010) + index (011) + asset + 2 frame_html + credits (020; render chỉ khi chọn)
+    // frame do frame agent dựng (011); ở đây frame giả hợp lệ được nhận vào graph (020)
+    writeValidFrames(app.gateway.storeFor(session.channel_dir), fixtureVideoId);
     const build = await app.gateway.call(session, 'graph.build', {});
     expect(build).toMatchObject({ ok: true, job_id: expect.stringMatching(/^jb_/) });
     const id = (build as { job_id: string }).job_id;
     const done = await app.gateway.call(session, 'job.wait', { job_id: id, timeout_ms: 5000 });
-    expect(done).toMatchObject({ ok: true, data: { status: 'succeeded', kind: 'graph.build' } });
+    expect(
+      done,
+      JSON.stringify((done as { data: { result?: unknown } }).data.result),
+    ).toMatchObject({ ok: true, data: { status: 'succeeded', kind: 'graph.build' } });
     expect(await app.gateway.call(session, 'job.list', {})).toMatchObject({
       ok: true,
       data: { jobs: [expect.objectContaining({ id })] },

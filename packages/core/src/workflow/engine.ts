@@ -556,6 +556,25 @@ export class WorkflowEngine extends EventEmitter {
     }
   }
 
+  /** Ngữ cảnh bước frame-build để dựng lại frame ngoài lượt chạy bước (nút `frame_html`, 020). */
+  frameBuildContext(signal: AbortSignal): StepRunContext {
+    const st = this.readState();
+    const manifest = this.manifestOf(st);
+    const decl = manifest.steps.find((s) => s.uses === 'frame-build');
+    if (!decl) throw new SfError('E_STEP_INCOMPLETE', 'this workflow has no frame-build step');
+    return {
+      store: this.d.store,
+      channelDir: this.d.store.root,
+      videoId: this.d.videoId,
+      step: decl,
+      manifest,
+      signal,
+      appDataDir: this.d.appDataDir,
+      ...(this.pack(st)?.dir ? { packDir: this.pack(st)!.dir } : {}),
+      waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
+    };
+  }
+
   /** Hứa hẹn hoàn tất khi phiên `frame` gọi `workflow.step_complete` với `frame_id` (011). */
   waitFrame(stepId: string, frameId: string): Promise<FrameCompletion> {
     return new Promise((resolve) => this.frameWaiters.set(`${stepId}:${frameId}`, resolve));

@@ -1,10 +1,18 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { AudioMeta, Line, NodeStatus, PlanEstimate, PlannedJob } from '../contracts/types.js';
+import type {
+  AudioMeta,
+  Frame,
+  Line,
+  NodeStatus,
+  PlanEstimate,
+  PlannedJob,
+} from '../contracts/types.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { readAsrState } from '../asr/state.js';
 import { SfError } from '../errors.js';
 import type { WriteStore } from '../store/writer.js';
+import { loadOutputProfile } from '../hf/outputs.js';
 import { loadVideoModel, voiceOf, type VideoModel } from './model.js';
 import {
   assembleAudioLines,
@@ -14,7 +22,17 @@ import {
 } from './timing.js';
 
 export type NodeType =
-  'audio.line' | 'asr.line' | 'audio_meta' | 'captions' | 'frame_timing' | 'index';
+  | 'audio.line'
+  | 'asr.line'
+  | 'audio_meta'
+  | 'captions'
+  | 'frame_timing'
+  | 'asset'
+  | 'lipsync.line'
+  | 'frame_html'
+  | 'index'
+  | 'credits'
+  | 'render';
 export type Phase = 'tts' | 'asr' | 'image' | 'lipsync' | 'assemble';
 export type NodeState = 'fresh' | 'stale' | 'missing' | 'pinned' | 'pinned_stale' | 'failed';
 
@@ -25,9 +43,41 @@ const PHASE_OF: Record<NodeType, Phase> = {
   audio_meta: 'assemble',
   captions: 'assemble',
   frame_timing: 'assemble',
+  asset: 'image',
+  'lipsync.line': 'lipsync',
+  frame_html: 'assemble',
   index: 'assemble',
+  credits: 'assemble',
+  render: 'assemble',
 };
-const ASSEMBLE_ORDER: NodeType[] = ['audio_meta', 'captions', 'frame_timing', 'index'];
+const ASSEMBLE_ORDER: NodeType[] = [
+  'audio_meta',
+  'captions',
+  'frame_timing',
+  'frame_html',
+  'index',
+  'credits',
+  'render',
+];
+/** Nút chỉ chạy khi được chọn làm mục tiêu (020 R4). */
+const EXPLICIT_ONLY = new Set<NodeType>(['render']);
+
+/** Nút chưa "xong" cho gate `graph_fresh`: không fresh/ghim; nút chỉ-khi-chọn (render) không tính (020). */
+export function unsettled(n: { type: string; status: string }): boolean {
+  return n.status !== 'fresh' && n.status !== 'pinned' && !EXPLICIT_ONLY.has(n.type as NodeType);
+}
+
+/** Kích thước ảnh theo `asset_request.aspect` (FN-018/023, 020 US1). */
+const ASPECT_SIZE: Record<string, [number, number]> = {
+  '16:9': [1664, 928],
+  '9:16': [928, 1664],
+  '1:1': [1328, 1328],
+  '4:3': [1472, 1104],
+};
+
+/** Seed cố định theo scene (FN-023, 020 R3). */
+export const sceneSeed = (sceneId: string): number =>
+  parseInt(sha256(sceneId).slice(0, 8), 16) % 2 ** 31;
 
 /** Bản ghi một nút trong `.sf/graph.json` (D4 mục 8.2). */
 export interface NodeRecord {
@@ -54,8 +104,20 @@ export interface NodeDef {
   key: string;
   phase: Phase;
   deps: string[];
-  parts: unknown;
+  /** Phần đầu vào; hàm → tính theo bản ghi hiện tại (ví dụ thời gian làm tròn của frame). */
+  parts: unknown | ((records: Record<string, NodeRecord>) => unknown);
+  /** Phụ thuộc đưa vào hash (mặc định mọi `deps`); `frame_html` chỉ băm asset (020 R1). */
+  hashDeps?: string[];
+  /** Phụ thuộc lan trạng thái lỗi thời khi lập kế hoạch (mặc định mọi `deps`). */
+  staleDeps?: string[];
   line?: Line;
+  /** `asset`: layer + scene/frame chứa nó. */
+  layer?: {
+    id: string;
+    frame_id: string;
+    scene_id: string;
+    request: NonNullable<Frame['layers'][number]['asset_request']>;
+  };
 }
 
 /** Trạng thái nút dạng nội bộ (có id/pha) — dùng cho build và test chi tiết. */
@@ -75,6 +137,8 @@ export interface PlannedNode {
 }
 
 export interface BuilderContext {
+  /** Định nghĩa nút (layer của `asset`, …). */
+  def?: NodeDef;
   store: WriteStore;
   channelDir: string;
   videoId: string;
@@ -91,6 +155,14 @@ export interface BuilderContext {
   signal: AbortSignal;
 }
 
+/** Ước tính cho `graph.plan` (D4 mục 3.1, 020 R5). */
+export interface PlanInfo {
+  engine?: string;
+  from_cache?: boolean;
+  cost_usd?: number;
+}
+export type Planner = (ctx: { store: WriteStore; model: VideoModel; def: NodeDef }) => PlanInfo;
+
 /** Kết quả builder: file đầu ra (tương đối video) và/hoặc meta (lưu trong graph.json). */
 export interface BuildOutput {
   outputs?: string[];
@@ -102,6 +174,15 @@ export type Builder = (ctx: BuilderContext) => Promise<BuildOutput>;
 /** Builder theo loại nút; tính năng sau đăng ký (006 audio.line, 010 asr.line/captions, 011 index). */
 export class BuilderRegistry {
   private readonly builders = new Map<NodeType, Builder>();
+  private readonly planners = new Map<NodeType, Planner>();
+
+  registerPlanner(type: NodeType, fn: Planner): void {
+    this.planners.set(type, fn);
+  }
+
+  planner(type: NodeType): Planner | undefined {
+    return this.planners.get(type);
+  }
 
   constructor() {
     this.builders.set('audio_meta', buildAudioMeta);
@@ -142,6 +223,10 @@ export class BuildGraph {
 
   registerBuilder(type: NodeType, fn: Builder): void {
     this.builders.registerBuilder(type, fn);
+  }
+
+  registerPlanner(type: NodeType, fn: Planner): void {
+    this.builders.registerPlanner(type, fn);
   }
 
   private get store(): WriteStore {
@@ -235,13 +320,102 @@ export class BuildGraph {
       max_words: model.config('caption.max_words'),
     });
     add('frame_timing', ['audio_meta'], { frames: frameTimingInputs(model) });
+    // 020: ảnh sinh cho layer `asset_request.source = generate` chưa có asset_id
+    if (on('asset')) {
+      const manifest = model.hashChannelDir('assets');
+      for (const f of model.frames)
+        for (const l of f.layers) {
+          const req = l.asset_request;
+          if (l.asset_id || req?.source !== 'generate') continue;
+          const [w, h] = req.aspect
+            ? ASPECT_SIZE[req.aspect]!
+            : req.transparent
+              ? [1024, 1024]
+              : ASPECT_SIZE['16:9']!;
+          defs.push({
+            id: `asset:${l.id}`,
+            type: 'asset',
+            key: l.id,
+            phase: 'image',
+            deps: [],
+            layer: { id: l.id, frame_id: f.id, scene_id: f.scene_id, request: req },
+            parts: {
+              prompt: req.prompt ?? l.notes ?? '',
+              refs: req.reference_asset_ids ?? [],
+              refs_hash: req.reference_asset_ids?.length ? manifest : null,
+              transparent: Boolean(req.transparent),
+              size: [w, h],
+              look: model.config('look.id', { sceneId: f.scene_id, frameId: f.id }),
+              provider: model.config('provider.image.generate'),
+              seed: sceneSeed(f.scene_id),
+            },
+          });
+        }
+    }
+    // 020: frame do phiên agent `frame` dựng; đầu vào làm tròn theo video frame (D4 8.3)
+    const frameNodes: string[] = [];
+    if (on('frame_html')) {
+      let fps = 30;
+      try {
+        fps = loadOutputProfile(model.config('output.profile') as string | null).fps;
+      } catch {
+        /* profile chưa cài → 30 */
+      }
+      const toFrames = (ms: number) => Math.round((ms * fps) / 1000);
+      const frameMd = model.hashOf('frame.md');
+      for (const [fi, f] of model.frames.entries()) {
+        const next = model.frames[fi + 1];
+        const lineNodes = f.line_ids.flatMap((ln) =>
+          defs
+            .filter((d) => d.id === `audio.line:${ln}` || d.id === `asr.line:${ln}`)
+            .map((d) => d.id),
+        );
+        const assets = f.layers
+          .filter((l) => defs.some((d) => d.id === `asset:${l.id}`))
+          .map((l) => `asset:${l.id}`);
+        const id = `frame_html:${f.id}`;
+        frameNodes.push(id);
+        defs.push({
+          id,
+          type: 'frame_html',
+          key: f.id,
+          phase: 'assemble',
+          deps: ['frame_timing', ...assets],
+          hashDeps: assets,
+          // thời lượng frame chỉ đổi khi line của chính nó đổi (D4 8.3); mốc tuyệt đối do index đặt
+          staleDeps: [...assets, ...lineNodes],
+          parts: (records: Record<string, NodeRecord>) => {
+            const t = records['frame_timing']?.meta as FrameTiming | undefined;
+            const ft = t?.frames.find((x) => x.id === f.id);
+            return {
+              frame: f,
+              lines: model.lines
+                .filter((l) => f.line_ids.includes(l.id))
+                .map((l) => [l.id, l.text]),
+              duration: ft ? toFrames(ft.duration_ms) : null,
+              // transition vào của frame sau chồng lên cuối frame này (giữ khung cuối)
+              next_transition: next?.transition_in ?? null,
+              line_timing: (t?.lines ?? [])
+                .filter((l) => l.frame_id === f.id)
+                .map((l) => [
+                  l.id,
+                  toFrames(l.start_ms - (ft?.start_ms ?? 0)),
+                  toFrames(l.duration_ms),
+                ]),
+              frame_md: frameMd,
+              profile: model.config('output.profile'),
+            };
+          },
+        });
+      }
+    }
     let frameHtml: string[] = [];
     const framesDir = path.join(model.videoDir, 'compositions', 'frames');
     if (existsSync(framesDir))
       frameHtml = readdirSync(framesDir)
         .sort()
         .map((f) => `${f}:${model.hashOf(`compositions/frames/${f}`)}`);
-    add('index', ['frame_timing', 'captions'], {
+    add('index', ['frame_timing', 'captions', ...frameNodes], {
       frames_html: frameHtml,
       overrides: model.hashOf('caption-overrides.json'),
       // 011: nền từ frame.md, kích thước theo output profile, transition vào của frame
@@ -256,6 +430,10 @@ export class BuildGraph {
       ]),
       duck_db: model.config('music.duck_db'),
     });
+    // 020: CREDITS từ nhạc + asset đã dùng; render nháp (chỉ khi được chọn)
+    // đọc lúc băm (asset vừa sinh trong cùng lần build làm đổi thư mục assets)
+    add('credits', ['index', ...frameNodes], () => ({ assets: model.hashChannelDir('assets') }));
+    add('render', ['index', 'credits'], { profile: model.config('output.profile') });
     return defs.sort(
       (a, b) =>
         PHASES.indexOf(a.phase) - PHASES.indexOf(b.phase) ||
@@ -266,13 +444,32 @@ export class BuildGraph {
   }
 
   private inputHash(def: NodeDef, records: Record<string, NodeRecord>): string {
+    const parts =
+      typeof def.parts === 'function'
+        ? (def.parts as (r: typeof records) => unknown)(records)
+        : def.parts;
     return sha256(
       canonicalJson({
         type: def.type,
-        parts: def.parts,
-        deps: def.deps.map((d) => records[d]?.output_hash ?? null),
+        parts,
+        deps: (def.hashDeps ?? def.deps).map((d) => records[d]?.output_hash ?? null),
       }),
     );
+  }
+
+  /** `state.json.pinned_frames` (D3 5.5) — frame có chỉnh tay. */
+  private pinnedFrames(model: VideoModel): Set<string> {
+    const f = path.join(model.videoDir, 'state.json');
+    if (!existsSync(f)) return new Set();
+    try {
+      return new Set(
+        Object.keys(
+          (JSON.parse(readFileSync(f, 'utf8')) as { pinned_frames?: object }).pinned_frames ?? {},
+        ),
+      );
+    } catch {
+      return new Set();
+    }
   }
 
   private outputsExist(videoId: string, rec: NodeRecord): boolean {
@@ -285,15 +482,21 @@ export class BuildGraph {
   ): { defs: NodeDef[]; status: Map<string, NodeState> } {
     const defs = this.nodes(model);
     const status = new Map<string, NodeState>();
+    const pinned = this.pinnedFrames(model);
+    const ok = (x: NodeState | undefined) =>
+      x === 'fresh' || x === 'pinned' || x === 'pinned_stale';
     for (const d of defs) {
       const rec = g.nodes[d.id];
       const ih = this.inputHash(d, g.nodes);
       let s: NodeState;
-      if (!rec) s = 'missing';
+      // D9 mục 5: frame chỉnh tay — giữ nguyên; đầu vào đổi từ lúc ghim → cần người dùng quyết định
+      if (d.type === 'frame_html' && pinned.has(d.key))
+        s = rec?.input_hash === ih ? 'pinned' : 'pinned_stale';
+      else if (!rec) s = 'missing';
       else if (rec.status === 'failed') s = rec.input_hash === ih ? 'failed' : 'stale';
       else if (!this.outputsExist(model.videoId, rec)) s = 'missing';
       else if (rec.input_hash !== ih) s = 'stale';
-      else if (d.deps.some((dep) => status.get(dep) !== 'fresh')) s = 'stale';
+      else if ((d.staleDeps ?? d.deps).some((dep) => !ok(status.get(dep)))) s = 'stale';
       else s = 'fresh';
       status.set(d.id, s);
     }
@@ -312,28 +515,45 @@ export class BuildGraph {
 
   /** `graph.status` — `NodeStatus` của D4 mục 3.1 (`key` = id nút, ví dụ `audio.line:ln_…`). */
   status(videoId: string): NodeStatus[] {
-    return this.nodeStates(videoId).map((n) => ({ key: n.id, type: n.type, status: n.status }));
+    return this.nodeStates(videoId).map((n) => ({
+      key: n.id,
+      type: n.type,
+      status: n.status,
+      ...(n.status === 'pinned_stale'
+        ? {
+            decision_required: true,
+            reason: 'frame was edited by hand and its inputs changed (D9 section 5)',
+          }
+        : {}),
+    }));
   }
 
   /** `graph.plan` — `{jobs: PlannedJob[], estimate: PlanEstimate}` của D4 mục 3.1. */
   plan(videoId: string, targets?: string[]): { jobs: PlannedJob[]; estimate: PlanEstimate } {
     const internal = this.planNodes(videoId, targets);
     const avg = this.historyMs(videoId);
-    const jobs: PlannedJob[] = internal.jobs.map((j) => ({
-      kind: j.type,
-      targets: [j.node],
-      phase: PHASES.indexOf(j.phase),
-      est_ms: Math.round(avg.get(j.type) ?? 0),
-      est_cost_usd: 0,
-      from_cache: false,
-    }));
+    const model = this.model(videoId);
+    const defs = new Map(this.nodes(model).map((d) => [d.id, d]));
+    const jobs: PlannedJob[] = internal.jobs.map((j) => {
+      const fn = this.builders.planner(j.type);
+      const info: PlanInfo = fn ? fn({ store: this.store, model, def: defs.get(j.node)! }) : {};
+      return {
+        kind: j.type,
+        targets: [j.node],
+        ...(info.engine ? { engine: info.engine } : {}),
+        phase: PHASES.indexOf(j.phase),
+        est_ms: info.from_cache ? 0 : Math.round(avg.get(j.type) ?? 0),
+        est_cost_usd: info.from_cache ? 0 : (info.cost_usd ?? 0),
+        from_cache: Boolean(info.from_cache),
+      };
+    });
     return {
       jobs,
       estimate: {
         total_ms: jobs.reduce((s, j) => s + j.est_ms, 0),
-        total_cost_usd: 0,
+        total_cost_usd: Math.round(jobs.reduce((s, j) => s + j.est_cost_usd, 0) * 1e6) / 1e6,
         jobs_count: jobs.length,
-        cached_count: 0,
+        cached_count: jobs.filter((j) => j.from_cache).length,
       },
     };
   }
@@ -353,8 +573,12 @@ export class BuildGraph {
     const g = this.load(videoId);
     const { defs, status } = this.evaluate(this.model(videoId), g);
     const wanted = targets?.length ? closure(defs, targets) : undefined;
+    const skip = new Set<NodeState>(['fresh', 'pinned', 'pinned_stale']);
     const jobs = defs
-      .filter((d) => status.get(d.id) !== 'fresh' && (!wanted || wanted.has(d.id)))
+      .filter(
+        (d) =>
+          !skip.has(status.get(d.id)!) && (wanted ? wanted.has(d.id) : !EXPLICIT_ONLY.has(d.type)),
+      )
       .map((d) => ({ node: d.id, type: d.type, key: d.key, phase: d.phase }));
     const history = new Map<NodeType, number[]>();
     for (const r of Object.values(g.nodes))
@@ -365,6 +589,58 @@ export class BuildGraph {
       if (h?.length) seconds = (seconds ?? 0) + h.reduce((a, b) => a + b, 0) / h.length / 1000;
     }
     return { jobs, estimate: { seconds, cost_usd: 0 } };
+  }
+
+  /** D9 mục 5 "Giữ bản chỉnh tay": cập nhật `input_hash` của frame ghim → `pinned`. */
+  acceptPinned(videoId: string, frameId: string): void {
+    const g = this.load(videoId);
+    const def = this.nodes(this.model(videoId)).find((d) => d.id === `frame_html:${frameId}`);
+    if (!def) throw new SfError('E_ID_UNKNOWN', `frame ${frameId} has no frame_html node`);
+    const rec = g.nodes[def.id];
+    const outputs = [`compositions/frames/${frameId}.html`];
+    g.nodes[def.id] = {
+      key: def.key,
+      type: def.type,
+      input_hash: this.inputHash(def, g.nodes),
+      output_hash: rec?.output_hash ?? this.outputHash(videoId, outputs, undefined),
+      status: 'fresh',
+      updated_at: new Date().toISOString(),
+      outputs,
+    };
+    this.save(videoId, g);
+  }
+
+  /** Ghi nhận nút đã được dựng ngoài `graph.build` (bước frame-build của workflow, 020 R1). */
+  markBuilt(videoId: string, nodeIds: string[]): void {
+    const g = this.load(videoId);
+    const defs = new Map(this.nodes(this.model(videoId)).map((d) => [d.id, d]));
+    for (const id of nodeIds) {
+      const def = defs.get(id);
+      if (!def) continue;
+      const outputs = def.type === 'frame_html' ? [`compositions/frames/${def.key}.html`] : [];
+      if (!outputs.every((o) => existsSync(this.store.abs(`videos/${videoId}/${o}`)))) continue;
+      g.nodes[id] = {
+        key: def.key,
+        type: def.type,
+        input_hash: this.inputHash(def, g.nodes),
+        output_hash: this.outputHash(videoId, outputs, undefined),
+        status: 'fresh',
+        updated_at: new Date().toISOString(),
+        outputs,
+      };
+    }
+    this.save(videoId, g);
+  }
+
+  private outputHash(videoId: string, outputs: string[], meta: unknown): string {
+    return sha256(
+      [
+        ...outputs.map(
+          (o) => `${o}:${sha256(readFileSync(this.store.abs(`videos/${videoId}/${o}`)))}`,
+        ),
+        canonicalJson(meta ?? null),
+      ].join('\n'),
+    );
   }
 
   /** `graph.build`: chạy kế hoạch; khóa theo video (hai lần build cùng video chạy nối tiếp). */
@@ -438,6 +714,7 @@ export class BuildGraph {
           videoId,
           videoRel: `videos/${videoId}`,
           nodeId: def.id,
+          def,
           type: def.type,
           key: def.key,
           inputHash: ih,

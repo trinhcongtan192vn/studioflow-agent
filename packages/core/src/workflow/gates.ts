@@ -5,7 +5,7 @@ import { crossCheckVideo } from '../domain/crossref.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
 import { validateArtifact } from '../domain/validate.js';
-import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
+import { BuildGraph, unsettled, type BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
 
 export interface GateResult {
@@ -111,7 +111,7 @@ export async function evaluateGate(g: GateDecl, ctx: GateContext): Promise<GateR
       }).status(ctx.videoId);
       const prefix = g.nodes.replace(/\*$/, '');
       const bad = nodes.filter(
-        (n) => (g.nodes === '*' || n.key.startsWith(prefix)) && n.status !== 'fresh',
+        (n) => (g.nodes === '*' || n.key.startsWith(prefix)) && unsettled(n),
       );
       return {
         gate: g.kind,

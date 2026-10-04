@@ -15,6 +15,7 @@ import {
 } from '../../src/index.js';
 import { runSf } from '../helpers.js';
 import { clickWav } from '../music-helpers.js';
+import { writeValidFrames } from '../graph-helpers.js';
 import { copyChannel, fixtureAppData, fixtureVideoId, tempDir } from '../domain-helpers.js';
 
 const c = copyChannel();
@@ -182,12 +183,8 @@ describe('music bed and ducking (012 US3, SC-002)', () => {
       `music: { track_id: ${ids.mid120} }`,
     );
     store.write(`${v}/STORYBOARD.md`, sb, { by: 'test' });
-    for (const id of ['fr_9x2b7cqe', 'fr_3m8k1w7d'])
-      store.write(
-        `${v}/compositions/frames/${id}.html`,
-        `<template><div data-composition-id="${id}"></div></template>`,
-        { by: 'test', validate: false },
-      );
+    // frame giả hợp lệ (nút frame_html nhận vào graph, 020)
+    writeValidFrames(store, fixtureVideoId);
     const r = await new BuildGraph({ store, appDataDir: t.dir, builders: core.graph }).build(
       fixtureVideoId,
       { targets: ['index'] },

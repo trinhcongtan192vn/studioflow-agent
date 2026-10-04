@@ -21,12 +21,15 @@ export function stageFrameAssets(
   store: WriteStore,
   videoId: string,
   layers: FramePacket['frame']['layers'],
+  /** Asset do nút `asset` sinh cho layer chưa có `asset_id` (020): layer id → asset id. */
+  generated: Record<string, string> = {},
 ): FramePacket['assets'] {
   const lib = readChannelAssets(store.root);
   const out: FramePacket['assets'] = [];
   for (const l of layers) {
-    if (!l.asset_id) continue;
-    const a = lib.find((x) => x.id === l.asset_id);
+    const assetId = l.asset_id ?? generated[l.id];
+    if (!assetId) continue;
+    const a = lib.find((x) => x.id === assetId);
     if (!a || !existsSync(store.abs(a.file))) continue;
     const file = `public/${a.id}${path.extname(a.file)}`;
     const dest = `videos/${videoId}/${file}`;
@@ -48,10 +51,19 @@ export function buildFramePacket(i: {
   timing: FrameTiming;
   frameId: string;
   assets: FramePacket['assets'];
+  /** Asset do nút `asset` sinh (020): layer id → asset id; gắn vào layer của packet. */
+  generated?: Record<string, string>;
 }): FramePacket {
   const { model, timing } = i;
-  const frame = model.frames.find((f) => f.id === i.frameId);
-  if (!frame) throw new Error(`frame ${i.frameId} not in STORYBOARD.md`);
+  const found = model.frames.find((f) => f.id === i.frameId);
+  if (!found) throw new Error(`frame ${i.frameId} not in STORYBOARD.md`);
+  const gen = i.generated ?? {};
+  const frame = {
+    ...found,
+    layers: found.layers.map((l) =>
+      !l.asset_id && gen[l.id] ? { ...l, asset_id: gen[l.id] as typeof l.asset_id } : l,
+    ),
+  };
   const scene = model.scenes.find((s) => s.id === frame.scene_id)!;
   const place = framePlacements(
     model.frames.map((f) => {
