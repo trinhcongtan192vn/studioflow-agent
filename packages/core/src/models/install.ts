@@ -259,7 +259,8 @@ export async function installEntry(
     let base = 0;
     for (const f of files) {
       const abs = path.join(appDataDir, f.dest);
-      if (f.content !== undefined) writeAppDataText(abs, `${f.content}\n`);
+      // đúng định dạng Hugging Face: `refs/main` không xuống dòng (huggingface_hub < 1.0 đọc nguyên văn)
+      if (f.content !== undefined) writeAppDataText(abs, f.content);
       else {
         await downloadFile(f.url!, abs, {
           sha256: f.sha256!,

@@ -38,4 +38,8 @@ def create_engine(name: str) -> Engine:
         from sf_worker.engines.audio_analysis import AudioAnalysisEngine
 
         return AudioAnalysisEngine()
+    if name == "clap":
+        from sf_worker.engines.clap import ClapEngine
+
+        return ClapEngine()
     raise ValueError(f"unknown engine: {name}")

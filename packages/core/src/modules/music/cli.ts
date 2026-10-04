@@ -2,8 +2,8 @@ import path from 'node:path';
 import type { CliCommand } from '../../cli/types.js';
 import { defaultAppDataDir } from '../../config/resolve.js';
 import { createCore } from '../../core.js';
-import { findMusic } from '../../music/find.js';
-import { addTracks } from '../../music/library.js';
+import { findMusicSemantic } from '../../music/find.js';
+import { addTracks, embedMissing } from '../../music/library.js';
 
 const list = (v: unknown) =>
   typeof v === 'string' && v
@@ -75,8 +75,8 @@ export const commands: CliCommand[] = [
         const tags = list(input.tags);
         const bpmMin = num(input['bpm-min']);
         const bpmMax = num(input['bpm-max']);
-        return findMusic(
-          { channel, appDataDir },
+        return await findMusicSemantic(
+          { channel, appDataDir, ...(core.embedder ? { embedder: core.embedder } : {}) },
           {
             query: ((input.query as string[] | undefined) ?? []).join(' '),
             ...(tags ? { tags } : {}),
@@ -94,6 +94,25 @@ export const commands: CliCommand[] = [
             ...(input.limit ? { limit: Number(input.limit) } : {}),
           },
           input.sfx ? 'sfx' : 'music',
+        );
+      } finally {
+        core.close();
+      }
+    },
+  },
+  {
+    module: 'music',
+    name: 'reindex',
+    summary: 'Compute CLAP embeddings for tracks that have none (channel or --scope app)',
+    options: { channel: { type: 'string', required: true }, scope: { type: 'string' } },
+    async run(input, ctx) {
+      const appDataDir = defaultAppDataDir();
+      const core = createCore({ appDataDir, dbFile: ':memory:', start: false });
+      try {
+        const channel = core.gateway.storeFor(path.resolve(ctx.cwd, input.channel as string));
+        return await embedMissing(
+          { channel, appDataDir, providers: core.providers },
+          input.scope === 'app' ? 'app' : 'channel',
         );
       } finally {
         core.close();

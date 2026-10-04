@@ -124,12 +124,81 @@ export async function addTracks(
       used_in: [],
     } as MusicTrack;
     if (!track.title) delete track.title;
+    // 021: embedding CLAP (tùy chọn — không có CLAP thì tìm theo từ khóa như 012)
+    const emb = await embedTrack(d, lib, track, opts.signal);
+    if (emb) track.embedding = emb;
     m.tracks.push(track);
     writeMusicManifest(lib, m);
     track_ids.push(id);
   }
   opts.progress?.(input.files.length, input.files.length);
   return { track_ids, skipped };
+}
+
+/**
+ * Embedding CLAP một bài (021): `music.embed` (cache theo hash) → `music/.index/<mt>.npy` của kho.
+ * CLAP chưa cài/lỗi → undefined (không chặn việc nạp).
+ */
+export async function embedTrack(
+  d: { channel: WriteStore; appDataDir: string; providers: ProviderRegistry; db?: Db },
+  lib: MusicLibrary,
+  track: Pick<MusicTrack, 'id' | 'file' | 'hash'>,
+  signal?: AbortSignal,
+): Promise<MusicTrack['embedding'] | undefined> {
+  let adapter;
+  try {
+    adapter = await d.providers.resolve('music.embed', {
+      channelDir: d.channel.root,
+      appDataDir: d.appDataDir,
+    });
+  } catch {
+    return undefined;
+  }
+  const vector_file = `.index/${track.id}.npy`;
+  try {
+    const r = await runCapability({
+      store: lib.store,
+      db: d.db,
+      adapter,
+      capability: 'music.embed',
+      input: { file: lib.store.abs(`music/${track.file}`), hash: track.hash },
+      outputs: { file: `music/${vector_file}` },
+      ...(signal ? { signal } : {}),
+    });
+    return {
+      model: String((r.output as { model?: string }).model ?? adapter.manifest.id),
+      vector_file,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** `sf music reindex`: embedding cho bài chưa có (021). */
+export async function embedMissing(
+  d: { channel: WriteStore; appDataDir: string; providers: ProviderRegistry; db?: Db },
+  scope: 'channel' | 'app',
+  opts: { signal?: AbortSignal; progress?: (done: number, total: number) => void } = {},
+): Promise<{ embedded: string[]; skipped: string[] }> {
+  const lib: MusicLibrary =
+    scope === 'app' ? appLibrary(d.appDataDir) : { scope: 'channel', store: d.channel };
+  const m = readMusicManifest(lib);
+  const todo = m.tracks.filter(
+    (t) => !t.embedding || !existsSync(lib.store.abs(`music/${t.embedding.vector_file}`)),
+  );
+  const embedded: string[] = [];
+  const skipped: string[] = [];
+  for (const [i, t] of todo.entries()) {
+    opts.progress?.(i, todo.length);
+    const e = await embedTrack(d, lib, t, opts.signal);
+    if (e) {
+      t.embedding = e;
+      embedded.push(t.id);
+    } else skipped.push(t.id);
+  }
+  if (embedded.length) writeMusicManifest(lib, m);
+  opts.progress?.(todo.length, todo.length);
+  return { embedded, skipped };
 }
 
 /** Tìm bài theo id trong hai kho; trả cả đường dẫn tuyệt đối. */
