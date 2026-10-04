@@ -28,7 +28,6 @@ export const DEFAULTS: Record<string, unknown> = {
   'lipsync.enabled': false,
   'policy.auto_approve.batch_gen': false,
   'policy.auto_approve.paid_api': false,
-  'check.length_tolerance': 0.15,
   'check.duration_tolerance': 0.1,
   'meta.title_max': 100,
   'meta.description_max': 5000,
@@ -41,7 +40,6 @@ export const DEFAULTS: Record<string, unknown> = {
 
 /** Khóa mẫu `<…>` → bảng con theo phần thay thế. */
 export const PATTERN_DEFAULTS: Record<string, Record<string, unknown>> = {
-  'script.wpm.<lang>': { vi: 150, de: 130, en: 150 },
   'asr.wer_threshold.<lang>': { vi: 0.15, de: 0.15, en: 0.15 },
   'gpu.vram_budget_gb.<engine>': { comfyui: 14, omnivoice: 6, asr: 3, render: 2 },
   'provider.<capability>': {

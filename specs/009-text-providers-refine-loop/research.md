@@ -21,6 +21,7 @@
 
 ## R7. Chương trong `publish.md`
 - **Decision** (lệch nhẹ R3): mốc chương ước theo số từ/`script.wpm.<lang>` + `pause_after_ms` của line trong beat (chưa có audio ở bước này); 010/013 có thể cập nhật mốc thật từ `audio_meta.json`.
+- **Thay bởi 016 R4**: không còn tốc độ đọc; mốc chương lấy từ `audio_meta.json` (bước `meta` chạy sau `voice`); kiểm `length`/`read_time` bỏ khỏi D6 4.2.
 
 ## R8. Kết quả live (AC-M1-02, 2026-10-04)
 - Producer `claude-sonnet-5-5`, critic `claude-opus-5-5` (cùng hãng → ghi chú trên thẻ duyệt); 2 vòng, ~2 phút; bản ghi `tests/fixtures/llm/text/` (6 lời gọi) phát lại xanh.

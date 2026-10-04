@@ -98,7 +98,6 @@
 | `provider.<capability>` | theo D4 mục 4.3 |
 | `text.producer` / `text.critic` / `text.aux` | theo D4 mục 4.3 |
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | 2 / 3 / 8.0 `[chờ S14]` |
-| `script.wpm.<lang>` | vi 150 · de 130 · en 150 |
 | `frame.min_duration_ms` | 2000 |
 | `frame_build.parallel` | 2 `[chờ S4]` |
 | `budget.tokens_per_video` | 2 000 000 |
@@ -111,7 +110,6 @@
 | `lipsync.enabled` | false |
 | `policy.auto_approve.batch_gen` | false |
 | `policy.auto_approve.paid_api` | false |
-| `check.length_tolerance` | 0.15 |
 | `check.duration_tolerance` | 0.10 |
 | `meta.title_max` / `meta.description_max` | 100 / 5000 |
 | `policy.batch.tts_lines` / `policy.batch.images` | 20 / 5 |

@@ -30,8 +30,13 @@ const read = (ctx: GateContext, f: string) => {
   return existsSync(abs) ? readFileSync(abs, 'utf8') : undefined;
 };
 
-/** Kiểm tra khách quan không cần LLM (D6 mục 4.2); `length`/`read_time`/… thêm ở 009. */
-const OBJECTIVES: Record<string, (ctx: GateContext) => { pass: boolean; detail?: string }> = {
+/** Kiểm tra khách quan không cần LLM (D6 mục 4.2); `beat_structure`/… thêm ở 009, `audio_duration` ở 016. */
+type ObjectiveFn = (
+  ctx: GateContext,
+  params?: Record<string, unknown>,
+) => { pass: boolean; detail?: string };
+
+const OBJECTIVES: Record<string, ObjectiveFn> = {
   coverage(ctx) {
     const sb = read(ctx, 'STORYBOARD.md');
     if (!sb) return { pass: false, detail: 'STORYBOARD.md missing' };
@@ -68,11 +73,8 @@ const OBJECTIVES: Record<string, (ctx: GateContext) => { pass: boolean; detail?:
   },
 };
 
-/** Đăng ký kiểm khách quan (009 thêm length, read_time, beat_structure, banned_terms, tts_normalized). */
-export function registerObjective(
-  id: string,
-  fn: (ctx: GateContext) => { pass: boolean; detail?: string },
-): void {
+/** Đăng ký kiểm khách quan (009: beat_structure, banned_terms, tts_normalized; 016: audio_duration). */
+export function registerObjective(id: string, fn: ObjectiveFn): void {
   OBJECTIVES[id] = fn;
 }
 
@@ -152,7 +154,7 @@ export async function evaluateGate(g: GateDecl, ctx: GateContext): Promise<GateR
           pass: false,
           detail: `objective check ${g.check} is not available`,
         };
-      return { gate: g.kind, target: g.check, ...fn(ctx) };
+      return { gate: g.kind, target: g.check, ...fn(ctx, g.params) };
     }
   }
 }

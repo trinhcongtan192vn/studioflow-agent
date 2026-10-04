@@ -98,10 +98,10 @@ steps:
 | Id | Thực hiện bởi | params | Đọc | Ghi | Gate mặc định |
 |---|---|---|---|---|---|
 | `design-system` | engine | — | `profile/`, `channel.json` | `frame.md` | hợp lệ |
-| `script` | engine (`text.generate` + `refine-loop`) | `mode: 'narration' \| 'outline' \| 'screenplay'` (mặc định `narration`) | `BRIEF.md`, gói prompt; `screenplay` đọc thêm `STORY.md`, `CAST.md` | `outline` → `STORY.md`; khác → `SCRIPT.md` | hợp lệ; `SCRIPT.md`: mọi line có ID, qua `length`; `screenplay`: mỗi `speaker` có cast + voice |
+| `script` | engine (`text.generate` + `refine-loop`) | `mode: 'narration' \| 'outline' \| 'screenplay'` (mặc định `narration`) | `BRIEF.md`, gói prompt; `screenplay` đọc thêm `STORY.md`, `CAST.md` | `outline` → `STORY.md`; khác → `SCRIPT.md` | hợp lệ; `SCRIPT.md`: mọi line có ID; `screenplay`: mỗi `speaker` có cast + voice |
 | `storyboard` | agent (`producer` khi có refine, nếu không thì `main`) | — | `BRIEF.md`, `SCRIPT.md`, `frame.md`, blueprint | `STORYBOARD.md` | hợp lệ; **mỗi line thuộc đúng một frame**; mọi ID tham chiếu tồn tại |
 | `cast` | agent (`main`) | — | `STORY.md` hoặc `BRIEF.md` | `CAST.md`, `characters/` | mỗi nhân vật trong `STORY.md` có cast + voice |
-| `voice` | engine (`graph.build` nút `audio.line`, `asr.line`) | — | `SCRIPT.md`, `CAST.md` | `audio/`, `audio_meta.json` | `graph_fresh audio.line:*`; mọi line `asr_flag ∈ {ok, accepted}` (line còn `mismatch` sau `asr.max_regen` lần sinh lại → hỏi người dùng sửa chữ/chấp nhận) |
+| `voice` | engine (`graph.build` nút `audio.line`, `asr.line`) | — | `SCRIPT.md`, `CAST.md` | `audio/`, `audio_meta.json` | `graph_fresh audio.line:*`; `audio_duration`; mọi line `asr_flag ∈ {ok, accepted}` (line còn `mismatch` sau `asr.max_regen` lần sinh lại → hỏi người dùng sửa chữ/chấp nhận) |
 | `assets` | engine + agent | — | `STORYBOARD.md` (`asset_request`) | `public/`, `assets/manifest.json` | mọi layer có asset |
 | `lipsync` | engine | — | `audio.line`, `CAST.md` | `lipsync/*.json` | — (bỏ qua khi `lipsync.enabled` = false) |
 | `frame-build` | agent (`frame` × N) | — | frame packet | `compositions/frames/<fr>.html` | `lint`/`check` qua; `data-sf-id` đủ; mọi frame đã báo xong |
@@ -109,8 +109,8 @@ steps:
 | `captions` | engine | — | `audio_meta.json`, `SCRIPT.md` | `caption_groups.json` | hợp lệ |
 | `music` | agent (`main`) + engine | — | `sf-scene.music`, kho nhạc | `public/music/*`, cập nhật `sf-scene.music.track_id` | mỗi scene có `track_id` hoặc `music: none` |
 | `look` / `effects` / `overlays` | agent (`main`) | — | hồ sơ kênh | `sf-scene.look`, `sf-frame.effects/overlays` | — |
-| `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; thời lượng trong `check.duration_tolerance` của mục tiêu |
-| `publish-meta` | engine (`text.generate` + `refine-loop`) | — | `BRIEF.md`, `SCRIPT.md` | `publish.md` | `meta_limits` |
+| `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline) |
+| `publish-meta` | engine (`text.generate` + `refine-loop`) | — | `BRIEF.md`, `SCRIPT.md`, `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
 | `render` | engine | `mode: 'draft' \| 'release'` | `index.html` | `renders/<rd>/` (+ `CREDITS.txt`, `description.txt` khi release) | gate phát hành (D4) khi `release` |
 
 - **agent:** Engine gửi cho phiên một chỉ dẫn chuẩn `Thực hiện bước <id> của workflow <wf> theo skill. Đầu vào: … Đầu ra: …` và chờ `workflow.step_complete`. Quá `maxTurns` hoặc agent dừng mà chưa báo xong → bước `failed` (`E_STEP_INCOMPLETE`).
@@ -171,10 +171,11 @@ engine tạo approval kèm tóm tắt các vòng
 
 ### 4.2 Kiểm tra khách quan
 
+Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc nội dung, kịch bản và từng cảnh nên không có hằng số từ/phút. Kịch bản chỉ nhận thời lượng mục tiêu (cả video và gợi ý từng beat); thời lượng được kiểm trên audio đã sinh (`audio_duration`). Lệch → sửa beat lệch rồi `voice` chỉ sinh lại line đổi.
+
 | Id | Áp cho | Kiểm |
 |---|---|---|
-| `length` | script | tổng số từ lệch mục tiêu (`target_duration_ms` × `script.wpm.<lang>`) không quá `check.length_tolerance` |
-| `read_time` | script | thời lượng đọc ước tính lệch mục tiêu không quá `check.duration_tolerance` |
+| `audio_duration` | voice, finalize | thời lượng **đo trên audio thật** (tổng `audio_meta.json` + `pause_after_ms`; ở `finalize` là timeline) lệch `target_duration_ms` không quá `check.duration_tolerance`; trượt → chi tiết nêu thời lượng thật từng beat để sửa đúng cảnh lệch |
 | `beat_structure` | script | số beat trong khoảng hồ sơ kênh quy định; mỗi beat ≥ 1 line |
 | `banned_terms` | script, meta | không chứa từ cấm của kênh |
 | `tts_normalized` | script | số/viết tắt có `sf:tts` hoặc đã viết thành chữ |
@@ -260,7 +261,7 @@ steps:
   revise:      { template: revise.md,      include: [common/voice.md, common/tts-rules.md], token_cap: 4000 }
 summaries: { common/examples.md: common/examples.summary.md }   # dùng khi vượt token_cap
 ```
-- Template dùng biến `{{brief}}`, `{{target_words}}`, `{{language}}`, `{{rubric_short}}`, `{{issues}}`, `{{draft}}`.
+- Template dùng biến `{{brief}}`, `{{target_duration}}` (thời lượng mục tiêu dạng chữ, ví dụ "8 phút"), `{{language}}`, `{{rubric_short}}`, `{{issues}}`, `{{draft}}`.
 - Lắp prompt: template + include theo thứ tự; vượt `token_cap` → thay file có bản tóm tắt; vẫn vượt → `E_PROMPT_TOO_LONG`.
 - Producer chỉ nhận `rubric_short` (tên tiêu chí + một câu); critic nhận rubric đầy đủ.
 

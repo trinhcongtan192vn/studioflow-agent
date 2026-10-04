@@ -16,7 +16,7 @@ Video dọc ≤ 60 giây, độc lập hoặc cắt từ một video dài của 
 
 | Step id | Khác biệt |
 |---|---|
-| `script` | Rubric `script-shorts`; tổng ≤ 140 từ (vi); kiểm `read_time` ≤ 55 giây |
+| `script` | Rubric `script-shorts`; mục tiêu ≤ 55 giây; `audio_duration` sau `voice` đo trên audio thật (không giới hạn số từ) |
 | `storyboard` | Frame 2–5 giây; chữ lớn trong vùng an toàn dọc; blueprint `big-text`, `stat-pop`, `split-reveal` |
 | `captions` | Karaoke từng từ, cỡ lớn, giữa màn hình |
 | `music` | Bắt nhịp: cắt frame theo phách nếu có BPM |

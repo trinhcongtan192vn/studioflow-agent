@@ -20,7 +20,7 @@ Tiểu luận/sách nói 10–40 phút về tâm lý, triết học, tóm tắt 
 | `meta` | Có chương (`chapters`) theo beat |
 
 ## 3. Tham số
-`script.wpm`: vi 130, de 115, en 135 (đặt ở tầng video khi tạo); `music.volume_db` −21.
+Nhịp đọc chậm, nhiều khoảng lặng là chỉ dẫn văn phong trong prompt `script-essay`, không đặt số từ/phút; thời lượng kiểm trên audio thật (`audio_duration`). `music.volume_db` −21.
 
 ## 4. Nghiệm thu
 `samples/essay-60s/`; video 20 phút render không lỗi, chương khớp mốc thời gian beat.

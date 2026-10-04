@@ -15,7 +15,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => cleanups.splice(0).forEach((c) => c()));
 const vars = {
   brief: 'Chủ đề: bầu trời',
-  target_words: 150,
+  target_duration: '45 giây',
   language: 'vi',
   rubric_short: 'hook; clarity',
   issues: '',
@@ -28,7 +28,7 @@ describe('prompt pack (009 US3)', () => {
     expect(pack.source).toBe('app');
     const p = buildPrompt(pack, 'script', vars, { channelDir: fixtureChannel });
     expect(p.text).toContain('Chủ đề: bầu trời');
-    expect(p.text).toContain('khoảng 150 từ');
+    expect(p.text).toContain('khoảng 45 giây');
     expect(p.text).toContain('## Giọng văn'); // include common/voice.md
     expect(p.text).toContain('Ngôn ngữ video: vi');
     expect(p.text).not.toMatch(/\{\{/);

@@ -38,7 +38,7 @@ Delta chung (D6 mục 8) + :
 | Khóa | Giá trị |
 |---|---|
 | `output.profile` | `yt-1080p30` |
-| Tốc độ đọc dùng cho `length` | vi 150 từ/phút, de 130, en 150 (ghi đè trong hồ sơ kênh) |
+| Thời lượng | kiểm trên audio thật sau bước `voice` (`audio_duration`), không dùng tốc độ đọc cố định |
 | Blueprint gợi ý | `title-card`, `key-point`, `diagram-build`, `quote`, `list-reveal`, `map-zoom` (D13) |
 
 ## 5. Nghiệm thu

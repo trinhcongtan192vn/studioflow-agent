@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolveConfig } from '../config/resolve.js';
-import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { validateArtifact } from '../domain/validate.js';
-import { WriteStore } from '../store/writer.js';
-import { readingRate } from '../tts/rate.js';
 import { registerObjective } from '../workflow/gates.js';
 import { bannedTerms, loadPromptPack } from './prompts.js';
 
@@ -18,12 +15,9 @@ export interface ObjectiveContext {
   channelDir: string;
   videoId: string;
   appDataDir?: string;
-  targetDurationMs: number | null;
   banned: string[];
   beats?: { min: number; max: number };
 }
-
-const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
 function cfg(ctx: ObjectiveContext, key: string): number {
   return Number(
@@ -51,39 +45,7 @@ export function checkScript(content: string, ctx: ObjectiveContext): ObjectiveRe
     ];
   }
   const doc = toScriptDoc(parseScript(content));
-  const lang = String(doc.front.language);
-  // tốc độ đọc theo giọng của kênh (016 R4), không cố định
-  const wpm = readingRate(new WriteStore(ctx.channelDir), ctx.videoId, lang, ctx.appDataDir);
-  const total = doc.lines.reduce((s, l) => s + words(l.text), 0);
-  const pauses = doc.lines.reduce((s, l) => s + (l.pause_after_ms ?? 0), 0);
   const out: ObjectiveResult[] = [{ id: 'schema', pass: true }];
-  if (!ctx.targetDurationMs) {
-    out.push(
-      { id: 'length', pass: true, detail: 'no target duration in BRIEF.md' },
-      { id: 'read_time', pass: true, detail: 'no target duration in BRIEF.md' },
-    );
-  } else {
-    const target = Math.round((ctx.targetDurationMs / 60000) * wpm);
-    const lt = cfg(ctx, 'check.length_tolerance');
-    const lenOk = Math.abs(total - target) <= target * lt;
-    out.push({
-      id: 'length',
-      pass: lenOk,
-      ...(lenOk ? {} : { detail: `${total} words, target ${target} ±${Math.round(lt * 100)}%` }),
-    });
-    const readMs = (total / wpm) * 60000 + pauses;
-    const dt = cfg(ctx, 'check.duration_tolerance');
-    const rtOk = Math.abs(readMs - ctx.targetDurationMs) <= ctx.targetDurationMs * dt;
-    out.push({
-      id: 'read_time',
-      pass: rtOk,
-      ...(rtOk
-        ? {}
-        : {
-            detail: `~${Math.round(readMs / 1000)} s, target ${Math.round(ctx.targetDurationMs / 1000)} s`,
-          }),
-    });
-  }
   const empty = doc.beats.filter((b) => b.line_ids.length === 0).map((b) => b.id);
   const n = doc.beats.length;
   const range =
@@ -145,22 +107,18 @@ export function checkMeta(
   ];
 }
 
-/** Ngữ cảnh kiểm từ video (BRIEF.md + gói prompt kênh). */
+/** Ngữ cảnh kiểm từ video (gói prompt kênh). */
 export function objectiveContext(
   channelDir: string,
   videoId: string,
   read: (rel: string) => string,
   appDataDir?: string,
 ): ObjectiveContext {
-  const brief = parseBlocksDoc(read(`videos/${videoId}/BRIEF.md`)).front as {
-    target_duration_ms?: number | null;
-  };
   const pack = loadPromptPack(channelDir);
   return {
     channelDir,
     videoId,
     appDataDir,
-    targetDurationMs: brief.target_duration_ms ?? null,
     banned: bannedTerms(pack),
     ...(pack.beats ? { beats: pack.beats } : {}),
   };
@@ -178,6 +136,5 @@ export function registerTextObjectives(): void {
       const hit = r.find((x) => x.id === id) ?? r.find((x) => x.id === 'schema')!;
       return { pass: hit.pass, ...(hit.detail ? { detail: hit.detail } : {}) };
     });
-  for (const id of ['length', 'read_time', 'beat_structure', 'tts_normalized', 'schema'])
-    forScript(id);
+  for (const id of ['beat_structure', 'tts_normalized', 'schema']) forScript(id);
 }

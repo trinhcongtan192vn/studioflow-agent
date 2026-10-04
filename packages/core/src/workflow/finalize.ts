@@ -1,16 +1,12 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { resolveConfig } from '../config/resolve.js';
-import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { SfError } from '../errors.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
-import type { FrameTiming } from '../graph/timing.js';
 import { hfCheck, runHf } from '../hf/cli.js';
 import { renderVideo } from '../render/render.js';
 import { createScratchDir } from '../store/scratch.js';
-import type { WriteStore } from '../store/writer.js';
 import type { StepRunContext } from './engine.js';
-import { registerObjective } from './gates.js';
+import { audioDurationCheck, timingOf } from './duration.js';
 
 function failedNodes(r: {
   nodes: Record<string, { status: string; error?: { message: string } }>;
@@ -34,39 +30,6 @@ export function captionsExecutor(builders: BuilderRegistry) {
     return { outputs: ['caption_groups.json'] };
   };
 }
-
-function timingOf(store: WriteStore, videoId: string): FrameTiming | undefined {
-  const f = store.abs(`videos/${videoId}/.sf/graph.json`);
-  if (!existsSync(f)) return undefined;
-  return (JSON.parse(readFileSync(f, 'utf8')) as { nodes: Record<string, { meta?: unknown }> })
-    .nodes['frame_timing']?.meta as FrameTiming | undefined;
-}
-
-/** Thời lượng so với `BRIEF.md.target_duration_ms` trong `check.duration_tolerance` (gate `finalize`, D6 mục 2). */
-export function durationCheck(
-  store: WriteStore,
-  videoId: string,
-  appDataDir?: string,
-): { pass: boolean; detail?: string } {
-  const brief = parseBlocksDoc(readFileSync(store.abs(`videos/${videoId}/BRIEF.md`), 'utf8'))
-    .front as { target_duration_ms?: number | null };
-  const timing = timingOf(store, videoId);
-  if (!brief.target_duration_ms || !timing)
-    return { pass: true, ...(timing ? {} : { detail: 'no timing yet' }) };
-  const tol = Number(
-    resolveConfig('check.duration_tolerance', { channelDir: store.root, videoId }, { appDataDir })
-      .value,
-  );
-  const diff = Math.abs(timing.total_ms - brief.target_duration_ms) / brief.target_duration_ms;
-  return diff <= tol
-    ? { pass: true }
-    : {
-        pass: false,
-        detail: `${Math.round(timing.total_ms / 1000)} s vs target ${Math.round(brief.target_duration_ms / 1000)} s (±${Math.round(tol * 100)}%)`,
-      };
-}
-
-registerObjective('duration', (g) => durationCheck(g.store, g.videoId, g.appDataDir));
 
 /**
  * Executor bước `finalize` (D6 mục 2, FN-016): build toàn bộ graph (index), `hyperframes check`,
@@ -134,7 +97,7 @@ export function finalizeExecutor(builders: BuilderRegistry) {
       { mode: 'draft', step_id: ctx.step.id },
       { ...(ctx.signal ? { signal: ctx.signal } : {}) },
     );
-    const dur = durationCheck(ctx.store, ctx.videoId, ctx.appDataDir);
+    const dur = audioDurationCheck(ctx.store, ctx.videoId, ctx.appDataDir, 'timeline');
     const warn = draft.gate_results
       .filter((g) => !g.pass && g.gate !== 'approvals')
       .map((g) => g.gate);

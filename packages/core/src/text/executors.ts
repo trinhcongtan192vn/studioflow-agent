@@ -3,19 +3,30 @@ import type { Provenance, ReviewRound, Rubric, StepState } from '../contracts/ty
 import { resolveConfig } from '../config/resolve.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
-import { assignScriptIds, parseScript, toScriptDoc } from '../domain/markdown/script.js';
+import { assignScriptIds } from '../domain/markdown/script.js';
 import { validateArtifact } from '../domain/validate.js';
 import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
-import { readingRate } from '../tts/rate.js';
 import { CORE_VERSION } from '../version.js';
 import type { StepRunContext } from '../workflow/engine.js';
+import { beatDurations } from '../workflow/duration.js';
 import { assertDifferentModels, type ModelRef } from './models.js';
 import { checkMeta, checkScript, objectiveContext, type ObjectiveResult } from './objectives.js';
 import { buildPrompt, loadPromptPack, type PromptVars } from './prompts.js';
 import { refineSummary, runRefine, type Issue, type RefineResult } from './refine.js';
 import { loadRubric, rubricShort } from './rubrics.js';
 import { extractJson, type CallScope, type TextService } from './service.js';
+
+/** Không có thời lượng trong `BRIEF.md` → gợi ý 2 phút cho prompt (không phải gate). */
+const DEFAULT_TARGET_MS = 120_000;
+
+/** Thời lượng dạng chữ cho prompt: `45 giây`, `8 phút`, `3 phút 30 giây`. */
+export function durationText(ms: number): string {
+  const total = Math.round(ms / 1000);
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
+  return [m ? `${m} phút` : '', sec || !m ? `${sec} giây` : ''].filter(Boolean).join(' ');
+}
 
 export interface TextStepResult {
   outputs: string[];
@@ -256,12 +267,12 @@ async function refineText(
     normalize: (draft: string) => string;
     checks: (draft: string) => ObjectiveResult[];
     maxTokens: number;
-    targetWords: number;
+    targetMs: number | null;
   },
 ): Promise<RefineResult> {
   const vars = (over: Partial<PromptVars> = {}): PromptVars => ({
     brief: env.brief,
-    target_words: o.targetWords,
+    target_duration: o.targetMs ? durationText(o.targetMs) : '',
     language: env.language,
     rubric_short: plan.rubric ? rubricShort(plan.rubric) : '',
     issues: '',
@@ -341,9 +352,9 @@ export function scriptExecutor(d: TextExecutorDeps) {
     const plan = refinePlan(env, d.text, ctx.packDir, 'script-default');
     const pack = loadPromptPack(ctx.channelDir);
     const scope = { channelDir: ctx.channelDir, videoId: ctx.videoId, appDataDir: ctx.appDataDir };
-    const wpm = readingRate(ctx.store, ctx.videoId, env.language, ctx.appDataDir);
-    const targetWords = env.targetMs ? Math.round((env.targetMs / 60000) * wpm) : 300;
-    const maxTokens = Math.max(2000, targetWords * 6);
+    // chỉ thời lượng mục tiêu; độ dài thật kiểm trên audio sau bước `voice` (D6 4.2 `audio_duration`)
+    const targetMs = env.targetMs ?? DEFAULT_TARGET_MS;
+    const maxTokens = Math.max(2000, Math.round((targetMs / 1000) * 15));
     if (mode === 'outline') {
       const fm = `---\nschema_version: 1\nvideo_id: ${ctx.videoId}\nstatus: draft\n---\n`;
       const normalize = (t: string) => fm + stripWrapping(t);
@@ -369,7 +380,7 @@ export function scriptExecutor(d: TextExecutorDeps) {
           ];
         },
         maxTokens,
-        targetWords,
+        targetMs,
       });
       return finish(env, 'STORY.md', plan, r, { mode });
     }
@@ -405,34 +416,18 @@ export function scriptExecutor(d: TextExecutorDeps) {
       normalize,
       checks: (t) => checkScript(t, octx),
       maxTokens,
-      targetWords,
+      targetMs,
     });
     return finish(env, 'SCRIPT.md', plan, r, { mode });
   };
 }
 
-/** Chương từ beat của `SCRIPT.md`: mốc ước theo số từ / wpm (chưa có audio thật ở bước này). */
+/** Chương theo beat, mốc lấy từ audio thật (`audio_meta.json`; bước `meta` chạy sau `voice`). */
 function chapters(env: StepEnv): { start_ms: number; title: string }[] {
-  const rel = `${env.v}/SCRIPT.md`;
-  if (!existsSync(env.ctx.store.abs(rel))) return [];
-  const doc = toScriptDoc(parseScript(env.read(rel)));
-  const wpm = readingRate(
-    env.ctx.store,
-    env.ctx.videoId,
-    String(doc.front.language),
-    env.ctx.appDataDir,
-  );
-  const byId = new Map(doc.lines.map((l) => [l.id, l]));
-  let t = 0;
-  return doc.beats.map((b) => {
-    const start = Math.round(t);
-    for (const id of b.line_ids) {
-      const l = byId.get(id);
-      if (l)
-        t += (l.text.split(/\s+/).filter(Boolean).length / wpm) * 60000 + (l.pause_after_ms ?? 0);
-    }
-    return { start_ms: start, title: b.title };
-  });
+  return beatDurations(env.ctx.store, env.ctx.videoId).map((b) => ({
+    start_ms: b.start_ms,
+    title: b.title,
+  }));
 }
 
 /** Executor bước `publish-meta` (D6 mục 2): tiêu đề/mô tả/thẻ/chương → `publish.md`. */
@@ -509,7 +504,7 @@ export function publishMetaExecutor(d: TextExecutorDeps) {
         return [{ id: 'schema', pass: true }, ...checkMeta(fromDoc(t), octx)];
       },
       maxTokens: 2000,
-      targetWords: 0,
+      targetMs: null,
     });
     return finish(env, 'publish.md', plan, r);
   };
