@@ -78,19 +78,16 @@ select {
 .workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: 260px 1fr 420px;
+  grid-template-columns: 260px 6px minmax(0, 1fr) 6px 420px;
   min-height: 0;
 }
 .left,
 .right {
   background: var(--panel);
-  border-right: 1px solid var(--line);
   padding: 10px;
   overflow: auto;
 }
 .right {
-  border-left: 1px solid var(--line);
-  border-right: none;
   display: flex;
   flex-direction: column;
 }
@@ -772,4 +769,28 @@ button.cta.primary {
 .voice-card audio {
   width: 100%;
   height: 32px;
+}
+
+/* 008: thanh chia cột kéo được */
+.splitter {
+  cursor: col-resize;
+  background: var(--line);
+  background-clip: content-box;
+  padding: 0 2px;
+  touch-action: none;
+}
+.splitter:hover,
+.splitter:focus-visible {
+  background: var(--accent);
+  background-clip: content-box;
+  padding: 0 1px;
+  outline: none;
+}
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+/* iframe (Studio) nuốt sự kiện chuột khi kéo qua */
+body.resizing iframe {
+  pointer-events: none;
 }

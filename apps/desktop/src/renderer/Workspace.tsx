@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ExplorerNode, VideoStateSummary } from '@studioflow/core';
 import { Chat } from './Chat';
 import { FileViewer, type ViewedFile } from './FileViewer';
+import {
+  clampWidths,
+  DEFAULT_WIDTHS,
+  dragWidths,
+  loadWidths,
+  saveWidths,
+  type PanelWidths,
+} from './layout';
 import { core } from './rpc';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
@@ -20,6 +28,21 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
   const [settings, setSettings] = useState(false);
+  // độ rộng cột kéo được (nhớ theo máy)
+  const root = useRef<HTMLDivElement>(null);
+  const total = () => root.current?.clientWidth ?? window.innerWidth;
+  const [widths, setWidthsState] = useState<PanelWidths>(() =>
+    clampWidths(loadWidths(), window.innerWidth),
+  );
+  const setWidths = (w: PanelWidths) => {
+    setWidthsState(w);
+    saveWidths(w);
+  };
+  useEffect(() => {
+    const onResize = () => setWidthsState((w) => clampWidths(w, total()));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const reload = useCallback(async () => {
     setVideos((await core.call('video.list', { channel })).videos);
@@ -79,7 +102,15 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
     setFile({ path: p, ...(await core.call('explorer.read', { channel, path: p })) });
 
   return (
-    <div className="workspace">
+    <div
+      className="workspace"
+      ref={root}
+      style={
+        {
+          gridTemplateColumns: `${widths.left}px 6px minmax(0, 1fr) 6px ${widths.right}px`,
+        } as CSSProperties
+      }
+    >
       <aside className="left">
         <div className="row">
           <button className="link" onClick={onClose} title="Về trang chủ">
@@ -145,6 +176,13 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           )}
         </div>
       </aside>
+      <Splitter
+        side="left"
+        label="Đổi độ rộng sidebar"
+        onDrag={(dx, start) => setWidths(dragWidths(start, 'left', dx, total()))}
+        widths={widths}
+        onReset={() => setWidths(clampWidths({ ...widths, left: DEFAULT_WIDTHS.left }, total()))}
+      />
       <section className="center">
         <header className="video-head">
           <b>{video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}</b>
@@ -164,6 +202,13 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
         />
       </section>
+      <Splitter
+        side="right"
+        label="Đổi độ rộng khung tab"
+        onDrag={(dx, start) => setWidths(dragWidths(start, 'right', dx, total()))}
+        widths={widths}
+        onReset={() => setWidths(clampWidths({ ...widths, right: DEFAULT_WIDTHS.right }, total()))}
+      />
       <aside className="right">
         <nav className="tabs">
           {TABS.map((t) => (
@@ -186,6 +231,54 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
       {file && <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />}
       {settings && <Settings channel={channel} onClose={() => setSettings(false)} />}
     </div>
+  );
+}
+
+/** Thanh chia cột: kéo chuột, phím ←/→ (Shift: bước lớn), nhấp đúp về mặc định. */
+function Splitter({
+  side,
+  label,
+  widths,
+  onDrag,
+  onReset,
+}: {
+  side: 'left' | 'right';
+  label: string;
+  widths: PanelWidths;
+  onDrag: (dx: number, start: PanelWidths) => void;
+  onReset: () => void;
+}) {
+  const start = useRef<{ x: number; w: PanelWidths } | null>(null);
+  return (
+    <div
+      className="splitter"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={side === 'left' ? widths.left : widths.right}
+      tabIndex={0}
+      title={`${label} — kéo, hoặc nhấp đúp để về mặc định`}
+      data-testid={`splitter-${side}`}
+      onPointerDown={(e) => {
+        start.current = { x: e.clientX, w: widths };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        document.body.classList.add('resizing');
+      }}
+      onPointerMove={(e) => {
+        if (start.current) onDrag(e.clientX - start.current.x, start.current.w);
+      }}
+      onPointerUp={(e) => {
+        start.current = null;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        document.body.classList.remove('resizing');
+      }}
+      onDoubleClick={onReset}
+      onKeyDown={(e) => {
+        const step = e.shiftKey ? 64 : 16;
+        if (e.key === 'ArrowLeft') onDrag(-step, widths);
+        if (e.key === 'ArrowRight') onDrag(step, widths);
+      }}
+    />
   );
 }
 

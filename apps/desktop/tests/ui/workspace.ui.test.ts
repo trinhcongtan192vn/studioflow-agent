@@ -58,6 +58,23 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('video-list')).toContainText('Lê Lợi và năm 1428', {
       timeout: 60_000,
     });
+    // 008: kéo thanh chia đổi độ rộng sidebar và khung tab phải; nhấp đúp về mặc định
+    const left = win.locator('aside.left');
+    const w0 = (await left.boundingBox())!.width;
+    const sp = (await win.getByTestId('splitter-left').boundingBox())!;
+    await win.mouse.move(sp.x + sp.width / 2, sp.y + 200);
+    await win.mouse.down();
+    await win.mouse.move(sp.x + sp.width / 2 + 80, sp.y + 200, { steps: 5 });
+    await win.mouse.up();
+    expect((await left.boundingBox())!.width).toBeCloseTo(w0 + 80, -1);
+    await win.getByTestId('splitter-left').dblclick();
+    expect((await left.boundingBox())!.width).toBeCloseTo(260, -1);
+    const right = win.locator('aside.right');
+    const r0 = (await right.boundingBox())!.width;
+    await win.getByTestId('splitter-right').focus();
+    await win.keyboard.press('Shift+ArrowLeft');
+    expect((await right.boundingBox())!.width).toBeCloseTo(r0 + 64, -1);
+    await win.getByTestId('splitter-right').dblclick();
     // tạo video mới bằng ô nhập ngay trong danh sách (Electron không có window.prompt)
     await win.getByTestId('new-video').click();
     await win.getByPlaceholder('Tên video tạm (có thể đổi sau)').fill('Lốc xoáy vòi rồng');
