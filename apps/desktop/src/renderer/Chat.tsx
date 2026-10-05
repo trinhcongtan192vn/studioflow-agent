@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatLine, IpcEvents } from '@studioflow/core';
 import { core } from './rpc';
+import { groupRuns } from './chat-format';
+import { Markdown, ToolGroup } from './ChatParts';
 import {
   clearContextRefs,
   contextLabel,
@@ -13,27 +15,6 @@ type Item =
   | { type: 'line'; line: ChatLine }
   | { type: 'approval'; card: IpcEvents['approval.requested']; done?: string }
   | { type: 'permission'; card: IpcEvents['permission.requested']; done?: string };
-
-/** Tên tool thân thiện (FN-008 mục 2). */
-const TOOL_NAMES: Record<string, string> = {
-  artifact_read: 'Đọc tệp',
-  artifact_write: 'Ghi tệp',
-  artifact_list: 'Liệt kê tệp',
-  tts_synthesize: 'Sinh giọng đọc',
-  asr_align: 'Kiểm đọc sai',
-  graph_build: 'Dựng lại',
-  workflow_select: 'Chọn workflow',
-  workflow_step_complete: 'Báo xong bước',
-  music_find: 'Tìm nhạc',
-  asset_import: 'Nạp asset',
-  render_video: 'Render',
-  config_resolve: 'Đọc cấu hình',
-  config_set: 'Đổi cấu hình',
-};
-const toolLabel = (name: string) => {
-  const short = name.replace(/^mcp__sf__/, '');
-  return TOOL_NAMES[short] ?? short;
-};
 
 /** Khu chat (FR-CH-02/03/07): luồng trả lời, tool, job; thẻ duyệt/xác nhận; đính kèm. */
 export function Chat({ channel, video }: { channel: string; video?: string }) {
@@ -186,16 +167,19 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
   return (
     <div className="chat">
       <div className="messages" data-testid="messages">
-        {items.map((it, i) =>
-          it.type === 'line' ? (
+        {groupRuns(items, (x) => x.type === 'line' && x.line.role === 'tool').map((g) => {
+          if (g.kind === 'tools')
+            return (
+              <ToolGroup
+                key={g.items[0]!.index}
+                lines={g.items.map((x) => (x.item as Item & { type: 'line' }).line)}
+              />
+            );
+          const { item: it, index: i } = g;
+          return it.type === 'line' ? (
             <div key={i} className={`msg ${it.line.role}`}>
-              {it.line.role === 'tool' ? (
-                <details>
-                  <summary>
-                    🔧 {toolLabel(it.line.tool?.name ?? '')}: {it.line.content}
-                  </summary>
-                  <pre>{JSON.stringify(it.line.tool?.input, null, 2)}</pre>
-                </details>
+              {it.line.role === 'assistant' ? (
+                <Markdown text={it.line.content} />
               ) : (
                 <span className="text">{it.line.content}</span>
               )}
@@ -242,11 +226,11 @@ export function Chat({ channel, video }: { channel: string; video?: string }) {
                 </div>
               )}
             </div>
-          ),
-        )}
+          );
+        })}
         {streaming && (
           <div className="msg assistant streaming" data-testid="streaming">
-            {streaming}
+            <Markdown text={streaming} />
           </div>
         )}
         <div ref={end} />

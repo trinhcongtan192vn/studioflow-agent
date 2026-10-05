@@ -58,6 +58,13 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('video-list')).toContainText('Lê Lợi và năm 1428', {
       timeout: 60_000,
     });
+    // tạo video mới bằng ô nhập ngay trong danh sách (Electron không có window.prompt)
+    await win.getByTestId('new-video').click();
+    await win.getByPlaceholder('Tên video tạm (có thể đổi sau)').fill('Lốc xoáy vòi rồng');
+    await win.getByPlaceholder('Tên video tạm (có thể đổi sau)').press('Enter');
+    await expect(win.getByTestId('video-list')).toContainText('Lốc xoáy vòi rồng', {
+      timeout: 30_000,
+    });
     // explorer chỉ đọc: xem nội dung tệp
     // thư mục cấp 1 (videos/) mở sẵn
     await win

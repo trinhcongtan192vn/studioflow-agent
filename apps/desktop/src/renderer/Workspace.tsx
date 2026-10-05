@@ -61,11 +61,23 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
     setVideo(id);
     setState((await core.call('video.open', { channel, video: id })).state);
   };
+  // window.prompt không có trong Electron → ô nhập ngay trong danh sách video
+  const [creating, setCreating] = useState<string | null>(null);
+  const [createErr, setCreateErr] = useState('');
   const newVideo = async () => {
-    const title = window.prompt('Tên video tạm') ?? '';
-    const { video_id } = await core.call('video.create', { channel, title });
-    await reload();
-    await openVideo(video_id);
+    try {
+      const title = (creating ?? '').trim();
+      const { video_id } = await core.call('video.create', {
+        channel,
+        ...(title ? { title } : {}),
+      });
+      setCreating(null);
+      setCreateErr('');
+      await reload();
+      await openVideo(video_id);
+    } catch (e) {
+      setCreateErr((e as Error).message);
+    }
   };
   const view = async (p: string) =>
     setFile({ path: p, ...(await core.call('explorer.read', { channel, path: p })) });
@@ -101,7 +113,31 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             </li>
           ))}
         </ul>
-        <button onClick={() => void newVideo()}>+ Video mới</button>
+        {creating === null ? (
+          <button data-testid="new-video" onClick={() => setCreating('')}>
+            + Video mới
+          </button>
+        ) : (
+          <div className="new-video" data-testid="new-video-form">
+            <input
+              autoFocus
+              placeholder="Tên video tạm (có thể đổi sau)"
+              value={creating}
+              onChange={(e) => setCreating(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void newVideo();
+                if (e.key === 'Escape') setCreating(null);
+              }}
+            />
+            <div className="row">
+              <button onClick={() => void newVideo()}>Tạo</button>
+              <button className="link" onClick={() => setCreating(null)}>
+                Hủy
+              </button>
+            </div>
+            {createErr && <div className="error">{createErr}</div>}
+          </div>
+        )}
         <h3>Explorer</h3>
         <div className="explorer" data-testid="explorer">
           {tree && (

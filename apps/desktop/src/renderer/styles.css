@@ -125,15 +125,151 @@ select {
   border-radius: 8px;
   margin-left: 15%;
 }
-.msg.tool {
-  background: var(--tool);
-  padding: 4px 8px;
+.msg.assistant {
+  white-space: normal;
+}
+.msg.system {
+  white-space: normal;
+  background: color-mix(in srgb, var(--warn) 8%, var(--panel));
+  border-left: 3px solid var(--warn);
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 13px;
 }
-.msg.system {
+/* Markdown của agent */
+.md p {
+  margin: 4px 0 8px;
+}
+.md h4 {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+.md ul,
+.md ol {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+.md li {
+  margin: 2px 0;
+}
+.md code {
+  background: var(--tool);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+.md pre {
+  background: var(--tool);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow: auto;
+  font-size: 12.5px;
+}
+/* Nhóm thao tác của agent */
+.tool-group {
+  margin: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 13px;
+}
+.tool-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.tool-group-peek {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-group-head .chev {
+  margin-left: auto;
   color: var(--muted);
-  font-style: italic;
+}
+.tool-list {
+  border-top: 1px solid var(--line);
+  padding: 4px 0;
+}
+.tool-row.quiet {
+  opacity: 0.6;
+}
+.tool-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 10px;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.tool-head:hover {
+  background: var(--tool);
+}
+.tool-icon {
+  width: 14px;
+  flex: none;
+}
+.tool-icon.ok {
+  color: #2e8b57;
+}
+.tool-icon.error {
+  color: var(--warn);
+}
+.tool-name {
+  font-weight: 600;
+  flex: none;
+}
+.tool-target {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-error {
+  color: var(--warn);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-detail {
+  padding: 4px 10px 8px 32px;
+}
+.tool-detail pre {
+  background: var(--tool);
+  padding: 6px 8px;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.new-video {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.new-video input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.new-video .error {
+  color: var(--warn);
+  font-size: 12px;
 }
 .card {
   background: var(--panel);
