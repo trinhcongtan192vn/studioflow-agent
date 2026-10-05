@@ -6,6 +6,8 @@ export interface StudioflowApi {
   pickFolder(): Promise<string | null>;
   pickFiles(): Promise<string[]>;
   openPath(p: string): Promise<string>;
+  /** Đọc file âm thanh được phép (008) để phát trong app. */
+  readAudio(absPath: string): Promise<{ mime: string; data: Uint8Array }>;
   secretsStatus(): Promise<{ name: string; hint: string | null }[]>;
   secretsSet(name: string, value: string): Promise<{ name: string; hint: string | null }>;
   secretsDelete(name: string): Promise<{ name: string; deleted: boolean }>;
@@ -18,6 +20,7 @@ const api: StudioflowApi = {
   pickFolder: () => ipcRenderer.invoke('dialog:folder'),
   pickFiles: () => ipcRenderer.invoke('dialog:files'),
   openPath: (p) => ipcRenderer.invoke('shell:open', p),
+  readAudio: (p) => ipcRenderer.invoke('media:audio', p),
   secretsStatus: () => ipcRenderer.invoke('secrets:status'),
   secretsSet: (n, v) => ipcRenderer.invoke('secrets:set', n, v),
   secretsDelete: (n) => ipcRenderer.invoke('secrets:delete', n),

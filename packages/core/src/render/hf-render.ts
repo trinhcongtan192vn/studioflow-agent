@@ -16,6 +16,25 @@ export function killTree(pid: number): void {
   }
 }
 
+/** Render không in gì quá lâu là treo (quan sát 2026-10-06: tiến trình dựng trình duyệt đứng yên). */
+export function renderStallMs(): number {
+  return Number(process.env.SF_RENDER_STALL_MS) || 10 * 60_000;
+}
+
+/** Hẹn giờ "im lặng": `touch()` khi có output; quá `ms` không có gì → `onStall`. */
+export function stallTimer(ms: number, onStall: () => void): { touch(): void; stop(): void } {
+  let t = setTimeout(onStall, ms);
+  return {
+    touch() {
+      clearTimeout(t);
+      t = setTimeout(onStall, ms);
+    },
+    stop() {
+      clearTimeout(t);
+    },
+  };
+}
+
 /**
  * `hyperframes render` bản ghim (D4 `render.hf-producer`): `index.html` của video → MP4 ở `out`
  * (ngoài project). Tiến độ đọc từ dòng "NN%"; hủy qua `signal` (kill cây ≤ 5 s).
@@ -75,8 +94,16 @@ async function hfRenderInner(
       canceled = true;
       if (p.pid) killTree(p.pid);
     };
+    // treo (không output) → dừng cây tiến trình để nhả lease GPU `render` (019)
+    let stalled = false;
+    const stallMs = renderStallMs();
+    const watchdog = stallTimer(stallMs, () => {
+      stalled = true;
+      if (p.pid) killTree(p.pid);
+    });
     o.signal?.addEventListener('abort', onAbort);
     const onData = (d: Buffer) => {
+      watchdog.touch();
       const s = d.toString('utf8');
       log = (log + s).slice(-20_000);
       for (const m of s.matchAll(/(\d{1,3})%\s+([^\n\r]*)/g))
@@ -88,8 +115,16 @@ async function hfRenderInner(
       reject(new SfError('E_PROVIDER_UNAVAILABLE', `hyperframes render: ${e.message}`)),
     );
     p.on('close', (code) => {
+      watchdog.stop();
       o.signal?.removeEventListener('abort', onAbort);
       if (canceled) reject(new SfError('E_JOB_CANCELED', 'render canceled'));
+      else if (stalled)
+        reject(
+          new SfError(
+            'E_PROVIDER_FAILED',
+            `hyperframes render produced no output for ${Math.round(stallMs / 60_000)} min and was stopped (stalled); render again: ${log.slice(-400)}`,
+          ),
+        );
       else if (code !== 0)
         reject(
           new SfError('E_PROVIDER_FAILED', `hyperframes render exited ${code}: ${log.slice(-800)}`),

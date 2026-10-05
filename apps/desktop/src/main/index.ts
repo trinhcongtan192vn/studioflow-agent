@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { Readable } from 'node:stream';
 import path from 'node:path';
@@ -38,6 +38,33 @@ const MEDIA_TYPES: Record<string, string> = {
   jpeg: 'image/jpeg',
   webp: 'image/webp',
 };
+/** 008: âm thanh phát trong app (thẻ giọng, explorer) — đọc qua IPC thành blob, chỉ các file này. */
+const AUDIO_OK = [
+  /[\\/]voices[\\/]vo_[0-9a-z]{8}[\\/][^\\/]+\.wav$/i,
+  /[\\/]videos[\\/][^\\/]+[\\/].+\.(wav|mp3|m4a|ogg|flac)$/i,
+  /[\\/]music[\\/]files[\\/][^\\/]+\.(wav|mp3|m4a|ogg|flac)$/i,
+  /[\\/]uploads[\\/][^\\/]+\.(wav|mp3|m4a|ogg|flac)$/i,
+];
+const AUDIO_TYPES: Record<string, string> = {
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+};
+const AUDIO_MAX_BYTES = 80 * 1024 * 1024;
+ipcMain.handle('media:audio', (_e, p: string) => {
+  const abs = path.normalize(String(p));
+  if (!AUDIO_OK.some((r) => r.test(abs)) || abs.includes('..'))
+    throw new Error(`not a playable audio file: ${abs}`);
+  if (!existsSync(abs)) throw new Error(`file not found: ${abs}`);
+  if (statSync(abs).size > AUDIO_MAX_BYTES) throw new Error('audio file too large to play in app');
+  return {
+    mime: AUDIO_TYPES[path.extname(abs).slice(1).toLowerCase()] ?? 'audio/wav',
+    data: readFileSync(abs),
+  };
+});
+
 function registerMedia(): void {
   protocol.handle('sf-media', (req) => {
     const abs = path.normalize(decodeURI(new URL(req.url).pathname).replace(/^\/+/, ''));
@@ -159,14 +186,26 @@ ipcMain.handle('secrets:delete', (_e, name: string) => {
   return { name, deleted: ok };
 });
 
-void app.whenReady().then(() => {
-  registerMedia();
-  createWindow();
-  startCore();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+// 008: một bản app cho mỗi thư mục dữ liệu — hai core cùng DB thì core sau `recover()` đánh dấu job
+// đang chạy của core trước là lỗi và có thể chạy chồng job của nó. Khóa theo userData = app-data.
+if (process.env.SF_APP_DATA) app.setPath('userData', process.env.SF_APP_DATA);
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.quit();
+app.on('second-instance', () => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
 });
+
+if (primary)
+  void app.whenReady().then(() => {
+    registerMedia();
+    createWindow();
+    startCore();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
 
 app.on('before-quit', () => {
   quitting = true;

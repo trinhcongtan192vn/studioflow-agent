@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { AudioPlayer } from './AudioPlayer';
 import { Markdown } from './ChatParts';
 import { labelOf, parseDoc, showValue, type DocBlock } from './doc-format';
 
@@ -165,6 +166,8 @@ export function FileViewer({
   let body: ReactNode;
   if (/\.mp4$/i.test(file.path))
     body = <video className="viewer-media" controls src={mediaUrl(abs)} />;
+  else if (/\.(wav|mp3|m4a|ogg|flac)$/i.test(file.path))
+    body = <AudioPlayer src={abs} label={file.path} />;
   else if (/\.(png|jpe?g|webp)$/i.test(file.path))
     body = <img className="viewer-media" alt={file.path} src={mediaUrl(abs)} />;
   else if (file.kind === 'binary')

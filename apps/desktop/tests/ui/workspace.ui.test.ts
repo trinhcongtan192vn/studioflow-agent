@@ -1,7 +1,7 @@
 // 008 · FR-CH-02/07, FR-WS-02 — vỏ desktop thật (Electron + core trong utilityProcess): mở kênh,
 // danh sách video, explorer chỉ đọc, chat với Claude qua phiên `main` (record khi SF_LLM=record,
 // replay khi không), lịch sử còn sau khi mở lại, tab Job/Trace.
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +47,26 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     path.join(channel, 'videos', 'vd_8m2pq7rt', 'index.html'),
     '<!doctype html><html><head><meta charset="UTF-8"></head><body><div id="root" data-composition-id="main" data-start="0" data-duration="2" data-width="1920" data-height="1080"></div></body></html>',
   );
+  // 008: câu mẫu giọng (wav 2 s, 24 kHz mono) để thử trình phát trong app
+  const sr = 24000;
+  const n = sr * 2;
+  const wav = Buffer.alloc(44 + n * 2);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + n * 2, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sr, 24);
+  wav.writeUInt32LE(sr * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++)
+    wav.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / sr) * 8000), 44 + i * 2);
+  mkdirSync(path.join(channel, 'voices', 'vo_c3z8p1mn'), { recursive: true });
+  writeFileSync(path.join(channel, 'voices', 'vo_c3z8p1mn', 'ref.wav'), wav);
   let app = await launch(channel, appData);
   try {
     const win = await app.firstWindow();
@@ -93,6 +113,17 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     // 008: md hiển thị dạng đọc — line có người nói, chú thích kỹ thuật ẩn
     await expect(win.getByTestId('file-content').locator('.script-line')).toHaveCount(3);
     await expect(win.getByTestId('file-content')).not.toContainText('sf:line');
+    await win.getByRole('button', { name: 'Đóng' }).click();
+    // 008: phát âm thanh trong app (explorer → wav)
+    await win
+      .getByTestId('explorer')
+      .getByRole('button', { name: /vo_c3z8p1mn/ })
+      .click();
+    await win.getByTestId('explorer').getByRole('button', { name: 'ref.wav' }).click();
+    const player = win.getByTestId('audio-player');
+    await player.getByRole('button', { name: /^Phát/ }).click();
+    await expect(player.getByTestId('audio-time')).toContainText('/ 0:02', { timeout: 15_000 });
+    await expect(player.getByRole('button', { name: 'Tạm dừng' })).toBeVisible();
     await win.getByRole('button', { name: 'Đóng' }).click();
     // chọn video → chat với phiên main
     await win

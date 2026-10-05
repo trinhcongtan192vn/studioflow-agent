@@ -12,7 +12,7 @@ import {
   type StepCta,
   type VoiceSuggestion,
 } from './chat-format';
-import { mediaUrl } from './FileViewer';
+import { AudioPlayer } from './AudioPlayer';
 import { Markdown, ToolGroup } from './ChatParts';
 import {
   clearContextRefs,
@@ -395,7 +395,7 @@ export function Chat({
                   </span>
                 ))}
               </div>
-              <audio controls preload="metadata" src={mediaUrl(`${channel}/${it.voice.preview}`)} />
+              <AudioPlayer src={`${channel}/${it.voice.preview}`} label={it.voice.name} />
               {it.done ? (
                 <i>{it.done}</i>
               ) : (
