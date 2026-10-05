@@ -1,0 +1,3 @@
+# Bộ miệng mặc định của app (FN-032 mục 4): 2D phẳng, `mouths/<set>/<view>/{closed,half,open}.svg`.
+id: core-mouths
+version: 1.0.0

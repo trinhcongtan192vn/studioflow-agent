@@ -74,6 +74,27 @@ function emotionRef(model: VideoModel, l: Line): string | undefined {
   return existsSync(f) ? sha256(readFileSync(f)) : `missing:${ref}`;
 }
 
+/** Line cần khẩu hình (032): frame có `lipsync` và `lipsync.enabled` ở tầng frame; line của `cast_id`. */
+export function lipsyncLines(model: VideoModel): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const f of model.frames) {
+    if (!f.lipsync?.cast_id) continue;
+    if (model.config('lipsync.enabled', { sceneId: f.scene_id, frameId: f.id }) !== true) continue;
+    for (const id of f.line_ids)
+      if (model.lines.find((l) => l.id === id)?.speaker === f.lipsync.cast_id)
+        out.set(id, f.lipsync.cast_id);
+  }
+  return out;
+}
+
+function profileFps(model: VideoModel): number {
+  try {
+    return loadOutputProfile(model.config('output.profile')).fps;
+  } catch {
+    return 30;
+  }
+}
+
 /** Frame không gồm phần hoàn thiện (look, hiệu ứng, overlay — 027). */
 export function contentOf(f: Frame): Frame {
   const { effects: _e, overlays: _o, ...rest } = f;
@@ -91,8 +112,17 @@ export function contentOf(f: Frame): Frame {
 /** Phần hoàn thiện của frame trong hash `frame_html` (027); không grade, không hiệu ứng → không có. */
 export function finishPart(model: VideoModel, f: Frame, appDataDir?: string) {
   const look = frameLook(model, f, appDataDir);
-  if (!look.grading && !f.effects?.length) return undefined;
-  return { look, effects: f.effects ?? [] };
+  // 032: khẩu hình (cue của line nhân vật trong frame) là phần hoàn thiện — không gọi lại agent
+  const ls = lipsyncLines(model);
+  const lipsync = f.line_ids.some((id) => ls.has(id))
+    ? {
+        anchor: f.lipsync?.mouth_anchor ?? null,
+        mouth_set: (f.lipsync && model.cast[f.lipsync.cast_id]?.mouth_set) ?? null,
+        cues: f.line_ids.filter((id) => ls.has(id)).map((id) => model.hashOf(`lipsync/${id}.json`)),
+      }
+    : undefined;
+  if (!look.grading && !f.effects?.length && !lipsync) return undefined;
+  return { look, effects: f.effects ?? [], ...(lipsync ? { lipsync } : {}) };
 }
 
 /** Hash đầu vào của nút bỏ phần hoàn thiện — builder `frame_html` biết chỉ cần áp lại look (027). */
@@ -362,6 +392,24 @@ export class BuildGraph {
       }
     }
     const lineDeps = defs.map((d) => d.id);
+    // 032: khẩu hình mức 1 cho line của nhân vật trong frame bật lip-sync (D4 8.1 `lipsync.line`)
+    if (on('lipsync.line')) {
+      for (const [lineId, castId] of lipsyncLines(model)) {
+        defs.push({
+          id: `lipsync.line:${lineId}`,
+          type: 'lipsync.line',
+          key: lineId,
+          phase: 'lipsync',
+          deps: on('audio.line') ? [`audio.line:${lineId}`] : [],
+          line: model.lines.find((l) => l.id === lineId)!,
+          parts: {
+            cast_id: castId,
+            fps: profileFps(model),
+            provider: model.config('provider.lipsync.cues'),
+          },
+        });
+      }
+    }
     const add = (type: NodeType, deps: string[], parts: unknown) =>
       on(type) &&
       defs.push({
@@ -443,7 +491,13 @@ export class BuildGraph {
           type: 'frame_html',
           key: f.id,
           phase: 'assemble',
-          deps: ['frame_timing', ...assets],
+          deps: [
+            'frame_timing',
+            ...assets,
+            ...f.line_ids
+              .map((ln) => `lipsync.line:${ln}`)
+              .filter((id) => defs.some((d) => d.id === id)),
+          ],
           hashDeps: assets,
           // thời lượng frame chỉ đổi khi line của chính nó đổi (D4 8.3); mốc tuyệt đối do index đặt
           staleDeps: [...assets, ...lineNodes],

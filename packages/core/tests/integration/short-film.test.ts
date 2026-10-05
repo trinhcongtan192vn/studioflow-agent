@@ -94,6 +94,7 @@ let core: Core;
 let videoId = '';
 const v = () => path.join(c.dir, 'videos', videoId);
 const agentSteps: string[] = [];
+let mouthAnchor = '';
 
 async function job(session: SessionContext, tool: string, input: unknown) {
   const r = (await core.gateway.call(session, tool, input)) as { ok: boolean; job_id?: string };
@@ -114,7 +115,7 @@ async function writeStoryboard(context: SessionContext) {
   const script = readFileSync(store.abs(`videos/${videoId}/SCRIPT.md`), 'utf8');
   const lines = [...script.matchAll(/sf:line id=(ln_[0-9a-z]{8})/g)].map((m) => m[1]!);
   const beats = [...script.matchAll(/sf:beat id=(bt_[0-9a-z]{8})/g)].map((m) => m[1]!);
-  const shot = (i: number, ids: string[], beat: string, intent: string) =>
+  const shot = (i: number, ids: string[], beat: string, intent: string, extra: string[] = []) =>
     [
       `### Frame ${i}`,
       '```sf-frame',
@@ -124,6 +125,7 @@ async function writeStoryboard(context: SessionContext) {
       'layers:',
       '  - { kind: background, notes: "bến xe chiều mưa, 2D phẳng" }',
       `  - { kind: text, text: "Shot ${i}" }`,
+      ...extra,
       '```',
       '',
     ].join('\n');
@@ -140,13 +142,27 @@ async function writeStoryboard(context: SessionContext) {
     '```',
     '',
     shot(1, lines.slice(0, 2), beats[0]!, 'toàn: bến xe, Mai chạy tới'),
-    shot(2, lines.slice(2), beats[1]!, 'trung: Nam đưa ô cho Mai'),
+    shot(2, lines.slice(2), beats[1]!, 'trung: Nam đưa ô cho Mai', [
+      '  - { kind: mouth, notes: "miệng Mai" }',
+    ]),
   ].join('\n');
   const w = await core.gateway.call(context, 'artifact.write', {
     path: 'STORYBOARD.md',
     content: sb,
   });
   if (!w.ok) throw new Error(JSON.stringify(w));
+  // 032: ID layer miệng do app gán → ghi lần hai gắn lipsync cho shot trung của Mai
+  const written = readFileSync(store.abs(`videos/${videoId}/STORYBOARD.md`), 'utf8');
+  const mouth = /id: (el_[0-9a-z]{8}), kind: mouth/.exec(written)![1]!;
+  const w2 = await core.gateway.call(context, 'artifact.write', {
+    path: 'STORYBOARD.md',
+    content: written.replace(
+      /( {2}- \{ id: el_[0-9a-z]{8}, kind: mouth[^\n]*\n)/,
+      `$1lipsync: { cast_id: ${cast.mai}, mouth_anchor: ${mouth} }\n`,
+    ),
+  });
+  if (!w2.ok) throw new Error(JSON.stringify(w2));
+  mouthAnchor = mouth;
   await core.gateway.call(context, 'workflow.step_complete', {
     step_id: 'storyboard',
     outputs: ['STORYBOARD.md'],
@@ -194,6 +210,12 @@ beforeAll(() => {
       await core.gateway.call(session, 'config.set', {
         key: 'voice.id',
         value: narrator,
+        tier: 'video',
+      });
+      // 032: bật khẩu hình cho video (shot nào lip-sync do storyboard khai)
+      await core.gateway.call(session, 'config.set', {
+        key: 'lipsync.enabled',
+        value: true,
         tier: 'video',
       });
       const doc = [
@@ -266,7 +288,28 @@ describeStudio('short-film end to end (031 FR-WF-08)', () => {
     }
     expect(approved).toEqual(['brief', 'story', 'cast', 'script', 'animatic', 'finalize']);
     const st = state();
-    expect(st.steps.lipsync!.status).toBe('skipped');
+    // 032: khẩu hình cho line của Mai trong shot trung (shot 2)
+    expect(st.steps.lipsync!.status).toBe('done');
+    const lsFiles = st.steps.lipsync!.outputs!;
+    expect(lsFiles).toHaveLength(1);
+    const cues = JSON.parse(readFileSync(path.join(v(), lsFiles[0]!), 'utf8'));
+    expect(cues).toMatchObject({ cast_id: cast.mai, fps: 30 });
+    expect(cues.cues[0]).toMatchObject({ frame: 0 });
+    expect(cues.cues.at(-1)).toMatchObject({ mouth: 'closed' });
+    expect(cues.cues.some((c: { mouth: string }) => c.mouth === 'open')).toBe(true);
+    const frames = readFileSync(path.join(v(), 'STORYBOARD.md'), 'utf8');
+    const fr2 = [...frames.matchAll(/id: (fr_[0-9a-z]{8})/g)].map((m) => m[1]!)[1]!;
+    const html = readFileSync(path.join(v(), 'compositions', 'frames', `${fr2}.html`), 'utf8');
+    expect(html).toMatch(
+      new RegExp(
+        `data-sf-id="${mouthAnchor}"[^>]*><!--sf:mouth--><img data-sf-mouth="closed" src="public/mouths/flat/front/closed.svg"`,
+      ),
+    );
+    expect(html).toContain('<script data-sf-lipsync>');
+    expect(html).toContain(
+      `tl.set("[data-sf-id=\\"${mouthAnchor}\\"] [data-sf-mouth=\\"open\\"]", { opacity: 1 }, `,
+    );
+    expect(existsSync(path.join(v(), 'public', 'mouths', 'flat', 'front', 'open.svg'))).toBe(true);
     expect(agentSteps).toEqual(['cast', 'look', 'effects', 'overlays', 'music']);
 
     // nhân vật lưu cấp kênh, dùng lại giữa video

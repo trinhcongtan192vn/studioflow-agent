@@ -1,4 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { applyLipsync, frameLipsync, mouthDir } from '../lipsync/mouths.js';
+import type { FrameTiming } from '../graph/timing.js';
 import { SfError } from '../errors.js';
 import { bakeKey, bakeLooks, type BakeItem } from '../finish/bake.js';
 import {
@@ -63,7 +66,32 @@ async function finishFrame(ctx: BuilderContext, rel: string, appDataDir?: string
     );
   }
   const fx = fin.fxPatch ? await normalizeGrading(fin.fxPatch) : null;
-  const next = applyFinish(html, { baked, fx });
+  let next = applyFinish(html, { baked, fx });
+  // 032: khẩu hình — ảnh miệng của bộ phong cách vào public/, timeline đổi theo cue
+  const ls = frameLipsync(
+    ctx.store,
+    ctx.model,
+    frame,
+    ctx.records['frame_timing']?.meta as FrameTiming | undefined,
+  );
+  let mouthSrc: ((s: string) => string) | undefined;
+  if (ls) {
+    const dir = mouthDir(ls.set, ls.view, appDataDir);
+    if (!dir)
+      throw new SfError(
+        'E_FILE_NOT_FOUND',
+        `mouth set ${ls.set}/${ls.view} is not in any style pack (mouths/<set>/<view>/{closed,half,open}.svg)`,
+      );
+    const pub = `public/mouths/${ls.set}/${ls.view}`;
+    for (const st of ['closed', 'half', 'open']) {
+      const rel = `${ctx.videoRel}/${pub}/${st}.svg`;
+      const src = readFileSync(path.join(dir, `${st}.svg`));
+      if (!existsSync(ctx.store.abs(rel)) || !readFileSync(ctx.store.abs(rel)).equals(src))
+        ctx.store.write(rel, src, { by: 'graph.build', validate: false });
+    }
+    mouthSrc = (st) => `${pub}/${st}.svg`;
+  }
+  next = applyLipsync(next, frame.id, ls && mouthSrc ? { ...ls, src: mouthSrc } : null);
   if (next !== html) ctx.store.write(`${ctx.videoRel}/${rel}`, next, { by: 'graph.build' });
 }
 

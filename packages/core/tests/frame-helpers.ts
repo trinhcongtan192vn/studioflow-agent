@@ -13,9 +13,11 @@ export function sampleFrame(p: FramePacket, drop?: string): string {
   const layers = p.frame.layers
     .filter((l) => l.id !== drop)
     .map((l, i) =>
-      l.kind === 'background' && bgAsset
-        ? `    <img class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" src="${bgAsset.file}" alt="" style="position:absolute;left:0;top:0;width:${W}px;height:${H}px;object-fit:cover">`
-        : `    <div class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" style="position:absolute;left:${120 + i * 40}px;top:${160 + i * 120}px;font-family:sans-serif;font-size:96px;color:#f4f1ea;background:rgba(10,12,16,0.85);padding:8px 24px">${l.text ?? l.kind}</div>`,
+      l.kind === 'mouth'
+        ? `    <div class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" style="position:absolute;left:${Math.round(W * 0.47)}px;top:${Math.round(H * 0.45)}px;width:${Math.round(W * 0.06)}px;height:${Math.round(W * 0.036)}px"></div>`
+        : l.kind === 'background' && bgAsset
+          ? `    <img class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" src="${bgAsset.file}" alt="" style="position:absolute;left:0;top:0;width:${W}px;height:${H}px;object-fit:cover">`
+          : `    <div class="clip ${id}-layer" data-sf-id="${l.id}" data-start="0" data-duration="${d}" data-track-index="${i}" style="position:absolute;left:${120 + i * 40}px;top:${160 + i * 120}px;font-family:sans-serif;font-size:96px;color:#f4f1ea;background:rgba(10,12,16,0.85);padding:8px 24px">${l.text ?? l.kind}</div>`,
     );
   return `<template>
   <div id="root" data-composition-id="${id}" data-width="${W}" data-height="${H}" data-start="0" data-duration="${d}">

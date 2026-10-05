@@ -18,6 +18,8 @@ import { CaptionPanel } from './captions/panel.js';
 import { defineFinishJobs, finishTools } from './finish/tools.js';
 import { finishStepExecutor } from './finish/check.js';
 import { animaticExecutor } from './render/animatic.js';
+import { lipsyncLineBuilder } from './lipsync/builder.js';
+import { lipsyncExecutor, lipsyncTools } from './lipsync/step.js';
 import { castExecutor } from './workflow/cast.js';
 import './hf/safe-area.js';
 import { PinnedDecider } from './studio/pinned.js';
@@ -172,6 +174,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   // TTS (006): provider mặc định, builder audio.line, tool voice/tts.
   const providerHandles = registerDefaultProviders(providers, { appDataDir });
   graph.registerBuilder('audio.line', audioLineBuilder({ providers, db, appDataDir }));
+  graph.registerBuilder('lipsync.line', lipsyncLineBuilder({ providers, db, appDataDir }));
   graph.registerPlanner('audio.line', audioLinePlanner({ providers }));
   const tts = {
     queue,
@@ -274,6 +277,8 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('animatic', animaticExecutor(graph));
   workflows.registerExecutor('cast', castExecutor());
+  workflows.registerExecutor('lipsync', lipsyncExecutor(graph));
+  for (const t of lipsyncTools(queue)) gateway.register(t);
   workflows.registerExecutor('design-system', designSystemExecutor());
   // story-documentary (023): storyboard refine (phiên producer) + assets (nút asset)
   workflows.registerExecutor(
