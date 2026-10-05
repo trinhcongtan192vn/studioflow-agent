@@ -1,0 +1,12 @@
+# Khẩu hình mức 1 (FN-032 mục 4): RMS mỗi video frame → closed/half/open. Chạy CPU trong core.
+id: lipsync.amplitude
+version: 1.0.0
+capabilities: [lipsync.cues]
+contract_versions: { lipsync.cues: '1' }
+runtime: node
+resource: cpu
+languages: [vi, de, en]
+install_profile: minimal
+cost: { kind: free }
+health: { method: health, timeout_ms: 1000 }
+app_api: '>=0.1 <2.0'

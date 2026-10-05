@@ -43,6 +43,7 @@ steps:
     uses: lipsync
     title: Khẩu hình
     skip_if: { config: lipsync.enabled, equals: false }
+    gate: [{ kind: objective, check: lipsync_anchors }]
   - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
   - { id: frames, uses: frame-build, title: Dựng shot }
   - { id: effects, uses: effects, title: Hiệu ứng, skip_if: { phase_before: M3 } }

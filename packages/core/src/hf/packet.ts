@@ -122,6 +122,18 @@ export function buildFramePacket(i: {
             `Layer ${missingAssets.join(', ')} chưa có asset: vẽ bằng code (SVG/HTML) theo intent và notes.`,
           ]
         : []),
+      // 032: khẩu hình — frame agent chỉ đặt chỗ, app chèn ảnh miệng và đổi theo lời
+      ...(frame.lipsync &&
+      model.config('lipsync.enabled', { sceneId: frame.scene_id, frameId: frame.id }) === true
+        ? [
+            `Layer ${frame.lipsync.mouth_anchor} (kind mouth): một div rỗng position:absolute đặt đúng miệng nhân vật ${model.cast[frame.lipsync.cast_id]?.name ?? frame.lipsync.cast_id}${(() => {
+              const a = model.cast[frame.lipsync.cast_id]?.mouth_anchor;
+              return a
+                ? ` (trên ảnh nhân vật: x ${Math.round(a.x * 100)}%, y ${Math.round(a.y * 100)}% của ảnh, cỡ ×${a.scale})`
+                : '';
+            })()}, rộng ~${Math.round(profile.width * 0.06)}px, tỉ lệ 5:3, không nội dung, không animate; di chuyển cùng nhân vật nếu nhân vật chuyển động. App tự chèn hình miệng và đổi theo lời thoại.`,
+          ]
+        : []),
     ],
   };
 }

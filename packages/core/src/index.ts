@@ -430,6 +430,9 @@ export {
 } from './finish/grading.js';
 export { overlayInstances, overlayProblems, type OverlayInstance } from './finish/overlays.js';
 export { bakeLooks, bakedRel } from './finish/bake.js';
+export { computeCues, DEFAULT_THRESHOLDS, MIN_HOLD, type Mouth } from './lipsync/amplitude.js';
+export { applyLipsync, frameLipsync, mouthDir, DEFAULT_MOUTH_SET } from './lipsync/mouths.js';
+export { lipsyncAnchorProblems } from './lipsync/step.js';
 export { costReport, costCsv, type CostReport, type CostTotals } from './trace/cost.js';
 export { PhoenixServer, phoenixHealthy } from './trace/phoenix.js';
 export {

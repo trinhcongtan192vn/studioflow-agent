@@ -43,7 +43,9 @@ Không ghi `id:` cho nhân vật mới (app gán `ca_…`). Kết thúc: `workfl
 
 ## Bước `storyboard` → `STORYBOARD.md` (có refine)
 
-Mỗi frame là **một shot**: ghi trong `intent` cỡ cảnh (`toàn` / `trung` / `cận`), nhân vật trong khung, biểu cảm, hướng nhìn. Layers: `background` (bối cảnh theo scene), `image` cho nhân vật với `asset_id` là ảnh biểu cảm phù hợp từ `CAST.md` (`expressions`), `text` hiếm khi cần. Scene đổi khi đổi bối cảnh/thời gian. Mỗi line thuộc đúng một frame; một shot 1–3 line (2–8 giây). Shot trung/cận có nhân vật đang nói nhìn về máy quay là shot hợp lip-sync (khi bật). Ghi `STORYBOARD.md`, rồi `workflow.step_complete {step_id: "storyboard", outputs: ["STORYBOARD.md"]}`.
+Mỗi frame là **một shot**: ghi trong `intent` cỡ cảnh (`toàn` / `trung` / `cận`), nhân vật trong khung, biểu cảm, hướng nhìn. Layers: `background` (bối cảnh theo scene), `image` cho nhân vật với `asset_id` là ảnh biểu cảm phù hợp từ `CAST.md` (`expressions`), `text` hiếm khi cần. Scene đổi khi đổi bối cảnh/thời gian. Mỗi line thuộc đúng một frame; một shot 1–3 line (2–8 giây). Shot trung/cận có nhân vật đang nói nhìn về máy quay là shot hợp lip-sync (khi bật).
+
+**Khẩu hình (khi `lipsync.enabled` bật cho video/kênh):** với shot trung/cận mà một nhân vật nói và nhìn về máy quay, thêm layer `- { kind: mouth, notes: "miệng <tên>" }`. Ghi `STORYBOARD.md` một lần để app gán ID, đọc lại lấy ID của layer miệng, rồi thêm vào khối `sf-frame` đó `lipsync: { cast_id: ca_…, mouth_anchor: el_… }` (nhân vật đang nói trong shot) và ghi lại. Shot toàn cảnh hoặc nhân vật quay đi: không khai `lipsync`. App tự tính khẩu hình từ lời thoại và chèn hình miệng theo bộ miệng của nhân vật (`mouth_set`, mặc định `flat`). Ghi `STORYBOARD.md`, rồi `workflow.step_complete {step_id: "storyboard", outputs: ["STORYBOARD.md"]}`.
 
 ## Bước `assets` (khi engine giao)
 

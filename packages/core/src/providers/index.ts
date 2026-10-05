@@ -9,6 +9,7 @@ import { createClapProvider } from '../music/clap.js';
 import type { TextEmbedder } from '../music/clap.js';
 import { createAudioAnalysisProvider } from '../music/provider.js';
 import { createFakeTtsProvider } from './fake.js';
+import { createLipsyncAmplitudeProvider } from '../lipsync/amplitude.js';
 import { createOmniVoiceProvider } from './omnivoice.js';
 
 /**
@@ -28,6 +29,8 @@ export function registerDefaultProviders(
   // ảnh (018): tách nền CPU và API có phí luôn đăng ký (health báo thiếu cấu hình/khóa)
   registry.register(createRemoveBgProvider());
   registry.register(createQwen20ApiProvider(opts));
+  // khẩu hình mức 1 (032): RMS trên CPU
+  registry.register(createLipsyncAmplitudeProvider());
   if (process.env.SF_GPU === '0') {
     registry.register(createFakeTtsProvider());
     registry.register(createFakeAsrProvider());
