@@ -54,6 +54,22 @@ async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>): Prom
   );
 }
 
+/**
+ * Frame của một phát hiện lint/check: theo đường dẫn file (`/` hoặc `\` — HyperFrames trả đường dẫn
+ * Windows), không có thì theo tiền tố `<frame_id>-` của selector/id phần tử (quy ước frame worker).
+ */
+export function frameOfFinding(
+  where: string,
+  selector?: string,
+  elementId?: string,
+): string | undefined {
+  return (
+    /frames[\\/](fr_[0-9a-z]{8})\.html/.exec(where)?.[1] ??
+    /(?:^|[#.\s])(fr_[0-9a-z]{8})-/.exec(selector ?? '')?.[1] ??
+    /^(fr_[0-9a-z]{8})-/.exec(elementId ?? '')?.[1]
+  );
+}
+
 export interface FrameBuildResult {
   outputs: string[];
   built: string[];
@@ -291,6 +307,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         message?: string;
         selector?: string;
         suggestedColor?: string;
+        elementId?: string;
         where: string;
       };
       const errs: Err[] = lint.findings
@@ -308,7 +325,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       const byFrame = new Map<string, string[]>();
       const general: string[] = [];
       for (const e of errs) {
-        const fid = /frames\/(fr_[0-9a-z]{8})\.html/.exec(e.where)?.[1];
+        const fid = frameOfFinding(e.where, e.selector, e.elementId);
         const msg = `${e.code ?? e.rule}: ${e.message}${e.selector ? ` (${e.selector})` : ''}${e.suggestedColor ? ` — gợi ý màu ${e.suggestedColor}` : ''}`;
         if (fid) byFrame.set(fid, [...(byFrame.get(fid) ?? []), msg]);
         else general.push(msg);
