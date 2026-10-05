@@ -12,3 +12,18 @@ description: Quy tắc làm việc với dự án video StudioFlow — artifact,
 - Không sửa `.sf/` (dữ liệu dẫn xuất). Không xóa file — không có công cụ xóa.
 - Kiểm tra trước khi ghi bằng `mcp__sf__artifact_validate {path, content}`; lỗi có đường dẫn trường.
 - Giá trị cấu hình (look, giọng, caption…) lấy bằng `mcp__sf__config_resolve`, không đoán.
+
+## Giọng đọc
+
+- Người dẫn dùng `voice.id` của kênh/video; nhân vật dùng `voice_id` trong `CAST.md`. Kiểm bằng `mcp__sf__config_resolve {key: "voice.id"}`.
+- **Có file giọng mẫu** (người dùng đính kèm `uploads/…`, giọng họ được phép dùng): `voice.profile_create {name, ref_audio, language}`.
+- **Chưa có file mẫu** (033): gợi ý **2–3 giọng khác nhau** cho mỗi người nói thiếu giọng, mỗi giọng một lần `voice.design {name, gender, age, pitch, for}`.
+  - Chọn thuộc tính theo nội dung: kênh trầm hoặc lịch sử → giọng trầm, trung niên; kênh trẻ → thanh niên, cao độ vừa; nhân vật → theo tuổi, giới tính, tính cách trong `STORY.md`/`CAST.md`.
+  - Các phương án phải khác nhau rõ (tuổi, cao độ, hoặc `seed` khác). `for` là `narrator` hoặc `ca_…`.
+  - Đặt `name` dễ hiểu, ví dụ "Nam trung niên, trầm".
+  - `accent` chỉ dùng cho kênh tiếng Anh.
+  - Chờ job (`job.wait`). App tự hiện thẻ nghe thử trong chat. Tóm tắt các phương án rồi để người dùng bấm **Chọn giọng này**. **Không tự chọn thay.**
+- Người dùng chọn giọng `vo_…`:
+  - Người dẫn: `config.set {key: "voice.id", value: "vo_…", tier: "channel"}`. Nếu người dùng chỉ muốn đổi cho video này, dùng `tier: "video"`.
+  - Nhân vật: ghi `voice_id: vo_…` vào khối `sf-cast` của nhân vật đó trong `CAST.md`.
+  - Bước Giọng đọc đang lỗi → `workflow.run_to {step_id: "voice"}` hoặc nhắc người dùng bấm **Chạy lại bước**.

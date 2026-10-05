@@ -225,7 +225,9 @@ export type StepCta =
   | { kind: 'tab'; label: string; tab: string }
   | { kind: 'retry'; label: string; step: string }
   /** Chọn file giọng mẫu rồi soạn sẵn lời nhờ agent tạo giọng (FR-VO-01). */
-  | { kind: 'voice'; label: string; step: string; prompt: string };
+  | { kind: 'voice'; label: string; step: string; prompt: string }
+  /** Gửi ngay một lời nhờ agent (ví dụ gợi ý giọng khi chưa có file mẫu, 033). */
+  | { kind: 'say'; label: string; text: string };
 
 const DOC_LABELS: Record<string, string> = {
   'BRIEF.md': 'Xem brief',
@@ -271,6 +273,11 @@ export function stepCtas(
     const retry: StepCta = { kind: 'retry', label: 'Chạy lại bước', step: step.id };
     if (error && isMissingVoice(error))
       return [
+        {
+          kind: 'say',
+          label: '✨ Gợi ý giọng',
+          text: `Tôi chưa có file giọng mẫu. Hãy gợi ý 2–3 giọng khác nhau (voice.design) cho từng người nói còn thiếu giọng, hợp với nội dung kênh và nhân vật, để tôi nghe thử và chọn; chọn xong thì chạy lại bước ${step.title ?? step.id}.`,
+        },
         {
           kind: 'voice',
           label: '📎 Chọn file giọng mẫu',
@@ -340,4 +347,61 @@ export function friendlyStepError(e: string): string {
     return `${first} (và ${parts.length - 1} lỗi tương tự)`;
   }
   return e;
+}
+
+const TRAITS: Record<string, string> = {
+  male: 'Nam',
+  female: 'Nữ',
+  child: 'Trẻ em',
+  teenager: 'Thiếu niên',
+  'young adult': 'Thanh niên',
+  'middle-aged': 'Trung niên',
+  elderly: 'Cao tuổi',
+  'very low pitch': 'Rất trầm',
+  'low pitch': 'Trầm',
+  'moderate pitch': 'Cao độ vừa',
+  'high pitch': 'Cao',
+  'very high pitch': 'Rất cao',
+  whisper: 'Thì thầm',
+};
+
+export interface VoiceSuggestion {
+  voice_id: string;
+  name: string;
+  for?: string;
+  /** "người dẫn" hoặc mã nhân vật. */
+  forLabel?: string;
+  /** Câu mẫu (tương đối kênh) để nghe thử. */
+  preview: string;
+  traits: string[];
+  /** Lời gửi agent khi bấm "Chọn giọng này". */
+  pick: string;
+}
+
+/** Job `voice.design` xong → thẻ giọng gợi ý trong chat (033 FR-003). */
+export function voiceSuggestion(job: {
+  kind: string;
+  status: string;
+  result?: unknown;
+}): VoiceSuggestion | undefined {
+  if (job.kind !== 'voice.design' || job.status !== 'succeeded' || !job.result) return undefined;
+  const r = job.result as {
+    voice_id: string;
+    name: string;
+    for?: string;
+    preview: string;
+    design?: { instruct?: string };
+  };
+  const forLabel = r.for ? (r.for === 'narrator' ? 'người dẫn' : r.for) : undefined;
+  return {
+    voice_id: r.voice_id,
+    name: r.name,
+    ...(r.for ? { for: r.for, forLabel } : {}),
+    preview: r.preview,
+    traits: (r.design?.instruct ?? '')
+      .split(', ')
+      .filter(Boolean)
+      .map((t) => TRAITS[t] ?? t),
+    pick: `Chọn giọng "${r.name}" (${r.voice_id})${forLabel ? ` cho ${forLabel}` : ''}.`,
+  };
 }

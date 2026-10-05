@@ -184,6 +184,69 @@ describe('voice tools (006 US2)', () => {
     expect(job).toMatchObject({ status: 'failed', error: { code: 'E_AUDIO_UNSUPPORTED' } });
   });
 
+  it('voice.design creates a suggested voice usable for TTS (033 SC-001)', async () => {
+    const { core, session, dir } = setup();
+    const design = async (seed?: number) =>
+      waitJob(
+        core,
+        session,
+        (await core.gateway.call(session, 'voice.design', {
+          name: 'Giọng nữ trẻ',
+          gender: 'female',
+          age: 'young adult',
+          pitch: 'moderate',
+          for: 'narrator',
+          ...(seed !== undefined ? { seed } : {}),
+        })) as never,
+      );
+    const job = await design();
+    expect(job.status).toBe('succeeded');
+    const r = job.result as { voice_id: string; preview: string; for: string; design: unknown };
+    expect(r).toMatchObject({
+      for: 'narrator',
+      preview: `voices/${r.voice_id}/ref.wav`,
+      design: { instruct: 'female, young adult, moderate pitch' },
+    });
+    for (const f of ['voice.pt', 'ref.wav', 'profile.json'])
+      expect(existsSync(path.join(dir, 'voices', r.voice_id, f))).toBe(true);
+    expect(
+      JSON.parse(readFileSync(path.join(dir, 'voices', r.voice_id, 'profile.json'), 'utf8')),
+    ).toMatchObject({
+      name: 'Giọng nữ trẻ',
+      language: 'vi',
+      design: { instruct: 'female, young adult, moderate pitch' },
+      suggested_for: 'narrator',
+    });
+    // khác seed → giọng khác (file voice.pt khác)
+    const other = (await design(7)).result as { voice_id: string };
+    expect(other.voice_id).not.toBe(r.voice_id);
+    expect(readFileSync(path.join(dir, 'voices', other.voice_id, 'voice.pt'), 'utf8')).not.toBe(
+      readFileSync(path.join(dir, 'voices', r.voice_id, 'voice.pt'), 'utf8'),
+    );
+    // dùng được để đọc thử
+    const pv = await waitJob(
+      core,
+      session,
+      (await core.gateway.call(session, 'voice.preview', {
+        voice_id: r.voice_id,
+        text: 'Thử giọng',
+      })) as never,
+    );
+    expect(pv.status).toBe('succeeded');
+  });
+
+  it('voice.design rejects an accent for a non-English channel', async () => {
+    const { core, session } = setup();
+    const r = (await core.gateway.call(session, 'voice.design', {
+      name: 'x',
+      gender: 'male',
+      age: 'elderly',
+      pitch: 'low',
+      accent: 'british',
+    })) as { ok: boolean; error?: { code: string } };
+    expect(r).toMatchObject({ ok: false, error: { code: 'E_SCHEMA_INVALID' } });
+  });
+
   it('voice.preview renders a preview file', async () => {
     const { core, session, v } = setup();
     const job = await waitJob(

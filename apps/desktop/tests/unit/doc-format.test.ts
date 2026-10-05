@@ -10,6 +10,7 @@ import {
   fileCtaLabel,
   friendlyStepError,
   stepCtas,
+  voiceSuggestion,
 } from '../../src/renderer/chat-format';
 
 const vd = path.resolve(
@@ -130,12 +131,49 @@ describe('missing voice', () => {
     'no voice for narrator: set voice.id for the channel/video — create a voice with voice.profile_create from a 3–10 s sample the user attaches, then rerun this step';
   it('offers picking a voice sample, then retry', () => {
     const c = stepCtas({ id: 'voice', status: 'failed', title: 'Giọng đọc' }, [], err);
-    expect(c.map((x) => x.kind)).toEqual(['voice', 'retry']);
-    expect(c[0]).toMatchObject({ prompt: expect.stringContaining('Giọng đọc') });
+    expect(c.map((x) => x.kind)).toEqual(['say', 'voice', 'retry']);
+    expect(c[1]).toMatchObject({ prompt: expect.stringContaining('Giọng đọc') });
   });
   it('explains in plain words and collapses per-line errors', () => {
     expect(friendlyStepError(err)).toMatch(/^Chưa có giọng đọc cho người dẫn\./);
     const many = Array.from({ length: 5 }, (_, i) => `audio.line:ln_${i}: boom`).join('; ');
     expect(friendlyStepError(many)).toBe('boom (và 4 lỗi tương tự)');
+  });
+});
+
+describe('voice suggestions (033)', () => {
+  const job = {
+    id: 'jb_1',
+    kind: 'voice.design',
+    status: 'succeeded',
+    result: {
+      voice_id: 'vo_ab12cd34',
+      name: 'Giọng nữ trẻ',
+      for: 'narrator',
+      preview: 'voices/vo_ab12cd34/ref.wav',
+      design: { instruct: 'female, young adult, moderate pitch', seed: 0 },
+    },
+  };
+  it('turns a finished voice.design job into a suggestion card', () => {
+    expect(voiceSuggestion(job)).toEqual({
+      voice_id: 'vo_ab12cd34',
+      name: 'Giọng nữ trẻ',
+      for: 'narrator',
+      forLabel: 'người dẫn',
+      preview: 'voices/vo_ab12cd34/ref.wav',
+      traits: ['Nữ', 'Thanh niên', 'Cao độ vừa'],
+      pick: 'Chọn giọng "Giọng nữ trẻ" (vo_ab12cd34) cho người dẫn.',
+    });
+    expect(voiceSuggestion({ ...job, status: 'running' })).toBeUndefined();
+    expect(voiceSuggestion({ ...job, kind: 'voice.profile' })).toBeUndefined();
+  });
+  it('missing voice offers suggested voices first', () => {
+    const c = stepCtas(
+      { id: 'voice', status: 'failed', title: 'Giọng đọc' },
+      [],
+      'no voice for narrator: set voice.id',
+    );
+    expect(c.map((x) => x.kind)).toEqual(['say', 'voice', 'retry']);
+    expect(c[0]).toMatchObject({ label: '✨ Gợi ý giọng' });
   });
 });

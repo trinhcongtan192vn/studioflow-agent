@@ -20,6 +20,10 @@ export type ResourceClass = 'gpu-heavy' | 'gpu-light' | 'cpu' | 'network';
 export interface VoiceProfileInput { name: string; language: Lang; ref_audio: RelPath; emotions?: Record<string, RelPath>; }
 export interface VoiceProfileOutput { voice_id: VoiceId; files: RelPath[]; }
 
+// voice.design (033): instruct theo từ vựng OmniVoice, ví dụ "female, young adult, moderate pitch"
+export interface VoiceDesignInput { name: string; language: Lang; instruct: string; sample_text: string; seed?: number; }
+// đầu ra như VoiceProfileOutput; profile.json thêm design: { instruct, seed }, suggested_for?
+
 // tts.synthesize (một line mỗi lần gọi provider)
 export interface TtsInput { text: string; language: Lang; voice_id: VoiceId; emotion?: string; speed?: number; }
 export interface TtsOutput { file: RelPath; duration_ms: Ms; sample_rate: 48000; }

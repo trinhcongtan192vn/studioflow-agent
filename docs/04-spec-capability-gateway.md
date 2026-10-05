@@ -80,6 +80,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `music.library.add` | D8 | D8 | |
 | `music.find` / `sfx.find` | D8 | D8 | |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
+| `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
 | `tts.synthesize` | `line_ids[]` hoặc `"all"` | job | Ghi `audio/lines/*`, cập nhật `audio_meta.json` |
 | `asr.align` | `line_ids[]` hoặc `"all"` | job | Cập nhật `words`, `asr_wer`, `asr_flag`; line `mismatch` tự sinh lại tối đa `asr.max_regen` lần |
@@ -105,6 +106,10 @@ type ResourceClass = 'gpu-heavy' | 'gpu-light' | 'cpu' | 'network';
 // voice.profile
 interface VoiceProfileInput { name: string; language: Lang; ref_audio: RelPath; emotions?: Record<string, RelPath>; }
 interface VoiceProfileOutput { voice_id: VoiceId; files: RelPath[]; }
+
+// voice.design (033): instruct theo từ vựng OmniVoice, ví dụ "female, young adult, moderate pitch"
+interface VoiceDesignInput { name: string; language: Lang; instruct: string; sample_text: string; seed?: number; }
+// đầu ra như VoiceProfileOutput; profile.json thêm design: { instruct, seed }, suggested_for?
 
 // tts.synthesize (một line mỗi lần gọi provider)
 interface TtsInput { text: string; language: Lang; voice_id: VoiceId; emotion?: string; speed?: number; }
@@ -170,8 +175,8 @@ interface ProviderManifest {
 ```yaml
 id: tts.omnivoice
 version: 1.0.0
-capabilities: [voice.profile, tts.synthesize]
-contract_versions: { tts.synthesize: "1", voice.profile: "1" }
+capabilities: [voice.profile, voice.design, tts.synthesize]
+contract_versions: { tts.synthesize: "1", voice.profile: "1", voice.design: "1" }
 runtime: python-worker          # python-worker | comfyui | node | cloud | agent-runtime
 engine: omnivoice               # khóa lịch GPU
 resource: gpu-light
@@ -210,6 +215,7 @@ interface RunContext {
 | Capability | Provider id | Runtime | GĐ |
 |---|---|---|---|
 | `voice.profile`, `tts.synthesize` | `tts.omnivoice` (engine `omnivoice`) | python-worker | M0 |
+| `voice.design` | `tts.omnivoice` (Voice Design của OmniVoice) | python-worker | 033 |
 | (dự phòng vi) | `tts.vbee` | cloud | khi S1 không đạt |
 | `asr.align` | `asr.hf-transcribe` (gọi `hyperframes transcribe` bản ghim; engine `asr`) | node | M1 |
 | `image.generate`, `image.edit` | `image.qwen21-comfy` | comfyui | M2 |

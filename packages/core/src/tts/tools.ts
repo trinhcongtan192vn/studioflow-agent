@@ -12,6 +12,15 @@ import type { JobQueue } from '../jobs/queue.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
 import { voiceFile } from './builder.js';
+import {
+  createDesignedVoice,
+  designInstruct,
+  DESIGN_ACCENTS,
+  DESIGN_AGES,
+  DESIGN_GENDERS,
+  DESIGN_PITCHES,
+  type VoiceDesignAttrs,
+} from './design.js';
 
 export interface TtsServices {
   queue: JobQueue;
@@ -149,6 +158,20 @@ export function defineTtsJobs(s: TtsServices, appDataDir?: string): void {
       );
     },
   });
+  s.queue.define('voice.design', {
+    needsDisk: true,
+    engine: 'omnivoice',
+    idempotent: true,
+    run: async (job, ctx) => {
+      const p = job.payload as Parameters<typeof createDesignedVoice>[2];
+      return createDesignedVoice(
+        s,
+        s.storeFor(job.channel_dir!),
+        { ...p, appDataDir },
+        { signal: ctx.signal, progress: ctx.progress },
+      );
+    },
+  });
   s.queue.define('voice.preview', {
     needsDisk: true,
     engine: 'omnivoice',
@@ -222,6 +245,46 @@ export function ttsTools(s: TtsServices): ToolDefinition[] {
           channel_dir: ctx.store.root,
           video_id: ctx.session.video_id,
           payload: { name: input.name, ref_audio: sp.rel, language: input.language },
+        });
+        return { job_id: job.id };
+      },
+    },
+    {
+      name: 'voice.design',
+      description:
+        'Giọng gợi ý khi chưa có file mẫu (033): tạo giọng từ mô tả (giới tính, tuổi, cao độ), sinh câu mẫu rồi clone → voices/<vo>/. Gọi 2–3 lần với mô tả/seed khác nhau để người dùng nghe và chọn; không tự chọn thay. for = "narrator" hoặc ca_… (giọng dành cho ai). accent chỉ dùng cho kênh tiếng Anh. Trả job → {voice_id, name, for, preview, design}.',
+      returnsJob: true,
+      input: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 60 },
+          gender: { enum: [...DESIGN_GENDERS] },
+          age: { enum: [...DESIGN_AGES] },
+          pitch: { enum: [...DESIGN_PITCHES] },
+          whisper: { type: 'boolean' },
+          accent: { enum: [...DESIGN_ACCENTS] },
+          for: { type: 'string', pattern: '^(narrator|ca_[0-9a-z]{8})$' },
+          sample_text: { type: 'string', minLength: 20, maxLength: 300 },
+          seed: { type: 'integer', minimum: 0, maximum: 1000000 },
+        },
+        required: ['name', 'gender', 'age', 'pitch'],
+        additionalProperties: false,
+      },
+      async handler(
+        input: VoiceDesignAttrs & {
+          name: string;
+          for?: string;
+          sample_text?: string;
+          seed?: number;
+        },
+        ctx,
+      ) {
+        const language = channelLanguage(ctx.store);
+        designInstruct(input, language); // kiểm sớm (accent chỉ cho tiếng Anh)
+        const job = s.queue.enqueue('voice.design', {
+          channel_dir: ctx.store.root,
+          video_id: ctx.session.video_id,
+          payload: { ...input, language },
         });
         return { job_id: job.id };
       },

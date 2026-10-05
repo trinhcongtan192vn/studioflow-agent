@@ -15,7 +15,7 @@ Phong cách hình **cố định theo kênh** (comic hoặc 2D phẳng — xem l
 
 Đọc `STORY.md` và `BRIEF.md`. Với mỗi nhân vật (tối đa 4) và người dẫn (nếu có):
 1. **Dùng lại** nhân vật đã có của kênh (`characters/<ca_…>/cast.json`, đọc bằng `artifact.read`) khi trùng.
-2. **Giọng**: người dùng đã đính kèm file giọng mẫu được phép (`uploads/…`) → `voice.profile_create {name, ref_audio, language}` → `voice_id`. Không có file → hỏi người dùng; không tự lấy giọng người thật.
+2. **Giọng**: người dùng đã đính kèm file giọng mẫu được phép (`uploads/…`) → `voice.profile_create {name, ref_audio, language}` → `voice_id`. Không có file → gợi ý 2–3 giọng cho nhân vật bằng `voice.design {name, gender, age, pitch, for: "ca_…"}` theo tuổi/giới tính/tính cách (xem skill `studioflow` mục Giọng đọc), để người dùng nghe và chọn; ghi `voice_id` đã chọn. Không tự lấy giọng người thật.
 3. **Ảnh chuẩn**: `image.generate` chân dung toàn thân, nền trơn, miệng đóng, đúng phong cách kênh (`transparent: true`). Ghi `reference_images: [as_…]`.
 4. **Bộ biểu cảm** (`neutral, happy, sad, angry, surprised, scared, thinking, talking`): `image.edit` từ ảnh chuẩn (`reference_asset_ids`), mỗi biểu cảm một ảnh; trình bày cho người dùng duyệt trong tóm tắt bước. Ghi `expressions: { happy: as_…, … }`.
 5. Màu phụ đề riêng mỗi nhân vật (`caption_color`, tương phản tốt trên nền tối), người dẫn để trắng.

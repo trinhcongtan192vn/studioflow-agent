@@ -30,8 +30,24 @@ export interface VoiceAdapterInput {
   ref_text?: string;
 }
 
-export type AdapterInput = TtsAdapterInput | VoiceAdapterInput;
+/** Giọng gợi ý (033): sinh câu mẫu theo `instruct` rồi clone. */
+export interface VoiceDesignAdapterInput {
+  name: string;
+  language: string;
+  instruct: string;
+  sample_text: string;
+  seed?: number;
+}
+
+export type AdapterInput = TtsAdapterInput | VoiceAdapterInput | VoiceDesignAdapterInput;
 export const isVoiceProfile = (i: AdapterInput): i is VoiceAdapterInput => 'ref_audio' in i;
+export const isVoiceDesign = (i: AdapterInput): i is VoiceDesignAdapterInput => 'instruct' in i;
+export const designCacheParts = (i: VoiceDesignAdapterInput) => ({
+  instruct: i.instruct,
+  sample_text: i.sample_text,
+  language: i.language,
+  seed: i.seed ?? 0,
+});
 
 export const ttsCacheParts = (i: TtsAdapterInput) => ({
   text: i.text,
@@ -51,10 +67,24 @@ export function createFakeTtsProvider(): ProviderAdapter<AdapterInput, Record<st
     manifest: loadProviderManifest('tts.fake'),
     health: async () => ({ ok: true }),
     cacheKeyParts: (i) =>
-      isVoiceProfile(i)
-        ? { ref_audio: i.ref_audio, ref_text: i.ref_text ?? null }
-        : ttsCacheParts(i),
+      isVoiceDesign(i)
+        ? designCacheParts(i)
+        : isVoiceProfile(i)
+          ? { ref_audio: i.ref_audio, ref_text: i.ref_text ?? null }
+          : ttsCacheParts(i),
     run: async (input, ctx) => {
+      if (isVoiceDesign(input)) {
+        writeFileSync(
+          path.join(ctx.workdir, 'ref.wav'),
+          encodeWav(Math.max(3000, input.sample_text.length * FAKE_MS_PER_CHAR)),
+        );
+        writeFileSync(
+          path.join(ctx.workdir, 'voice.pt'),
+          `fake-design:${sha256(JSON.stringify(designCacheParts(input)))}`,
+        );
+        ctx.progress(1, 1);
+        return { voice: 'voice.pt', ref: 'ref.wav', ref_text: input.sample_text };
+      }
       if (isVoiceProfile(input)) {
         const ref = ctx.resolveInput(input.ref_audio);
         const ms = wavDurationMs(readFileSync(ref));

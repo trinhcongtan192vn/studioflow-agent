@@ -25,6 +25,8 @@ protocol.registerSchemesAsPrivileged([
 ]);
 const MEDIA_OK = [
   /[\\/]\.sf[\\/]preview[\\/][^\\/]+\.wav$/i,
+  // 033: câu mẫu của giọng (nghe thử giọng gợi ý)
+  /[\\/]voices[\\/]vo_[0-9a-z]{8}[\\/]ref\.wav$/i,
   /[\\/]videos[\\/][^\\/]+[\\/]renders[\\/][^\\/]+[\\/][^\\/]+\.mp4$/i,
   /[\\/]videos[\\/][^\\/]+[\\/].+\.(png|jpe?g|webp)$/i,
 ];

@@ -142,6 +142,7 @@ Cột **GĐ** = giai đoạn phải có. Spec chi tiết ở cột **Spec**.
 | FR-VO-03 | App PHẢI kiểm đọc sai bằng ASR so với kịch bản; line vượt ngưỡng được sinh lại hoặc báo `[chờ S12]` | M1 | D4 |
 | FR-VO-04 | Sửa một line chỉ sinh lại audio line đó | M0 | D4 |
 | FR-VO-05 | Nhiều giọng trong một video (nhân vật + người dẫn), biến thể cảm xúc | M5 | D4, FN-031 |
+| FR-VO-06 | Khi chưa có file giọng mẫu, app PHẢI gợi ý giọng tạo từ mô tả (giới tính, tuổi, cao độ) cho người dẫn và từng nhân vật để nghe thử và chọn; giọng chọn dùng ổn định cho cả video | Sau M5 | D4, 033 |
 
 ### 8.6 Hình ảnh và asset (IM)
 

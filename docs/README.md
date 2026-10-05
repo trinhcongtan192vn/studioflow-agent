@@ -173,5 +173,7 @@ Thứ tự triển khai theo giai đoạn; cột **Phủ** là mã yêu cầu tr
 | **M5** | | | | |
 | 031 | `workflow-short-film`: cast, nhiều giọng, animatic | FR-WF-08, FR-VO-05 | D6, FN-031/032 | 023 |
 | 032 | `lipsync-level1` | FR-WF-09 | D6, FN-031/032 | 031 |
+| **Sau M5** | | | | |
+| 033 | `voice-design`: giọng gợi ý từ mô tả (OmniVoice Voice Design) cho người dẫn và nhân vật | FR-VO-06 | D4 | 006, 031 |
 
 Tính năng trong cùng giai đoạn không phụ thuộc nhau CÓ THỂ làm song song.
