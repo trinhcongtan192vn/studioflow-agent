@@ -17,6 +17,8 @@ import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
 import { defineFinishJobs, finishTools } from './finish/tools.js';
 import { finishStepExecutor } from './finish/check.js';
+import { animaticExecutor } from './render/animatic.js';
+import { castExecutor } from './workflow/cast.js';
 import './hf/safe-area.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
@@ -270,6 +272,8 @@ export function createCore(opts: CoreOptions = {}): Core {
   for (const k of ['look', 'effects', 'overlays'] as const)
     workflows.registerExecutor(k, finishStepExecutor(k));
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
+  workflows.registerExecutor('animatic', animaticExecutor(graph));
+  workflows.registerExecutor('cast', castExecutor());
   workflows.registerExecutor('design-system', designSystemExecutor());
   // story-documentary (023): storyboard refine (phiên producer) + assets (nút asset)
   workflows.registerExecutor(

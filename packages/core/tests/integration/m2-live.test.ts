@@ -160,7 +160,7 @@ describeLive('M2 acceptance: story-documentary from brief to release MP4 (AC-M2-
             await host.call('chat.send', {
               channel,
               video: videoId,
-              text: `Bước giọng đọc chưa đạt thời lượng: ${failed[1].error?.message}. Hãy sửa SCRIPT.md: rút gọn (hoặc thêm) nội dung ở đúng các beat lệch để tổng thời lượng về gần mục tiêu, giữ nguyên ID line còn dùng. Chỉ sửa SCRIPT.md, không chạy bước nào.`,
+              text: `Bước giọng đọc chưa đạt thời lượng: ${failed[1].error?.message}. Hãy sửa SCRIPT.md: rút gọn (hoặc thêm) nội dung ở đúng các beat lệch để tổng thời lượng về gần mục tiêu, giữ nguyên ID line còn dùng. Nếu xóa, gộp hay thêm line thì cập nhật line_ids trong STORYBOARD.md cho khớp (mỗi line thuộc đúng một frame). Chỉ sửa SCRIPT.md và STORYBOARD.md, không chạy bước nào.`,
             });
             await e.rewind('voice');
             continue;

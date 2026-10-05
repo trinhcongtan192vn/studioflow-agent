@@ -97,6 +97,12 @@ export const indexBuilder =
           height: profile.height,
           groups,
           style: cg.style,
+          // 031: phụ đề theo người nói
+          speakerColors: Object.fromEntries(
+            Object.entries(ctx.model.cast)
+              .filter(([, m]) => typeof m.caption_color === 'string')
+              .map(([id, m]) => [id, m.caption_color as string]),
+          ),
         }),
         {
           by: 'graph.build',

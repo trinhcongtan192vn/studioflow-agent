@@ -65,6 +65,15 @@ const ASSEMBLE_ORDER: NodeType[] = [
   'credits',
   'render',
 ];
+/** Hash ref audio cảm xúc của nhân vật cho line (`CastMember.emotions`, 031); không có → undefined. */
+function emotionRef(model: VideoModel, l: Line): string | undefined {
+  if (!l.emotion || l.speaker === 'narrator') return undefined;
+  const ref = model.cast[l.speaker]?.emotions?.[l.emotion];
+  if (!ref) return undefined;
+  const f = path.join(model.channelDir, ...ref.split('/'));
+  return existsSync(f) ? sha256(readFileSync(f)) : `missing:${ref}`;
+}
+
 /** Frame không gồm phần hoàn thiện (look, hiệu ứng, overlay — 027). */
 export function contentOf(f: Frame): Frame {
   const { effects: _e, overlays: _o, ...rest } = f;
@@ -329,6 +338,8 @@ export class BuildGraph {
             speaker: l.speaker,
             voice_id: voice,
             voice_files: voice ? model.hashChannelDir(`voices/${voice}`) : null,
+            // 031: giọng theo cảm xúc của nhân vật → ref audio của cảm xúc (chỉ khi có, giữ hash cũ)
+            ...(emotionRef(model, l) ? { emotion_ref: emotionRef(model, l) } : {}),
             provider: model.config('provider.tts.synthesize'),
             language: model.language,
             // sinh lại do ASR lệch (010 R3) → seed khác

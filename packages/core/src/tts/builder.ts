@@ -18,6 +18,45 @@ export function voiceFile(
   return existsSync(abs) ? { file: abs, hash: sha256(readFileSync(abs)) } : { hash: null };
 }
 
+/**
+ * Giọng theo cảm xúc (FR-VO-05, 031): nhân vật có `emotions[<emotion>]` (ref audio trong kênh) → voice
+ * prompt riêng `voices/<vo>/emotions/<emotion>.pt` (tạo một lần bằng `voice.profile`, cache).
+ */
+export function emotionVoiceRel(castId: string, emotion: string): string {
+  return `characters/${castId}/emotions/${emotion.replace(/[^\w-]/g, '_')}.pt`;
+}
+
+async function emotionVoice(
+  ctx: Parameters<Builder>[0],
+  deps: { providers: ProviderRegistry; db?: Db; appDataDir?: string },
+  voice: string,
+): Promise<{ file: string; hash: string } | undefined> {
+  const line = ctx.line!;
+  if (!line.emotion || line.speaker === 'narrator') return undefined;
+  const ref = ctx.model.cast[line.speaker]?.emotions?.[line.emotion];
+  if (!ref) return undefined;
+  const rel = emotionVoiceRel(line.speaker, line.emotion);
+  if (!existsSync(ctx.store.abs(rel))) {
+    const adapter = await deps.providers.resolve('voice.profile', {
+      channelDir: ctx.channelDir,
+      videoId: ctx.videoId,
+      language: ctx.model.language,
+      appDataDir: deps.appDataDir,
+    });
+    await runCapability({
+      store: ctx.store,
+      db: deps.db,
+      adapter,
+      capability: 'voice.profile',
+      input: { name: `${voice}:${line.emotion}`, language: ctx.model.language, ref_audio: ref },
+      outputs: { voice: rel, ref: rel.replace(/\.pt$/, '.wav') },
+      signal: ctx.signal,
+    });
+  }
+  const abs = ctx.store.abs(rel);
+  return { file: abs, hash: sha256(readFileSync(abs)) };
+}
+
 /** Planner `audio.line` (020 R5): engine của provider và trúng cache (khóa như lúc build). */
 export function audioLinePlanner(deps: { providers: ProviderRegistry }): Planner {
   return ({ store, model, def }) => {
@@ -69,7 +108,7 @@ export function audioLineBuilder(deps: {
       language: ctx.model.language,
       appDataDir: deps.appDataDir,
     });
-    const vf = voiceFile(ctx.store, voice);
+    const vf = (await emotionVoice(ctx, deps, voice)) ?? voiceFile(ctx.store, voice);
     const file = `audio/lines/${line.id}.wav`;
     // sinh lại do ASR lệch (010 R3): seed = số lần sinh lại
     const regen = readAsrState(ctx.model.videoDir).regen[line.id] ?? 0;

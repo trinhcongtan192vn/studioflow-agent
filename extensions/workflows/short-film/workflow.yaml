@@ -1,0 +1,57 @@
+# Workflow `short-film` (FN-031/032, D6 mục 1) — phim ngắn 3–5 phút nhiều nhân vật + người dẫn, phong cách comic/2D phẳng theo kênh.
+id: short-film
+version: 1.0.0
+title: Phim ngắn nhiều nhân vật
+description: Phim ngắn 3–5 phút, tối đa 4 nhân vật và người dẫn truyện — truyện, dàn nhân vật có giọng và bộ biểu cảm, kịch bản thoại, storyboard theo shot, animatic duyệt trước khi dựng, phụ đề theo người nói.
+app_api: '>=1.0 <2.0'
+upstream: { hyperframes_workflow: general-video, hyperframes_version: '0.8.115' }
+output_profiles: [yt-1080p30]
+requires: [tts.synthesize, asr.align, voice.profile, image.generate, image.edit]
+brief:
+  questions:
+    - Thể loại và giọng điệu (hài, cảm động, phiêu lưu…)?
+    - Nhân vật (tối đa 4) — tên, tính cách, ngoại hình? Có người dẫn truyện không?
+    - Bối cảnh (nơi, thời gian)?
+    - Có file giọng mẫu được phép dùng cho từng nhân vật không?
+    - Độ dài mục tiêu (mặc định 4 phút)?
+config_defaults:
+  caption.max_words: 6
+steps:
+  - id: story
+    uses: script
+    title: Truyện
+    params: { mode: outline }
+    refine: { enabled: true, rubric: story-outline }
+    approval: { required: true }
+  - { id: cast, uses: cast, title: Dàn nhân vật, approval: { required: true } }
+  - { id: design, uses: design-system, title: Design system }
+  - id: script
+    uses: script
+    title: Kịch bản thoại
+    params: { mode: screenplay }
+    refine: { enabled: true, rubric: script-film }
+    approval: { required: true }
+    gate: [{ kind: objective, check: speakers_voiced }]
+  - id: storyboard
+    uses: storyboard
+    title: Storyboard theo shot
+    refine: { enabled: true, rubric: storyboard-default }
+  - { id: voice, uses: voice, title: Giọng nhân vật }
+  - { id: assets, uses: assets, title: Nền và nhân vật }
+  - { id: animatic, uses: animatic, title: Animatic, approval: { required: true } }
+  - id: lipsync
+    uses: lipsync
+    title: Khẩu hình
+    skip_if: { config: lipsync.enabled, equals: false }
+  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
+  - { id: frames, uses: frame-build, title: Dựng shot }
+  - { id: effects, uses: effects, title: Hiệu ứng, skip_if: { phase_before: M3 } }
+  - { id: overlays, uses: overlays, title: Overlay, skip_if: { phase_before: M3 } }
+  - { id: captions, uses: captions, title: Phụ đề theo người nói }
+  - { id: music, uses: music, title: Nhạc nền }
+  - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }
+  - id: meta
+    uses: publish-meta
+    title: Tiêu đề và mô tả
+    refine: { enabled: true, rubric: meta-default }
+  - { id: render, uses: render, title: Render phát hành, params: { mode: release } }
