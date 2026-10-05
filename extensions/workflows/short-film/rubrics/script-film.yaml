@@ -1,0 +1,23 @@
+# Rubric kịch bản thoại phim ngắn (FN-031).
+id: script-film
+version: 1
+scale: 10
+criteria:
+  - {
+      id: dialogue,
+      weight: 0.3,
+      prompt: 'Thoại tự nhiên, đúng giọng từng nhân vật, không giải thích thừa?',
+    }
+  - { id: story, weight: 0.25, prompt: 'Bám STORY.md, đủ các bước ngoặt, nhịp hợp lý?' }
+  - {
+      id: direction,
+      weight: 0.2,
+      prompt: 'Mỗi line có speaker đúng cast, direction và emotion phù hợp để đọc diễn?',
+    }
+  - {
+      id: narrator,
+      weight: 0.15,
+      prompt: 'Người dẫn (nếu có) nối cảnh gọn, không lặp lại điều thoại đã nói?',
+    }
+  - { id: length, weight: 0.1, prompt: 'Câu thoại ngắn, đọc được trong một hơi?' }
+severity_rules: 'critical: speaker không có trong CAST hoặc lệch truyện; major: thoại gượng, thiếu emotion; minor: đánh bóng'

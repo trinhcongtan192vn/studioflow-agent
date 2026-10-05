@@ -51,7 +51,7 @@ export function decodeWav(buf: Buffer): { sampleRate: number; samples: Float32Ar
   return { sampleRate: sr, samples: new Float32Array(0) };
 }
 
-function encodePcm16(samples: Float32Array, sr: number): Buffer {
+export function encodePcm16(samples: Float32Array, sr: number): Buffer {
   const buf = Buffer.alloc(44 + samples.length * 2);
   buf.write('RIFF', 0);
   buf.writeUInt32LE(36 + samples.length * 2, 4);

@@ -1,5 +1,12 @@
 // Hỗ trợ E2E workflow (029, 030): text giả cho script/meta, phiên frame giả viết frame hợp lệ.
-import type { AgentEvent, AgentRuntime, Core, FramePacket, TextService } from '../src/index.js';
+import type {
+  AgentEvent,
+  AgentRuntime,
+  Core,
+  FramePacket,
+  SessionContext,
+  TextService,
+} from '../src/index.js';
 import { sampleFrame } from './frame-helpers.js';
 
 /** Text giả: `script` trả `body`, `meta` trả JSON `meta`; critic chấm 9. */
@@ -29,7 +36,12 @@ export function stubText(body: string, meta: Record<string, unknown>): TextServi
 }
 
 /** Phiên frame giả: viết frame hợp lệ cho packet (ghi lại packet) và báo xong. */
-export function frameRuntime(core: () => Core, packets: FramePacket[] = []): AgentRuntime {
+export function frameRuntime(
+  core: () => Core,
+  packets: FramePacket[] = [],
+  /** Phiên `producer` (bước có refine do agent viết, ví dụ storyboard): ghi file + báo xong. */
+  producer?: (context: SessionContext) => Promise<void>,
+): AgentRuntime {
   return {
     id: 'fake',
     authStatus: async () => ({ ok: true, method: 'claude-plan' }),
@@ -37,6 +49,11 @@ export function frameRuntime(core: () => Core, packets: FramePacket[] = []): Age
       return {
         id: o.context.session_id,
         async *send(m: { text: string }): AsyncIterable<AgentEvent> {
+          if (o.kind === 'producer' && producer) {
+            await producer(o.context);
+            yield { type: 'done', stop_reason: 'end_turn' };
+            return;
+          }
           const packet = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(m.text)![1]!) as FramePacket;
           packets.push(packet);
           const step = /"step_id": "([^"]+)"/.exec(m.text)![1]!;

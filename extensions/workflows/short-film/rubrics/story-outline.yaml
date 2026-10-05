@@ -1,0 +1,23 @@
+# Rubric dàn ý truyện phim ngắn (FN-031): mạch truyện, nhân vật, xung đột, kết.
+id: story-outline
+version: 1
+scale: 10
+criteria:
+  - { id: premise, weight: 0.2, prompt: 'Tiền đề rõ, hấp dẫn, nói được trong một câu?' }
+  - {
+      id: characters,
+      weight: 0.25,
+      prompt: 'Mỗi nhân vật có mục tiêu, tính cách riêng, khác nhau rõ?',
+    }
+  - {
+      id: conflict,
+      weight: 0.25,
+      prompt: 'Có xung đột và bước ngoặt; nhịp mở – thắt – mở nút trong 3–5 phút?',
+    }
+  - { id: ending, weight: 0.2, prompt: 'Kết thỏa mãn hoặc bất ngờ hợp lý, khép lại tiền đề?' }
+  - {
+      id: feasibility,
+      weight: 0.1,
+      prompt: 'Dựng được bằng hình comic/2D phẳng: ít bối cảnh, ≤ 4 nhân vật?',
+    }
+severity_rules: 'critical: không có xung đột hoặc quá 4 nhân vật; major: nhân vật mờ nhạt, kết hụt; minor: đánh bóng'

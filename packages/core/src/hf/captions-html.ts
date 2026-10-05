@@ -179,6 +179,8 @@ export function buildCaptionsHtml(i: {
     words: { text: string; start_ms: number }[];
   })[];
   style?: string;
+  /** Màu chữ theo người nói (`CastMember.caption_color`, 031); thiếu → trắng. */
+  speakerColors?: Record<string, string>;
 }): string {
   // kiểu caption (`caption.style`, FN-common 3; 029 tĩnh cho essay, 030 karaoke lớn giữa màn hình cho shorts)
   const style = i.style ?? 'caption-highlight';
@@ -194,7 +196,9 @@ export function buildCaptionsHtml(i: {
     const words = g.words
       .map((w, k) => `<span class="w" id="cap-${g.id}-${k}">${esc(w.text)}</span>`)
       .join(' ');
-    return `    <div class="clip cap" id="cap-${g.id}" data-sf-caption="${g.id}" data-start="${r3(g.abs_start_ms / 1000)}" data-duration="${r3(Math.max(1, g.abs_end_ms - g.abs_start_ms) / 1000)}" data-track-index="${n % 2}"><div class="pill">${words}</div></div>`;
+    const color = g.speaker ? i.speakerColors?.[g.speaker] : undefined;
+    const pillStyle = color && /^#[0-9a-fA-F]{3,8}$/.test(color) ? ` style="--c: ${color}"` : '';
+    return `    <div class="clip cap" id="cap-${g.id}" data-sf-caption="${g.id}"${g.speaker ? ` data-sf-speaker="${esc(g.speaker)}"` : ''} data-start="${r3(g.abs_start_ms / 1000)}" data-duration="${r3(Math.max(1, g.abs_end_ms - g.abs_start_ms) / 1000)}" data-track-index="${n % 2}"><div class="pill"${pillStyle}>${words}</div></div>`;
   });
   const tweens = (highlight ? i.groups : []).flatMap((g) =>
     g.words.map(
@@ -208,7 +212,7 @@ export function buildCaptionsHtml(i: {
       #root { position: relative; width: ${i.width}px; height: ${i.height}px; }
       .cap { position: absolute; left: 0; right: 0; ${place} display: flex; justify-content: center; }
       .pill { max-width: ${Math.round(i.width * (karaoke ? 0.86 : 0.8))}px; padding: ${Math.round(fontPx * 0.3)}px ${Math.round(fontPx * 0.6)}px; border-radius: ${Math.round(fontPx * 0.4)}px; background: rgba(0, 0, 0, 0.62); color: #ffffff; font-family: sans-serif; font-weight: 700; font-size: ${fontPx}px; line-height: 1.25; text-align: center; }
-      .w { color: #ffffff; }
+      .w { color: var(--c, #ffffff); }
     </style>
 ${clips.join('\n')}
     <script>

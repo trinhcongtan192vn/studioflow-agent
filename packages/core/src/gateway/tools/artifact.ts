@@ -7,6 +7,7 @@ import { sha256 } from '../../domain/hash.js';
 import { parseBlocksDoc } from '../../domain/markdown/blocks.js';
 import { assignScriptIds } from '../../domain/markdown/script.js';
 import { assignStoryboardIds } from '../../domain/markdown/storyboard.js';
+import { assignCastIds } from '../../domain/markdown/cast.js';
 import { validateArtifact } from '../../domain/validate.js';
 import { validateChannel } from '../../domain/channel-validate.js';
 import { SfError } from '../../errors.js';
@@ -129,8 +130,13 @@ export const artifactTools: ToolDefinition[] = [
       let content = input.content;
       let assigned: string[] = [];
       const kind = artifactSpec(sp.rel)?.kind;
-      if (kind === 'script' || kind === 'storyboard') {
-        const fn = kind === 'script' ? assignScriptIds : assignStoryboardIds;
+      if (kind === 'script' || kind === 'storyboard' || kind === 'cast') {
+        const fn =
+          kind === 'script'
+            ? assignScriptIds
+            : kind === 'cast'
+              ? assignCastIds
+              : assignStoryboardIds;
         ({ text: content, assigned } = fn(content, takenIds(ctx, sp.videoId)));
       }
       if (kind === 'channel' || kind === 'state') {
