@@ -73,6 +73,9 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
       .click();
     await win.getByTestId('explorer').getByRole('button', { name: 'SCRIPT.md' }).click();
     await expect(win.getByTestId('file-content')).toContainText('Lê Lợi');
+    // 008: md hiển thị dạng đọc — line có người nói, chú thích kỹ thuật ẩn
+    await expect(win.getByTestId('file-content').locator('.script-line')).toHaveCount(3);
+    await expect(win.getByTestId('file-content')).not.toContainText('sf:line');
     await win.getByRole('button', { name: 'Đóng' }).click();
     // chọn video → chat với phiên main
     await win
@@ -84,8 +87,35 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
       .fill('Chào bạn, hãy trả lời đúng một câu: video này có bao nhiêu line trong SCRIPT.md?');
     await win.getByTestId('chat-send').click();
     await expect(win.getByTestId('chat-send')).toHaveText('Gửi', { timeout: 300_000 });
+    // chỉ báo "đang xử lý" tắt khi agent trả lời xong
+    await expect(win.getByTestId('activity')).toHaveCount(0);
     const messages = win.getByTestId('messages');
     await expect(messages.locator('.msg.assistant').last()).toContainText(/3|ba/i);
+    // 008: approval đang chờ (agent xin duyệt khi chat chưa mở) → thẻ ghim ở đáy khung chat, có nút xem file
+    const statePath = path.join(channel, 'videos', 'vd_8m2pq7rt', 'state.json');
+    const st = JSON.parse(readFileSync(statePath, 'utf8'));
+    st.approvals = [];
+    st.approvals.push({
+      id: 'ap_p3nd1ng0',
+      step_id: 'script',
+      status: 'pending',
+      requested_at: '2026-10-03T11:00:00+07:00',
+      artifact_hashes: { 'SCRIPT.md': '0'.repeat(64) },
+    });
+    writeFileSync(statePath, JSON.stringify(st, null, 2));
+    await win
+      .getByTestId('video-list')
+      .getByRole('button', { name: /Lốc xoáy/ })
+      .click();
+    await win
+      .getByTestId('video-list')
+      .getByRole('button', { name: /Lê Lợi/ })
+      .click();
+    const dock = win.getByTestId('approval-dock');
+    await expect(dock).toContainText('Kịch bản', { timeout: 30_000 });
+    await dock.getByRole('button', { name: 'Xem kịch bản' }).click();
+    await expect(win.getByTestId('file-content').locator('.script-line')).toHaveCount(3);
+    await win.getByRole('button', { name: 'Đóng' }).click();
     // tab Xem trước: Studio nhúng (017 FR-ST-01)
     await win.getByRole('button', { name: 'Xem trước' }).click();
     await win.getByRole('button', { name: 'Mở Studio xem trước' }).click();

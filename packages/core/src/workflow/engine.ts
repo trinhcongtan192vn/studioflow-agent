@@ -637,6 +637,12 @@ export class WorkflowEngine extends EventEmitter {
     if (!resolve) {
       const st = this.readState();
       if (!st.steps[stepId]) throw new SfError('E_ID_UNKNOWN', `step ${stepId} not in workflow`);
+      // 008: bước đã chờ duyệt → chỉ agent cách hướng dẫn người dùng (thẻ ghim cuối khung chat)
+      if (st.steps[stepId]!.status === 'waiting_approval')
+        throw new SfError(
+          'E_STEP_INCOMPLETE',
+          `step ${stepId} is already complete and waiting for user approval: tell the user to press "Duyệt" on the approval card pinned at the bottom of the chat (do not cite approval ids); do not redo the step`,
+        );
       throw new SfError('E_STEP_INCOMPLETE', `step ${stepId} is not waiting for an agent`);
     }
     resolve(outputs);

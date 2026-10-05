@@ -33,6 +33,16 @@ export function speakerVoiceProblems(
   return out;
 }
 
+/** Người nói trong `SCRIPT.md` chưa được gán giọng (người dẫn thiếu `voice.id`, nhân vật thiếu `voice_id`). */
+export function speakersWithoutVoice(
+  channelDir: string,
+  videoId: string,
+  appDataDir?: string,
+): string[] {
+  const model = loadVideoModel(channelDir, videoId, appDataDir);
+  return [...new Set(model.lines.filter((l) => !voiceOf(model, l)).map((l) => l.speaker))];
+}
+
 registerObjective('speakers_voiced', (g) => {
   const p = speakerVoiceProblems(g.store.root, g.videoId, g.appDataDir);
   return p.length ? { pass: false, detail: p.join('; ') } : { pass: true };

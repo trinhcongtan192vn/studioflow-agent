@@ -499,3 +499,262 @@ pre {
   margin-left: 8px;
   min-width: 280px;
 }
+
+/* 008: CTA trong chat (thẻ bước + thẻ duyệt) */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.card.approval {
+  border-left: 3px solid var(--accent);
+}
+.step-card {
+  border-left: 3px solid #2e9d5b;
+  padding: 8px 12px;
+}
+.step-card.failed {
+  border-left-color: var(--warn);
+}
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+button.cta {
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 13px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+button.cta.primary {
+  color: #fff;
+}
+
+/* 008: hộp xem tệp + tài liệu md dạng đọc */
+.viewer {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-width: 980px;
+}
+.viewer-head {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+  gap: 10px;
+  z-index: 1;
+}
+.viewer-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.viewer-body {
+  padding: 14px 18px;
+}
+.viewer-media {
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+  margin: 0 auto;
+}
+.doc {
+  line-height: 1.55;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.doc-front {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.doc h2,
+.doc h3,
+.doc h4 {
+  margin: 18px 0 8px;
+}
+.doc h3.beat {
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
+.doc-card {
+  background: var(--tool);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.doc-card.sf-scene {
+  border-left: 3px solid var(--accent);
+}
+.doc-card-head {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.doc-card-head b {
+  color: var(--ink);
+}
+.doc-card .intent {
+  margin: 4px 0 6px;
+  font-style: italic;
+}
+.kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  font-size: 13px;
+}
+.kv > div {
+  display: contents;
+}
+.kv dt {
+  color: var(--muted);
+}
+.kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.layers {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--user);
+  color: var(--ink);
+}
+.script-line {
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--tool);
+}
+.script-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.speaker {
+  font-weight: 600;
+  color: var(--accent);
+}
+.speaker.narrator {
+  color: var(--muted);
+}
+.script-text {
+  white-space: pre-wrap;
+  font-size: 15px;
+}
+.tts {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* 008: chỉ báo agent đang xử lý (dấu ba chấm + việc đang làm) */
+.activity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.activity-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--tool);
+}
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: sf-dot 1.2s infinite ease-in-out;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes sf-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* 008: thẻ duyệt ghim ở đáy khung chat + mốc trong luồng */
+.approval-dock {
+  max-height: 45%;
+  overflow: auto;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.approval-dock .card.approval {
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+}
+.approval-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.approval-dock .note {
+  margin: 6px 0;
+  color: var(--muted);
+}
+.approval-actions input {
+  flex: 1;
+}
+.badge.warn {
+  background: #fff1d6;
+  color: #8a5300;
+}
+.approval-mark {
+  font-size: 13px;
+  padding: 4px 10px;
+  margin: 6px 0;
+  border-left: 3px solid #e0a100;
+}
+.approval-mark.done {
+  border-left-color: #2e9d5b;
+  color: var(--muted);
+}

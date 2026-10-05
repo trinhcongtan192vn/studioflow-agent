@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ExplorerNode, VideoStateSummary } from '@studioflow/core';
 import { Chat } from './Chat';
+import { FileViewer, type ViewedFile } from './FileViewer';
 import { core } from './rpc';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
@@ -16,12 +17,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [tree, setTree] = useState<ExplorerNode>();
   // FR-WS-06: file bị sửa ngoài app (025)
   const [external, setExternal] = useState<string[]>([]);
-  const [file, setFile] = useState<{
-    path: string;
-    kind: string;
-    content?: string;
-    size: number;
-  }>();
+  const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
   const [settings, setSettings] = useState(false);
 
@@ -160,7 +156,13 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             </span>
           )}
         </header>
-        <Chat key={`${channel}|${video ?? ''}`} channel={channel} video={video} />
+        <Chat
+          key={`${channel}|${video ?? ''}`}
+          channel={channel}
+          video={video}
+          onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
+          onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
+        />
       </section>
       <aside className="right">
         <nav className="tabs">
@@ -181,25 +183,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           {tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
         </div>
       </aside>
-      {file && (
-        <div className="modal" onClick={() => setFile(undefined)}>
-          <div className="card wide" onClick={(e) => e.stopPropagation()}>
-            <div className="row">
-              <b>{file.path}</b>
-              <button onClick={() => setFile(undefined)}>Đóng</button>
-            </div>
-            {file.kind === 'binary' ? (
-              <p className="muted">Tệp nhị phân, {file.size.toLocaleString('vi-VN')} byte.</p>
-            ) : (
-              <pre data-testid="file-content">
-                {file.kind === 'json'
-                  ? JSON.stringify(JSON.parse(file.content ?? 'null'), null, 2)
-                  : file.content}
-              </pre>
-            )}
-          </div>
-        </div>
-      )}
+      {file && <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />}
       {settings && <Settings channel={channel} onClose={() => setSettings(false)} />}
     </div>
   );

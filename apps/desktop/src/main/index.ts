@@ -19,15 +19,27 @@ import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@stu
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 // 026: renderer phát audio xem trước (`.sf/preview/*.wav`) của bảng caption qua `sf-media:` — chỉ đọc,
-// chỉ file dẫn xuất trong `.sf/preview/`.
+// chỉ file dẫn xuất trong `.sf/preview/`; 008: thêm video render (`renders/*/*.mp4`) và ảnh để xem trong chat/explorer.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'sf-media', privileges: { stream: true, supportFetchAPI: true, standard: false } },
 ]);
-const MEDIA_OK = /[\\/]\.sf[\\/]preview[\\/][^\\/]+\.wav$/i;
+const MEDIA_OK = [
+  /[\\/]\.sf[\\/]preview[\\/][^\\/]+\.wav$/i,
+  /[\\/]videos[\\/][^\\/]+[\\/]renders[\\/][^\\/]+[\\/][^\\/]+\.mp4$/i,
+  /[\\/]videos[\\/][^\\/]+[\\/].+\.(png|jpe?g|webp)$/i,
+];
+const MEDIA_TYPES: Record<string, string> = {
+  wav: 'audio/wav',
+  mp4: 'video/mp4',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+};
 function registerMedia(): void {
   protocol.handle('sf-media', (req) => {
     const abs = path.normalize(decodeURI(new URL(req.url).pathname).replace(/^\/+/, ''));
-    if (!MEDIA_OK.test(abs) || abs.includes('..') || !existsSync(abs))
+    if (!MEDIA_OK.some((r) => r.test(abs)) || abs.includes('..') || !existsSync(abs))
       return new Response(null, { status: 404 });
     // hỗ trợ Range để <audio> biết thời lượng và tua được
     const size = statSync(abs).size;
@@ -38,7 +50,8 @@ function registerMedia(): void {
     return new Response(body, {
       status: m ? 206 : 200,
       headers: {
-        'Content-Type': 'audio/wav',
+        'Content-Type':
+          MEDIA_TYPES[path.extname(abs).slice(1).toLowerCase()] ?? 'application/octet-stream',
         'Content-Length': String(end - start + 1),
         'Accept-Ranges': 'bytes',
         ...(m ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),

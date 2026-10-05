@@ -218,3 +218,126 @@ export function parseInline(s: string): MdInline[] {
   if (last < s.length) out.push({ kind: 'text', text: s.slice(last) });
   return out;
 }
+
+/** Nút hành động ngay trong chat sau mỗi bước (FN-008 mục 2: CTA). */
+export type StepCta =
+  | { kind: 'file'; label: string; path: string }
+  | { kind: 'tab'; label: string; tab: string }
+  | { kind: 'retry'; label: string; step: string }
+  /** Chọn file giọng mẫu rồi soạn sẵn lời nhờ agent tạo giọng (FR-VO-01). */
+  | { kind: 'voice'; label: string; step: string; prompt: string };
+
+const DOC_LABELS: Record<string, string> = {
+  'BRIEF.md': 'Xem brief',
+  'SCRIPT.md': 'Xem kịch bản',
+  'STORYBOARD.md': 'Xem storyboard',
+  'STORY.md': 'Xem truyện',
+  'CAST.md': 'Xem nhân vật',
+  'publish.md': 'Xem tiêu đề & mô tả',
+  'frame.md': 'Xem design system',
+};
+
+/** Bước có kết quả hình/tiếng xem được ở tab Xem trước. */
+const PREVIEW_STEPS = new Set([
+  'voice',
+  'assets',
+  'look',
+  'frames',
+  'effects',
+  'overlays',
+  'captions',
+  'finalize',
+  'animatic',
+  'lipsync',
+  'cut',
+]);
+
+/** Nhãn nút cho một tệp kết quả (đường dẫn tương đối trong video), `undefined` nếu không có. */
+export function fileCtaLabel(rel: string): string | undefined {
+  const base = rel.split(/[\\/]/).pop() ?? rel;
+  if (DOC_LABELS[base]) return DOC_LABELS[base];
+  if (/\.mp4$/i.test(base)) return 'Xem video';
+  if (/\.md$/i.test(base)) return `Xem ${base}`;
+  return undefined;
+}
+
+/** CTA cho một bước vừa xong/lỗi, dựa trên tệp kết quả của bước. */
+export function stepCtas(
+  step: { id: string; status: string; title?: string },
+  outputs: readonly string[] = [],
+  error?: string,
+): StepCta[] {
+  if (step.status === 'failed') {
+    const retry: StepCta = { kind: 'retry', label: 'Chạy lại bước', step: step.id };
+    if (error && isMissingVoice(error))
+      return [
+        {
+          kind: 'voice',
+          label: '📎 Chọn file giọng mẫu',
+          step: step.id,
+          prompt: `Tạo giọng đọc cho kênh từ file mẫu đính kèm, đặt làm giọng mặc định, rồi chạy lại bước ${step.title ?? step.id}.`,
+        },
+        retry,
+      ];
+    return [retry];
+  }
+  const out: StepCta[] = [];
+  const seen = new Set<string>();
+  for (const p of outputs) {
+    const label = fileCtaLabel(p);
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      out.push({ kind: 'file', label, path: p });
+    }
+  }
+  if (PREVIEW_STEPS.has(step.id))
+    out.push({ kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' });
+  if (step.id === 'music') out.push({ kind: 'tab', label: 'Xem nhạc', tab: 'Nhạc' });
+  return out;
+}
+
+/** Bước đổi sang done/failed/waiting_approval so với lần trước (để hiện thẻ trong chat). */
+export function changedSteps<S extends { id: string; status: string }>(
+  prev: Record<string, string>,
+  steps: readonly S[],
+): S[] {
+  return steps.filter(
+    (s) =>
+      prev[s.id] !== undefined &&
+      prev[s.id] !== s.status &&
+      (s.status === 'done' || s.status === 'failed'),
+  );
+}
+
+/** Dòng "agent đang làm gì" dưới cùng khung chat khi agent đang xử lý. */
+export function activityLabel(
+  a: { kind: 'thinking' } | { kind: 'writing' } | { kind: 'tool'; name: string; input?: unknown },
+): string {
+  if (a.kind === 'thinking') return 'Đang suy nghĩ';
+  if (a.kind === 'writing') return 'Đang viết câu trả lời';
+  const label = toolLabel(a.name);
+  const target = toolTarget(a.input);
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}${target ? `: ${target}` : ''}`;
+}
+
+const isMissingVoice = (e: string) =>
+  /has no voice|no voice for|not cloned yet|voice\.profile_create/.test(e);
+
+/** Lỗi bước dễ đọc cho người dùng (lỗi kỹ thuật vẫn xem được khi mở chi tiết). */
+export function friendlyStepError(e: string): string {
+  if (isMissingVoice(e)) {
+    const who = /no voice for ([^:]+):/.exec(e)?.[1];
+    const names = who
+      ?.split(', ')
+      .map((x) => (x === 'narrator' ? 'người dẫn' : x))
+      .join(', ');
+    return `Chưa có giọng đọc${names ? ` cho ${names}` : ''}. Hãy chọn một file giọng mẫu 3–10 giây (wav/mp3, giọng bạn được phép dùng); agent sẽ tạo giọng rồi chạy lại bước.`;
+  }
+  // gộp lỗi lặp theo từng line: "audio.line:ln_…: <msg>; …"
+  const parts = e.split('; ');
+  if (parts.length > 3) {
+    const first = parts[0]!.replace(/^[\w.]+:\w+:\s*/, '');
+    return `${first} (và ${parts.length - 1} lỗi tương tự)`;
+  }
+  return e;
+}

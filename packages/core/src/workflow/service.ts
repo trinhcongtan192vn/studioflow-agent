@@ -8,6 +8,7 @@ import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
 import { WorkflowEngine, type AgentStepRunner, type StepExecutor } from './engine.js';
 import { loadPacks, type WorkflowPack } from './packs.js';
+import { speakersWithoutVoice } from './cast.js';
 
 /** Dịch vụ workflow của `core`: gói, executor theo `uses`, runner bước agent, engine theo video. */
 export class WorkflowService {
@@ -99,6 +100,13 @@ export class WorkflowService {
 /** Executor bước `voice` (D6 mục 2): `graph.build` các nút `audio.line` (+ `asr.line` khi có) và `audio_meta`. */
 function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): StepExecutor {
   return async (ctx) => {
+    // 008 FR-VO-01: thiếu giọng → một lỗi gọn trước khi dựng (thay vì một lỗi cho mỗi line)
+    const unvoiced = speakersWithoutVoice(ctx.channelDir, ctx.videoId, ctx.appDataDir);
+    if (unvoiced.length)
+      throw new SfError(
+        'E_ID_UNKNOWN',
+        `no voice for ${unvoiced.join(', ')}: ${unvoiced.includes('narrator') ? 'set voice.id for the channel/video' : 'set voice_id in CAST.md'} — create a voice with voice.profile_create from a 3–10 s sample the user attaches, then rerun this step`,
+      );
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
     const targets = ['audio.line', 'asr.line', 'audio_meta'];
     const lines = graph
