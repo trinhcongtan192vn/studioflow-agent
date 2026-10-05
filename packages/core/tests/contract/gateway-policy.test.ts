@@ -27,6 +27,7 @@ const D5: [string, string[]][] = [
   ['tts.synthesize', ['main']],
   ['asr.align', ['main']],
   ['voice.profile_create', ['main']],
+  ['voice.design', ['main']],
   ['music.find', ['main']],
   ['sfx.find', ['main']],
   ['lipsync.cues', ['main']],

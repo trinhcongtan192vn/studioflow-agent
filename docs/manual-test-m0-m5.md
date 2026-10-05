@@ -47,6 +47,7 @@ Thời gian ước tính: khoảng 3–4 giờ nếu chạy đủ cả 5 workflo
 | 1.6 | Gõ vào chat kênh (chưa chọn video): "Kênh này nói về lịch sử Việt Nam, giọng kể trầm, khán giả 18–35." | Agent trả lời. Có khối "N thao tác" gọn, mở ra xem được từng thao tác. Agent ghi hồ sơ kênh `profile/`. |
 | 1.7 | Explorer: mở `profile/` và bấm một tệp. | Hộp xem tệp chỉ đọc mở ra. Explorer không có nút sửa hoặc xóa. |
 | 1.8 | **Tạo giọng kênh (bắt buộc trước bước Giọng đọc):** ở chat kênh, bấm 📎 chọn file giọng mẫu 3–10 giây rồi gửi "Tạo giọng đọc cho kênh từ file này, đặt làm giọng mặc định, cho tôi nghe thử." | Agent clone giọng (job `voice.profile`), đặt `voice.id` của kênh, cho nghe thử. Thư mục `voices\vo_…\` có `profile.json` và `voice.pt`. |
+| 1.8b | **Không có file mẫu (033):** gửi "Gợi ý cho tôi 3 giọng đọc hợp với kênh." | Ba thẻ 🎙 hiện trong chat. Mỗi thẻ có tên, chip mô tả (ví dụ *Nam · Trung niên · Trầm*), trình nghe câu mẫu và nút **Chọn giọng này**. Bấm chọn một giọng: agent đặt `voice.id`. Ba giọng phải nghe khác nhau rõ. |
 
 ---
 
@@ -61,7 +62,7 @@ Thời gian ước tính: khoảng 3–4 giờ nếu chạy đủ cả 5 workflo
 | 2.5 | Chờ bước **Kịch bản**. | Thẻ duyệt có nút **Xem kịch bản**: các line có nhãn *Người dẫn*, beat là tiêu đề có vạch xanh, không còn chú thích `<!-- sf:… -->`. |
 | 2.6 | Ở thẻ duyệt kịch bản, ghi "Ngắn lại câu mở đầu", bấm **Yêu cầu sửa**. | Agent sửa SCRIPT.md rồi xin duyệt lại; thẻ mới có nội dung đã đổi. Bấm **Duyệt**. |
 | 2.7 | Duyệt storyboard bằng **Xem storyboard**. | Mỗi cảnh/frame là một thẻ có *Ý đồ hình* và danh sách *Lớp*. |
-| 2.8a | (Nếu bỏ qua 1.8) Bước **Giọng đọc** lỗi. | Thẻ đỏ ghi "Chưa có giọng đọc cho người dẫn…", có nút **📎 Chọn file giọng mẫu**. Chọn file thì lời nhờ agent được soạn sẵn; bấm **Gửi**. Agent tạo giọng rồi chạy lại bước. |
+| 2.8a | (Nếu bỏ qua 1.8) Bước **Giọng đọc** lỗi. | Thẻ đỏ ghi "Chưa có giọng đọc cho người dẫn…", có nút **✨ Gợi ý giọng** (agent tạo 2–3 giọng để nghe thử và chọn) và nút **📎 Chọn file giọng mẫu**. Chọn file thì lời nhờ agent được soạn sẵn; bấm **Gửi**. Agent tạo giọng rồi chạy lại bước. |
 | 2.8 | Bước **Giọng đọc** xong, bấm **Mở xem trước**. | Tab **Xem trước** mở; bảng caption có audio nghe được. Thời lượng được đánh giá trên audio thật, không tính theo số từ/phút. |
 | 2.9 | Bước **Nhạc nền**: tab **Nhạc** → **Nạp…** 2–3 bài, rồi để agent chọn. | Nhạc được phân tích (BPM/tag); thẻ bước có nút **Xem nhạc**. |
 | 2.10 | Duyệt **Hoàn thiện**, chờ **Tiêu đề và mô tả** và **Render**. | Thẻ **Xem tiêu đề & mô tả** (publish.md: tiêu đề, thẻ, chương). Thẻ render có **Xem video**, phát được ngay trong app. |
@@ -120,7 +121,7 @@ Dùng lại video ở phần 2 hoặc phần 3.
 |---|---|---|
 | 6.1 | Video mới "Cậu bé và con trâu". Chat: "Làm phim ngắn 3 phút, 2 nhân vật: cậu bé Tí (lém lỉnh) và ông nội (hiền), có người dẫn truyện, phong cách 2D phẳng." | Brief chọn `short-film`; agent hỏi thêm về giọng mẫu. |
 | 6.2 | Duyệt **Truyện** bằng **Xem truyện**. | STORY.md có các thẻ *Đoạn truyện*: tóm tắt, nhân vật, bối cảnh, diễn biến. |
-| 6.3 | Duyệt **Dàn nhân vật** bằng **Xem nhân vật**. | CAST.md có thẻ *Nhân vật* (giọng, màu phụ đề). Có thể đính kèm 📎 file giọng mẫu cho một nhân vật. |
+| 6.3 | Duyệt **Dàn nhân vật** bằng **Xem nhân vật**. Không có giọng mẫu thì nhờ "gợi ý giọng cho từng nhân vật". | Mỗi nhân vật có 2 thẻ 🎙 "· cho ca_…" hợp tuổi và tính cách (Tí: trẻ em, cao; ông nội: cao tuổi, trầm). Chọn từng giọng; CAST.md có `voice_id`. Có thể đính kèm 📎 file giọng mẫu thay thế. |
 | 6.4 | Duyệt kịch bản. | Line có nhãn người nói khác nhau (`ca_…`), cảm xúc và chỉ dẫn (ví dụ *giọng run*). |
 | 6.5 | Bước **Giọng nhân vật** xong. | Mỗi nhân vật một giọng khác nhau; giọng biểu cảm lưu trong `characters/<ca>/emotions/`. |
 | 6.6 | Duyệt **Animatic** (bấm **Mở xem trước** để xem). | Animatic thô có giọng và hình tĩnh, duyệt nhịp trước khi dựng. |

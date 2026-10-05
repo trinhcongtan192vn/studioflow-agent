@@ -46,6 +46,7 @@ export const PATTERN_DEFAULTS: Record<string, Record<string, unknown>> = {
   'gpu.vram_budget_gb.<engine>': { comfyui: 14, omnivoice: 6, asr: 3, render: 2 },
   'provider.<capability>': {
     'voice.profile': 'tts.omnivoice',
+    'voice.design': 'tts.omnivoice',
     'tts.synthesize': 'tts.omnivoice',
     'asr.align': 'asr.hf-transcribe',
     'image.generate': 'image.qwen21-comfy',

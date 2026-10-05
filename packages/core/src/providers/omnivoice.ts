@@ -5,7 +5,13 @@ import type { ProviderAdapter } from '../capability/types.js';
 import { defaultAppDataDir } from '../config/resolve.js';
 import { SfError } from '../errors.js';
 import { PythonWorker } from '../workers/client.js';
-import { isVoiceProfile, ttsCacheParts, type AdapterInput } from './fake.js';
+import {
+  designCacheParts,
+  isVoiceDesign,
+  isVoiceProfile,
+  ttsCacheParts,
+  type AdapterInput,
+} from './fake.js';
 import { loadProviderManifest } from './manifest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -57,11 +63,26 @@ export function createOmniVoiceProvider(opts: { appDataDir?: string } = {}) {
       await worker.call(mode);
     },
     cacheKeyParts: (i) =>
-      isVoiceProfile(i)
-        ? { ref_audio: i.ref_audio, ref_text: i.ref_text ?? null }
-        : ttsCacheParts(i),
+      isVoiceDesign(i)
+        ? designCacheParts(i)
+        : isVoiceProfile(i)
+          ? { ref_audio: i.ref_audio, ref_text: i.ref_text ?? null }
+          : ttsCacheParts(i),
     async run(input, ctx) {
       const jobId = `run-${++jobSeq}`;
+      if (isVoiceDesign(input)) {
+        return worker.run(
+          'voice.design',
+          {
+            instruct: input.instruct,
+            text: input.sample_text,
+            language: input.language,
+            seed: input.seed ?? 0,
+          },
+          ctx.workdir,
+          { jobId, onProgress: ctx.progress, signal: ctx.signal },
+        );
+      }
       if (isVoiceProfile(input)) {
         return worker.run(
           'voice.profile',

@@ -24,7 +24,7 @@
 <channel>/                          thư mục kênh do người dùng chọn
   channel.json
   profile/                          hồ sơ kênh, bố cục plugin (D6)
-  voices/<voice_id>/                giọng clone + ref audio
+  voices/<voice_id>/                giọng clone hoặc giọng gợi ý từ mô tả (033) + ref audio, profile.json
   luts/ mouths/ characters/<cast_id>/
   assets/  assets/manifest.json     thư viện asset kênh
   music/                            kho nhạc kênh: files/, manifest.json, .index/ (D8)

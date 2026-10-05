@@ -147,4 +147,30 @@ class OmniVoiceEngine:
                 "ref": "ref.wav",
                 "ref_text": getattr(prompt, "ref_text", None) or params.get("ref_text") or "",
             }
+        if task == "voice.design":
+            # 033: giọng gợi ý — sinh câu mẫu theo mô tả (Voice Design) rồi clone câu đó để mọi
+            # line sau dùng cùng một giọng ổn định (research R2).
+            text = (params.get("text") or "").strip()
+            instruct = (params.get("instruct") or "").strip()
+            if not text or not instruct:
+                raise EngineError("E_SCHEMA_INVALID", "text and instruct are required")
+            torch.manual_seed(int(params.get("seed") or 0))
+            try:
+                audio = model.generate(
+                    text=text, language=params.get("language") or None, instruct=instruct
+                )[0]
+            except ValueError as e:  # mục instruct không hợp lệ
+                raise EngineError("E_SCHEMA_INVALID", str(e)) from e
+            mono = np.asarray(audio, dtype=np.float32).reshape(-1)
+            ref_out = Path(workdir, "ref.wav")
+            sf.write(str(ref_out), np.clip(mono, -1.0, 1.0), MODEL_SR, subtype="PCM_16")
+            prompt = model.create_voice_clone_prompt(ref_audio=str(ref_out), ref_text=text)
+            prompt.save(str(Path(workdir, "voice.pt")))
+            progress(1, 1)
+            return {
+                "voice": "voice.pt",
+                "ref": "ref.wav",
+                "ref_text": text,
+                "duration_ms": round(len(mono) * 1000 / MODEL_SR),
+            }
         raise EngineError("E_SCHEMA_INVALID", f"unknown task {task}")

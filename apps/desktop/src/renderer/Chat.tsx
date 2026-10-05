@@ -8,8 +8,11 @@ import {
   friendlyStepError,
   groupRuns,
   stepCtas,
+  voiceSuggestion,
   type StepCta,
+  type VoiceSuggestion,
 } from './chat-format';
+import { mediaUrl } from './FileViewer';
 import { Markdown, ToolGroup } from './ChatParts';
 import {
   clearContextRefs,
@@ -29,7 +32,8 @@ type Item =
       ctas: StepCta[];
       error?: string;
       done?: string;
-    };
+    }
+  | { type: 'voice'; voice: VoiceSuggestion; done?: string };
 
 type ApprovalCard = IpcEvents['approval.requested'];
 
@@ -150,6 +154,17 @@ export function Chat({
         setPending((p) => (p.some((x) => x.approval_id === card.approval_id) ? p : [...p, card]));
       }),
       core.on('permission.requested', (card) => add({ type: 'permission', card })),
+      // 033: giọng gợi ý xong → thẻ nghe thử + chọn
+      core.on('job.updated', (j) => {
+        if ((j.video_id ?? undefined) !== video) return;
+        const v = voiceSuggestion(j);
+        if (v)
+          setItems((s) =>
+            s.some((x) => x.type === 'voice' && x.voice.voice_id === v.voice_id)
+              ? s
+              : [...s, { type: 'voice', voice: v }],
+          );
+      }),
       core.on('workflow.updated', (s) => {
         if (s.channel !== channel || s.video_id !== video) return;
         const changed = changedSteps(prevSteps.current, s.steps);
@@ -218,6 +233,7 @@ export function Chat({
   const runCta = async (i: number, c: StepCta) => {
     if (c.kind === 'file') onOpenFile?.(c.path);
     else if (c.kind === 'tab') onOpenTab?.(c.tab);
+    else if (c.kind === 'say') void send(c.text);
     else if (c.kind === 'voice') {
       // FR-VO-01: chọn file mẫu → đính kèm + soạn sẵn lời nhờ agent; người dùng bấm Gửi
       if (await attach()) setDraft(c.prompt);
@@ -240,11 +256,11 @@ export function Chat({
 
   useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [items, streaming, activity]);
 
-  const send = async () => {
-    const text = draft.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || busy) return;
     setItems((s) => [...s, { type: 'line', line: { ts: '', role: 'user', content: text } }]);
-    setDraft('');
+    if (override === undefined) setDraft('');
     setBusy(true);
     setActivity(activityLabel({ kind: 'thinking' }));
     try {
@@ -365,6 +381,41 @@ export function Chat({
               {it.done ? '✓' : '⏸'} {it.done ? `${it.done}` : 'Chờ bạn duyệt'}:{' '}
               <b>{it.card.title}</b>
               {!it.done && <span className="muted"> — thẻ duyệt ở cuối khung chat ↓</span>}
+            </div>
+          ) : it.type === 'voice' ? (
+            <div key={i} className="card voice-card" data-testid="voice-card">
+              <div className="voice-head">
+                <b>🎙 {it.voice.name}</b>
+                {it.voice.forLabel && <span className="muted"> · cho {it.voice.forLabel}</span>}
+              </div>
+              <div className="chips">
+                {it.voice.traits.map((t) => (
+                  <span key={t} className="badge">
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <audio controls preload="metadata" src={mediaUrl(`${channel}/${it.voice.preview}`)} />
+              {it.done ? (
+                <i>{it.done}</i>
+              ) : (
+                <div className="cta-row">
+                  <button
+                    className="cta primary"
+                    disabled={busy}
+                    onClick={() => {
+                      setItems((s) =>
+                        s.map((x, k) =>
+                          k === i ? { ...(x as Item & { type: 'voice' }), done: 'Đã chọn' } : x,
+                        ),
+                      );
+                      void send(it.voice.pick);
+                    }}
+                  >
+                    Chọn giọng này
+                  </button>
+                </div>
+              )}
             </div>
           ) : it.type === 'step' ? (
             <div key={i} className={`card step-card ${it.step.status}`} data-testid="step-card">
