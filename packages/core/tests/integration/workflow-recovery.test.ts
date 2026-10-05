@@ -24,6 +24,36 @@ const status = (f: WorkflowFixture) =>
   >;
 
 describe('recovery (007 US4)', () => {
+  it('reopening a video in the same process leaves a step that is really running alone (008)', async () => {
+    fx = workflowFixture();
+    wireDemo(fx);
+    let finish: () => void = () => {};
+    fx.core.workflows.registerExecutor(
+      'voice',
+      () => new Promise((r) => (finish = () => r({ outputs: [] }))),
+    );
+    const e = fx.core.workflows.engine(fx.dir, fx.videoId);
+    await e.select('demo-explainer', 'yt-1080p30');
+    await e.approve(e.summary().pending_approvals[0]!);
+    await e.advance();
+    await e.approve(e.summary().pending_approvals[0]!); // script
+    const run = e.approve(e.summary().pending_approvals[0]!); // storyboard → voice chạy
+    const t0 = Date.now();
+    while (status(fx).voice!.status !== 'running') {
+      if (Date.now() - t0 > 10_000) throw new Error('voice never started');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    e.open(); // người dùng bấm lại vào video
+    expect(status(fx).voice).toMatchObject({ status: 'running' });
+    expect(status(fx).voice!.error).toBeUndefined();
+    finish();
+    await run;
+    await e.idle();
+    // bước chạy tới hết bình thường (kết quả do gate quyết), không bị coi là app đã tắt
+    expect(status(fx).voice!.status).not.toBe('pending');
+    expect(status(fx).voice!.error?.code).not.toBe('E_STEP_INCOMPLETE');
+  });
+
   it('an engine step killed mid-run is re-run after reopening', async () => {
     fx = workflowFixture();
     wireDemo(fx);

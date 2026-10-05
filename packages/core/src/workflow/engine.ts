@@ -361,8 +361,10 @@ export class WorkflowEngine extends EventEmitter {
     if (st.phase !== 'workflow') return;
     const manifest = this.pack(st)?.manifest;
     let changed = this.invalidate(st);
+    // 008: vòng điều phối của engine này đang chạy → bước `running` là thật (người dùng chỉ mở lại
+    // video trong cùng tiến trình), không phải bước mồ côi sau khi app tắt
     for (const [id, s] of Object.entries(st.steps)) {
-      if (s.status !== 'running') continue;
+      if (s.status !== 'running' || this.running) continue;
       const decl = manifest?.steps.find((x) => x.id === id);
       s.status = 'pending';
       if (decl && STEP_LIBRARY[decl.uses].by === 'agent') {
