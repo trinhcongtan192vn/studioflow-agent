@@ -1,103 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JobInfo, VideoStateSummary } from '@studioflow/core';
+import type { JobInfo } from '@studioflow/core';
 import { core } from './rpc';
 import { CaptionPanel } from './CaptionPanel';
 import { addContextRef } from './context-refs';
 import { StudioBridge } from './studio-bridge';
 
-const ICON: Record<string, string> = {
-  pending: '○',
-  running: '◐',
-  waiting_approval: '⏸',
-  done: '●',
-  failed: '✕',
-  skipped: '–',
-  stale: '↻',
-};
-
-/** UI-04 Tiến độ: dựng từ workflow.yaml + state.json, không có mã riêng theo workflow (FR-WF-02). */
-export function ProgressTab({
-  channel,
-  video,
-  state,
-  onState,
-}: {
-  channel: string;
-  video?: string;
-  state?: VideoStateSummary;
-  onState: (s: VideoStateSummary) => void;
-}) {
-  const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
-  useEffect(() => {
-    void core.call('workflow.list', {}).then((r) => setWorkflows(r.workflows));
-  }, []);
-  if (!video || !state) return <p className="muted">Chọn một video.</p>;
-  const act = async (fn: () => Promise<VideoStateSummary>) => onState(await fn());
-  if (state.phase === 'briefing') {
-    return (
-      <div data-testid="progress">
-        <p>Pha briefing — chọn workflow (agent cũng làm việc này qua chat):</p>
-        {workflows.map((w) => (
-          <button
-            key={w.id}
-            onClick={() =>
-              void act(() =>
-                core.call('workflow.select', {
-                  channel,
-                  video,
-                  workflow_id: w.id,
-                  output_profile: 'yt-1080p30',
-                }),
-              )
-            }
-          >
-            {w.title}
-          </button>
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div data-testid="progress">
-      <p className="muted">Workflow: {state.workflow?.id}</p>
-      <ol className="steps">
-        {state.steps.map((s) => (
-          <li key={s.id} className={`step ${s.status}`}>
-            <span title={s.status}>{ICON[s.status] ?? '?'}</span> {s.title}
-            {s.refine && (
-              <span className="muted">
-                {' '}
-                · {s.refine.rounds} vòng, điểm {s.refine.final_score?.toFixed(1)}
-                {s.refine.incomplete ? ' · chưa đủ vòng' : ''}
-              </span>
-            )}
-            <span className="actions">
-              <button
-                title="Chạy tới bước này"
-                onClick={() =>
-                  void act(() => core.call('workflow.run_to', { channel, video, step_id: s.id }))
-                }
-              >
-                ▶
-              </button>
-              <button
-                title="Quay lại bước này"
-                onClick={() =>
-                  void act(() => core.call('workflow.rewind', { channel, video, step_id: s.id }))
-                }
-              >
-                ↺
-              </button>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <button onClick={() => void act(() => core.call('workflow.pause', { channel, video }))}>
-        Tạm dừng
-      </button>
-    </div>
-  );
-}
+export { ProgressTab } from './ProgressTab';
 
 /** UI-06 Job: loại, trạng thái, tiến độ; hủy/thử lại; lọc theo video (sự kiện `job.updated`). */
 export function JobsTab({ video }: { video?: string }) {

@@ -327,19 +327,6 @@ select {
   flex: 1;
   overflow: auto;
 }
-.steps {
-  padding-left: 18px;
-}
-.step .actions {
-  float: right;
-}
-.step .actions button {
-  padding: 0 6px;
-  margin-left: 2px;
-}
-.step.failed {
-  color: var(--warn);
-}
 .jobs {
   width: 100%;
   border-collapse: collapse;
@@ -821,4 +808,171 @@ body.resizing iframe {
 .ap-err {
   flex-basis: 100%;
   font-size: 12px;
+}
+
+/* 008: tab Tiến độ */
+.progress-head {
+  position: sticky;
+  top: -10px;
+  z-index: 1;
+  background: var(--panel);
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.progress-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--tool);
+  margin: 6px 0;
+  overflow: hidden;
+}
+.progress-bar > div {
+  height: 100%;
+  background: #2e9d5b;
+  transition: width 0.3s;
+}
+.progress-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.progress-now.failed .now-text {
+  color: var(--warn);
+}
+.progress-now.waiting .now-text {
+  color: #8a5300;
+}
+.progress-fb {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+  background: var(--tool);
+  border-left: 3px solid var(--accent);
+}
+.progress-fb.success {
+  border-left-color: #2e9d5b;
+}
+.progress-fb.error {
+  border-left-color: var(--warn);
+}
+.progress-fb.info,
+.progress-fb.confirm {
+  border-left-color: #e0a100;
+}
+.progress-fb .fb-text {
+  flex: 1;
+}
+.fb-close {
+  font-size: 16px;
+  line-height: 1;
+}
+.spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sf-spin 0.8s linear infinite;
+  vertical-align: -1px;
+}
+@keyframes sf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.step {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 6px;
+  align-items: start;
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+.step:hover,
+.step:focus-within {
+  background: var(--tool);
+}
+.step.running,
+.step.failed,
+.step.waiting_approval {
+  background: var(--tool);
+}
+.step-icon {
+  text-align: center;
+  color: var(--muted);
+}
+.step-icon.done {
+  color: #2e9d5b;
+}
+.step-icon.failed {
+  color: var(--warn);
+}
+.step-title {
+  font-weight: 500;
+}
+.step-sub {
+  font-size: 12px;
+}
+.step-status.failed {
+  color: var(--warn);
+}
+.step-status.running {
+  color: var(--accent);
+}
+.step-status.waiting_approval {
+  color: #8a5300;
+}
+.step-status.pending,
+.step-status.skipped {
+  color: var(--muted);
+}
+.step-error {
+  font-size: 12px;
+  color: var(--warn);
+  margin-top: 2px;
+}
+.step-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.step:hover .step-actions,
+.step:focus-within .step-actions,
+.step.failed .step-actions,
+.step.stale .step-actions {
+  opacity: 1;
+}
+.step-actions button {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.wf-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }

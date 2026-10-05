@@ -339,7 +339,8 @@ export class WorkflowEngine extends EventEmitter {
       if (i < 0) throw new SfError('E_ID_UNKNOWN', `step ${stepId} not in workflow`);
       st.steps[stepId] = { ...st.steps[stepId]!, status: 'pending' };
       for (const id of order.slice(i + 1)) {
-        const s = st.steps[id]!;
+        const s = st.steps[id];
+        if (!s) continue; // state.json chưa có bước này (chưa từng chạy)
         if (s.status !== 'pending' && s.status !== 'skipped') s.status = 'stale';
       }
       this.writeState(st);
@@ -407,6 +408,12 @@ export class WorkflowEngine extends EventEmitter {
     const manifest = this.manifestOf(st);
     const byId = new Map(manifest.steps.map((s) => [s.id, s]));
     const { order } = executionOrder(manifest.steps);
+    // bước chưa có trong state.json (video cũ, state khôi phục tay) = chưa chạy
+    const missing = order.filter((id) => !st.steps[id]);
+    if (missing.length) {
+      for (const id of missing) st.steps[id] = { status: 'pending', attempt: 0 };
+      this.writeState(st);
+    }
     for (const [i, id] of order.entries()) {
       const s = st.steps[id]!;
       if (s.status === 'waiting_approval' || s.status === 'failed' || s.status === 'running')

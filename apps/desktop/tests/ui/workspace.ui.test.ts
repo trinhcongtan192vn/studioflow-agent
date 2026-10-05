@@ -204,6 +204,19 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');
     await win.getByRole('button', { name: 'Job' }).click();
     await expect(win.getByText('Mọi video')).toBeVisible();
+    // 008: tab Tiến độ — trạng thái tổng; "Quay lại" hỏi xác nhận rồi báo kết quả
+    await win.getByRole('button', { name: 'Tiến độ' }).click();
+    const progress = win.getByTestId('progress');
+    await expect(progress).toContainText('/1 bước');
+    await expect(win.getByTestId('progress-now')).toContainText(/Sẵn sàng|Chờ bạn duyệt/);
+    const scriptRow = progress.getByTestId('step-script');
+    await scriptRow.hover();
+    await scriptRow.getByRole('button', { name: 'Quay lại' }).click();
+    await expect(win.getByTestId('progress-confirm')).toContainText('Quay lại và chạy lại từ bước');
+    await win.getByTestId('progress-confirm').getByRole('button', { name: 'Xác nhận' }).click();
+    await expect(win.getByTestId('progress-feedback')).toContainText('Đã quay lại bước', {
+      timeout: 15_000,
+    });
     // UI-10 Dung lượng (024) trong Cài đặt
     await win.getByTitle('Cài đặt').click();
     await expect(win.getByLabel('Dung lượng')).toContainText('Ổ đĩa còn', { timeout: 30_000 });
