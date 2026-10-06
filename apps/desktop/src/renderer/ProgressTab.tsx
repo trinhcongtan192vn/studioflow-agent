@@ -180,9 +180,16 @@ export function ProgressTab({
     return () => clearInterval(t);
   }, [anyRunning]);
 
-  // theo dõi kết quả thao tác qua mỗi lần trạng thái đổi
+  // theo dõi kết quả thao tác qua mỗi lần trạng thái đổi; "chạy lại" bước đang lỗi: bỏ qua lỗi cũ
+  // tới khi bước rời trạng thái lỗi (037)
+  const leftFailed = useRef(false);
   useEffect(() => {
     if (!action || !state || fb?.settled) return;
+    if (action.kind === 'run_step' && !leftFailed.current) {
+      const t = state.steps.find((x) => x.id === action.step);
+      if (t?.status === 'failed') return;
+      leftFailed.current = true;
+    }
     setFb(feedbackFor(action, state.steps, (id) => errors[id] && friendlyStepError(errors[id]!)));
   }, [state, errors, action, fb?.settled]);
   // thông báo thành công tự ẩn
@@ -238,7 +245,16 @@ export function ProgressTab({
         setFb({ tone: 'success', text: 'Đã chọn workflow.', settled: true });
       } else {
         setAction(a);
-        setFb(feedbackFor(a, s.steps));
+        leftFailed.current = false;
+        setFb(
+          a.kind === 'run_step' && s.steps.find((x) => x.id === a.step)?.status === 'failed'
+            ? {
+                tone: 'progress',
+                text: `Đã gửi lệnh chạy lại bước "${s.steps.find((x) => x.id === a.step)!.title}", đang bắt đầu…`,
+                settled: false,
+              }
+            : feedbackFor(a, s.steps),
+        );
       }
     } catch (e) {
       setAction(undefined);
