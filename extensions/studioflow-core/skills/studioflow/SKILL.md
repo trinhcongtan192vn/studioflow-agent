@@ -49,3 +49,8 @@ Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, 
 - Lỗi do file sai (gate `artifact_valid`, `speakers_voiced`…): sửa đúng file của bước bằng `artifact.write`, rồi gọi **`workflow.recheck {step_id}`**. App kiểm lại trên file hiện có; qua thì workflow chạy tiếp.
 - **Không** dùng `workflow.rewind` hay chạy lại bước để "đẩy" bước đã sửa: chạy lại sẽ sinh lại và viết đè file. `workflow.run_to` cũng báo lỗi khi còn bước lỗi phía trước.
 - Kịch bản thoại: người nói chỉ được là `narrator` hoặc id `ca_…` có trong `CAST.md` hay nhân vật cấp kênh (`cast.list`). Không tự đặt id mới.
+
+## Brief (pha briefing, 040)
+
+- Viết nội dung brief vào `BRIEF.md`, rồi gọi **`workflow.select {workflow_id, output_profile}`** để chọn workflow. Lệnh này ghi đề xuất vào brief và **tạo điểm duyệt brief**, thẻ Duyệt sẽ hiện ở cuối khung chat. (Ghi thẳng `proposed_workflow` vào BRIEF.md thì app cũng tự tạo điểm duyệt, nhưng nên dùng `workflow.select`.)
+- Nhắc người dùng bấm **Duyệt** trên thẻ. Không tự duyệt thay.

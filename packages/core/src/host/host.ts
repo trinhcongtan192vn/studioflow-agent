@@ -390,6 +390,11 @@ export class CoreHost extends EventEmitter {
         const unsubscribe = store.subscribe((rel, hash) => {
           if (rel.startsWith(prefix) && !rel.startsWith(`${prefix}.sf/`))
             this.send('artifact.changed', { channel: p.channel, path: rel, hash });
+          // 040: brief đề xuất workflow mà chưa có điểm duyệt → tạo (thẻ Duyệt hiện trong chat)
+          if (rel === `${prefix}BRIEF.md`)
+            void this.engine(p.channel, p.video)
+              .ensureBriefApproval()
+              .catch(() => {});
         });
         this.watcher = {
           close: () => {
