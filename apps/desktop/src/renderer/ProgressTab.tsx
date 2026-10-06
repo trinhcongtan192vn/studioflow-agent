@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
-import { friendlyStepError, toolLabel } from './chat-format';
+import { activityLabel, friendlyStepError, toolLabel } from './chat-format';
 import {
   feedbackFor,
   overall,
   STATUS_LABEL,
   stepButtons,
+  stepProgressView,
   type Action,
   type Feedback,
   type StepButton,
@@ -44,6 +45,13 @@ export function ProgressTab({
   const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [job, setJob] = useState<JobInfo>();
+  // 008 UI-04: tiến độ từng bước (engine), thời điểm bắt đầu, việc agent đang làm, đồng hồ
+  const [stepProg, setStepProg] = useState<
+    Record<string, { done: number; total: number; message?: string }>
+  >({});
+  const [startedAt, setStartedAt] = useState<Record<string, string>>({});
+  const [activity, setActivity] = useState<string>();
+  const [now, setNow] = useState(Date.now());
   const [action, setAction] = useState<Action>();
   const [fb, setFb] = useState<Feedback>();
   const [busy, setBusy] = useState<string>();
@@ -88,17 +96,30 @@ export function ProgressTab({
 
   // lỗi từng bước (state.json) — tóm tắt trạng thái không mang nội dung lỗi
   const failedKey = state?.steps
-    .filter((s) => s.status === 'failed')
-    .map((s) => s.id)
+    .filter((s) => s.status === 'failed' || s.status === 'running')
+    .map((s) => `${s.id}:${s.status}`)
     .join(',');
   useEffect(() => {
-    if (!video || !failedKey) return setErrors({});
+    if (!video || !failedKey) {
+      setStartedAt({});
+      return setErrors({});
+    }
     void core
       .call('explorer.read', { channel, path: `videos/${video}/state.json` })
       .then((r) => {
         const st = JSON.parse(r.content ?? 'null') as {
-          steps?: Record<string, { error?: { message: string } }>;
+          steps?: Record<
+            string,
+            { status: string; started_at?: string; error?: { message: string } }
+          >;
         } | null;
+        setStartedAt(
+          Object.fromEntries(
+            Object.entries(st?.steps ?? {})
+              .filter(([, s]) => s.status === 'running' && s.started_at)
+              .map(([id, s]) => [id, s.started_at!]),
+          ),
+        );
         setErrors(
           Object.fromEntries(
             Object.entries(st?.steps ?? {})
@@ -118,6 +139,46 @@ export function ProgressTab({
       setJob((cur) => (j.status === 'running' ? j : cur?.id === j.id ? undefined : cur));
     });
   }, [video]);
+
+  useEffect(() => {
+    setStepProg({});
+    setActivity(undefined);
+    if (!video) return;
+    void core
+      .call('workflow.progress', { channel, video })
+      .then((r) => setStepProg(r.steps))
+      .catch(() => {});
+    const offs = [
+      core.on('workflow.progress', (p) => {
+        if (p.channel !== channel || p.video !== video) return;
+        setStepProg((cur) => {
+          const next = { ...cur };
+          if (p.done === null || p.total === null) delete next[p.step_id];
+          else
+            next[p.step_id] = {
+              done: p.done,
+              total: p.total,
+              ...(p.message ? { message: p.message } : {}),
+            };
+          return next;
+        });
+      }),
+      core.on('chat.event', (e) => {
+        if (e.channel !== channel || (e.video ?? undefined) !== video) return;
+        if (e.type === 'tool_call')
+          setActivity(activityLabel({ kind: 'tool', name: e.name, input: e.input }));
+        else if (e.type === 'text_delta') setActivity(activityLabel({ kind: 'writing' }));
+        else if (e.type === 'done' || e.type === 'error') setActivity(undefined);
+      }),
+    ];
+    return () => offs.forEach((o) => o());
+  }, [channel, video]);
+  const anyRunning = state?.steps.some((s) => s.status === 'running');
+  useEffect(() => {
+    if (!anyRunning) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [anyRunning]);
 
   // theo dõi kết quả thao tác qua mỗi lần trạng thái đổi
   useEffect(() => {
@@ -223,9 +284,23 @@ export function ProgressTab({
   const ov = overall(state.steps);
   const wfTitle = workflows.find((w) => w.id === state.workflow?.id)?.title ?? state.workflow?.id;
   const last = state.steps.at(-1);
-  const jobText =
-    job &&
-    `${toolLabel(job.kind.replace(/\./g, '_'))}${job.progress.total ? ` ${job.progress.done}/${job.progress.total}` : ''}${job.progress.message ? ` · ${job.progress.message}` : ''}`;
+  /** Thanh tiến trình của bước đang chạy: tiến độ engine → job → việc agent đang làm. */
+  const viewOf = (id: string) =>
+    stepProgressView({
+      progress:
+        stepProg[id] ??
+        (job
+          ? {
+              done: job.progress.done,
+              total: job.progress.total,
+              message: toolLabel(job.kind.replace(/\./g, '_')),
+            }
+          : undefined),
+      ...(activity ? { activity } : {}),
+      ...(startedAt[id] ? { startedAt: startedAt[id] } : {}),
+      now,
+    });
+  const runView = ov.state.kind === 'running' ? viewOf(ov.state.step.id) : undefined;
   const head =
     ov.state.kind === 'running'
       ? `Đang chạy: ${ov.state.step.title}`
@@ -262,7 +337,7 @@ export function ProgressTab({
         <div className={`progress-now ${ov.state.kind}`} data-testid="progress-now">
           <span className="now-text">
             {ov.state.kind === 'running' && <span className="spinner" />} {head}
-            {ov.state.kind === 'running' && jobText && <span className="muted"> · {jobText}</span>}
+            {runView && <span className="muted"> · {runView.text}</span>}
           </span>
           {ov.state.kind === 'running' ? (
             <button
@@ -326,8 +401,32 @@ export function ProgressTab({
                       {s.refine.incomplete ? ' · chưa đủ vòng' : ''}
                     </span>
                   )}
-                  {s.status === 'running' && jobText && <span className="muted"> · {jobText}</span>}
                 </div>
+                {s.status === 'running' &&
+                  (() => {
+                    const v = viewOf(s.id);
+                    return (
+                      <div className="step-progress" data-testid={`step-progress-${s.id}`}>
+                        <div
+                          className={`sp-bar${v.pct === null ? ' indeterminate' : ''}`}
+                          role="progressbar"
+                          aria-label={`Tiến độ ${s.title}`}
+                          {...(v.pct !== null
+                            ? { 'aria-valuenow': v.pct, 'aria-valuemin': 0, 'aria-valuemax': 100 }
+                            : {})}
+                        >
+                          <div style={v.pct !== null ? { width: `${v.pct}%` } : undefined} />
+                        </div>
+                        <div className="sp-meta">
+                          <span className="sp-text">{v.text}</span>
+                          <span className="muted sp-time">
+                            {v.pct !== null ? `${v.pct}%` : ''}
+                            {v.elapsed ? `${v.pct !== null ? ' · ' : ''}${v.elapsed}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 {err && (
                   <div className="step-error" title={err}>
                     {friendlyStepError(err)}

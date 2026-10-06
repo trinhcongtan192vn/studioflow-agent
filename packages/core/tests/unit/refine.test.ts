@@ -1,6 +1,6 @@
 // 009 · US1, US4 · FR-007 — thuật toán refine-loop (D6 4.1) với producer/critic giả (hàm thuần).
 import { describe, expect, it } from 'vitest';
-import { runRefine, validateValue, type RefineDeps } from '../../src/index.js';
+import { refineProgress, runRefine, validateValue, type RefineDeps } from '../../src/index.js';
 
 type Review = Awaited<ReturnType<RefineDeps['review']>>;
 const review = (score: number, issues: Review['issues'] = []): Review => ({
@@ -98,5 +98,33 @@ describe('runRefine (009 US1)', () => {
       created_at: '2026-10-03T00:00:00Z',
     };
     expect(validateValue('ReviewRound', doc)).toEqual([]);
+  });
+});
+
+describe('refine progress (008 UI-04)', () => {
+  it('reports each phase with round, max and the previous score', async () => {
+    const phases: string[] = [];
+    await runRefine(
+      deps([6, 9], {
+        onPhase: (p) =>
+          phases.push(
+            `${p.phase}:${p.round}/${p.max}${p.lastScore !== undefined ? `@${p.lastScore}` : ''}`,
+          ),
+      }),
+    );
+    expect(phases).toEqual(['produce:1/3', 'review:1/3', 'revise:2/3@6', 'review:2/3@6']);
+  });
+  it('maps phases to a determinate progress with a readable message', () => {
+    expect(refineProgress({ phase: 'produce', round: 1, max: 3 })).toEqual({
+      done: 0,
+      total: 6,
+      message: 'Vòng 1/3: đang viết bản nháp',
+    });
+    expect(refineProgress({ phase: 'review', round: 2, max: 3, lastScore: 6.4 })).toEqual({
+      done: 3,
+      total: 6,
+      message: 'Vòng 2/3: đang chấm điểm (vòng trước 6.4/10)',
+    });
+    expect(refineProgress({ phase: 'revise', round: 3, max: 3, lastScore: 7.1 }).done).toBe(4);
   });
 });

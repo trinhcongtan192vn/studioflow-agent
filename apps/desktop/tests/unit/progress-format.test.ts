@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   feedbackFor,
   overall,
+  progressLabel,
   stepButtons,
+  stepProgressView,
   type StepView,
 } from '../../src/renderer/progress-format';
 
@@ -75,5 +77,41 @@ describe('stepButtons', () => {
     expect(stepButtons(st[2]!, st).map((b) => b.action.kind)).toEqual(['run_step', 'rewind']);
     expect(stepButtons(st[0]!, st)[0]!.confirm).toContain('1 bước đã xong phía sau');
     expect(stepButtons({ id: 'r', title: 'R', status: 'running' }, st)).toEqual([]);
+  });
+});
+
+describe('step progress bar (008 UI-04)', () => {
+  const now = Date.parse('2026-10-06T00:02:05Z');
+  it('refine phases show a determinate bar with the phase text and elapsed time', () => {
+    expect(
+      stepProgressView({
+        progress: { done: 3, total: 6, message: 'Vòng 2/3: đang chấm điểm (vòng trước 6.4/10)' },
+        startedAt: '2026-10-06T00:00:00Z',
+        now,
+      }),
+    ).toEqual({ pct: 50, text: 'Vòng 2/3: đang chấm điểm (vòng trước 6.4/10)', elapsed: '2:05' });
+  });
+  it('graph node keys become Vietnamese labels with counts', () => {
+    expect(
+      stepProgressView({ progress: { done: 4, total: 38, message: 'audio.line:ln_x' }, now }),
+    ).toMatchObject({ pct: 11, text: 'Sinh giọng từng câu (4/38)' });
+    expect(progressLabel('frame_html:fr_1')).toBe('Dựng frame');
+  });
+  it('agent steps without numbers are indeterminate and show the latest agent action', () => {
+    expect(stepProgressView({ activity: 'Sinh ảnh: chân dung Tí', now })).toEqual({
+      pct: null,
+      text: 'Sinh ảnh: chân dung Tí',
+    });
+  });
+});
+
+describe('job progress text', () => {
+  it('adds counts to a plain job label', () => {
+    expect(
+      stepProgressView({ progress: { done: 4, total: 15, message: 'Sinh ảnh' }, now: 0 }).text,
+    ).toBe('Sinh ảnh (4/15)');
+    expect(
+      stepProgressView({ progress: { done: 2, total: 5, message: 'Dựng frame 2/5' }, now: 0 }).text,
+    ).toBe('Dựng frame 2/5');
   });
 });

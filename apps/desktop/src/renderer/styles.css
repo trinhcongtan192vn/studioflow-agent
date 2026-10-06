@@ -990,3 +990,57 @@ body.resizing iframe {
 .autopilot input {
   accent-color: var(--accent);
 }
+
+/* 008 UI-04: thanh tiến trình của bước đang chạy */
+.step-progress {
+  margin-top: 4px;
+}
+.sp-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+  position: relative;
+}
+.sp-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s;
+}
+.sp-bar.indeterminate > div {
+  position: absolute;
+  width: 35%;
+  animation: sf-indet 1.4s ease-in-out infinite;
+}
+@keyframes sf-indet {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-bar.indeterminate > div {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+.sp-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.sp-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}

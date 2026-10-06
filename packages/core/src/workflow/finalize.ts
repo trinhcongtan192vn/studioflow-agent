@@ -24,7 +24,11 @@ export function captionsExecutor(builders: BuilderRegistry) {
       store: ctx.store,
       appDataDir: ctx.appDataDir,
       builders,
-    }).build(ctx.videoId, { targets: ['captions'], signal: ctx.signal });
+    }).build(ctx.videoId, {
+      targets: ['captions'],
+      signal: ctx.signal,
+      ...(ctx.progress ? { progress: ctx.progress } : {}),
+    });
     if (r.status !== 'succeeded')
       throw new SfError('E_PROVIDER_FAILED', `captions: ${failedNodes(r) || r.status}`);
     return { outputs: ['caption_groups.json'] };
@@ -39,7 +43,10 @@ export function finalizeExecutor(builders: BuilderRegistry) {
   return async (ctx: StepRunContext): Promise<{ outputs: string[]; summary: string }> => {
     const v = `videos/${ctx.videoId}`;
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
-    const r = await graph.build(ctx.videoId, { signal: ctx.signal });
+    const r = await graph.build(ctx.videoId, {
+      signal: ctx.signal,
+      ...(ctx.progress ? { progress: ctx.progress } : {}),
+    });
     if (r.status !== 'succeeded')
       throw new SfError('E_GATE_FAILED', `build: ${failedNodes(r) || r.status}`);
     const videoDir = ctx.store.abs(v);
@@ -95,7 +102,10 @@ export function finalizeExecutor(builders: BuilderRegistry) {
       { store: ctx.store, builders, appDataDir: ctx.appDataDir },
       ctx.videoId,
       { mode: 'draft', step_id: ctx.step.id },
-      { ...(ctx.signal ? { signal: ctx.signal } : {}) },
+      {
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
+        ...(ctx.progress ? { progress: ctx.progress } : {}),
+      },
     );
     const dur = audioDurationCheck(ctx.store, ctx.videoId, ctx.appDataDir, 'timeline');
     const warn = draft.gate_results

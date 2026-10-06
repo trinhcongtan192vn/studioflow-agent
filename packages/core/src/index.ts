@@ -167,7 +167,14 @@ export {
   registerTextObjectives,
   type ObjectiveResult,
 } from './text/objectives.js';
-export { runRefine, refineSummary, type RefineDeps, type RefineResult } from './text/refine.js';
+export {
+  runRefine,
+  refineSummary,
+  refineProgress,
+  type RefineDeps,
+  type RefinePhase,
+  type RefineResult,
+} from './text/refine.js';
 export { scriptExecutor, publishMetaExecutor, stripWrapping } from './text/executors.js';
 export {
   alignWords,

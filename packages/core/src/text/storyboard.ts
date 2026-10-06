@@ -11,7 +11,7 @@ import type { PermissionBus } from '../gateway/permission.js';
 import type { StepRunContext } from '../workflow/engine.js';
 import { budgetGuard, finish, refinePlan, stepEnv, type TextStepResult } from './executors.js';
 import type { ObjectiveResult } from './objectives.js';
-import { runRefine, type Issue } from './refine.js';
+import { refineProgress, runRefine, type Issue } from './refine.js';
 import type { TextService } from './service.js';
 
 export interface StoryboardDeps {
@@ -129,6 +129,10 @@ export function storyboardExecutor(d: StoryboardDeps) {
     const perRound = Math.ceil((existsLen(ctx) + 4000) / 3) * 2;
     const canSpend = await budgetGuard(env, perRound, plan.min, d.permissions);
     const r = await runRefine({
+      onPhase: (p) => {
+        const pr = refineProgress(p);
+        ctx.progress?.(pr.done, pr.total, pr.message);
+      },
       min: plan.min,
       max: plan.max,
       threshold: plan.threshold,

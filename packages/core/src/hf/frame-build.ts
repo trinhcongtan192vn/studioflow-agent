@@ -116,6 +116,10 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           ],
           signal: ctx.signal,
         });
+    // 008 UI-04: tiến độ theo số frame đã dựng
+    let builtCount = 0;
+    const frameProgress = (total: number) =>
+      ctx.progress?.(builtCount, total, `Dựng frame ${builtCount}/${total}`);
     if (pre.status !== 'succeeded') {
       const bad = Object.entries(pre.nodes)
         .filter(([, n]) => n.status === 'failed')
@@ -260,9 +264,12 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         by: 'frame-build',
         validate: false,
       });
+    frameProgress(todo.length);
     await pool(todo, parallel, async ([id, p]) => {
       const err = await buildOne(id, p);
       if (err) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
+      builtCount++;
+      frameProgress(todo.length);
     });
     saveState();
     if (failures.length)

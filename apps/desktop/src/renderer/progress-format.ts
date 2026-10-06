@@ -185,3 +185,61 @@ export function stepButtons(s: StepView, steps: readonly StepView[]): StepButton
       return [];
   }
 }
+
+/** Nút build graph / chặng render → tên việc tiếng Việt. */
+const NODE_LABEL: [RegExp, string][] = [
+  [/^audio\.line\b/, 'Sinh giọng từng câu'],
+  [/^asr\.line\b/, 'Kiểm đọc sai'],
+  [/^audio_meta\b/, 'Tổng hợp audio'],
+  [/^captions\b/, 'Dựng phụ đề'],
+  [/^asset\b/, 'Chuẩn bị ảnh'],
+  [/^frame_timing\b/, 'Canh thời gian frame'],
+  [/^frame_html\b/, 'Dựng frame'],
+  [/^lipsync\.line\b/, 'Tính khẩu hình'],
+  [/^index\b/, 'Lắp video'],
+  [/^credits\b/, 'Ghi nguồn'],
+  [/^render\b/, 'Render'],
+  [/^gates$/, 'Kiểm tra trước render'],
+  [/^build graph$/, 'Dựng các phần'],
+];
+
+export function progressLabel(message?: string): string | undefined {
+  if (!message) return undefined;
+  for (const [re, label] of NODE_LABEL) if (re.test(message)) return label;
+  return message;
+}
+
+export interface StepProgressView {
+  /** 0–100; `null` = không xác định (thanh chạy liên tục). */
+  pct: number | null;
+  text: string;
+  elapsed?: string;
+}
+
+/** Thanh tiến trình của bước đang chạy: tiến độ bước, hoặc việc agent đang làm, + thời gian đã chạy. */
+export function stepProgressView(o: {
+  progress?: { done: number; total: number; message?: string };
+  activity?: string;
+  startedAt?: string;
+  now: number;
+}): StepProgressView {
+  const p = o.progress;
+  const pct =
+    p && p.total > 0 ? Math.max(0, Math.min(100, Math.round((p.done / p.total) * 100))) : null;
+  const label = progressLabel(p?.message);
+  // thêm "(x/y)" khi nhãn chưa tự mang số đếm (vòng refine, "Dựng frame 3/5" đã có)
+  const counted =
+    p && p.total > 0 && label && !/\d+\/\d+/.test(label)
+      ? `${label} (${p.done}/${p.total})`
+      : label;
+  const text = counted ?? o.activity ?? 'Đang xử lý';
+  let elapsed: string | undefined;
+  if (o.startedAt) {
+    const s = Math.max(0, Math.floor((o.now - Date.parse(o.startedAt)) / 1000));
+    elapsed =
+      s >= 3600
+        ? `${Math.floor(s / 3600)} giờ ${Math.floor((s % 3600) / 60)} phút`
+        : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+  return { pct, text, ...(elapsed ? { elapsed } : {}) };
+}

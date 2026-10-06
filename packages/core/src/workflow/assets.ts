@@ -59,7 +59,11 @@ export function assetsExecutor(builders: BuilderRegistry) {
   return async (ctx: StepRunContext): Promise<{ outputs: string[]; summary?: string }> => {
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
     if (builders.active('asset')) {
-      const r = await graph.build(ctx.videoId, { targets: ['asset'], signal: ctx.signal });
+      const r = await graph.build(ctx.videoId, {
+        targets: ['asset'],
+        signal: ctx.signal,
+        ...(ctx.progress ? { progress: ctx.progress } : {}),
+      });
       const failed = Object.entries(r.nodes).filter(([, n]) => n.status === 'failed');
       if (failed.length)
         throw new SfError(
@@ -81,7 +85,11 @@ export function assetsExecutor(builders: BuilderRegistry) {
           `Layer còn thiếu asset: ${rest.map((n) => `${n.frame}/${n.layer} (${n.why})`).join('; ')}.`,
         )) ?? [];
       if (builders.active('asset'))
-        await graph.build(ctx.videoId, { targets: ['asset'], signal: ctx.signal });
+        await graph.build(ctx.videoId, {
+          targets: ['asset'],
+          signal: ctx.signal,
+          ...(ctx.progress ? { progress: ctx.progress } : {}),
+        });
     }
     return {
       outputs,

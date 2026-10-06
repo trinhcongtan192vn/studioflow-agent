@@ -157,8 +157,16 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
     const r = builders.active('asr.line')
       ? await alignVideo({ store: ctx.store, builders, appDataDir: ctx.appDataDir }, ctx.videoId, {
           signal: ctx.signal,
+          ...(ctx.progress ? { progress: ctx.progress } : {}),
         })
-      : { ...(await graph.build(ctx.videoId, { targets, signal: ctx.signal })), mismatched: [] };
+      : {
+          ...(await graph.build(ctx.videoId, {
+            targets,
+            signal: ctx.signal,
+            ...(ctx.progress ? { progress: ctx.progress } : {}),
+          })),
+          mismatched: [],
+        };
     if (r.status !== 'succeeded') {
       const bad = Object.entries(r.nodes).filter(([, n]) => n.status === 'failed');
       throw new SfError(

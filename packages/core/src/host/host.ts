@@ -137,6 +137,10 @@ export class CoreHost extends EventEmitter {
         this.send('workflow.updated', { ...summary, channel });
         this.announceApprovals(channel, video, e);
       });
+      // 008 UI-04: tiến độ bước đang chạy (không lưu file)
+      e.on('workflow.progress', (p: Omit<IpcEvents['workflow.progress'], 'channel' | 'video'>) =>
+        this.send('workflow.progress', { ...p, channel, video }),
+      );
     }
     return e;
   }
@@ -646,6 +650,8 @@ export class CoreHost extends EventEmitter {
         );
         return { value: r.value, source: r.source };
       }
+      case 'workflow.progress':
+        return { steps: this.engine(p.channel, p.video).progress() };
       case 'workflow.set_autopilot': {
         setConfig(this.store(p.channel), 'workflow.autopilot', p.on === true, {
           tier: 'video',

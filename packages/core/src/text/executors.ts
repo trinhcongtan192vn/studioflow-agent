@@ -14,7 +14,13 @@ import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { assertDifferentModels, type ModelRef } from './models.js';
 import { checkMeta, checkScript, objectiveContext, type ObjectiveResult } from './objectives.js';
 import { buildPrompt, loadPromptPack, type PromptVars } from './prompts.js';
-import { refineSummary, runRefine, type Issue, type RefineResult } from './refine.js';
+import {
+  refineProgress,
+  refineSummary,
+  runRefine,
+  type Issue,
+  type RefineResult,
+} from './refine.js';
 import { loadRubric, rubricShort } from './rubrics.js';
 import { extractJson, type CallScope, type TextService } from './service.js';
 
@@ -297,6 +303,10 @@ async function refineText(
     return { draft, rounds: [], final_score: 0, incomplete: false };
   }
   return runRefine({
+    onPhase: (p) => {
+      const r = refineProgress(p);
+      env.ctx.progress?.(r.done, r.total, r.message);
+    },
     min: plan.min,
     max: plan.max,
     threshold: plan.threshold,

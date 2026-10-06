@@ -174,6 +174,11 @@ export interface IpcMethods {
     params: ChannelRef & { video?: string; key: string };
     result: { value: unknown; source: string };
   };
+  /** Tiến độ hiện tại của các bước đang chạy (008 UI-04). */
+  'workflow.progress': {
+    params: VideoRef;
+    result: { steps: Record<string, { done: number; total: number; message?: string }> };
+  };
   /** Bật/tắt chế độ tự động cho video (034, ghi `state.json.config_overrides` qua module ghi). */
   'workflow.set_autopilot': { params: VideoRef & { on: boolean }; result: { on: boolean } };
 }
@@ -183,6 +188,15 @@ export interface IpcEvents {
   'chat.event': AgentEvent & { session_id: string; channel: string; video?: string };
   'job.updated': JobInfo;
   'workflow.updated': VideoStateSummary & { channel: string };
+  /** Tiến độ bước đang chạy (008 UI-04); `done`/`total` null = bước đã kết thúc. */
+  'workflow.progress': {
+    channel: string;
+    video: string;
+    step_id: string;
+    done: number | null;
+    total: number | null;
+    message?: string;
+  };
   'approval.requested': {
     channel: string;
     video: string;

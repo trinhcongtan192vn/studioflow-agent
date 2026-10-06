@@ -41,6 +41,14 @@ export interface StepRunContext {
   waitComplete?: () => Promise<string[]>;
   /** Chỉ dẫn giao bước như bước agent; `extra` nối vào trước lời nhắc báo xong. */
   instruction?: (extra?: string) => string;
+  /** Báo tiến độ bước (008 UI-04): engine phát `workflow.progress`; `total` 0 = không xác định. */
+  progress?: (done: number, total: number, message?: string) => void;
+}
+
+export interface StepProgress {
+  done: number;
+  total: number;
+  message?: string;
 }
 
 export interface FrameCompletion {
@@ -91,6 +99,22 @@ export class WorkflowEngine extends EventEmitter {
   private target?: string;
   private running?: Promise<void>;
   private readonly completions = new Map<string, (outputs: string[]) => void>();
+  /** Tiến độ mới nhất của bước đang chạy (không lưu file; giao diện mở sau vẫn đọc được). */
+  private readonly progressNow = new Map<string, StepProgress>();
+
+  /** Tiến độ các bước đang chạy của video (008 UI-04). */
+  progress(): Record<string, StepProgress> {
+    return Object.fromEntries(this.progressNow);
+  }
+
+  private setProgress(stepId: string, p: StepProgress | null): void {
+    if (p) this.progressNow.set(stepId, p);
+    else if (!this.progressNow.delete(stepId)) return;
+    this.emit(
+      'workflow.progress',
+      p ? { step_id: stepId, ...p } : { step_id: stepId, done: null, total: null },
+    );
+  }
   private readonly frameWaiters = new Map<string, (r: FrameCompletion) => void>();
 
   constructor(private readonly d: EngineDeps) {
@@ -462,7 +486,7 @@ export class WorkflowEngine extends EventEmitter {
         'sf.step_id': decl.id,
         'sf.attempt': (st.steps[decl.id]?.attempt ?? 0) + 1,
       },
-      () => this.runStepInner(decl),
+      () => this.runStepInner(decl).finally(() => this.setProgress(decl.id, null)),
     );
   }
 
@@ -498,6 +522,8 @@ export class WorkflowEngine extends EventEmitter {
       appDataDir: this.d.appDataDir,
       ...(this.pack(st0)?.dir ? { packDir: this.pack(st0)!.dir } : {}),
       waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
+      progress: (done, total, message) =>
+        this.setProgress(decl.id, { done, total, ...(message ? { message } : {}) }),
     };
     ctx.agent = (more) => this.runAgent(decl, ctx, manifest, more);
     ctx.instruction = (more) => this.instructionFor(decl, ctx, manifest, more);

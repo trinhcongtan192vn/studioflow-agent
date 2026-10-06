@@ -74,7 +74,11 @@ export function animaticExecutor(builders: BuilderRegistry) {
   return async (ctx: StepRunContext): Promise<{ outputs: string[]; summary: string }> => {
     const v = `videos/${ctx.videoId}`;
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
-    const b = await graph.build(ctx.videoId, { targets: ['frame_timing'], signal: ctx.signal });
+    const b = await graph.build(ctx.videoId, {
+      targets: ['frame_timing'],
+      signal: ctx.signal,
+      ...(ctx.progress ? { progress: ctx.progress } : {}),
+    });
     if (b.status !== 'succeeded')
       throw new SfError('E_STEP_INCOMPLETE', 'animatic needs voice audio and frame timing first');
     const timing = timingOf(ctx.store, ctx.videoId);

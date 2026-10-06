@@ -57,7 +57,11 @@ export function lipsyncExecutor(builders: BuilderRegistry): StepExecutor {
     const targets = [...lipsyncLines(model).keys()].map((ln) => `lipsync.line:${ln}`);
     if (!targets.length) return { outputs: [], summary: 'Không có shot nào bật khẩu hình.' };
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
-    const r = await graph.build(ctx.videoId, { targets, signal: ctx.signal });
+    const r = await graph.build(ctx.videoId, {
+      targets,
+      signal: ctx.signal,
+      ...(ctx.progress ? { progress: ctx.progress } : {}),
+    });
     if (r.status !== 'succeeded')
       throw new SfError('E_PROVIDER_FAILED', `lipsync build: ${r.status}`);
     return {

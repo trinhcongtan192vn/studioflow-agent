@@ -18,6 +18,32 @@ export interface RefineDeps {
   canSpend(): boolean;
   /** Chuẩn hóa nháp (ví dụ gán ID line) trước khi kiểm/chấm; mặc định giữ nguyên. */
   normalize?(draft: string): string;
+  /** Báo giai đoạn đang làm (tiến độ bước, 008 UI-04). */
+  onPhase?(p: RefinePhase): void;
+}
+
+export interface RefinePhase {
+  phase: 'produce' | 'review' | 'revise';
+  round: number;
+  max: number;
+  /** Điểm của vòng trước (khi đã có). */
+  lastScore?: number;
+}
+
+const PHASE_TEXT: Record<RefinePhase['phase'], string> = {
+  produce: 'đang viết bản nháp',
+  review: 'đang chấm điểm',
+  revise: 'đang sửa theo góp ý',
+};
+
+/** Giai đoạn refine → tiến độ xác định: viết (0), chấm vòng r (2r−1), sửa trước vòng r (2r−2); tổng 2·max. */
+export function refineProgress(p: RefinePhase): { done: number; total: number; message: string } {
+  const done = p.phase === 'produce' ? 0 : p.phase === 'review' ? 2 * p.round - 1 : 2 * p.round - 2;
+  return {
+    done,
+    total: 2 * p.max,
+    message: `Vòng ${p.round}/${p.max}: ${PHASE_TEXT[p.phase]}${p.lastScore !== undefined ? ` (vòng trước ${p.lastScore}/10)` : ''}`,
+  };
 }
 
 export interface RoundRecord {
@@ -48,11 +74,19 @@ export async function runRefine(d: RefineDeps): Promise<RefineResult> {
   if (!d.canSpend())
     throw new SfError('E_BUDGET_EXCEEDED', 'video budget cannot cover a refine round');
   const rounds: RoundRecord[] = [];
+  d.onPhase?.({ phase: 'produce', round: 1, max: d.max });
   let gen = await d.produce();
   let draft = norm(gen.text);
   let incomplete = false;
   let prior: Issue[] = [];
   for (let r = 1; r <= d.max; r++) {
+    const lastScore = rounds.at(-1)?.score;
+    d.onPhase?.({
+      phase: 'review',
+      round: r,
+      max: d.max,
+      ...(lastScore !== undefined ? { lastScore } : {}),
+    });
     const { checks, review } = await withSpan(
       'sf.refine.round',
       { 'sf.round': r },
@@ -105,6 +139,7 @@ export async function runRefine(d: RefineDeps): Promise<RefineResult> {
         text: `Kiểm ${c.id} không qua: ${c.detail ?? ''}`.trim(),
       })),
     ];
+    d.onPhase?.({ phase: 'revise', round: r + 1, max: d.max, lastScore: review.score });
     gen = await d.revise(draft, prior);
     draft = norm(gen.text);
   }
