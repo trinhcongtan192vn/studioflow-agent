@@ -59,3 +59,16 @@ describe('evaluateGate never throws (036)', () => {
     expect(r).toMatchObject({ pass: false, detail: expect.stringContaining('unexpected marker') });
   });
 });
+
+describe('unknown sf markers from the producer (042)', () => {
+  it('become plain comments (hint kept, script parses)', () => {
+    const out = stripWrapping(
+      '## Mở <!-- sf:beat id=bt_4nd8w1zc -->\n\n<!-- sf:visual text="Nền trời tối dần, đĩa đen xuất hiện." -->\n<!-- sf:line id=ln_2r7c4kxm speaker=narrator -->\nChào.\n',
+    );
+    expect(out).toContain('<!-- visual: Nền trời tối dần, đĩa đen xuất hiện. -->');
+    expect(out).toContain('<!-- sf:beat id=bt_4nd8w1zc -->');
+    expect(out).toContain('<!-- sf:line id=ln_2r7c4kxm speaker=narrator -->');
+    const doc = `---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: draft\n---\n${out}`;
+    expect(checkScript(doc, octx).find((r) => r.id === 'schema')).toMatchObject({ pass: true });
+  });
+});
