@@ -72,3 +72,16 @@ it('a step interrupted with its outputs on disk becomes failed (recheck or run a
   await expect(fresh.recheck('script')).resolves.toMatchObject({ pass: true });
   expect(status(fx).script).toBe('waiting_approval');
 });
+
+it('running a failed step again actually re-runs it (run_step on the failed target)', async () => {
+  fx = workflowFixture();
+  const { notes } = wireDemo(fx, { badScript: true });
+  const e = fx.core.workflows.engine(fx.dir, fx.videoId);
+  await e.select('demo-explainer', 'yt-1080p30');
+  await e.approve(e.summary().pending_approvals[0]!);
+  await e.advance();
+  expect(status(fx).script).toBe('failed');
+  const before = notes.length;
+  await e.runTo('script');
+  expect(notes.length).toBe(before + 1);
+});

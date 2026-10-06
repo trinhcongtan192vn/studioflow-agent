@@ -372,6 +372,16 @@ export class WorkflowEngine extends EventEmitter {
       );
     this.paused = false;
     this.target = stepId;
+    // 037: chạy lại chính bước đang lỗi → đưa về pending (vòng điều phối dừng ở bước `failed`)
+    if (st.steps[stepId]?.status === 'failed')
+      return this.exclusive(() => {
+        const cur = this.readState();
+        const s = cur.steps[stepId];
+        if (s?.status === 'failed') {
+          s.status = 'pending';
+          this.writeState(cur);
+        }
+      }).then(() => this.advance());
     return this.advance();
   }
 
