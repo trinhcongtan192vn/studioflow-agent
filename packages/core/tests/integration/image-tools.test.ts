@@ -126,6 +126,10 @@ describe('image tools (018)', () => {
     expect(e.data.status).toBe('succeeded');
     expect(e.data.result.asset_id).not.toBe(t.data.result.asset_id);
     expect(readFileSync(store.abs(t.data.result.file)).equals(srcBefore)).toBe(true);
+    // 038: sửa ảnh nguồn trong suốt → kết quả được tách nền lại (model sửa trên nền RGB ẩn → ảnh đặc, nền tím)
+    const edited = manifest().assets.find((x) => x.id === e.data.result.asset_id)!;
+    expect(edited.alpha).toBe(true);
+    expect((edited as { description?: string }).description).toContain('(no background)');
     const bad = await run('image.edit', { source_asset_id: 'as_zzzzzzzz', instruction: 'x' });
     expect(bad).toMatchObject({ ok: false, error: { code: 'E_ID_UNKNOWN' } });
   });
