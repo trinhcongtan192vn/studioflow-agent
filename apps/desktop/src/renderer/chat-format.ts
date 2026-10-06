@@ -224,6 +224,8 @@ export type StepCta =
   | { kind: 'file'; label: string; path: string }
   | { kind: 'tab'; label: string; tab: string }
   | { kind: 'retry'; label: string; step: string }
+  /** 036: kiểm gate lại trên file đã sửa, không sinh lại. */
+  | { kind: 'recheck'; label: string; step: string }
   /** Chọn file giọng mẫu rồi soạn sẵn lời nhờ agent tạo giọng (FR-VO-01). */
   | { kind: 'voice'; label: string; step: string; prompt: string }
   /** Gửi ngay một lời nhờ agent (ví dụ gợi ý giọng khi chưa có file mẫu, 033). */
@@ -286,6 +288,9 @@ export function stepCtas(
         },
         retry,
       ];
+    // lỗi gate (file sai) → có thể sửa file rồi kiểm tra lại thay vì sinh lại
+    if (error && /E_GATE_FAILED|gate|objective|artifact_valid|speakers_voiced/i.test(error))
+      return [{ kind: 'recheck', label: 'Kiểm tra lại', step: step.id }, retry];
     return [retry];
   }
   const out: StepCta[] = [];

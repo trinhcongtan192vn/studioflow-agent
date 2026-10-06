@@ -234,7 +234,33 @@ export function Chat({
     if (c.kind === 'file') onOpenFile?.(c.path);
     else if (c.kind === 'tab') onOpenTab?.(c.tab);
     else if (c.kind === 'say') void send(c.text);
-    else if (c.kind === 'voice') {
+    else if (c.kind === 'recheck' && video) {
+      try {
+        const r = await core.call('workflow.recheck', { channel, video, step_id: c.step });
+        const text = r.pass
+          ? 'Kiểm tra lại: đạt — dùng file hiện có, workflow chạy tiếp.'
+          : `Kiểm tra lại chưa đạt: ${r.results
+              .filter((x) => !x.pass)
+              .map((x) => friendlyStepError(`${x.target}: ${x.detail ?? 'không đạt'}`))
+              .join('; ')}`;
+        setItems((s) =>
+          s
+            .map((x, k) =>
+              k === i && r.pass
+                ? { ...(x as Item & { type: 'step' }), done: 'Đã kiểm tra lại: đạt' }
+                : x,
+            )
+            .concat(
+              r.pass ? [] : [{ type: 'line', line: { ts: '', role: 'system', content: text } }],
+            ),
+        );
+      } catch (e) {
+        setItems((s) => [
+          ...s,
+          { type: 'line', line: { ts: '', role: 'system', content: (e as Error).message } },
+        ]);
+      }
+    } else if (c.kind === 'voice') {
       // FR-VO-01: chọn file mẫu → đính kèm + soạn sẵn lời nhờ agent; người dùng bấm Gửi
       if (await attach()) setDraft(c.prompt);
     } else if (video) {

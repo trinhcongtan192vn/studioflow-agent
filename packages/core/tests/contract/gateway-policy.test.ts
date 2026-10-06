@@ -20,6 +20,7 @@ const D5: [string, string[]][] = [
   ['workflow.rewind', ['main']],
   ['workflow.state', ['main']],
   ['workflow.gate_check', ['main']],
+  ['workflow.recheck', ['main']],
   ['approval.annotate', ['main']],
   ['workflow.step_complete', ['main', 'frame', 'producer']],
   ['asset.import', ['main']],

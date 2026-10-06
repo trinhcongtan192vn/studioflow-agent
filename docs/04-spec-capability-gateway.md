@@ -72,6 +72,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `workflow.run_to` / `workflow.pause` / `workflow.rewind` | `step_id` / — / `step_id` | `{}` | Điều khiển engine theo lệnh chat (D6 mục 3.2) |
 | `workflow.step_complete` | `step_id, frame_id?, outputs[], new_element_ids?` | `{next_step?}` | Agent báo xong bước agent-thực-hiện; bước `frame-build` xong khi mọi frame đã báo (D6) |
 | `workflow.gate_check` | `step_id` | `{pass, results[]}` | |
+| `workflow.recheck` | `step_id` | `{pass, results[]}` | Bước lỗi đã được sửa file: kiểm gate lại trên file hiện có, không sinh lại; qua → điểm duyệt/xong, chạy tiếp (036) |
 | `approval.annotate` | `step_id, summary` | `{}` | Agent gắn tóm tắt cho thẻ duyệt do engine tạo (D6 mục 3.1) |
 | `studio.open` / `studio.commit` / `studio.close` | `mode: 'preview'\|'edit'` / `message?` / — | D9 | |
 | `job.status` / `job.wait` / `job.cancel` / `job.list` | `job_id`, `timeout_ms` | `JobInfo` | |

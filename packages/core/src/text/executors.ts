@@ -9,6 +9,7 @@ import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
 import { CORE_VERSION } from '../version.js';
 import type { StepRunContext } from '../workflow/engine.js';
+import { castSpeakers } from '../workflow/cast.js';
 import { beatDurations, timingOf } from '../workflow/duration.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { assertDifferentModels, type ModelRef } from './models.js';
@@ -56,6 +57,15 @@ export function stripWrapping(text: string): string {
     if (end > 0) t = t.slice(end + 4).trim();
   }
   // tiêu đề beat sai cấp (`#`, `###`…) → `##` theo D3 (lỗi định dạng thường gặp của producer)
+  // 036: marker beat viết trên dòng riêng (trước hoặc ngay sau tiêu đề) → gắn vào cuối tiêu đề
+  t = t.replace(
+    /^(<!--\s*sf:beat\b[^>]*-->)[ \t]*\n(#{1,6}[ \t]+[^\n]*?)[ \t]*$/gm,
+    (_m, mk: string, h: string) => `${h} ${mk}`,
+  );
+  t = t.replace(
+    /^(#{1,6}[ \t]+(?:(?!<!--)[^\n])*?)[ \t]*\n(<!--\s*sf:beat\b[^>]*-->)[ \t]*$/gm,
+    (_m, h: string, mk: string) => `${h} ${mk}`,
+  );
   t = t.replace(/^#{1,6}(\s+.*<!--\s*sf:beat\b)/gm, '##$1');
   return `${t}\n`;
 }
@@ -407,12 +417,11 @@ export function scriptExecutor(d: TextExecutorDeps) {
         return full;
       }
     };
-    const octx = objectiveContext(
-      ctx.channelDir,
-      ctx.videoId,
-      (rel) => env.read(rel),
-      ctx.appDataDir,
-    );
+    const octx = {
+      ...objectiveContext(ctx.channelDir, ctx.videoId, (rel) => env.read(rel), ctx.appDataDir),
+      // 036: kịch bản thoại chỉ dùng người nói có trong dàn nhân vật
+      ...(mode === 'screenplay' ? { speakers: castSpeakers(ctx.channelDir, ctx.videoId) } : {}),
+    };
     // 030: shorts cắt từ video dài — kịch bản nguồn (chỉ đọc) kèm chỉ dẫn giữ nguyên chữ line dùng lại
     const source = parseBlocksDoc(env.read(`${env.v}/BRIEF.md`)).front.source_video_id as
       string | null | undefined;

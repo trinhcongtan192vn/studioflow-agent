@@ -210,7 +210,23 @@ export function ProgressTab({
       else if (a.kind === 'pause') s = await core.call('workflow.pause', { channel, video });
       else if (a.kind === 'rewind')
         s = await core.call('workflow.rewind', { channel, video, step_id: a.step });
-      else
+      else if (a.kind === 'recheck') {
+        const r = await core.call('workflow.recheck', { channel, video, step_id: a.step });
+        onState(r.state);
+        if (!r.pass) {
+          setAction(undefined);
+          setFb({
+            tone: 'error',
+            text: `Kiểm tra lại chưa đạt: ${r.results
+              .filter((x) => !x.pass)
+              .map((x) => friendlyStepError(`${x.target}: ${x.detail ?? 'không đạt'}`))
+              .join('; ')}`,
+            settled: true,
+          });
+          return;
+        }
+        s = r.state;
+      } else
         s = await core.call(a.kind === 'run_step' ? 'workflow.run_step' : 'workflow.run_to', {
           channel,
           video,

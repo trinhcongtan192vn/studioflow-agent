@@ -56,6 +56,13 @@ export function workflowTools(svc: WorkflowService): ToolDefinition[] {
       handler: async (_i, ctx) => engine(ctx).summary(),
     },
     {
+      name: 'workflow.recheck',
+      description:
+        'Bước bị lỗi mà bạn đã sửa file (ví dụ SCRIPT.md) cho đúng: kiểm tra lại gate trên file hiện có, KHÔNG sinh lại. Qua → bước sang điểm duyệt/xong và workflow chạy tiếp. Dùng thay cho chạy lại bước (chạy lại sẽ viết đè file đã sửa).',
+      input: stepInput,
+      handler: async (i: { step_id: string }, ctx) => engine(ctx).recheck(i.step_id),
+    },
+    {
       name: 'workflow.run_to',
       description: 'Chạy liên tiếp tới hết bước đích (dừng ở điểm duyệt/lỗi).',
       input: stepInput,
