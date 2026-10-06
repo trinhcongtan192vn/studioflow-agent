@@ -502,6 +502,11 @@ export class CoreHost extends EventEmitter {
         const r = await e.recheck(String(p.step_id));
         return { ...r, state: e.summary() };
       }
+      case 'workflow.waive': {
+        const e = this.engine(p.channel, p.video);
+        const r = await e.waive(String(p.step_id), String(p.check));
+        return { ...r, state: e.summary() };
+      }
       case 'workflow.pause': {
         const e = this.engine(p.channel, p.video);
         e.pause();

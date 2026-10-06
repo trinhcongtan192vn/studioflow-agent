@@ -2,6 +2,7 @@
  * Tab Tiến độ (UI-04, FN-008 mục 3): trạng thái tổng, phản hồi sau mỗi thao tác (chạy tới / chạy lại /
  * quay lại / tạm dừng), nút theo ngữ cảnh từng bước. Hàm thuần.
  */
+import { isDurationWarning } from './chat-format';
 export interface StepView {
   id: string;
   title: string;
@@ -54,6 +55,8 @@ export type Action =
   | { kind: 'run_step'; step: string }
   /** 036: kiểm gate lại trên file đã sửa tay, không sinh lại. */
   | { kind: 'recheck'; step: string }
+  /** 043: bỏ qua cảnh báo kiểm mềm (audio_duration) rồi kiểm tra lại. */
+  | { kind: 'waive'; step: string; check: string }
   | { kind: 'rewind'; step: string }
   | { kind: 'pause' };
 
@@ -86,16 +89,18 @@ export function feedbackFor(
         }
       : { tone: 'success', text: 'Đã tạm dừng workflow.', settled: true };
   }
-  if (a.kind === 'recheck') {
+  if (a.kind === 'recheck' || a.kind === 'waive') {
     const f = feedbackFor({ kind: 'run_step', step: a.step }, steps, stepError);
     const t = title(steps, a.step);
+    const head =
+      a.kind === 'waive' ? `Đã bỏ qua cảnh báo ở bước "${t}"` : `Kiểm tra lại bước "${t}": đạt`;
     return {
       ...f,
       text: f.settled
         ? f.tone === 'success'
-          ? `Kiểm tra lại bước "${t}": đạt, dùng file hiện có.`
-          : `Kiểm tra lại bước "${t}": đạt. ${f.text}`
-        : `Kiểm tra lại bước "${t}": đạt, đang chạy tiếp…`,
+          ? `${head}, dùng file hiện có.`
+          : `${head}. ${f.text}`
+        : `${head}, đang chạy tiếp…`,
     };
   }
   if (a.kind === 'rewind') {
@@ -161,7 +166,12 @@ export interface StepButton {
 }
 
 /** Nút theo ngữ cảnh của một bước. */
-export function stepButtons(s: StepView, steps: readonly StepView[]): StepButton[] {
+export function stepButtons(
+  s: StepView,
+  steps: readonly StepView[],
+  /** Lỗi của bước (state.json) — cảnh báo thời lượng có nút bỏ qua (043). */
+  error?: string,
+): StepButton[] {
   const later = steps.slice(steps.indexOf(s) + 1).filter((x) => x.status === 'done').length;
   const rewind: StepButton = {
     action: { kind: 'rewind', step: s.id },
@@ -182,13 +192,24 @@ export function stepButtons(s: StepView, steps: readonly StepView[]): StepButton
           primary: s.status === 'stale',
         },
       ];
-    case 'failed':
+    case 'failed': {
+      const warn = error !== undefined && isDurationWarning(error);
       return [
+        ...(warn
+          ? [
+              {
+                action: { kind: 'waive', step: s.id, check: 'audio_duration' } as Action,
+                label: 'Bỏ qua cảnh báo',
+                title: 'Giữ thời lượng hiện tại và chạy tiếp (không sinh lại)',
+                primary: true,
+              },
+            ]
+          : []),
         {
           action: { kind: 'recheck', step: s.id },
           label: 'Kiểm tra lại',
           title: 'Đã sửa file của bước? Kiểm tra lại trên file hiện có, không viết lại',
-          primary: true,
+          primary: !warn,
         },
         {
           action: { kind: 'run_step', step: s.id },
@@ -198,6 +219,7 @@ export function stepButtons(s: StepView, steps: readonly StepView[]): StepButton
         },
         rewind,
       ];
+    }
     case 'done':
     case 'waiting_approval':
       return [rewind];

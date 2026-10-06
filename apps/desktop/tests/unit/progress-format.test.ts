@@ -82,6 +82,17 @@ describe('stepButtons', () => {
     expect(stepButtons(st[0]!, st)[0]!.confirm).toContain('1 bước đã xong phía sau');
     expect(stepButtons({ id: 'r', title: 'R', status: 'running' }, st)).toEqual([]);
   });
+  it('a duration warning puts "Bỏ qua cảnh báo" first (043)', () => {
+    const st = S('done', 'failed');
+    const b = stepButtons(st[1]!, st, 'objective(audio_duration): 294 s vs target 360 s (±10%)');
+    expect(b.map((x) => x.action.kind)).toEqual(['waive', 'recheck', 'run_step', 'rewind']);
+    expect(b[0]).toMatchObject({ label: 'Bỏ qua cảnh báo', primary: true });
+    expect(b[1]!.primary).toBe(false);
+    expect(
+      feedbackFor({ kind: 'waive', step: st[1]!.id, check: 'audio_duration' }, S('done', 'done'))
+        .text,
+    ).toMatch(/^Đã bỏ qua cảnh báo ở bước/);
+  });
 });
 
 describe('step progress bar (008 UI-04)', () => {

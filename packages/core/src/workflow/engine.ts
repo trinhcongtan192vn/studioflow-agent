@@ -15,7 +15,7 @@ import { parseBlocksDoc, serializeBlocksDoc } from '../domain/markdown/blocks.js
 import { isSfError, SfError } from '../errors.js';
 import type { BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
-import { evaluateGate, type GateResult } from './gates.js';
+import { evaluateGate, isWarning, WAIVABLE_CHECKS, type GateResult } from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
 import { resolveConfig } from '../config/resolve.js';
 import { AUTO_APPROVAL_NOTE, autopilotOf, isAutoApproval } from '../domain/autopilot.js';
@@ -446,6 +446,26 @@ export class WorkflowEngine extends EventEmitter {
     return { pass: results.every((r) => r.pass), results };
   }
 
+  /**
+   * 043: người dùng chấp nhận bỏ qua cảnh báo của kiểm mềm (`audio_duration`) ở bước lỗi → ghi miễn trừ
+   * vào bước rồi kiểm tra lại trên file hiện có (không sinh lại). Chạy lại bước thì miễn trừ mất.
+   */
+  async waive(stepId: string, check: string): Promise<{ pass: boolean; results: GateResult[] }> {
+    if (!WAIVABLE_CHECKS.has(check))
+      throw new SfError(
+        'E_SCHEMA_INVALID',
+        `${check} is not a warning that can be skipped (only: ${[...WAIVABLE_CHECKS].join(', ')})`,
+      );
+    await this.exclusive(() => {
+      const st = this.readState();
+      const s = st.steps[stepId];
+      if (!s) throw new SfError('E_ID_UNKNOWN', `step ${stepId} has not run`);
+      s.waived = [...new Set([...(s.waived ?? []), check])];
+      this.writeState(st);
+    });
+    return this.recheck(stepId);
+  }
+
   rewind(stepId: string): Promise<void> {
     return this.exclusive(() => {
       const st = this.readState();
@@ -666,7 +686,8 @@ export class WorkflowEngine extends EventEmitter {
       if (failed.length) {
         s.status = 'failed';
         s.error = {
-          code: 'E_GATE_FAILED',
+          // 043: chỉ còn kiểm mềm trượt → cảnh báo, người dùng có thể bỏ qua (workflow.waive)
+          code: failed.every(isWarning) ? 'E_GATE_WARNING' : 'E_GATE_FAILED',
           message: failed.map((f) => `${f.gate}(${f.target}): ${f.detail ?? 'failed'}`).join('; '),
         };
         this.writeState(st);
@@ -827,8 +848,13 @@ export class WorkflowEngine extends EventEmitter {
       appDataDir: this.d.appDataDir,
       ...(this.d.runScript ? { runScript: (id: string) => this.d.runScript!(manifest, id) } : {}),
     };
+    const waived = new Set(st.steps[decl.id]?.waived ?? []);
     const out: GateResult[] = [];
-    for (const g of all) out.push(await evaluateGate(g, ctx));
+    for (const g of all) {
+      const r = await evaluateGate(g, ctx);
+      // 043: cảnh báo người dùng đã chấp nhận bỏ qua
+      out.push(isWarning(r) && waived.has(r.target) ? { ...r, pass: true, waived: true } : r);
+    }
     return out;
   }
 

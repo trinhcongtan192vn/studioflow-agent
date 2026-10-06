@@ -1,0 +1,16 @@
+id: duration-demo
+version: 1.0.0
+title: Demo kiểm mềm
+description: Workflow mẫu cho test bỏ qua cảnh báo thời lượng (043)
+app_api: '>=1.0 <2.0'
+output_profiles: [yt-1080p30]
+requires: []
+brief: { questions: ['Độ dài mục tiêu?'] }
+steps:
+  - {
+      id: script,
+      uses: script,
+      title: Kịch bản,
+      gate: [{ kind: objective, check: audio_duration }],
+    }
+  - { id: storyboard, uses: storyboard, title: Storyboard }

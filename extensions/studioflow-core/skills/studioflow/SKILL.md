@@ -48,6 +48,7 @@ Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, 
 
 - Lỗi do file sai (gate `artifact_valid`, `speakers_voiced`…): sửa đúng file của bước bằng `artifact.write`, rồi gọi **`workflow.recheck {step_id}`**. App kiểm lại trên file hiện có; qua thì workflow chạy tiếp.
 - **Không** dùng `workflow.rewind` hay chạy lại bước để "đẩy" bước đã sửa: chạy lại sẽ sinh lại và viết đè file. `workflow.run_to` cũng báo lỗi khi còn bước lỗi phía trước.
+- Cảnh báo thời lượng (`E_GATE_WARNING`, objective `audio_duration`: audio thật lệch thời lượng mục tiêu) không phải lỗi hỏng: báo người dùng thời lượng thật và hỏi giữ nguyên hay sửa. Người dùng đồng ý giữ → **`workflow.waive {step_id, check: "audio_duration"}`**; muốn đúng thời lượng → sửa beat lệch trong SCRIPT.md rồi chạy lại bước (chỉ line đổi được sinh lại). Không tự bỏ qua khi người dùng chưa đồng ý.
 - Kịch bản thoại: người nói chỉ được là `narrator` hoặc id `ca_…` có trong `CAST.md` hay nhân vật cấp kênh (`cast.list`). Không tự đặt id mới.
 
 ## Brief (pha briefing, 040)

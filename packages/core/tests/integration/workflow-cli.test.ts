@@ -29,7 +29,11 @@ describe('CLI (007 FR-009)', () => {
     const l = JSON.parse(runSf(['workflow', 'list'], { env }).stdout) as {
       workflows: { id: string }[];
     };
-    expect(l.workflows.map((w) => w.id)).toEqual(['demo-explainer', 'refine-demo']);
+    expect(l.workflows.map((w) => w.id)).toEqual([
+      'demo-explainer',
+      'duration-demo',
+      'refine-demo',
+    ]);
     // summary() có thể ghi state.json (approval mất hiệu lực) → dùng bản sao kênh
     const c = copyChannel();
     try {

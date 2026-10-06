@@ -542,6 +542,12 @@ export const schemas = {
               "rounds"
             ],
             "additionalProperties": false
+          },
+          "waived": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

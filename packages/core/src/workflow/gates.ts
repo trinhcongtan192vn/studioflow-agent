@@ -13,7 +13,19 @@ export interface GateResult {
   target: string;
   pass: boolean;
   detail?: string;
+  /** 043: kiểm mềm trượt nhưng người dùng đã chấp nhận bỏ qua. */
+  waived?: boolean;
 }
+
+/**
+ * 043: kiểm khách quan "mềm" — trượt là cảnh báo (`E_GATE_WARNING`), người dùng có thể bỏ qua
+ * (`workflow.waive`). Thời lượng đo trên audio thật lệch mục tiêu không làm hỏng video.
+ */
+export const WAIVABLE_CHECKS: ReadonlySet<string> = new Set(['audio_duration']);
+
+/** Gate trượt này chỉ là cảnh báo (có thể bỏ qua). */
+export const isWarning = (r: GateResult): boolean =>
+  !r.pass && r.gate === 'objective' && WAIVABLE_CHECKS.has(r.target);
 
 export interface GateContext {
   store: WriteStore;

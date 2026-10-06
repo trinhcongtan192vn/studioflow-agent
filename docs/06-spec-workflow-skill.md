@@ -179,7 +179,7 @@ Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc n
 
 | Id | Áp cho | Kiểm |
 |---|---|---|
-| `audio_duration` | voice, finalize | thời lượng **đo trên audio thật** (tổng `audio_meta.json` + `pause_after_ms`; ở `finalize` là timeline) lệch `target_duration_ms` không quá `check.duration_tolerance`; trượt → chi tiết nêu thời lượng thật từng beat để sửa đúng cảnh lệch |
+| `audio_duration` | voice, finalize | thời lượng **đo trên audio thật** (tổng `audio_meta.json` + `pause_after_ms`; ở `finalize` là timeline) lệch `target_duration_ms` không quá `check.duration_tolerance`; trượt → chi tiết nêu thời lượng thật từng beat để sửa đúng cảnh lệch. **Kiểm mềm** (043): chỉ trượt kiểm này → lỗi `E_GATE_WARNING`, người dùng giữ nguyên bằng `workflow.waive` (nút "Bỏ qua cảnh báo" ở chat và tab Tiến độ) hoặc sửa beat lệch |
 | `beat_structure` | script | số beat trong khoảng hồ sơ kênh quy định; mỗi beat ≥ 1 line |
 | `banned_terms` | script, meta | không chứa từ cấm của kênh |
 | `tts_normalized` | script | số/viết tắt có `sf:tts` hoặc đã viết thành chữ |
@@ -301,6 +301,7 @@ Chạy khi: agent ghi file trong `profile/` hoặc `channel.json`; mở kênh; t
 |---|---|
 | `E_STEP_INCOMPLETE` | Agent dừng mà không báo xong bước |
 | `E_GATE_FAILED` | Gate không qua (kèm danh sách) |
+| `E_GATE_WARNING` | Chỉ kiểm mềm (`audio_duration`) không qua: cảnh báo, người dùng bỏ qua được bằng `workflow.waive` (043) |
 | `E_REFINE_SAME_MODEL` | Producer và critic trùng model |
 | `E_REVIEW_FORMAT` | Critic trả sai định dạng |
 | `E_PROMPT_TOO_LONG` | Gói prompt vượt trần token sau khi tóm tắt |
