@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { nodeChildEnv } from '../node-child.js';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { imageInfo } from '../assets/image-info.js';
@@ -37,6 +38,7 @@ export function createRemoveBgProvider(): ProviderAdapter<
           {
             windowsHide: true,
             stdio: ['ignore', 'pipe', 'pipe'],
+            env: nodeChildEnv(),
           },
         );
         let err = '';
