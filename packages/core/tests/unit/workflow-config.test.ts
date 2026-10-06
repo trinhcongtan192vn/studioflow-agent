@@ -78,3 +78,11 @@ describe('workflow config tier (029)', () => {
     expect(k).toContain('font-size: 81px');
   });
 });
+
+describe('short-film defaults (039)', () => {
+  it('turns lip-sync on by default (workflow tier; channel/video can turn it off)', () => {
+    const p = loadPack(path.join(ESSAY, '..', 'short-film'));
+    expect(p.errors).toEqual([]);
+    expect(p.manifest.config_defaults).toMatchObject({ 'lipsync.enabled': true });
+  });
+});
