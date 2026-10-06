@@ -177,3 +177,15 @@ describe('voice suggestions (033)', () => {
     expect(c[0]).toMatchObject({ label: '✨ Gợi ý giọng' });
   });
 });
+
+describe('interrupted step (036)', () => {
+  it('explains kept files and offers recheck', () => {
+    const err =
+      'app closed while this step was running; its files (SCRIPT.md) are kept — recheck them, or run the step again';
+    expect(friendlyStepError(err)).toContain('Kiểm tra lại');
+    expect(stepCtas({ id: 'script', status: 'failed' }, [], err).map((c) => c.kind)).toEqual([
+      'recheck',
+      'retry',
+    ]);
+  });
+});

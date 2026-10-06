@@ -445,6 +445,18 @@ export class WorkflowEngine extends EventEmitter {
     for (const [id, s] of Object.entries(st.steps)) {
       if (s.status !== 'running' || this.running) continue;
       const decl = manifest?.steps.find((x) => x.id === id);
+      // 036: đã có file đầu ra (có thể đã sửa tay) → `failed` để người dùng chọn Kiểm tra lại
+      // (giữ file) hay Chạy lại; `pending` sẽ bị chạy lại tự động và viết đè
+      const outs = decl ? STEP_LIBRARY[decl.uses].outputs(decl.params) : [];
+      if (outs.length && outs.every((o) => this.hashOf(o) !== null)) {
+        s.status = 'failed';
+        s.error = {
+          code: 'E_STEP_INCOMPLETE',
+          message: `app closed while this step was running; its files (${outs.join(', ')}) are kept — recheck them, or run the step again`,
+        };
+        changed = true;
+        continue;
+      }
       s.status = 'pending';
       if (decl && STEP_LIBRARY[decl.uses].by === 'agent') {
         s.error = {
