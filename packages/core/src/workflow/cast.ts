@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { CastMember } from '../contracts/types.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { SfError } from '../errors.js';
@@ -41,6 +42,26 @@ export function speakersWithoutVoice(
 ): string[] {
   const model = loadVideoModel(channelDir, videoId, appDataDir);
   return [...new Set(model.lines.filter((l) => !voiceOf(model, l)).map((l) => l.speaker))];
+}
+
+/** Người nói hợp lệ của kịch bản thoại (036): nhân vật trong CAST.md + nhân vật cấp kênh (id → tên). */
+export function castSpeakers(channelDir: string, videoId: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const chars = path.join(channelDir, 'characters');
+  if (existsSync(chars))
+    for (const id of readdirSync(chars)) {
+      const f = path.join(chars, id, 'cast.json');
+      if (!existsSync(f)) continue;
+      const c = JSON.parse(readFileSync(f, 'utf8')) as Partial<CastMember>;
+      if (c.id && c.role !== 'narrator') out[c.id] = c.name ?? c.id;
+    }
+  const castF = path.join(channelDir, 'videos', videoId, 'CAST.md');
+  if (existsSync(castF)) {
+    const blk = parseBlocksDoc(readFileSync(castF, 'utf8')).blocks.find((b) => b.tag === 'sf-cast');
+    for (const c of (blk?.data as Partial<CastMember>[] | undefined) ?? [])
+      if (c?.id && c.role !== 'narrator') out[c.id] = c.name ?? c.id;
+  }
+  return out;
 }
 
 registerObjective('speakers_voiced', (g) => {

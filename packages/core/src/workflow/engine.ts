@@ -359,9 +359,53 @@ export class WorkflowEngine extends EventEmitter {
   }
 
   runTo(stepId: string): Promise<void> {
+    // 036: có bước lỗi phía trước → báo rõ (trước đây lặng lẽ không chạy gì)
+    const st = this.readState();
+    const { order } = executionOrder(this.manifestOf(st).steps);
+    const i = order.indexOf(stepId);
+    if (i < 0) throw new SfError('E_ID_UNKNOWN', `step ${stepId} not in workflow`);
+    const failed = order.slice(0, i).find((id) => st.steps[id]?.status === 'failed');
+    if (failed)
+      throw new SfError(
+        'E_STEP_ORDER',
+        `step ${failed} failed — run it again, or fix its files and recheck it (workflow.recheck) before running ${stepId}`,
+      );
     this.paused = false;
     this.target = stepId;
     return this.advance();
+  }
+
+  /**
+   * 036: kiểm tra lại gate của bước trên file hiện có (đã sửa tay), không chạy lại executor/agent.
+   * Qua → như bước vừa xong (điểm duyệt / tự duyệt) rồi chạy tiếp.
+   */
+  async recheck(stepId: string): Promise<{ pass: boolean; results: GateResult[] }> {
+    const st = this.readState();
+    const manifest = this.manifestOf(st);
+    const decl = manifest.steps.find((x) => x.id === stepId);
+    if (!decl) throw new SfError('E_ID_UNKNOWN', `step ${stepId} not in workflow`);
+    const { order } = executionOrder(manifest.steps);
+    const before = order
+      .slice(0, order.indexOf(stepId))
+      .find((id) => !['done', 'skipped'].includes(st.steps[id]?.status ?? 'pending'));
+    if (before)
+      throw new SfError('E_STEP_ORDER', `step ${before} is not done yet; recheck it first`);
+    const s = st.steps[stepId];
+    if (s && !['failed', 'pending', 'stale'].includes(s.status))
+      throw new SfError('E_STEP_ORDER', `step ${stepId} is ${s.status}; nothing to recheck`);
+    const outputs = s?.outputs?.length ? s.outputs : STEP_LIBRARY[decl.uses].outputs(decl.params);
+    const results = await this.gates(decl, st, manifest);
+    await this.exclusive(() => {
+      const cur = this.readState();
+      cur.steps[stepId] = {
+        ...(cur.steps[stepId] ?? { attempt: 0 }),
+        status: 'running',
+      } as StepState;
+      this.writeState(cur);
+    });
+    const next = await this.finishStep(decl, outputs, {}, results);
+    if (next && !this.paused) void this.advance().catch(() => {});
+    return { pass: results.every((r) => r.pass), results };
   }
 
   rewind(stepId: string): Promise<void> {
@@ -552,6 +596,16 @@ export class WorkflowEngine extends EventEmitter {
       return false;
     }
     const results = await this.gates(decl, this.readState(), manifest);
+    return this.finishStep(decl, outputs, extra, results);
+  }
+
+  /** Ghi kết quả bước sau gate: lỗi / điểm duyệt (tự duyệt khi autopilot) / xong. Trả true nếu chạy tiếp được. */
+  private finishStep(
+    decl: StepDecl,
+    outputs: string[],
+    extra: Omit<StepExecutorResult, 'outputs'>,
+    results: GateResult[],
+  ): Promise<boolean> {
     const failed = results.filter((r) => !r.pass);
     return this.exclusive(() => {
       const st = this.readState();

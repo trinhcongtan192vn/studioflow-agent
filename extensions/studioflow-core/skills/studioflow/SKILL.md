@@ -43,3 +43,9 @@ Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, 
 - Điểm duyệt khác (storyboard, animatic, dàn nhân vật…) app tự duyệt. Đừng nhắc người dùng duyệt chúng.
 - Gặp lỗi có thể tự sửa (gate, lint, thiếu asset): tự sửa và chạy tiếp. Chỉ báo người dùng khi cần quyết định thuộc điểm chốt hoặc cần tài nguyên họ phải cung cấp (file, khóa API, tiền).
 - Người dùng muốn duyệt từng bước: `config.set {key: "workflow.autopilot", value: false, tier: "video"}` (hoặc `tier: "channel"` cho cả kênh).
+
+## Bước bị lỗi (036)
+
+- Lỗi do file sai (gate `artifact_valid`, `speakers_voiced`…): sửa đúng file của bước bằng `artifact.write`, rồi gọi **`workflow.recheck {step_id}`**. App kiểm lại trên file hiện có; qua thì workflow chạy tiếp.
+- **Không** dùng `workflow.rewind` hay chạy lại bước để "đẩy" bước đã sửa: chạy lại sẽ sinh lại và viết đè file. `workflow.run_to` cũng báo lỗi khi còn bước lỗi phía trước.
+- Kịch bản thoại: người nói chỉ được là `narrator` hoặc id `ca_…` có trong `CAST.md` hay nhân vật cấp kênh (`cast.list`). Không tự đặt id mới.

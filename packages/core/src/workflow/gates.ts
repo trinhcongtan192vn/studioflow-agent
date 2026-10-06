@@ -78,7 +78,22 @@ export function registerObjective(id: string, fn: ObjectiveFn): void {
   OBJECTIVES[id] = fn;
 }
 
+/** Đánh giá một gate; lỗi bất ngờ (ví dụ file không phân tích được) → gate không qua, không ném (036). */
 export async function evaluateGate(g: GateDecl, ctx: GateContext): Promise<GateResult> {
+  try {
+    return await evaluateGateInner(g, ctx);
+  } catch (e) {
+    const o = g as { check?: string; path?: string; step?: string };
+    return {
+      gate: g.kind,
+      target: o.check ?? o.path ?? o.step ?? g.kind,
+      pass: false,
+      detail: String((e as Error)?.message ?? e),
+    };
+  }
+}
+
+async function evaluateGateInner(g: GateDecl, ctx: GateContext): Promise<GateResult> {
   switch (g.kind) {
     case 'artifact_valid': {
       const content = read(ctx, g.path);

@@ -52,6 +52,8 @@ export function overall(steps: readonly StepView[]): {
 export type Action =
   | { kind: 'run_to'; step: string }
   | { kind: 'run_step'; step: string }
+  /** 036: kiểm gate lại trên file đã sửa tay, không sinh lại. */
+  | { kind: 'recheck'; step: string }
   | { kind: 'rewind'; step: string }
   | { kind: 'pause' };
 
@@ -83,6 +85,18 @@ export function feedbackFor(
           settled: true,
         }
       : { tone: 'success', text: 'Đã tạm dừng workflow.', settled: true };
+  }
+  if (a.kind === 'recheck') {
+    const f = feedbackFor({ kind: 'run_step', step: a.step }, steps, stepError);
+    const t = title(steps, a.step);
+    return {
+      ...f,
+      text: f.settled
+        ? f.tone === 'success'
+          ? `Kiểm tra lại bước "${t}": đạt, dùng file hiện có.`
+          : `Kiểm tra lại bước "${t}": đạt. ${f.text}`
+        : `Kiểm tra lại bước "${t}": đạt, đang chạy tiếp…`,
+    };
   }
   if (a.kind === 'rewind') {
     // core chạy lại ngay từ bước đó → theo dõi như "chạy lại bước"
@@ -171,10 +185,16 @@ export function stepButtons(s: StepView, steps: readonly StepView[]): StepButton
     case 'failed':
       return [
         {
+          action: { kind: 'recheck', step: s.id },
+          label: 'Kiểm tra lại',
+          title: 'Đã sửa file của bước? Kiểm tra lại trên file hiện có, không viết lại',
+          primary: true,
+        },
+        {
           action: { kind: 'run_step', step: s.id },
           label: 'Chạy lại',
-          title: 'Chạy lại bước bị lỗi',
-          primary: true,
+          title: 'Sinh lại bước từ đầu (viết đè file của bước)',
+          confirm: `Chạy lại bước "${s.title}" từ đầu? File của bước sẽ được viết lại, chỉnh sửa tay sẽ mất. Nếu đã sửa file, dùng "Kiểm tra lại".`,
         },
         rewind,
       ];

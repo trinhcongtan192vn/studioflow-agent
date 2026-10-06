@@ -466,6 +466,11 @@ export class CoreHost extends EventEmitter {
         void e.runTo(String(p.step_id));
         return e.summary();
       }
+      case 'workflow.recheck': {
+        const e = this.engine(p.channel, p.video);
+        const r = await e.recheck(String(p.step_id));
+        return { ...r, state: e.summary() };
+      }
       case 'workflow.pause': {
         const e = this.engine(p.channel, p.video);
         e.pause();

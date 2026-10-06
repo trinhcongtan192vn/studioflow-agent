@@ -102,6 +102,15 @@ export interface IpcMethods {
   'workflow.state': { params: VideoRef; result: VideoStateSummary };
   'workflow.run_to': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'workflow.pause': { params: VideoRef; result: VideoStateSummary };
+  /** Kiểm tra lại gate của bước trên file đã sửa tay, không sinh lại (036). */
+  'workflow.recheck': {
+    params: VideoRef & { step_id: string };
+    result: {
+      pass: boolean;
+      results: { gate: string; target: string; pass: boolean; detail?: string }[];
+      state: VideoStateSummary;
+    };
+  };
   'workflow.rewind': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'workflow.run_step': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'job.list': { params: { video?: string; limit?: number }; result: { jobs: JobInfo[] } };

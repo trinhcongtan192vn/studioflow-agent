@@ -17,6 +17,8 @@ export interface ObjectiveContext {
   appDataDir?: string;
   banned: string[];
   beats?: { min: number; max: number };
+  /** Người nói hợp lệ ngoài `narrator` (screenplay, 036): id → tên trong dàn nhân vật. */
+  speakers?: Record<string, string>;
 }
 
 function cfg(ctx: ObjectiveContext, key: string): number {
@@ -65,6 +67,26 @@ export function checkScript(content: string, ctx: ObjectiveContext): ObjectiveRe
     .map((l) => l.text)
     .join('\n')
     .toLowerCase();
+  // 036: kịch bản thoại chỉ dùng người nói có trong dàn nhân vật (mã lạ → không có giọng)
+  if (ctx.speakers) {
+    const known = ctx.speakers;
+    const unknown = [
+      ...new Set(doc.lines.map((l) => l.speaker).filter((s) => s !== 'narrator' && !(s in known))),
+    ];
+    out.push({
+      id: 'speakers_known',
+      pass: unknown.length === 0,
+      ...(unknown.length
+        ? {
+            detail: `unknown speakers: ${unknown.join(', ')} — use narrator or one of: ${Object.entries(
+              known,
+            )
+              .map(([id, name]) => `${id} (${name})`)
+              .join(', ')}`,
+          }
+        : {}),
+    });
+  }
   const hits = ctx.banned.filter((t) => text.includes(t.toLowerCase()));
   out.push({
     id: 'banned_terms',

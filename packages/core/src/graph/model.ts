@@ -98,7 +98,11 @@ export function loadVideoModel(
 /** Giọng của line: narrator → `voice.id`; nhân vật → `voice_id` của cast (D3 4, 7.2). */
 export function voiceOf(model: VideoModel, line: Line): string | null {
   if (line.speaker === 'narrator') return model.config<string | null>('voice.id');
-  return (model.cast[line.speaker]?.voice_id as string | undefined) ?? null;
+  const c = model.cast[line.speaker];
+  // 036: người dẫn khai trong CAST.md (role narrator) mà không có giọng riêng → giọng người dẫn
+  if (c?.role === 'narrator')
+    return (c.voice_id as string | undefined) ?? model.config<string | null>('voice.id');
+  return (c?.voice_id as string | undefined) ?? null;
 }
 
 /** Line không khai báo `pause_after_ms` nhận `voice.pause_after_ms` (D3 7.2, 029). */

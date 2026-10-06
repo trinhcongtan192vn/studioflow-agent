@@ -74,7 +74,11 @@ describe('stepButtons', () => {
     const st = S('done', 'done', 'failed', 'stale', 'pending');
     expect(stepButtons(st[4]!, st).map((b) => b.label)).toEqual(['Chạy tới đây']);
     expect(stepButtons(st[3]!, st)[0]).toMatchObject({ primary: true });
-    expect(stepButtons(st[2]!, st).map((b) => b.action.kind)).toEqual(['run_step', 'rewind']);
+    expect(stepButtons(st[2]!, st).map((b) => b.action.kind)).toEqual([
+      'recheck',
+      'run_step',
+      'rewind',
+    ]);
     expect(stepButtons(st[0]!, st)[0]!.confirm).toContain('1 bước đã xong phía sau');
     expect(stepButtons({ id: 'r', title: 'R', status: 'running' }, st)).toEqual([]);
   });
@@ -113,5 +117,23 @@ describe('job progress text', () => {
     expect(
       stepProgressView({ progress: { done: 2, total: 5, message: 'Dựng frame 2/5' }, now: 0 }).text,
     ).toBe('Dựng frame 2/5');
+  });
+});
+
+describe('recheck (036)', () => {
+  it('failed steps offer Kiểm tra lại first; Chạy lại asks to confirm overwriting', () => {
+    const st = S('done', 'failed');
+    const b = stepButtons(st[1]!, st);
+    expect(b.map((x) => x.action.kind)).toEqual(['recheck', 'run_step', 'rewind']);
+    expect(b[0]).toMatchObject({ primary: true, label: 'Kiểm tra lại' });
+    expect(b[1]!.confirm).toContain('viết lại');
+  });
+  it('tracks the step after a passing recheck', () => {
+    expect(
+      feedbackFor({ kind: 'recheck', step: 's1' }, S('done', 'waiting_approval')),
+    ).toMatchObject({
+      tone: 'info',
+      text: expect.stringMatching(/^Kiểm tra lại bước "Bước 1": đạt\. Dừng ở bước/),
+    });
   });
 });
