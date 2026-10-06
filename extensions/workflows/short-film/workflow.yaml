@@ -16,6 +16,8 @@ brief:
     - Độ dài mục tiêu (mặc định 4 phút)?
 config_defaults:
   caption.max_words: 6
+  # 039: phim ngắn có khẩu hình mặc định (tắt được theo kênh/video)
+  lipsync.enabled: true
 steps:
   - id: story
     uses: script
