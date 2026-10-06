@@ -2,7 +2,7 @@
 // đính kèm, explorer chỉ đọc, thẻ duyệt, job/trace (runtime agent giả, SF_GPU=0).
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   CoreHost,
   type AgentEvent,
@@ -200,6 +200,16 @@ describe('CoreHost IPC (008)', () => {
     });
     expect(st.phase).toBe('workflow');
     expect(events.some(([n]) => n === 'workflow.updated')).toBe(true);
+    // 041: agent báo tình trạng bước trong chat, lưu vào lịch sử của video
+    await vi.waitFor(() => expect(events.some(([n]) => n === 'workflow.notice')).toBe(true));
+    const notice = events.find(([n]) => n === 'workflow.notice')![1] as {
+      line: { role: string; notice: { event: string; step_title: string } };
+    };
+    expect(notice.line.role).toBe('assistant');
+    const h = await host.call('chat.history', { channel: dir, video: video_id });
+    expect(h.history.some((l) => l.notice?.step_title === notice.line.notice.step_title)).toBe(
+      true,
+    );
   });
 
   it('jobs, traces, settings and status for the side panels', async () => {

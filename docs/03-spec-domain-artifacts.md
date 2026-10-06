@@ -418,7 +418,9 @@ interface RenderRecord extends Versioned {
 Tiêu đề, mô tả, thẻ, chương cho YouTube (bước `publish-meta`, D6). Front matter: `schema_version`, `video_id`, `title`, `tags: string[]`, `chapters: {start_ms, title}[]`, `status`; thân file là mô tả video. Khi render phát hành, `CREDITS.txt` được nối vào cuối mô tả trong bản xuất `renders/<rd>/description.txt`.
 
 ### 5.16 Chat log
-`chat/<session_id>.jsonl`, mỗi dòng một sự kiện `{ts, role: 'user'|'assistant'|'tool'|'system', content, tool?: {name, input, output_summary}}`. Chỉ ghi thêm (append-only), không qua build graph.
+`chat/<session_id>.jsonl`, mỗi dòng một sự kiện `{ts, role: 'user'|'assistant'|'tool'|'system', content, tool?: {name, input, output_summary}, notice?}`. Chỉ ghi thêm (append-only), không qua build graph.
+
+`notice` (041): dòng do app ghi khi bước workflow đổi trạng thái — `{event: 'started'|'done'|'waiting'|'failed'|'finished', step_id, step_title, position: [i, n], next?: {id, title}, auto_approved?, approval_id?, outputs?, error?}`; `role` là `assistant`, `content` là câu báo tình trạng. Giao diện vẽ dòng này thành thẻ có nút hành động (xem kết quả, Duyệt, Kiểm tra lại/Chạy lại, Xem video).
 
 ## 6. `channel.json` và `settings.json`
 

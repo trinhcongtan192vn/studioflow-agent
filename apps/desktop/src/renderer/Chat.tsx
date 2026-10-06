@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatLine, IpcEvents } from '@studioflow/core';
+import type { ChatLine, IpcEvents, WorkflowNotice } from '@studioflow/core';
 import { core } from './rpc';
 import {
   activityLabel,
-  changedSteps,
   fileCtaLabel,
   friendlyStepError,
   groupRuns,
+  noticeCtas,
   stepCtas,
   voiceSuggestion,
   type StepCta,
@@ -33,7 +33,9 @@ type Item =
       error?: string;
       done?: string;
     }
-  | { type: 'voice'; voice: VoiceSuggestion; done?: string };
+  | { type: 'voice'; voice: VoiceSuggestion; done?: string }
+  /** Thông báo workflow của agent kèm nút hành động (041). */
+  | { type: 'notice'; line: ChatLine & { notice: WorkflowNotice }; done?: string };
 
 type ApprovalCard = IpcEvents['approval.requested'];
 
@@ -78,15 +80,14 @@ export function Chat({
   // thẻ duyệt đang chờ: ghim ở đáy khung chat (không trôi theo tin nhắn), đồng bộ theo state.json
   const [pending, setPending] = useState<ApprovalCard[]>([]);
   const end = useRef<HTMLDivElement>(null);
-  // trạng thái bước lần trước: phát hiện bước vừa xong/lỗi để hiện thẻ CTA
-  const prevSteps = useRef<Record<string, string>>({});
 
   useEffect(() => {
-    void core
+    const history = core
       .call('chat.history', { channel, ...(video ? { video } : {}) })
-      .then((h) =>
-        setItems((s) => [...h.history.map((line): Item => ({ type: 'line', line })), ...s]),
-      );
+      .then((h) => {
+        setItems((s) => [...h.history.map(toItem), ...s]);
+        return h.history;
+      });
     const add = (i: Item) =>
       setItems((s) =>
         i.type === 'approval' &&
@@ -165,22 +166,31 @@ export function Chat({
               : [...s, { type: 'voice', voice: v }],
           );
       }),
+      // 041: agent báo tình trạng từng bước trong chat (core đã ghi vào lịch sử)
+      core.on('workflow.notice', (e) => {
+        if (e.channel !== channel || e.video !== video) return;
+        add(toItem(e.line));
+      }),
       core.on('workflow.updated', (s) => {
         if (s.channel !== channel || s.video_id !== video) return;
-        const changed = changedSteps(prevSteps.current, s.steps);
-        prevSteps.current = Object.fromEntries(s.steps.map((x) => [x.id, x.status]));
         void syncApprovals(s.steps);
-        if (changed.length) stepCards(changed);
       }),
     ];
     if (video) {
-      // mốc ban đầu + thẻ duyệt còn chờ (mở lại video sau khi agent đã xin duyệt)
-      void core.call('workflow.state', { channel, video }).then(
-        (s) => {
-          prevSteps.current = Object.fromEntries(s.steps.map((x) => [x.id, x.status]));
+      // thẻ duyệt còn chờ (mở lại video sau khi agent đã xin duyệt)
+      void Promise.all([
+        history.catch(() => [] as ChatLine[]),
+        core.call('workflow.state', { channel, video }),
+      ]).then(
+        ([lines, s]) => {
           void syncApprovals(s.steps);
-          // bước đang lỗi khi mở video → hiện lại thẻ lỗi (có nút sửa/chạy lại)
-          const failed = s.steps.filter((x) => x.status === 'failed');
+          // bước đang lỗi khi mở video mà lịch sử chưa có thông báo lỗi (trước 041) → hiện thẻ lỗi
+          const lastNotice = new Map(
+            lines.filter((l) => l.notice).map((l) => [l.notice!.step_id, l.notice!.event]),
+          );
+          const failed = s.steps.filter(
+            (x) => x.status === 'failed' && lastNotice.get(x.id) !== 'failed',
+          );
           if (failed.length) stepCards(failed);
         },
         () => {},
@@ -188,6 +198,13 @@ export function Chat({
     }
     return () => offs.forEach((o) => o());
   }, [channel, video]);
+
+  /** Dòng lịch sử → mục chat; dòng có `notice` thành thẻ thông báo. */
+  function toItem(line: ChatLine): Item {
+    return line.notice
+      ? { type: 'notice', line: line as ChatLine & { notice: WorkflowNotice } }
+      : { type: 'line', line };
+  }
 
   /** Thẻ duyệt ghim = đúng các approval `pending` trong state.json (cũng bắt approval mất hiệu lực do file đổi). */
   async function syncApprovals(steps: { id: string; title: string }[]): Promise<void> {
@@ -234,7 +251,10 @@ export function Chat({
     if (c.kind === 'file') onOpenFile?.(c.path);
     else if (c.kind === 'tab') onOpenTab?.(c.tab);
     else if (c.kind === 'say') void send(c.text);
-    else if (c.kind === 'recheck' && video) {
+    else if (c.kind === 'approve') {
+      const card = pending.find((x) => x.approval_id === c.approval_id);
+      if (card) await decide(card, 'approve');
+    } else if (c.kind === 'recheck' && video) {
       try {
         const r = await core.call('workflow.recheck', { channel, video, step_id: c.step });
         const text = r.pass
@@ -443,6 +463,15 @@ export function Chat({
                 </div>
               )}
             </div>
+          ) : it.type === 'notice' ? (
+            <NoticeCard
+              key={i}
+              notice={it.line.notice}
+              text={it.line.content}
+              done={it.done}
+              pendingIds={pending.map((p) => p.approval_id)}
+              onCta={(c) => void runCta(i, c)}
+            />
           ) : it.type === 'step' ? (
             <div key={i} className={`card step-card ${it.step.status}`} data-testid="step-card">
               <b>
@@ -596,6 +625,66 @@ export function Chat({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Thông báo workflow của agent (041): câu chữ + nút hành động hợp với tình trạng bước. */
+function NoticeCard({
+  notice,
+  text,
+  done,
+  pendingIds,
+  onCta,
+}: {
+  notice: WorkflowNotice;
+  text: string;
+  done?: string;
+  pendingIds: string[];
+  onCta: (c: StepCta) => void;
+}) {
+  // điểm duyệt đã xử lý (ở đâu đó) → không còn nút Duyệt
+  const handled = notice.event === 'waiting' && !pendingIds.includes(notice.approval_id ?? '');
+  const ctas = noticeCtas(notice).filter((c) => !(handled && c.kind === 'approve'));
+  const at = `(${notice.position[0]}/${notice.position[1]})`;
+  return (
+    <div
+      className={`msg assistant notice ${notice.event}`}
+      data-testid="workflow-notice"
+      data-event={notice.event}
+    >
+      {notice.event === 'failed' ? (
+        <>
+          <Markdown text={`✕ Lỗi ở bước **${notice.step_title}** ${at}`} />
+          {notice.error && (
+            <div className="error" title={notice.error}>
+              {friendlyStepError(notice.error)}
+            </div>
+          )}
+        </>
+      ) : (
+        <Markdown text={text} />
+      )}
+      {done ? (
+        <i>{done}</i>
+      ) : (
+        <>
+          {handled && <i className="muted">Đã xử lý</i>}
+          {ctas.length > 0 && (
+            <div className="cta-row">
+              {ctas.map((c) => (
+                <button
+                  key={c.label}
+                  className={`cta${c.kind === 'approve' || c.kind === 'retry' ? ' primary' : ''}`}
+                  onClick={() => onCta(c)}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
