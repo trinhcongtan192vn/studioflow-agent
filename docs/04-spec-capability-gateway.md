@@ -82,6 +82,8 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
+| `voice.list` | — | `{narrator_voice_id, voices[{voice_id, name, language, kind, ready, design?, suggested_for?, used_by[], created_at}]}` | Giọng có sẵn của kênh để dùng lại (035); chỉ đọc |
+| `cast.list` | — | `{characters[{id, name, voice_id?, voice_name?, caption_color?, reference_images, expressions[]}]}` | Nhân vật cấp kênh `characters/*/cast.json` để dùng lại (035); chỉ đọc |
 | `tts.synthesize` | `line_ids[]` hoặc `"all"` | job | Ghi `audio/lines/*`, cập nhật `audio_meta.json` |
 | `asr.align` | `line_ids[]` hoặc `"all"` | job | Cập nhật `words`, `asr_wer`, `asr_flag`; line `mismatch` tự sinh lại tối đa `asr.max_regen` lần |
 | `asr.accept` | `line_ids[]` | `{}` | Người dùng chấp nhận line lệch → `asr_flag = accepted` |

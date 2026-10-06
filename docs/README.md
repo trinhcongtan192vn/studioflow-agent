@@ -176,5 +176,6 @@ Thứ tự triển khai theo giai đoạn; cột **Phủ** là mã yêu cầu tr
 | **Sau M5** | | | | |
 | 033 | `voice-design`: giọng gợi ý từ mô tả (OmniVoice Voice Design) cho người dẫn và nhân vật | FR-VO-06 | D4 | 006, 031 |
 | 034 | `autopilot`: chế độ tự động — agent điều phối, chỉ dừng ở điểm chốt | FR-WF-10 | D3, D5, D6 | 007, 033 |
+| 035 | `voice-reuse`: `voice.list`, `cast.list` — dùng lại giọng/nhân vật của kênh | FR-VO-07 | D4 | 033, 034 |
 
 Tính năng trong cùng giai đoạn không phụ thuộc nhau CÓ THỂ làm song song.

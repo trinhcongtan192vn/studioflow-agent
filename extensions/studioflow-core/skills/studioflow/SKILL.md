@@ -15,9 +15,13 @@ description: Quy tắc làm việc với dự án video StudioFlow — artifact,
 
 ## Giọng đọc
 
-- Người dẫn dùng `voice.id` của kênh/video; nhân vật dùng `voice_id` trong `CAST.md`. Kiểm bằng `mcp__sf__config_resolve {key: "voice.id"}`.
+- Người dẫn dùng `voice.id` của kênh/video; nhân vật dùng `voice_id` trong `CAST.md`.
+- **Luôn xem cái đã có trước** (035):
+  - `voice.list`: giọng của kênh, `used_by` (ai đang dùng), `suggested_for`, `ready`, và `narrator_voice_id`;
+  - `cast.list`: nhân vật cấp kênh kèm giọng.
+  Nhân vật đã có ở kênh thì dùng lại **đúng id `ca_…`** trong CAST.md: giọng, ảnh chuẩn, biểu cảm tự theo, không cần hỏi lại. Giọng sẵn có hợp với nhân vật mới thì đưa vào danh sách cho người dùng chọn trước khi tạo giọng mới. Đã có `narrator_voice_id` thì người dẫn dùng giọng đó.
 - **Có file giọng mẫu** (người dùng đính kèm `uploads/…`, giọng họ được phép dùng): `voice.profile_create {name, ref_audio, language}`.
-- **Chưa có file mẫu** (033): gợi ý **2–3 giọng khác nhau** cho mỗi người nói thiếu giọng, mỗi giọng một lần `voice.design {name, gender, age, pitch, for}`.
+- **Chưa có file mẫu và không có giọng sẵn phù hợp** (033): gợi ý **2–3 giọng khác nhau** cho mỗi người nói thiếu giọng, mỗi giọng một lần `voice.design {name, gender, age, pitch, for}`.
   - Chọn thuộc tính theo nội dung: kênh trầm hoặc lịch sử → giọng trầm, trung niên; kênh trẻ → thanh niên, cao độ vừa; nhân vật → theo tuổi, giới tính, tính cách trong `STORY.md`/`CAST.md`.
   - Các phương án phải khác nhau rõ (tuổi, cao độ, hoặc `seed` khác). `for` là `narrator` hoặc `ca_…`.
   - Đặt `name` dễ hiểu, ví dụ "Nam trung niên, trầm".

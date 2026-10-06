@@ -112,7 +112,7 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
       await ctx.agent(
         [
           `Chưa có giọng cho: ${unvoiced.join(', ')} (narrator = người dẫn, ca_… = nhân vật).`,
-          'Không có file giọng mẫu thì gợi ý 2–3 giọng khác nhau cho mỗi người nói bằng voice.design (đặt for = narrator hoặc ca_…), theo nội dung kênh và tính cách nhân vật; có file mẫu người dùng đính kèm thì dùng voice.profile_create.',
+          'Trước hết xem voice.list và cast.list: dùng lại giọng/nhân vật đã có của kênh khi phù hợp (nhân vật cũ giữ đúng id ca_…). Không có giọng phù hợp và không có file giọng mẫu thì gợi ý 2–3 giọng khác nhau cho mỗi người nói bằng voice.design (đặt for = narrator hoặc ca_…), theo nội dung kênh và tính cách nhân vật; có file mẫu người dùng đính kèm thì dùng voice.profile_create.',
           'Chờ người dùng nghe thẻ 🎙 trong chat và chọn — không tự chọn thay. Khi đã chọn: người dẫn → config.set {key: "voice.id", value, tier: "channel"}; nhân vật → voice_id trong CAST.md.',
           'Chỉ gọi workflow_step_complete khi mọi người nói đã có giọng; app sẽ tự dựng audio sau đó.',
         ].join('\n'),
