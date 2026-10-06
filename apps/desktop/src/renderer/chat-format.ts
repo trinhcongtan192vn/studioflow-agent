@@ -289,7 +289,12 @@ export function stepCtas(
         retry,
       ];
     // lỗi gate (file sai) → có thể sửa file rồi kiểm tra lại thay vì sinh lại
-    if (error && /E_GATE_FAILED|gate|objective|artifact_valid|speakers_voiced/i.test(error))
+    if (
+      error &&
+      /E_GATE_FAILED|gate|objective|artifact_valid|speakers_voiced|app closed while this step/i.test(
+        error,
+      )
+    )
       return [{ kind: 'recheck', label: 'Kiểm tra lại', step: step.id }, retry];
     return [retry];
   }
@@ -337,6 +342,8 @@ const isMissingVoice = (e: string) =>
 
 /** Lỗi bước dễ đọc cho người dùng (lỗi kỹ thuật vẫn xem được khi mở chi tiết). */
 export function friendlyStepError(e: string): string {
+  if (/app closed while this step was running/.test(e))
+    return 'App đã đóng khi bước đang chạy. File của bước vẫn còn: bấm "Kiểm tra lại" để dùng file hiện có, hoặc "Chạy lại" để làm lại từ đầu.';
   if (isMissingVoice(e)) {
     const who = /no voice for ([^:]+):/.exec(e)?.[1];
     const names = who
