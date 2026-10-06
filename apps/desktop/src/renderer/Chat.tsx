@@ -6,6 +6,7 @@ import {
   fileCtaLabel,
   friendlyStepError,
   groupRuns,
+  isDurationWarning,
   noticeCtas,
   stepCtas,
   voiceSuggestion,
@@ -254,9 +255,12 @@ export function Chat({
     else if (c.kind === 'approve') {
       const card = pending.find((x) => x.approval_id === c.approval_id);
       if (card) await decide(card, 'approve');
-    } else if (c.kind === 'recheck' && video) {
+    } else if ((c.kind === 'recheck' || c.kind === 'waive') && video) {
       try {
-        const r = await core.call('workflow.recheck', { channel, video, step_id: c.step });
+        const r =
+          c.kind === 'waive'
+            ? await core.call('workflow.waive', { channel, video, step_id: c.step, check: c.check })
+            : await core.call('workflow.recheck', { channel, video, step_id: c.step });
         const text = r.pass
           ? 'Kiểm tra lại: đạt — dùng file hiện có, workflow chạy tiếp.'
           : `Kiểm tra lại chưa đạt: ${r.results
@@ -267,7 +271,13 @@ export function Chat({
           s
             .map((x, k) =>
               k === i && r.pass
-                ? { ...(x as Item & { type: 'step' }), done: 'Đã kiểm tra lại: đạt' }
+                ? {
+                    ...(x as Item & { type: 'step' }),
+                    done:
+                      c.kind === 'waive'
+                        ? 'Đã bỏ qua cảnh báo — workflow chạy tiếp'
+                        : 'Đã kiểm tra lại: đạt',
+                  }
                 : x,
             )
             .concat(
@@ -655,7 +665,13 @@ function NoticeCard({
     >
       {notice.event === 'failed' ? (
         <>
-          <Markdown text={`✕ Lỗi ở bước **${notice.step_title}** ${at}`} />
+          <Markdown
+            text={
+              notice.error && isDurationWarning(notice.error)
+                ? `⚠ Cảnh báo ở bước **${notice.step_title}** ${at} — cần bạn chọn`
+                : `✕ Lỗi ở bước **${notice.step_title}** ${at}`
+            }
+          />
           {notice.error && (
             <div className="error" title={notice.error}>
               {friendlyStepError(notice.error)}

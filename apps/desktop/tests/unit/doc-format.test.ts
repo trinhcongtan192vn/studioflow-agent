@@ -9,6 +9,7 @@ import {
   fileCtaLabel,
   noticeCtas,
   friendlyStepError,
+  isDurationWarning,
   stepCtas,
   voiceSuggestion,
 } from '../../src/renderer/chat-format';
@@ -93,6 +94,23 @@ describe('step CTAs', () => {
     expect(stepCtas({ id: 'voice', status: 'failed' }, ['SCRIPT.md'])).toEqual([
       { kind: 'retry', label: 'Chạy lại bước', step: 'voice' },
     ]);
+  });
+
+  it('a duration-only failure is a warning with a skip button (043)', () => {
+    const err =
+      'objective(audio_duration): 294 s vs target 360 s (±10%); beats: Mở đầu 19 s, Tóm tắt 29 s';
+    expect(isDurationWarning(err)).toBe(true);
+    expect(isDurationWarning(`artifact_valid(SCRIPT.md): bad; ${err}`)).toBe(false);
+    expect(stepCtas({ id: 'voice', status: 'failed', title: 'Giọng đọc' }, [], err)[0]).toEqual({
+      kind: 'waive',
+      label: 'Bỏ qua cảnh báo, giữ thời lượng này',
+      step: 'voice',
+      check: 'audio_duration',
+    });
+    expect(friendlyStepError(err)).toMatch(
+      /^Cảnh báo thời lượng: audio thật 294 s, mục tiêu 360 s/,
+    );
+    expect(friendlyStepError(err)).toContain('Từng beat: Mở đầu 19 s, Tóm tắt 29 s.');
   });
 
   it('noticeCtas gives each workflow notice its actions (041)', () => {

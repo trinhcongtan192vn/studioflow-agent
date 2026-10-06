@@ -347,6 +347,7 @@ interface StepState {
   attempt: number; error?: { code: string; message: string };
   outputs?: RelPath[];
   refine?: { rounds: number; final_score?: number; incomplete?: boolean };
+  waived?: string[];                       // 043: kiểm mềm (objective `audio_duration`) người dùng chấp nhận bỏ qua; mất khi chạy lại bước
 }
 
 interface Approval {

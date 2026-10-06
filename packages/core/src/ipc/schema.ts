@@ -114,6 +114,15 @@ export interface IpcMethods {
       state: VideoStateSummary;
     };
   };
+  /** Bỏ qua cảnh báo của kiểm mềm (audio_duration) ở bước lỗi rồi kiểm tra lại (043). */
+  'workflow.waive': {
+    params: VideoRef & { step_id: string; check: string };
+    result: {
+      pass: boolean;
+      results: { gate: string; target: string; pass: boolean; detail?: string; waived?: boolean }[];
+      state: VideoStateSummary;
+    };
+  };
   'workflow.rewind': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'workflow.run_step': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'job.list': { params: { video?: string; limit?: number }; result: { jobs: JobInfo[] } };

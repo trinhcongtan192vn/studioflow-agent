@@ -231,6 +231,8 @@ export type StepCta =
   | { kind: 'voice'; label: string; step: string; prompt: string }
   /** Gửi ngay một lời nhờ agent (ví dụ gợi ý giọng khi chưa có file mẫu, 033). */
   | { kind: 'say'; label: string; text: string }
+  /** Bỏ qua cảnh báo kiểm mềm rồi kiểm tra lại (043). */
+  | { kind: 'waive'; label: string; step: string; check: string }
   /** Duyệt ngay điểm duyệt đang chờ (041). */
   | { kind: 'approve'; label: string; approval_id: string };
 
@@ -290,6 +292,21 @@ export function stepCtas(
           prompt: `Tạo giọng đọc cho kênh từ file mẫu đính kèm, đặt làm giọng mặc định, rồi chạy lại bước ${step.title ?? step.id}.`,
         },
         retry,
+      ];
+    // 043: chỉ lệch thời lượng → cảnh báo: giữ nguyên hoặc nhờ agent sửa beat lệch
+    if (error && isDurationWarning(error))
+      return [
+        {
+          kind: 'waive',
+          label: 'Bỏ qua cảnh báo, giữ thời lượng này',
+          step: step.id,
+          check: 'audio_duration',
+        },
+        {
+          kind: 'say',
+          label: '✎ Sửa cho đúng thời lượng',
+          text: `Bước ${step.title ?? step.id} lệch thời lượng mục tiêu (${error.replace(/^objective\(audio_duration\):\s*/, '')}). Hãy sửa các beat lệch nhiều nhất trong SCRIPT.md cho gần thời lượng mục tiêu, rồi chạy lại bước ${step.title ?? step.id} (chỉ line đổi được sinh lại).`,
+        },
       ];
     // lỗi gate (file sai) → có thể sửa file rồi kiểm tra lại thay vì sinh lại
     if (
@@ -355,7 +372,16 @@ const isMissingVoice = (e: string) =>
   /has no voice|no voice for|not cloned yet|voice\.profile_create/.test(e);
 
 /** Lỗi bước dễ đọc cho người dùng (lỗi kỹ thuật vẫn xem được khi mở chi tiết). */
+/** Lỗi bước chỉ gồm cảnh báo thời lượng (objective `audio_duration`, 043) — bỏ qua được. */
+export function isDurationWarning(e: string): boolean {
+  const parts = e.split(/; (?=[a-z_]+\()/);
+  return parts.every((x) => x.startsWith('objective(audio_duration)'));
+}
+
 export function friendlyStepError(e: string): string {
+  const dur = /audio_duration\)?: (.+?) vs target (.+?) \(±(\d+)%\)(?:; beats: (.*))?/.exec(e);
+  if (dur)
+    return `Cảnh báo thời lượng: audio thật ${dur[1]}, mục tiêu ${dur[2]} (±${dur[3]}%). Video vẫn dùng được — giữ nguyên hoặc nhờ agent sửa các beat lệch.${dur[4] ? ` Từng beat: ${dur[4]}.` : ''}`;
   if (/app closed while this step was running/.test(e))
     return 'App đã đóng khi bước đang chạy. File của bước vẫn còn: bấm "Kiểm tra lại" để dùng file hiện có, hoặc "Chạy lại" để làm lại từ đầu.';
   if (isMissingVoice(e)) {

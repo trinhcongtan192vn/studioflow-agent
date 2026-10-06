@@ -73,6 +73,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `workflow.step_complete` | `step_id, frame_id?, outputs[], new_element_ids?` | `{next_step?}` | Agent báo xong bước agent-thực-hiện; bước `frame-build` xong khi mọi frame đã báo (D6) |
 | `workflow.gate_check` | `step_id` | `{pass, results[]}` | |
 | `workflow.recheck` | `step_id` | `{pass, results[]}` | Bước lỗi đã được sửa file: kiểm gate lại trên file hiện có, không sinh lại; qua → điểm duyệt/xong, chạy tiếp (036) |
+| `workflow.waive` | `step_id`, `check` | `{pass, results[]}` | Bước lỗi chỉ vì kiểm mềm (`audio_duration`, `E_GATE_WARNING`) và người dùng đồng ý giữ nguyên: ghi miễn trừ vào bước (`waived`) rồi kiểm lại như `workflow.recheck`; chạy lại bước thì miễn trừ mất (043) |
 | `approval.annotate` | `step_id, summary` | `{}` | Agent gắn tóm tắt cho thẻ duyệt do engine tạo (D6 mục 3.1) |
 | `studio.open` / `studio.commit` / `studio.close` | `mode: 'preview'\|'edit'` / `message?` / — | D9 | |
 | `job.status` / `job.wait` / `job.cancel` / `job.list` | `job_id`, `timeout_ms` | `JobInfo` | |

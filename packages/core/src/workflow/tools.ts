@@ -63,6 +63,22 @@ export function workflowTools(svc: WorkflowService): ToolDefinition[] {
       handler: async (i: { step_id: string }, ctx) => engine(ctx).recheck(i.step_id),
     },
     {
+      name: 'workflow.waive',
+      description:
+        'Bước lỗi chỉ vì cảnh báo thời lượng (objective audio_duration lệch mục tiêu) và NGƯỜI DÙNG đã đồng ý giữ nguyên: bỏ qua cảnh báo đó rồi kiểm tra lại, không sinh lại. Không tự bỏ qua khi người dùng chưa đồng ý.',
+      input: {
+        type: 'object',
+        properties: {
+          step_id: { type: 'string' },
+          check: { type: 'string', enum: ['audio_duration'] },
+        },
+        required: ['step_id', 'check'],
+        additionalProperties: false,
+      },
+      handler: async (i: { step_id: string; check: string }, ctx) =>
+        engine(ctx).waive(i.step_id, i.check),
+    },
+    {
       name: 'workflow.run_to',
       description: 'Chạy liên tiếp tới hết bước đích (dừng ở điểm duyệt/lỗi).',
       input: stepInput,

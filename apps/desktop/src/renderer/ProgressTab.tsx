@@ -217,8 +217,11 @@ export function ProgressTab({
       else if (a.kind === 'pause') s = await core.call('workflow.pause', { channel, video });
       else if (a.kind === 'rewind')
         s = await core.call('workflow.rewind', { channel, video, step_id: a.step });
-      else if (a.kind === 'recheck') {
-        const r = await core.call('workflow.recheck', { channel, video, step_id: a.step });
+      else if (a.kind === 'recheck' || a.kind === 'waive') {
+        const r =
+          a.kind === 'waive'
+            ? await core.call('workflow.waive', { channel, video, step_id: a.step, check: a.check })
+            : await core.call('workflow.recheck', { channel, video, step_id: a.step });
         onState(r.state);
         if (!r.pass) {
           setAction(undefined);
@@ -413,7 +416,7 @@ export function ProgressTab({
       )}
       <ol className="steps">
         {state.steps.map((s) => {
-          const buttons = stepButtons(s, state.steps);
+          const buttons = stepButtons(s, state.steps, errors[s.id]);
           const err = s.status === 'failed' && errors[s.id];
           return (
             <li key={s.id} className={`step ${s.status}`} data-testid={`step-${s.id}`}>

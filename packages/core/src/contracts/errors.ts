@@ -207,6 +207,16 @@ export const errorRegistry = {
       ]
     },
     {
+      "code": "E_GATE_WARNING",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "docs/06-spec-workflow-skill.md",
+          "when": "Chỉ kiểm mềm (`audio_duration`) không qua: cảnh báo, người dùng bỏ qua được bằng `workflow.waive` (043)"
+        }
+      ]
+    },
+    {
       "code": "E_GPU_OOM",
       "retryable": true,
       "sources": [
