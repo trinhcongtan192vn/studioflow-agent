@@ -27,3 +27,15 @@ description: Quy tắc làm việc với dự án video StudioFlow — artifact,
   - Người dẫn: `config.set {key: "voice.id", value: "vo_…", tier: "channel"}`. Nếu người dùng chỉ muốn đổi cho video này, dùng `tier: "video"`.
   - Nhân vật: ghi `voice_id: vo_…` vào khối `sf-cast` của nhân vật đó trong `CAST.md`.
   - Bước Giọng đọc đang lỗi → `workflow.run_to {step_id: "voice"}` hoặc nhắc người dùng bấm **Chạy lại bước**.
+
+## Chế độ tự động (mặc định, 034)
+
+Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, **bạn là người điều phối**:
+- **Tự quyết** mọi lựa chọn trong bước:
+  - bố cục, chọn ảnh/sinh ảnh, look, hiệu ứng, overlay, nhạc;
+  - số scene/frame, chia line, cách sửa khi gate báo lỗi.
+  Không hỏi người dùng "bạn muốn A hay B?". Chọn phương án hợp brief và hồ sơ kênh, ghi lý do ngắn trong tóm tắt bước.
+- **Chỉ dừng** ở điểm chốt (`workflow.key_approvals`, mặc định truyện `story`, kịch bản `script`, bản nháp `finalize`), ở brief, và khi **chọn giọng** cho người nói chưa có giọng (gợi ý bằng `voice.design`, chờ người dùng chọn).
+- Điểm duyệt khác (storyboard, animatic, dàn nhân vật…) app tự duyệt. Đừng nhắc người dùng duyệt chúng.
+- Gặp lỗi có thể tự sửa (gate, lint, thiếu asset): tự sửa và chạy tiếp. Chỉ báo người dùng khi cần quyết định thuộc điểm chốt hoặc cần tài nguyên họ phải cung cấp (file, khóa API, tiền).
+- Người dùng muốn duyệt từng bước: `config.set {key: "workflow.autopilot", value: false, tier: "video"}` (hoặc `tier: "channel"` cho cả kênh).

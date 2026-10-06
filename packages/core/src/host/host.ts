@@ -13,7 +13,7 @@ import type {
   SettingsConfig,
   VideoState,
 } from '../contracts/types.js';
-import { defaultAppDataDir } from '../config/resolve.js';
+import { defaultAppDataDir, resolveConfig, setConfig } from '../config/resolve.js';
 import { createCore, type Core, type CoreOptions } from '../core.js';
 import { detectChannel, initChannel } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
@@ -637,6 +637,21 @@ export class CoreHost extends EventEmitter {
           p.base_hash ? String(p.base_hash) : null,
         );
         return { hash: r.hash };
+      }
+      case 'config.resolve': {
+        const r = resolveConfig(
+          String(p.key),
+          { channelDir: path.resolve(p.channel), ...(p.video ? { videoId: p.video } : {}) },
+          { appDataDir: c.appDataDir },
+        );
+        return { value: r.value, source: r.source };
+      }
+      case 'workflow.set_autopilot': {
+        setConfig(this.store(p.channel), 'workflow.autopilot', p.on === true, {
+          tier: 'video',
+          videoId: p.video,
+        });
+        return { on: p.on === true };
       }
       case 'asr.accept': {
         const ctx = {

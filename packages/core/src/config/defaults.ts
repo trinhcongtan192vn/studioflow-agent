@@ -28,6 +28,9 @@ export const DEFAULTS: Record<string, unknown> = {
   'music.duck_db': -12,
   'asr.max_regen': 1,
   'lipsync.enabled': false,
+  // 034: chế độ tự động — chỉ dừng ở điểm chốt (brief luôn duyệt tay)
+  'workflow.autopilot': true,
+  'workflow.key_approvals': ['story', 'script', 'finalize'],
   'policy.auto_approve.batch_gen': false,
   'policy.auto_approve.paid_api': false,
   'check.duration_tolerance': 0.1,

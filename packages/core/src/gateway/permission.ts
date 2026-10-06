@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import type { SessionContext } from '../contracts/types.js';
 import { resolveConfig, setConfig } from '../config/resolve.js';
 import type { WriteStore } from '../store/writer.js';
+import { autopilotOf } from '../domain/autopilot.js';
 
 export type PermissionKind =
   'overwrite_approved' | 'pinned_frame' | 'batch_gen' | 'paid_api' | 'render';
@@ -49,6 +50,12 @@ export class PermissionBus extends EventEmitter {
     session: SessionContext,
     req: { tool: string; kind: PermissionKind; summary: string; estimate?: unknown },
   ): Promise<boolean> {
+    // 034: chế độ tự động — sinh hàng loạt (miễn phí) không hỏi; API có phí/render vẫn hỏi
+    if (
+      req.kind === 'batch_gen' &&
+      autopilotOf(session.channel_dir, session.video_id, this.opts.appDataDir).on
+    )
+      return true;
     const key = REMEMBERABLE[req.kind];
     if (key && session.video_id) {
       const r = resolveConfig(

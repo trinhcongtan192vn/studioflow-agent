@@ -209,6 +209,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     const progress = win.getByTestId('progress');
     await expect(progress).toContainText('/1 bước');
     await expect(win.getByTestId('progress-now')).toContainText(/Sẵn sàng|Chờ bạn duyệt/);
+    // 034: chế độ tự động bật mặc định; tắt được ngay trong tab
+    await expect(win.getByTestId('autopilot')).toContainText('Tự động');
+    await win.getByTestId('autopilot').click();
+    await expect(win.getByTestId('autopilot')).toContainText('Duyệt từng bước');
+    await expect(win.getByTestId('progress-feedback')).toContainText('Đã tắt chế độ tự động');
     const scriptRow = progress.getByTestId('step-script');
     await scriptRow.hover();
     await scriptRow.getByRole('button', { name: 'Quay lại' }).click();

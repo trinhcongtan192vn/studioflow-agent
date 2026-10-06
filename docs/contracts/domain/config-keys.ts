@@ -26,6 +26,8 @@ export type ConfigKey =
   | `asr.wer_threshold.${string}`
   | 'asr.max_regen'
   | 'lipsync.enabled'
+  | 'workflow.autopilot'
+  | 'workflow.key_approvals'
   | 'policy.auto_approve.batch_gen'
   | 'policy.auto_approve.paid_api'
   | 'check.duration_tolerance'

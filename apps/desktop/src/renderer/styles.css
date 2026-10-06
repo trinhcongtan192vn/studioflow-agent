@@ -976,3 +976,17 @@ body.resizing iframe {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* 034: công tắc chế độ tự động */
+.autopilot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  cursor: pointer;
+}
+.autopilot input {
+  accent-color: var(--accent);
+}

@@ -120,6 +120,7 @@ Cột **GĐ** = giai đoạn phải có. Spec chi tiết ở cột **Spec**.
 | FR-WF-07 | Workflow `essay-audiobook`, `shorts` | M4 | D6, FN-029, FN-030 |
 | FR-WF-08 | Workflow `short-film` (nhiều nhân vật, người dẫn, animatic) | M5 | D6, FN-031 |
 | FR-WF-09 | Lip-sync mức 1 cho `short-film` | M5b | D6, FN-032 |
+| FR-WF-10 | Chế độ tự động (mặc định): agent điều phối và tự quyết các bước; chỉ dừng ở điểm chốt (brief, truyện, kịch bản, chọn giọng khi chưa có, duyệt bản nháp trước render phát hành); tắt được theo kênh/video | Sau M5 | D6, 034 |
 
 ### 8.4 Kịch bản và `refine-loop` (SC)
 

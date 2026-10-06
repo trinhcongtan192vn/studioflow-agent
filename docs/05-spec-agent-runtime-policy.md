@@ -116,6 +116,8 @@ Cơ chế: handler tool **chờ** quyết định qua bus sự kiện của `cor
 | Ghi đè/sinh lại frame đã ghim | luôn (D9 mục 5) |
 | Xóa | không có tool xóa; dọn dẹp chỉ qua màn dung lượng (người dùng tự bấm) |
 
+Chế độ tự động (`workflow.autopilot`, 034): sinh hàng loạt miễn phí được đồng ý tự động; ghi đè artifact của approval **tự duyệt** không hỏi; API có phí và render vẫn hỏi.
+
 Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 và 3; lưu ở `state.json.config_overrides` khóa `policy.auto_approve.batch_gen` / `policy.auto_approve.paid_api` (D3 mục 7.2). Render luôn hỏi.
 
 ### 5.2 `script.run` — danh sách cho phép

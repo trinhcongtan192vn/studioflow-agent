@@ -23,6 +23,17 @@ Thời gian ước tính: khoảng 3–4 giờ nếu chạy đủ cả 5 workflo
 - Video đã render: `videos\<vd_…>\renders\<rn_…>\video.mp4`.
 - Model, cache, trace và cài đặt app: `%APPDATA%\StudioFlow Agent` hoặc thư mục `SF_APP_DATA` nếu có đặt.
 
+**Chế độ tự động (034, bật mặc định)**
+- Agent tự điều phối và tự quyết. Bạn chỉ phải dừng lại ở các điểm chốt:
+  - **brief**;
+  - **truyện** (phim ngắn);
+  - **kịch bản**;
+  - **chọn giọng** khi người nói chưa có giọng;
+  - **duyệt bản nháp** trước khi render phát hành.
+- Storyboard, animatic, dàn nhân vật được tự duyệt; xác nhận "sinh nhiều" được tự đồng ý. API có phí vẫn hỏi.
+- Muốn duyệt từng bước: bỏ chọn ô **Tự động** ở đầu tab Tiến độ, hoặc nói với agent.
+- Các bước ghi "Duyệt storyboard / animatic / dàn nhân vật" dưới đây chỉ áp dụng khi đã tắt chế độ tự động. Khi đang bật, chỉ cần kiểm tra các bước đó đã tự qua, với ghi chú "Tự duyệt".
+
 **Mẹo dùng chung (từ bản này)**
 - Mỗi bước workflow xong sẽ có một **thẻ "✓ Xong bước"** trong khung chat, kèm nút như **Xem brief**, **Xem kịch bản**, **Xem storyboard**, **Mở xem trước**, **Xem video**. Không cần đi tìm file trong Explorer.
 - Bước bị lỗi sẽ hiện thẻ đỏ có thông báo lỗi và nút **Chạy lại bước**.

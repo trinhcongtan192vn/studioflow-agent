@@ -248,6 +248,26 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "workflow.autopilot",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "workflow.key_approvals",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
       "key": "policy.auto_approve.batch_gen",
       "pattern": false,
       "type": "boolean",
