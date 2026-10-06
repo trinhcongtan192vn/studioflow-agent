@@ -433,7 +433,17 @@ export class BuildGraph {
     add('frame_timing', ['audio_meta'], { frames: frameTimingInputs(model) });
     // 020: ảnh sinh cho layer `asset_request.source = generate` chưa có asset_id
     if (on('asset')) {
-      const manifest = model.hashChannelDir('assets');
+      // 037: hash chỉ của ảnh được tham chiếu (manifest kênh) — không phải cả thư mục assets/,
+      // vì mỗi ảnh mới sinh làm đổi thư mục và mọi ảnh có tham chiếu sẽ luôn bị coi là lỗi thời
+      const lib = new Map(
+        (
+          (existsSync(path.join(this.store.root, 'assets', 'manifest.json'))
+            ? JSON.parse(
+                readFileSync(path.join(this.store.root, 'assets', 'manifest.json'), 'utf8'),
+              )
+            : { assets: [] }) as { assets: { id: string; hash?: string }[] }
+        ).assets.map((a) => [a.id, a.hash ?? null]),
+      );
       for (const f of model.frames)
         for (const l of f.layers) {
           const req = l.asset_request;
@@ -453,7 +463,9 @@ export class BuildGraph {
             parts: {
               prompt: req.prompt ?? l.notes ?? '',
               refs: req.reference_asset_ids ?? [],
-              refs_hash: req.reference_asset_ids?.length ? manifest : null,
+              refs_hash: req.reference_asset_ids?.length
+                ? req.reference_asset_ids.map((id) => lib.get(id) ?? null)
+                : null,
               transparent: Boolean(req.transparent),
               size: [w, h],
               look: model.config('look.id', { sceneId: f.scene_id, frameId: f.id }),

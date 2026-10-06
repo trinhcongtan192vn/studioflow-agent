@@ -1,5 +1,5 @@
 // 020 · SC-001..003 — nút asset / frame_html (ghim) / credits / render, kế hoạch có ước tính.
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   assetBuilder,
@@ -138,6 +138,38 @@ describe('build graph — full node set (020)', () => {
     expect(g()).not.toBe(before);
   });
 
+  it('037: an image with references stays fresh when other assets join the library; changes when a reference changes', async () => {
+    const { graph, store, status } = setup();
+    const sb = store.abs(`${V}/STORYBOARD.md`);
+    writeFileSync(
+      sb,
+      readFileSync(sb, 'utf8').replace(
+        'aspect: "16:9" }',
+        'aspect: "16:9", reference_asset_ids: [as_h6k2q9vt] }',
+      ),
+    );
+    // file của ảnh tham chiếu (kênh mẫu chỉ có bản ghi manifest)
+    mkdirSync(store.abs('assets/files'), { recursive: true });
+    writeFileSync(store.abs('assets/files/palace.png'), 'ref');
+    await graph.build(fixtureVideoId);
+    expect(status('asset:el_t5w8n3ja')!.status).toBe('fresh');
+    const mf = store.abs('assets/manifest.json');
+    const m = JSON.parse(readFileSync(mf, 'utf8'));
+    // ảnh khác được thêm vào thư viện kênh (ví dụ ảnh vừa sinh cho layer khác) → không ảnh hưởng
+    m.assets.push({
+      ...m.assets[0],
+      id: 'as_n3wa55et',
+      file: 'assets/files/new.png',
+      hash: '22'.padEnd(64, '0'),
+    });
+    writeFileSync(store.abs('assets/files/new.png'), 'x');
+    writeFileSync(mf, JSON.stringify(m));
+    expect(status('asset:el_t5w8n3ja')!.status).toBe('fresh');
+    // ảnh được tham chiếu đổi → lỗi thời
+    m.assets[0].hash = '33'.padEnd(64, '0');
+    writeFileSync(mf, JSON.stringify(m));
+    expect(status('asset:el_t5w8n3ja')!.status).toBe('stale');
+  });
   it('plan reports from_cache when the output can come from the cache', async () => {
     const { graph, store } = setup();
     await graph.build(fixtureVideoId);
