@@ -169,6 +169,13 @@ export interface IpcMethods {
     result: { hash: string };
   };
   'asr.accept': { params: VideoRef & { line_ids: string[] }; result: Record<string, never> };
+  /** Giá trị cấu hình đã giải theo tầng (chỉ đọc; 034 hiển thị chế độ tự động). */
+  'config.resolve': {
+    params: ChannelRef & { video?: string; key: string };
+    result: { value: unknown; source: string };
+  };
+  /** Bật/tắt chế độ tự động cho video (034, ghi `state.json.config_overrides` qua module ghi). */
+  'workflow.set_autopilot': { params: VideoRef & { on: boolean }; result: { on: boolean } };
 }
 
 /** Sự kiện core đẩy lên renderer. */

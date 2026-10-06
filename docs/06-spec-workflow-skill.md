@@ -142,6 +142,9 @@ done → stale   (khi đầu vào đổi sau đó)
 - **Duyệt mất hiệu lực:** khi hash của artifact trong `Approval.artifact_hashes` đổi → approval chuyển `pending` lại, bước về `waiting_approval`.
 - **Khôi phục (FR-WS-04):** khi mở video, engine đọc `state.json`; bước `running` của loại engine → tiếp tục theo job (D4 mục 5); của loại agent → đặt `pending` và hỏi người dùng có chạy lại không.
 
+
+**Chế độ tự động (034).** Khi `workflow.autopilot` bật (mặc định), approval của bước không thuộc `workflow.key_approvals` (mặc định `story`, `script`, `finalize`) được engine ghi `approved` ngay (note bắt đầu "Tự duyệt (chế độ tự động)") và chạy tiếp; brief luôn do người dùng duyệt. File của approval tự duyệt đổi sau đó: cập nhật hash, không quay về chờ duyệt. Bước `voice` thiếu giọng: engine giao agent gợi ý giọng (`voice.design`) và chờ người dùng chọn rồi mới dựng audio. Agent tự quyết các lựa chọn khác trong bước, không hỏi người dùng.
+
 ### 3.2 Điều phối tự động
 Mặc định engine tự chạy liên tiếp các bước không cần duyệt; dừng ở điểm duyệt, lỗi, hoặc thẻ xác nhận (D5 mục 5.1). Lệnh qua chat ("chạy tới bước render", "dừng", "quay lại storyboard") được agent chuyển thành `workflow.run_to` / `workflow.pause` / `workflow.rewind`.
 

@@ -23,6 +23,7 @@ import { artifactKind } from '../domain/artifacts.js';
 import { sha256 } from '../domain/hash.js';
 import { validateArtifact } from '../domain/validate.js';
 import { resolveInside, splitVideoPath } from './paths.js';
+import { isAutoApproval } from '../domain/autopilot.js';
 
 export interface WriteLogEntry {
   path: string;
@@ -248,7 +249,7 @@ export class WriteStore {
     const statePath = path.join(this.root, ...video.videoRel.split('/'), 'state.json');
     if (!existsSync(statePath)) return undefined;
     let state: {
-      approvals?: { status: string; artifact_hashes?: Record<string, string> }[];
+      approvals?: { status: string; note?: string; artifact_hashes?: Record<string, string> }[];
       pinned_frames?: Record<string, unknown>;
     };
     try {
@@ -258,7 +259,11 @@ export class WriteStore {
     }
     if (
       state.approvals?.some(
-        (a) => a.status === 'approved' && a.artifact_hashes && video.inner in a.artifact_hashes,
+        (a) =>
+          a.status === 'approved' &&
+          !isAutoApproval(a) && // 034: approval tự duyệt không khóa file
+          a.artifact_hashes &&
+          video.inner in a.artifact_hashes,
       )
     ) {
       return 'overwrite_approved';

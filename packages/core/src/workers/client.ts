@@ -49,12 +49,22 @@ export class PythonWorker {
 
   private ensure(): ChildProcessWithoutNullStreams {
     if (this.child) return this.child;
-    const child = spawn(this.opts.python, ['-m', 'sf_worker', 'serve', '--engine', this.opts.engine], {
-      env: { ...process.env, ...this.opts.env, PYTHONPATH: this.opts.srcDir, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
-      // cwd cố định: thư mục của tiến trình gọi có thể chứa gói trùng tên (ví dụ `coverage/`)
-      cwd: this.opts.srcDir,
-      windowsHide: true,
-    });
+    const child = spawn(
+      this.opts.python,
+      ['-m', 'sf_worker', 'serve', '--engine', this.opts.engine],
+      {
+        env: {
+          ...process.env,
+          ...this.opts.env,
+          PYTHONPATH: this.opts.srcDir,
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUNBUFFERED: '1',
+        },
+        // cwd cố định: thư mục của tiến trình gọi có thể chứa gói trùng tên (ví dụ `coverage/`)
+        cwd: this.opts.srcDir,
+        windowsHide: true,
+      },
+    );
     this.child = child;
     live.add(this);
     createInterface({ input: child.stdout }).on('line', (line) => this.onLine(line));
@@ -71,32 +81,48 @@ export class PythonWorker {
     child.once('error', (e: NodeJS.ErrnoException) =>
       fail(
         e.code === 'ENOENT'
-          ? new SfError('E_PROVIDER_UNAVAILABLE', `python for engine ${this.opts.engine} not found (${this.opts.python})`)
+          ? new SfError(
+              'E_PROVIDER_UNAVAILABLE',
+              `python for engine ${this.opts.engine} not found (${this.opts.python})`,
+            )
           : new SfError('E_PROVIDER_FAILED', `worker ${this.opts.engine}: ${e.message}`),
       ),
     );
-    child.once('exit', (code) => fail(new SfError('E_PROVIDER_FAILED', `worker ${this.opts.engine} exited (code ${code})`)));
+    child.once('exit', (code) =>
+      fail(new SfError('E_PROVIDER_FAILED', `worker ${this.opts.engine} exited (code ${code})`)),
+    );
     return child;
   }
 
   private onLine(line: string): void {
-    let msg: { id?: number; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { message: string; data?: { code?: string } } };
+    let msg: {
+      id?: number;
+      method?: string;
+      params?: Record<string, unknown>;
+      result?: unknown;
+      error?: { message: string; data?: { code?: string } };
+    };
     try {
       msg = JSON.parse(line);
     } catch {
-      this.logger.write('warn', 'worker.bad_line', { engine: this.opts.engine, line: line.slice(0, 200) });
+      this.logger.write('warn', 'worker.bad_line', {
+        engine: this.opts.engine,
+        line: line.slice(0, 200),
+      });
       return;
     }
     if (msg.method === 'progress' && msg.params) {
       for (const p of this.pending.values()) {
-        if (p.jobId === msg.params.job_id) p.onProgress?.(Number(msg.params.done), Number(msg.params.total));
+        if (p.jobId === msg.params.job_id)
+          p.onProgress?.(Number(msg.params.done), Number(msg.params.total));
       }
       return;
     }
     const p = msg.id === undefined ? undefined : this.pending.get(msg.id);
     if (!p) return;
     this.pending.delete(msg.id!);
-    if (msg.error) p.reject(new SfError(msg.error.data?.code ?? 'E_PROVIDER_FAILED', msg.error.message));
+    if (msg.error)
+      p.reject(new SfError(msg.error.data?.code ?? 'E_PROVIDER_FAILED', msg.error.message));
     else p.resolve(msg.result);
   }
 
@@ -118,13 +144,21 @@ export class PythonWorker {
     task: string,
     input: Record<string, unknown>,
     workdir: string,
-    opts: { jobId: string; onProgress?: (done: number, total: number) => void; signal?: AbortSignal },
+    opts: {
+      jobId: string;
+      onProgress?: (done: number, total: number) => void;
+      signal?: AbortSignal;
+    },
   ): Promise<Record<string, unknown>> {
     const onAbort = () => void this.call('cancel', { job_id: opts.jobId }).catch(() => {});
     opts.signal?.addEventListener('abort', onAbort);
     try {
       const traceparent = currentTraceparent();
-      return await this.call('run', { job_id: opts.jobId, task, input, workdir, ...(traceparent ? { traceparent } : {}) }, { jobId: opts.jobId, onProgress: opts.onProgress });
+      return await this.call(
+        'run',
+        { job_id: opts.jobId, task, input, workdir, ...(traceparent ? { traceparent } : {}) },
+        { jobId: opts.jobId, onProgress: opts.onProgress },
+      );
     } finally {
       opts.signal?.removeEventListener('abort', onAbort);
     }

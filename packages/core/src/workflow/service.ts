@@ -9,6 +9,7 @@ import type { WriteStore } from '../store/writer.js';
 import { WorkflowEngine, type AgentStepRunner, type StepExecutor } from './engine.js';
 import { loadPacks, type WorkflowPack } from './packs.js';
 import { speakersWithoutVoice } from './cast.js';
+import { autopilotOf } from '../domain/autopilot.js';
 
 /** Dịch vụ workflow của `core`: gói, executor theo `uses`, runner bước agent, engine theo video. */
 export class WorkflowService {
@@ -101,7 +102,23 @@ export class WorkflowService {
 function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): StepExecutor {
   return async (ctx) => {
     // 008 FR-VO-01: thiếu giọng → một lỗi gọn trước khi dựng (thay vì một lỗi cho mỗi line)
-    const unvoiced = speakersWithoutVoice(ctx.channelDir, ctx.videoId, ctx.appDataDir);
+    let unvoiced = speakersWithoutVoice(ctx.channelDir, ctx.videoId, ctx.appDataDir);
+    // 034: chế độ tự động + có agent → giao agent gợi ý giọng, chờ người dùng chọn, rồi dựng tiếp
+    if (
+      unvoiced.length &&
+      ctx.agent &&
+      autopilotOf(ctx.channelDir, ctx.videoId, ctx.appDataDir).on
+    ) {
+      await ctx.agent(
+        [
+          `Chưa có giọng cho: ${unvoiced.join(', ')} (narrator = người dẫn, ca_… = nhân vật).`,
+          'Không có file giọng mẫu thì gợi ý 2–3 giọng khác nhau cho mỗi người nói bằng voice.design (đặt for = narrator hoặc ca_…), theo nội dung kênh và tính cách nhân vật; có file mẫu người dùng đính kèm thì dùng voice.profile_create.',
+          'Chờ người dùng nghe thẻ 🎙 trong chat và chọn — không tự chọn thay. Khi đã chọn: người dẫn → config.set {key: "voice.id", value, tier: "channel"}; nhân vật → voice_id trong CAST.md.',
+          'Chỉ gọi workflow_step_complete khi mọi người nói đã có giọng; app sẽ tự dựng audio sau đó.',
+        ].join('\n'),
+      );
+      unvoiced = speakersWithoutVoice(ctx.channelDir, ctx.videoId, ctx.appDataDir);
+    }
     if (unvoiced.length)
       throw new SfError(
         'E_ID_UNKNOWN',

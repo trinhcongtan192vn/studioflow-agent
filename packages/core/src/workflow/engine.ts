@@ -18,6 +18,7 @@ import type { WriteStore } from '../store/writer.js';
 import { evaluateGate, type GateResult } from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
 import { resolveConfig } from '../config/resolve.js';
+import { AUTO_APPROVAL_NOTE, autopilotOf, isAutoApproval } from '../domain/autopilot.js';
 import { phaseBefore, type WorkflowPack } from './packs.js';
 
 export interface StepRunContext {
@@ -146,6 +147,15 @@ export class WorkflowEngine extends EventEmitter {
     for (const a of st.approvals) {
       if (a.status !== 'approved' || a.step_id === 'brief') continue;
       const stale = Object.entries(a.artifact_hashes).some(([f, h]) => this.hashOf(f) !== h);
+      if (stale && isAutoApproval(a)) {
+        // 034: tự duyệt → nhận nội dung mới, không quay về chờ duyệt
+        for (const f of Object.keys(a.artifact_hashes)) {
+          const h = this.hashOf(f);
+          if (h) a.artifact_hashes[f] = h;
+        }
+        changed = true;
+        continue;
+      }
       if (stale) {
         a.status = 'pending';
         delete a.decided_at;
@@ -540,6 +550,17 @@ export class WorkflowEngine extends EventEmitter {
           outputs.filter((o) => this.hashOf(o) !== null),
         );
         if (extra.summary) a.note = extra.summary;
+        // 034: chế độ tự động — điểm duyệt không phải điểm chốt được engine duyệt ngay
+        const auto = autopilotOf(this.d.store.root, this.d.videoId, this.d.appDataDir);
+        if (auto.on && !auto.keys.includes(decl.id)) {
+          a.status = 'approved';
+          a.decided_at = now();
+          a.note = `${AUTO_APPROVAL_NOTE}${extra.summary ? ` — ${extra.summary}` : ''}`;
+          st.approvals.push(a);
+          s.status = 'done';
+          this.writeState(st);
+          return true;
+        }
         st.approvals.push(a);
         s.status = 'waiting_approval';
         this.writeState(st);

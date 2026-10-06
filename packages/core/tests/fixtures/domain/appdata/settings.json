@@ -1,10 +1,32 @@
 {
   "schema_version": 1,
-  "config": { "look.id": "app-look", "frame_build.parallel": 3 },
-  "installed": { "profile": "minimal", "components": [] },
-  "provider_fallbacks": { "tts.synthesize": ["tts.omnivoice", "tts.vbee"] },
-  "network": { "allow": ["api.openai.com"] },
-  "pricing": [{ "provider": "text.openai", "model": "gpt-x", "unit": "mtok_in", "usd": 1.25 }],
-  "trace": { "capture_content": true, "retention_days": 30, "phoenix_enabled": false },
+  "config": {
+    "look.id": "app-look",
+    "frame_build.parallel": 3,
+    "workflow.autopilot": false
+  },
+  "installed": {
+    "profile": "minimal",
+    "components": []
+  },
+  "provider_fallbacks": {
+    "tts.synthesize": ["tts.omnivoice", "tts.vbee"]
+  },
+  "network": {
+    "allow": ["api.openai.com"]
+  },
+  "pricing": [
+    {
+      "provider": "text.openai",
+      "model": "gpt-x",
+      "unit": "mtok_in",
+      "usd": 1.25
+    }
+  ],
+  "trace": {
+    "capture_content": true,
+    "retention_days": 30,
+    "phoenix_enabled": false
+  },
   "recent_channels": []
 }

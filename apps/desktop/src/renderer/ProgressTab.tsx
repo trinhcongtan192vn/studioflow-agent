@@ -49,6 +49,32 @@ export function ProgressTab({
   const [busy, setBusy] = useState<string>();
   const [confirm, setConfirm] = useState<StepButton>();
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
+  // 034: chế độ tự động (agent tự quyết, chỉ dừng ở điểm chốt)
+  const [autopilot, setAutopilot] = useState<boolean>();
+  useEffect(() => {
+    if (!video) return;
+    void core
+      .call('config.resolve', { channel, video, key: 'workflow.autopilot' })
+      .then((r) => setAutopilot(r.value === true))
+      .catch(() => setAutopilot(undefined));
+  }, [channel, video, state?.phase]);
+  const toggleAutopilot = async () => {
+    if (!video || autopilot === undefined) return;
+    try {
+      const r = await core.call('workflow.set_autopilot', { channel, video, on: !autopilot });
+      setAutopilot(r.on);
+      setAction(undefined);
+      setFb({
+        tone: 'success',
+        text: r.on
+          ? 'Đã bật chế độ tự động: agent tự quyết, chỉ dừng ở brief, truyện/kịch bản, chọn giọng (khi thiếu) và duyệt bản nháp trước render.'
+          : 'Đã tắt chế độ tự động: mọi điểm duyệt của workflow đều chờ bạn.',
+        settled: true,
+      });
+    } catch (e) {
+      setFb({ tone: 'error', text: `Không đổi được chế độ: ${errText(e)}`, settled: true });
+    }
+  };
 
   useEffect(() => {
     void core.call('workflow.list', {}).then((r) => setWorkflows(r.workflows));
@@ -220,6 +246,16 @@ export function ProgressTab({
             {ov.done}/{ov.total} bước
           </span>
         </div>
+        {autopilot !== undefined && (
+          <label
+            className="autopilot"
+            data-testid="autopilot"
+            title="Tự động: agent tự quyết các bước, chỉ dừng ở điểm chốt"
+          >
+            <input type="checkbox" checked={autopilot} onChange={() => void toggleAutopilot()} />
+            {autopilot ? 'Tự động (chỉ dừng ở điểm chốt)' : 'Duyệt từng bước'}
+          </label>
+        )}
         <div className="progress-bar" aria-hidden="true">
           <div style={{ width: `${(ov.done / Math.max(1, ov.total)) * 100}%` }} />
         </div>

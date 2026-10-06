@@ -481,6 +481,8 @@ interface SettingsConfig extends Versioned {
 | `asr.wer_threshold.<lang>` | number | app, channel |
 | `asr.max_regen` | number | app, channel |
 | `lipsync.enabled` | boolean | channel, video, frame |
+| `workflow.autopilot` | boolean | app, channel, video |
+| `workflow.key_approvals` | string[] (id bước) | app, channel, video |
 | `policy.auto_approve.batch_gen` | boolean | video |
 | `policy.auto_approve.paid_api` | boolean | video |
 | `check.duration_tolerance` | number (tỉ lệ) | channel, video |

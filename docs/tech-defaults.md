@@ -109,6 +109,8 @@
 | `asr.wer_threshold.<lang>` | 0.15 `[chờ S12]` |
 | `asr.max_regen` | 1 |
 | `lipsync.enabled` | false |
+| `workflow.autopilot` | true (034: chỉ dừng ở điểm chốt) |
+| `workflow.key_approvals` | `[story, script, finalize]` |
 | `policy.auto_approve.batch_gen` | false |
 | `policy.auto_approve.paid_api` | false |
 | `check.duration_tolerance` | 0.10 |
