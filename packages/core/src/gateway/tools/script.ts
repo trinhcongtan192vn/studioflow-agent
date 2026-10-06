@@ -118,6 +118,8 @@ function minimalEnv(): Record<string, string> {
     HTTP_PROXY: BLOCKING_PROXY,
     HTTPS_PROXY: BLOCKING_PROXY,
     NO_PROXY: '',
+    // 037: `sf`/HyperFrames chạy bằng execPath (electron.exe trong app) → như Node
+    ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
   };
   for (const k of ['TEMP', 'TMP', 'APPDATA', 'LOCALAPPDATA', 'SF_GPU', 'SF_LLM'] as const)
     if (e[k]) env[k] = e[k]!;

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { nodeChildEnv } from '../node-child.js';
 import { existsSync, readdirSync, statSync, watch, type FSWatcher } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -75,12 +76,12 @@ export async function startHfStudio(
     {
       // cwd ngoài thư mục dự án: Windows không xóa được thư mục đang là cwd của tiến trình (025)
       cwd: tmpdir(),
-      env: {
+      env: nodeChildEnv({
         ...process.env,
         HYPERFRAMES_NO_TELEMETRY: '1',
         HYPERFRAMES_SKIP_SKILLS: '1',
         DO_NOT_TRACK: '1',
-      },
+      }),
       windowsHide: true,
     },
   );

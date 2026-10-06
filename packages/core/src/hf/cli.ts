@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { nodeChildEnv } from '../node-child.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -85,12 +86,12 @@ export async function runHf(
   const r = await new Promise<HfRun>((resolve, reject) => {
     const p = spawn(process.execPath, [bin, ...args], {
       cwd: opts.cwd,
-      env: {
+      env: nodeChildEnv({
         ...process.env,
         HYPERFRAMES_NO_TELEMETRY: '1',
         HYPERFRAMES_SKIP_SKILLS: '1',
         DO_NOT_TRACK: '1',
-      },
+      }),
       windowsHide: true,
       ...(opts.signal ? { signal: opts.signal } : {}),
     });

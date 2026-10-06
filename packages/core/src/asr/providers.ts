@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { nodeChildEnv } from '../node-child.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -165,13 +166,13 @@ export function createHfTranscribeProvider(opts: { appDataDir?: string } = {}): 
         );
       }
       const audio = ctx.resolveInput(input.audio);
-      const env = {
+      const env = nodeChildEnv({
         ...process.env,
         HYPERFRAMES_WHISPER_PATH: cli,
         HYPERFRAMES_NO_TELEMETRY: '1',
         USERPROFILE: home,
         HOME: home,
-      };
+      });
       const r = await run(
         process.execPath,
         [

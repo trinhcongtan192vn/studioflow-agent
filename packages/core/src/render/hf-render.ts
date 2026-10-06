@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { nodeChildEnv } from '../node-child.js';
 import { getGpuScheduler } from '../capability/run.js';
 import { SfError } from '../errors.js';
 import { hfInstall } from '../hf/cli.js';
@@ -78,12 +79,12 @@ async function hfRenderInner(
       [bin, 'render', '.', '-o', out, '--fps', String(o.fps), '--crf', String(o.crf)],
       {
         cwd: videoDir,
-        env: {
+        env: nodeChildEnv({
           ...process.env,
           HYPERFRAMES_NO_TELEMETRY: '1',
           HYPERFRAMES_SKIP_SKILLS: '1',
           DO_NOT_TRACK: '1',
-        },
+        }),
         windowsHide: true,
         detached: process.platform !== 'win32',
       },
