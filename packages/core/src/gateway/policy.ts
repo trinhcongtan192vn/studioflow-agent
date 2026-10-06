@@ -27,6 +27,7 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   [/^(tts|asr|voice|music|sfx|lipsync|grade|media)\./, M],
   ['render.video', M],
   [/^studio\./, M],
+  [/^youtube\./, M],
   [/^job\./, MF],
 ];
 

@@ -56,6 +56,8 @@ import { createTextService, type TextService } from './text/service.js';
 import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
+import { getSecretDefault } from './secrets/credman.js';
+import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -270,6 +272,12 @@ export function createCore(opts: CoreOptions = {}): Core {
   for (const t of finishTools({ queue, storeFor: (d) => gateway.storeFor(d) })) gateway.register(t);
   // Render (013)
   for (const t of renderTools(tts)) gateway.register(t);
+  // 044: video YouTube tham khảo / nghiên cứu nội dung qua MCP server YouTube (tool youtube.*)
+  const youtube = new YouTubeMcp({
+    server: youtubeServer(appDataDir),
+    apiKey: () => (opts.getSecret ?? getSecretDefault)(YOUTUBE_SECRET),
+  });
+  for (const t of youtubeTools(youtube)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
@@ -331,6 +339,7 @@ export function createCore(opts: CoreOptions = {}): Core {
       detachTrace();
       if (getGpuScheduler() === gpu) setGpuScheduler(undefined);
       queue.stop();
+      void youtube.close();
       void providerHandles.stop();
       db.close();
     },

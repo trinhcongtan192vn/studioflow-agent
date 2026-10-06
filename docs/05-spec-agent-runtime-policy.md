@@ -93,6 +93,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `asset.import`, `asset.search` | ✓ | `asset.search` | — | — |
 | capability (`tts.*`, `asr.*`, `voice.*`, `image.*`, `music.*`, `sfx.*`, `lipsync.*`, `grade.*`, `media.*`) | ✓ | `image.*` | — | — |
 | `render.video`, `studio.*` | ✓ | — | — | — |
+| `youtube.*` (044) | ✓ | — | — | — |
 | `job.*` | ✓ | ✓ | — | — |
 
 Tool không có trong cột → không được liệt kê cho phiên đó (`allowedTools`) và bị `canUseTool` từ chối nếu vẫn gọi.

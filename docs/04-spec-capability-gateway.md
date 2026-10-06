@@ -81,6 +81,10 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `asset.search` | `query, tags?` | `{assets[]}` | Thư viện kênh |
 | `music.library.add` | D8 | D8 | |
 | `music.find` / `sfx.find` | D8 | D8 | |
+| `youtube.video` | `url` (URL hoặc ID 11 ký tự) | `{video_id, url, title, channel{id,title}, published_at, duration_s, stats{views,likes,comments}, tags, description}` | Video YouTube tham khảo (044, mục 9.4) |
+| `youtube.transcript` | `url, language?` | `{video_id, language, segments, text, truncated?}` — `text` gộp mốc ~20 giây `[m:ss] …` | Thử ngôn ngữ yêu cầu → vi → en → ngôn ngữ có sẵn; không có → `E_FILE_NOT_FOUND` |
+| `youtube.search` | `query, max_results?, order?, published_after?` | `{videos[]: {video_id, url, title, channel, published_at}}` | Nghiên cứu chủ đề / video hot |
+| `youtube.channel_videos` | `channel_id, max_results?` | như `youtube.search` | Video mới nhất của kênh (đối thủ) |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
@@ -319,6 +323,11 @@ interface JobInfo {
 - Bộ ghim cùng nhau: phiên bản ComfyUI, custom node, file model (từ kho model chung), workflow JSON. App quản lý vòng đời (khởi động, kiểm tra sức khỏe, khởi động lại), chỉ lắng nghe `127.0.0.1`.
 - **Hợp đồng workflow JSON** (giữa gói provider và adapter): mỗi chế độ một file `workflows/<mode>.json` với `mode ∈ t2i | t2i_rgba | edit_ref | edit_mask`, chỗ thay thế `{{prompt}}`, `{{negative}}`, `{{width}}`, `{{height}}`, `{{seed}}`, `{{steps}}`, `{{image_in}}`, `{{mask_in}}`. Tham số mặc định của model nằm trong `provider.yaml` (`defaults`) của gói provider (giá trị hiện tại: FN-018).
 - Adapter phải hỗ trợ: tiến độ, hủy, giải phóng VRAM theo lệnh của lịch GPU. Endpoint và cờ khởi động cụ thể: FN-018 `[chờ S2]`.
+
+### 9.4 MCP server YouTube (044)
+- Gói `zubeid-youtube-mcp-server` (MIT) ghim phiên bản trong `packages/core/src/youtube/mcp.ts`; cài lần đầu dùng vào `<app-data>/mcp/youtube/` bằng `npm install` (riêng app, không dùng chung); chạy `node <cài>/dist/cli.js` qua stdio, cwd = thư mục cài.
+- Core là MCP client; tool của server được bọc thành tool Gateway `youtube.*` (mục 2.4) — kết quả rút gọn cho agent, lỗi chuẩn hoá (`E_PROVIDER_UNAVAILABLE` khi thiếu khóa, `E_PROVIDER_FAILED` khi server lỗi). Mở rộng (trending, kênh đối thủ, playlist) = bọc thêm tool của server.
+- Khóa YouTube Data API v3: bí mật `youtube_api_key` (D5 mục 5.4), truyền vào server qua biến môi trường `YOUTUBE_API_KEY`.
 
 ### 9.3 Worker Python
 - Mỗi engine một tiến trình, giao tiếp **JSON-RPC 2.0 qua stdio** (một JSON mỗi dòng). Log ra stderr.

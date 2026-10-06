@@ -33,6 +33,7 @@
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
+    REFERENCE.md                    (tùy chọn, 044) phân tích video YouTube tham khảo: công thức nội dung, không chép nội dung; markdown tự do, không qua schema
     audio/lines/<line_id>.wav       audio từng line
     audio_meta.json  caption_groups.json  caption-overrides.json
     lipsync/<line_id>.json

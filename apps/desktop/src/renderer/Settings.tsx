@@ -6,6 +6,7 @@ const LABEL: Record<string, string> = {
   deepseek: 'DeepSeek',
   anthropic: 'Anthropic (dự phòng)',
   dashscope_api_key: 'Qwen-Image API (DashScope)',
+  youtube_api_key: 'YouTube Data API v3 (video tham khảo)',
 };
 
 type Usage = {
