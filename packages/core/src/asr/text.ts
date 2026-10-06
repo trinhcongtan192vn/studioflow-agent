@@ -40,6 +40,33 @@ export function wordErrorRate(ref: string[], hyp: string[]): number {
   return Math.min(1, editTable(ref, hyp)[ref.length]![hyp.length]! / ref.length);
 }
 
+/**
+ * Âm tiết tiếng Việt quy về một dạng cho các phụ âm đầu ASR hay nghe lẫn (Whisper, giọng Bắc):
+ * tr→ch, s→x, gi/r→d (038). Không đổi vần/thanh.
+ */
+const foldViSyllable = (s: string): string =>
+  s
+    .replace(/^tr/, 'ch')
+    .replace(/^s/, 'x')
+    .replace(/^gi(?=[^n]|$)/, 'd')
+    .replace(/^r/, 'd');
+
+/**
+ * Tỷ lệ đọc sai của một line (038). Tiếng Việt: so theo ký tự sau khi bỏ khoảng trắng và quy phụ âm
+ * đầu dễ lẫn — Whisper hay dính tiểu từ ("ngay ạ" → "ngayạ"), mỗi chỗ dính tính 2 lỗi nếu so theo từ.
+ * Ngôn ngữ khác: WER theo từ.
+ */
+export function asrErrorRate(expected: string, transcript: string, language: string): number {
+  const ref = normalizeTokens(expected);
+  const hyp = normalizeTokens(transcript);
+  if (language !== 'vi') return wordErrorRate(ref, hyp);
+  const chars = (t: string[]) => [...t.map(foldViSyllable).join('')];
+  const a = chars(ref);
+  const b = chars(hyp);
+  if (a.length === 0) return b.length === 0 ? 0 : 1;
+  return Math.min(1, editTable(a, b)[a.length]![b.length]! / a.length);
+}
+
 /** Cặp chỉ số khớp đúng (a_i ↔ b_j) theo đường đi Levenshtein tối ưu. */
 function matches(a: string[], b: string[]): Map<number, number> {
   const d = editTable(a, b);

@@ -10,7 +10,7 @@ import type { AssetManifest } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
 import { sha256 } from '../domain/hash.js';
 import { seededId } from '../domain/ids.js';
-import { SfError } from '../errors.js';
+import { isSfError, SfError } from '../errors.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
 import { snapSide } from './qwen21-comfy.js';
@@ -228,7 +228,7 @@ export async function editImage(
     refs: (input.reference_asset_ids ?? []).map(ref),
     ...(src.asset.alpha ? { keep_alpha: true } : {}),
   };
-  return runToAsset(
+  const edited = await runToAsset(
     s,
     store,
     'image.edit',
@@ -240,6 +240,20 @@ export async function editImage(
     },
     o,
   );
+  if (!src.asset.alpha) return edited;
+  // 038: nguồn trong suốt — model sửa ảnh làm việc trên phần RGB ẩn của nền (màu tím của chế độ
+  // RGBA) và trả ảnh đặc → nhân vật nằm trong ô tím. Tách nền lại cho kết quả.
+  try {
+    return await removeBackground(
+      s,
+      store,
+      { source_asset_id: edited.asset_id, subject: 'object' },
+      o,
+    );
+  } catch (e) {
+    if (isSfError(e) && e.code === 'E_PROVIDER_UNAVAILABLE') return edited;
+    throw e;
+  }
 }
 
 /** `image.remove_bg` (FR-IM-03) → asset PNG trong suốt. */

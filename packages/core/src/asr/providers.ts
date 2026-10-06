@@ -8,7 +8,7 @@ import { defaultAppDataDir } from '../config/resolve.js';
 import { SfError } from '../errors.js';
 import { loadProviderManifest } from '../providers/manifest.js';
 import { wavDurationMs } from '../providers/wav.js';
-import { displayWords, normalizeTokens, wordErrorRate } from './text.js';
+import { asrErrorRate, displayWords } from './text.js';
 
 /** D4 mục 3 `AsrAlignInput` (audio là đường dẫn tương đối kênh). */
 export interface AsrAlignInput {
@@ -207,7 +207,7 @@ export function createHfTranscribeProvider(opts: { appDataDir?: string } = {}): 
       return {
         words,
         transcript,
-        wer: wordErrorRate(normalizeTokens(input.expected_text), normalizeTokens(transcript)),
+        wer: asrErrorRate(input.expected_text, transcript, input.language),
       };
     },
   };

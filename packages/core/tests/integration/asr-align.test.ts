@@ -74,7 +74,11 @@ function flakyAsr(badLine: string): AsrAdapter {
       const words = input.expected_text
         .split(/\s+/)
         .map((text, i) => ({ i, text, start_ms: i * 100, end_ms: (i + 1) * 100 }));
-      return { words, transcript: input.expected_text, wer: bad ? 0.5 : 0 };
+      return {
+        words,
+        transcript: bad ? 'một câu hoàn toàn khác hẳn' : input.expected_text,
+        wer: bad ? 0.5 : 0,
+      };
     },
   };
 }
@@ -119,7 +123,8 @@ describe('asr.align (010 US1, US2)', () => {
     writeFileSync(path.join(dir, 'channel.json'), JSON.stringify(ch));
     const job = await run(core, session, 'asr.align', { line_ids: 'all' });
     expect(job.result.regenerated).toEqual({ ln_9w3b6tqa: 1 }); // asr.max_regen mặc định 1
-    expect(job.result.mismatched).toEqual([{ line_id: 'ln_9w3b6tqa', asr_wer: 0.5, regen: 1 }]);
+    // 038: tỷ lệ lỗi chấm lại từ transcript ("Bệ hạ…" ↔ câu khác hẳn → 1)
+    expect(job.result.mismatched).toEqual([{ line_id: 'ln_9w3b6tqa', asr_wer: 1, regen: 1 }]);
     expect(readAsrState(v).regen).toEqual({ ln_9w3b6tqa: 1 });
     // audio line được sinh lại với seed khác → provenance thêm bản ghi của line đó
     const provs = readdirSync(path.join(v, 'provenance')).map((f) =>
@@ -128,7 +133,7 @@ describe('asr.align (010 US1, US2)', () => {
     expect(
       provs.filter((p) => p.output === 'audio/lines/ln_9w3b6tqa.wav' && p.seed === 1),
     ).toHaveLength(1);
-    expect(meta(v).lines[1]).toMatchObject({ asr_flag: 'mismatch', asr_wer: 0.5 });
+    expect(meta(v).lines[1]).toMatchObject({ asr_flag: 'mismatch', asr_wer: 1 });
 
     expect(
       await core.gateway.call(session, 'asr.accept', { line_ids: ['ln_9w3b6tqa'] }),

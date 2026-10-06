@@ -6,7 +6,7 @@ import { Logger } from '../log.js';
 import type { Builder } from '../graph/graph.js';
 import type { Db } from '../store/db.js';
 import type { AsrAlignOutput } from './providers.js';
-import { alignWords, type TimedWord } from './text.js';
+import { alignWords, type TimedWord, asrErrorRate } from './text.js';
 
 export interface AsrLineMeta {
   words: TimedWord[];
@@ -56,7 +56,9 @@ export function asrLineBuilder(deps: {
     });
     const out = r.output as AsrAlignOutput;
     const threshold = Number(ctx.model.config(`asr.wer_threshold.${ctx.model.language}`));
-    const wer = Math.round(out.wer * 10000) / 10000;
+    // 038: chấm lại từ transcript (tiếng Việt theo ký tự, quy phụ âm đầu dễ lẫn) — kể cả kết quả cache cũ
+    const wer =
+      Math.round(asrErrorRate(spoken, out.transcript, ctx.model.language) * 10000) / 10000;
     const flag = wer <= threshold ? 'ok' : 'mismatch';
     logger.write(flag === 'ok' ? 'info' : 'warn', 'sf.asr.line', {
       line_id: line.id,
