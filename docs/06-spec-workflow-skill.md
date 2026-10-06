@@ -266,7 +266,7 @@ steps:
 summaries: { common/examples.md: common/examples.summary.md }   # dùng khi vượt token_cap
 ```
 - Template dùng biến `{{brief}}`, `{{target_duration}}` (thời lượng mục tiêu dạng chữ, ví dụ "8 phút"), `{{language}}`, `{{rubric_short}}`, `{{issues}}`, `{{draft}}`.
-- Lắp prompt: template + include theo thứ tự; vượt `token_cap` → thay file có bản tóm tắt; vẫn vượt → `E_PROMPT_TOO_LONG`.
+- Lắp prompt: template + include theo thứ tự; phần của gói (template + include, chưa tính dữ liệu video điền vào như brief, kịch bản) vượt `token_cap` → thay file có bản tóm tắt; vẫn vượt → `E_PROMPT_TOO_LONG` (037).
 - Producer chỉ nhận `rubric_short` (tên tiêu chí + một câu); critic nhận rubric đầy đủ.
 
 ### 6.3 `channel.validate`

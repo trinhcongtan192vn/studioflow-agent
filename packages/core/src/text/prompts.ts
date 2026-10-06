@@ -74,24 +74,27 @@ export function buildPrompt(
       { appDataDir: scope.appDataDir },
     ).value;
   const read = (f: string) => readFileSync(path.join(pack.dir, f), 'utf8');
-  const assemble = (useSummary: boolean) => {
+  const assemble = (useSummary: boolean, v: PromptVars) => {
     const parts = (step.include ?? []).map((f) =>
       useSummary && pack.summaries[f] ? read(pack.summaries[f]!) : read(f),
     );
-    return fill([read(step.template), ...parts].join('\n\n'), vars, cfg);
+    return fill([read(step.template), ...parts].join('\n\n'), v, cfg);
   };
-  let text = assemble(false);
+  // 037: `token_cap` đo phần của gói (template + include, thứ thay được bằng tóm tắt), không đo dữ
+  // liệu video điền vào (brief, kịch bản…) — kịch bản dài làm hỏng mọi bước dùng nó
+  const blank = Object.fromEntries(Object.keys(vars).map((k) => [k, ''])) as unknown as PromptVars;
+  const packTokens = (useSummary: boolean) => estimateTokens(assemble(useSummary, blank));
   let summarized = false;
-  if (estimateTokens(text) > step.token_cap) {
-    text = assemble(true);
+  if (packTokens(false) > step.token_cap) {
     summarized = true;
-    if (estimateTokens(text) > step.token_cap) {
+    if (packTokens(true) > step.token_cap) {
       throw new SfError(
         'E_PROMPT_TOO_LONG',
-        `prompt for ${stepKey} is ~${estimateTokens(text)} tokens, cap ${step.token_cap}`,
+        `prompt pack for ${stepKey} is ~${packTokens(true)} tokens, cap ${step.token_cap}`,
       );
     }
   }
+  const text = assemble(summarized, vars);
   return { text, tokens: estimateTokens(text), summarized };
 }
 

@@ -51,7 +51,7 @@ describe('prompt pack (009 US3)', () => {
     writeFileSync(path.join(dir, 'common', 'long.summary.md'), 'ngắn');
     writeFileSync(
       path.join(dir, 'pack.yaml'),
-      'schema_version: 1\nsteps:\n  script: { template: script.md, include: [common/long.md], token_cap: 200 }\n  tiny: { template: script.md, include: [], token_cap: 2 }\nsummaries: { common/long.md: common/long.summary.md }\n',
+      'schema_version: 1\nsteps:\n  script: { template: script.md, include: [common/long.md], token_cap: 200 }\n  tiny: { template: script.md, include: [], token_cap: 1 }\nsummaries: { common/long.md: common/long.summary.md }\n',
     );
     const pack = loadPromptPack(c.dir);
     expect(pack.source).toBe('channel');
@@ -62,6 +62,21 @@ describe('prompt pack (009 US3)', () => {
     expect(() => buildPrompt(pack, 'tiny', vars, { channelDir: c.dir })).toThrow(
       expect.objectContaining({ code: 'E_PROMPT_TOO_LONG' }),
     );
+  });
+
+  it('037: the cap covers the pack (template + includes), not the video data filled in', () => {
+    const pack = loadPromptPack(fixtureChannel);
+    // kịch bản phim 3 phút ~ 3 000 token: không làm hỏng bước tiêu đề/mô tả
+    const p = buildPrompt(
+      pack,
+      'description',
+      { ...vars, draft: 'câu thoại '.repeat(3000) },
+      {
+        channelDir: fixtureChannel,
+      },
+    );
+    expect(p.tokens).toBeGreaterThan(2000);
+    expect(p.text).toContain('câu thoại');
   });
 
   it('estimates tokens from characters', () => {
