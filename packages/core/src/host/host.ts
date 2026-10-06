@@ -33,6 +33,7 @@ import { WriteStore } from '../store/writer.js';
 import { getTrace, listTraces } from '../trace/trace.js';
 import { CORE_VERSION } from '../version.js';
 import type { WorkflowEngine } from '../workflow/engine.js';
+import { noticeText, workflowNotices, type WorkflowNotice } from '../workflow/notices.js';
 
 interface OpenSession {
   id: string;
@@ -133,9 +134,16 @@ export class CoreHost extends EventEmitter {
     const key = `${path.resolve(channel)}|${video}`;
     if (!this.watched.has(key)) {
       this.watched.add(key);
+      // 041: trạng thái bước lần trước → thông báo khi đổi
+      let prev: Record<string, string> = Object.fromEntries(
+        e.summary().steps.map((s) => [s.id, s.status]),
+      );
       e.on('workflow.updated', (summary: IpcEvents['workflow.updated']) => {
         this.send('workflow.updated', { ...summary, channel });
         this.announceApprovals(channel, video, e);
+        const notices = workflowNotices(prev, summary.steps, e.readState());
+        prev = Object.fromEntries(summary.steps.map((s) => [s.id, s.status]));
+        for (const notice of notices) this.postNotice(channel, video, notice);
       });
       // 008 UI-04: tiến độ bước đang chạy (không lưu file)
       e.on('workflow.progress', (p: Omit<IpcEvents['workflow.progress'], 'channel' | 'video'>) =>
@@ -238,6 +246,24 @@ export class CoreHost extends EventEmitter {
     };
     this.sessions.set(key, s);
     return s;
+  }
+
+  /** 041: agent báo tình trạng workflow — ghi vào lịch sử chat của video và đẩy lên giao diện. */
+  private postNotice(channel: string, video: string, notice: WorkflowNotice): void {
+    const rel =
+      this.latestChat(channel, video) ?? `${this.chatDir(channel, video)}/${newId('ss')}.jsonl`;
+    const line: ChatLine = {
+      ts: new Date().toISOString(),
+      role: 'assistant',
+      content: noticeText(notice),
+      notice,
+    };
+    try {
+      this.store(channel).appendLine(rel, JSON.stringify(line), { by: 'chat' });
+    } catch {
+      /* ghi lịch sử là cố gắng tối đa */
+    }
+    this.send('workflow.notice', { channel, video, line });
   }
 
   private log(channel: string, rel: string, line: Omit<ChatLine, 'ts'>): void {

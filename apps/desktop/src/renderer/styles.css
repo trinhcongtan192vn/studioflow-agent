@@ -500,6 +500,19 @@ button.primary {
 .step-card.failed {
   border-left-color: var(--warn);
 }
+/* 041: thông báo tình trạng workflow của agent */
+.msg.notice {
+  border-left: 3px solid #2e9d5b;
+}
+.msg.notice.started {
+  border-left-color: var(--muted, #888);
+}
+.msg.notice.waiting {
+  border-left-color: var(--accent);
+}
+.msg.notice.failed {
+  border-left-color: var(--warn);
+}
 .cta-row {
   display: flex;
   flex-wrap: wrap;

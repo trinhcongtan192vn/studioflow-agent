@@ -1,5 +1,6 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
+import type { WorkflowNotice } from '../workflow/notices.js';
 import type {
   AgentEvent,
   CaptionOverrides,
@@ -22,6 +23,8 @@ export interface ChatLine {
   role: 'user' | 'assistant' | 'tool' | 'system';
   content: string;
   tool?: { name: string; input?: unknown; output_summary?: string };
+  /** Thông báo workflow do app đăng (041): giao diện vẽ thẻ có nút hành động. */
+  notice?: WorkflowNotice;
 }
 
 export interface ExplorerNode {
@@ -197,6 +200,8 @@ export interface IpcEvents {
   'chat.event': AgentEvent & { session_id: string; channel: string; video?: string };
   'job.updated': JobInfo;
   'workflow.updated': VideoStateSummary & { channel: string };
+  /** Agent báo tình trạng workflow trong chat (041); dòng đã được ghi vào lịch sử. */
+  'workflow.notice': { channel: string; video: string; line: ChatLine };
   /** Tiến độ bước đang chạy (008 UI-04); `done`/`total` null = bước đã kết thúc. */
   'workflow.progress': {
     channel: string;

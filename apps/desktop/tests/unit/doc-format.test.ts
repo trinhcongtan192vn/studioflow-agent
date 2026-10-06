@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { parseDoc, showValue } from '../../src/renderer/doc-format';
 import {
   activityLabel,
-  changedSteps,
   fileCtaLabel,
+  noticeCtas,
   friendlyStepError,
   stepCtas,
   voiceSuggestion,
@@ -95,19 +95,32 @@ describe('step CTAs', () => {
     ]);
   });
 
-  it('changedSteps reports only transitions to done/failed after the first snapshot', () => {
-    const steps = [
-      { id: 'design', status: 'done' },
-      { id: 'script', status: 'failed' },
-      { id: 'voice', status: 'running' },
-    ];
-    expect(changedSteps({}, steps)).toEqual([]);
+  it('noticeCtas gives each workflow notice its actions (041)', () => {
+    const base = {
+      step_id: 'script',
+      step_title: 'Kịch bản',
+      position: [3, 9] as [number, number],
+    };
+    expect(noticeCtas({ event: 'started', ...base })).toEqual([]);
     expect(
-      changedSteps({ design: 'running', script: 'running', voice: 'pending' }, steps).map(
-        (s) => s.id,
+      noticeCtas({ event: 'waiting', ...base, approval_id: 'ap_1', outputs: ['SCRIPT.md'] }),
+    ).toEqual([
+      { kind: 'approve', label: 'Duyệt', approval_id: 'ap_1' },
+      { kind: 'file', label: 'Xem kịch bản', path: 'SCRIPT.md' },
+    ]);
+    expect(
+      noticeCtas({ event: 'failed', ...base, error: 'artifact_valid(SCRIPT.md): line 3' }).map(
+        (c) => c.kind,
       ),
-    ).toEqual(['design', 'script']);
-    expect(changedSteps({ design: 'done', script: 'failed', voice: 'running' }, steps)).toEqual([]);
+    ).toEqual(['recheck', 'retry']);
+    expect(
+      noticeCtas({
+        event: 'finished',
+        ...base,
+        step_id: 'render',
+        outputs: ['renders/rd_1/video.mp4'],
+      })[0],
+    ).toEqual({ kind: 'file', label: 'Xem video', path: 'renders/rd_1/video.mp4' });
   });
 });
 

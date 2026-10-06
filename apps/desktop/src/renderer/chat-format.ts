@@ -2,6 +2,7 @@
  * Định dạng hiển thị chat (FN-008 mục 2): tên tool thân thiện, đối tượng thao tác, kết quả/lỗi đọc được,
  * gộp chuỗi tool liền nhau. Hàm thuần, không phụ thuộc DOM.
  */
+import type { WorkflowNotice } from '@studioflow/core';
 
 const TOOL_NAMES: Record<string, string> = {
   artifact_read: 'Đọc tệp',
@@ -229,7 +230,9 @@ export type StepCta =
   /** Chọn file giọng mẫu rồi soạn sẵn lời nhờ agent tạo giọng (FR-VO-01). */
   | { kind: 'voice'; label: string; step: string; prompt: string }
   /** Gửi ngay một lời nhờ agent (ví dụ gợi ý giọng khi chưa có file mẫu, 033). */
-  | { kind: 'say'; label: string; text: string };
+  | { kind: 'say'; label: string; text: string }
+  /** Duyệt ngay điểm duyệt đang chờ (041). */
+  | { kind: 'approve'; label: string; approval_id: string };
 
 const DOC_LABELS: Record<string, string> = {
   'BRIEF.md': 'Xem brief',
@@ -313,17 +316,28 @@ export function stepCtas(
   return out;
 }
 
-/** Bước đổi sang done/failed/waiting_approval so với lần trước (để hiện thẻ trong chat). */
-export function changedSteps<S extends { id: string; status: string }>(
-  prev: Record<string, string>,
-  steps: readonly S[],
-): S[] {
-  return steps.filter(
-    (s) =>
-      prev[s.id] !== undefined &&
-      prev[s.id] !== s.status &&
-      (s.status === 'done' || s.status === 'failed'),
-  );
+/** CTA cho thông báo workflow của agent (041): xem kết quả, duyệt, kiểm tra lại/chạy lại, xem video. */
+export function noticeCtas(n: WorkflowNotice): StepCta[] {
+  switch (n.event) {
+    case 'started':
+      return [];
+    case 'failed':
+      return stepCtas({ id: n.step_id, status: 'failed', title: n.step_title }, n.outputs, n.error);
+    case 'waiting':
+      return [
+        ...(n.approval_id
+          ? [{ kind: 'approve' as const, label: 'Duyệt', approval_id: n.approval_id }]
+          : []),
+        ...stepCtas({ id: n.step_id, status: 'done' }, n.outputs),
+      ];
+    case 'finished': {
+      const mp4 = n.outputs?.find((p) => /\.mp4$/i.test(p));
+      const out: StepCta[] = mp4 ? [{ kind: 'file', label: 'Xem video', path: mp4 }] : [];
+      return [...out, { kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' }];
+    }
+    case 'done':
+      return stepCtas({ id: n.step_id, status: 'done' }, n.outputs);
+  }
 }
 
 /** Dòng "agent đang làm gì" dưới cùng khung chat khi agent đang xử lý. */
