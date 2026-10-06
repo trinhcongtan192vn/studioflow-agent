@@ -67,6 +67,12 @@ export function stripWrapping(text: string): string {
     (_m, h: string, mk: string) => `${h} ${mk}`,
   );
   t = t.replace(/^#{1,6}(\s+.*<!--\s*sf:beat\b)/gm, '##$1');
+  // 042: marker `sf:` producer tự đặt (ví dụ `sf:visual text="…"`) → chú thích thường, giữ gợi ý
+  t = t.replace(
+    /<!--\s*sf:(?!beat\b|line\b|tts\b)([\w-]+)\s*(?:text="([^"]*)"|([^>]*?))\s*-->/g,
+    (_m, kind: string, text?: string, rest?: string) =>
+      `<!-- ${kind}: ${(text ?? rest ?? '').trim()} -->`,
+  );
   return `${t}\n`;
 }
 
