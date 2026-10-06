@@ -227,6 +227,34 @@ export class WorkflowEngine extends EventEmitter {
 
   // ---------- briefing (D6 mục 3.0) ----------
 
+  /**
+   * 040: BRIEF.md đã đề xuất workflow + output profile hợp lệ (agent ghi thẳng, không gọi
+   * `workflow.select`) mà chưa có điểm duyệt brief → tạo điểm duyệt để thẻ Duyệt hiện. Trả true nếu tạo.
+   */
+  ensureBriefApproval(): Promise<boolean> {
+    return this.exclusive(() => {
+      const st = this.readState();
+      if (st.phase !== 'briefing') return false;
+      if (st.approvals.some((a) => a.step_id === 'brief' && a.status === 'pending')) return false;
+      const briefRel = `${this.v}/BRIEF.md`;
+      if (!existsSync(this.d.store.abs(briefRel))) return false;
+      let front: Record<string, unknown>;
+      try {
+        front = parseBlocksDoc(readFileSync(this.d.store.abs(briefRel), 'utf8')).front;
+      } catch {
+        return false;
+      }
+      const wf = front.proposed_workflow as { id?: string } | null | undefined;
+      const profile = front.proposed_output_profile as string | null | undefined;
+      if (!wf?.id || !profile || front.approved_at) return false;
+      const pack = this.d.packs().find((p) => p.manifest.id === wf.id && p.compatible);
+      if (!pack || !pack.manifest.output_profiles.includes(profile)) return false;
+      st.approvals.push(this.newApproval(st, 'brief', ['BRIEF.md']));
+      this.writeState(st);
+      return true;
+    });
+  }
+
   select(workflowId: string, outputProfile: string): Promise<void> {
     return this.exclusive(() => {
       const st = this.readState();
