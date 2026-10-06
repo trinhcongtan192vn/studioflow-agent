@@ -20,6 +20,7 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   ['workflow.step_complete', MFP],
   [/^(graph|workflow)\./, M],
   ['approval.annotate', M],
+  ['cast.list', M],
   ['asset.import', M],
   ['asset.search', MF],
   [/^image\./, MF],

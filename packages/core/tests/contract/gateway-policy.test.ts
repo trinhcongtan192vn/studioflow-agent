@@ -28,6 +28,8 @@ const D5: [string, string[]][] = [
   ['asr.align', ['main']],
   ['voice.profile_create', ['main']],
   ['voice.design', ['main']],
+  ['voice.list', ['main']],
+  ['cast.list', ['main']],
   ['music.find', ['main']],
   ['sfx.find', ['main']],
   ['lipsync.cues', ['main']],

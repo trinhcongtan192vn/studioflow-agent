@@ -48,6 +48,7 @@ import { assetBuilder, assetPlanner } from './image/asset-builder.js';
 import { frameHtmlBuilder } from './hf/frame-builder.js';
 import { creditsBuilder, renderBuilder, renderPlanner } from './render/graph-builders.js';
 import { defineTtsJobs, ttsTools } from './tts/tools.js';
+import { libraryTools } from './tts/library.js';
 import type { LlmMode } from './testing/llm-replay.js';
 import { publishMetaExecutor, scriptExecutor } from './text/executors.js';
 import { registerTextObjectives } from './text/objectives.js';
@@ -185,6 +186,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     batchWindowMs,
   };
   for (const t of ttsTools(tts)) gateway.register(t);
+  for (const t of libraryTools(appDataDir)) gateway.register(t);
   defineTtsJobs(tts, appDataDir);
   // ASR + caption (010)
   graph.registerBuilder('asr.line', asrLineBuilder({ providers, db, appDataDir }));
