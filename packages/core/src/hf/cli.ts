@@ -47,6 +47,8 @@ export interface HfRun {
   stderr: string;
   /** JSON cuối của stdout khi lệnh có `--json`. */
   json?: Record<string, unknown>;
+  /** Bị dừng vì quá `timeoutMs` (037). */
+  timedOut?: boolean;
 }
 
 function lastJson(stdout: string): Record<string, unknown> | undefined {
@@ -94,7 +96,13 @@ export async function runHf(
     });
     let stdout = '';
     let stderr = '';
-    const timer = opts.timeoutMs ? setTimeout(() => p.kill(), opts.timeoutMs) : undefined;
+    let timedOut = false;
+    const timer = opts.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true;
+          p.kill();
+        }, opts.timeoutMs)
+      : undefined;
     p.stdout.on('data', (d: Buffer) => (stdout += d.toString('utf8')));
     p.stderr.on('data', (d: Buffer) => (stderr += d.toString('utf8')));
     p.on('error', (e) =>
@@ -103,7 +111,13 @@ export async function runHf(
     p.on('close', (code) => {
       if (timer) clearTimeout(timer);
       const json = args.includes('--json') ? lastJson(stdout) : undefined;
-      resolve({ code, stdout, stderr, ...(json ? { json } : {}) });
+      resolve({
+        code,
+        stdout,
+        stderr,
+        ...(json ? { json } : {}),
+        ...(timedOut ? { timedOut } : {}),
+      });
     });
   });
   logger.write(r.code === 0 ? 'info' : 'warn', 'sf.hf.cli', {
@@ -205,23 +219,16 @@ function gradedCopy(videoDir: string): { dir: string; dispose(): void } | undefi
   };
 }
 
-/** `hyperframes check --json` (lint + runtime + layout + contrast trong Chrome headless). */
-export async function hfCheck(
-  videoDir: string,
-  opts: { signal?: AbortSignal; watch?: string[]; samples?: number } = {},
-) {
-  const graded = gradedCopy(videoDir);
-  let r: HfRun;
-  try {
-    r = await runHf(['check', '--json', '--samples', String(opts.samples ?? 5)], {
-      cwd: graded?.dir ?? videoDir,
-      ...opts,
-      ...(graded ? { watch: [] } : {}),
-      timeoutMs: 600_000,
-    });
-  } finally {
-    graded?.dispose();
-  }
+/** Thời gian chờ `hyperframes check` theo số frame (037): ≥ 10 phút, 30 s mỗi frame. */
+export const checkTimeoutMs = (frames: number) => Math.max(600_000, frames * 30_000);
+
+/** Kết quả `hyperframes check --json` → đạt/lỗi (037: quá thời gian báo rõ; `ok` của JSON quyết định khi có). */
+export function checkVerdict(r: HfRun, timeoutMs: number) {
+  if (r.timedOut)
+    throw new SfError(
+      'E_PROVIDER_FAILED',
+      `hyperframes check timed out after ${Math.round(timeoutMs / 60_000)} min (video too long or machine busy); run the step again`,
+    );
   if (!r.json)
     throw new SfError(
       'E_PROVIDER_FAILED',
@@ -235,5 +242,27 @@ export async function hfCheck(
     (v.findings ?? []).filter((f) => f.severity === 'error').map((f) => ({ ...f, pass: k })),
   );
   const errorCount = parts.reduce((s, [, v]) => s + (v.errorCount ?? 0), 0);
-  return { ok: r.code === 0 && errorCount === 0, errorCount, errors, raw: j };
+  const jsonOk = typeof j.ok === 'boolean' ? j.ok : undefined;
+  return { ok: errorCount === 0 && (jsonOk ?? r.code === 0), errorCount, errors, raw: j };
+}
+
+/** `hyperframes check --json` (lint + runtime + layout + contrast trong Chrome headless). */
+export async function hfCheck(
+  videoDir: string,
+  opts: { signal?: AbortSignal; watch?: string[]; samples?: number; timeoutMs?: number } = {},
+) {
+  const timeoutMs = opts.timeoutMs ?? 600_000;
+  const graded = gradedCopy(videoDir);
+  let r: HfRun;
+  try {
+    r = await runHf(['check', '--json', '--samples', String(opts.samples ?? 5)], {
+      cwd: graded?.dir ?? videoDir,
+      ...opts,
+      ...(graded ? { watch: [] } : {}),
+      timeoutMs,
+    });
+  } finally {
+    graded?.dispose();
+  }
+  return checkVerdict(r, timeoutMs);
 }

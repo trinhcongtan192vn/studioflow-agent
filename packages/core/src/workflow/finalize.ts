@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { SfError } from '../errors.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
-import { hfCheck, runHf } from '../hf/cli.js';
+import { checkTimeoutMs, hfCheck, runHf } from '../hf/cli.js';
 import { renderVideo } from '../render/render.js';
 import { createScratchDir } from '../store/scratch.js';
 import type { StepRunContext } from './engine.js';
@@ -55,7 +55,11 @@ export function finalizeExecutor(builders: BuilderRegistry) {
           path.join(videoDir, 'compositions', 'frames', f),
         )
       : [];
-    const check = await hfCheck(videoDir, { watch: frames, signal: ctx.signal });
+    const check = await hfCheck(videoDir, {
+      watch: frames,
+      signal: ctx.signal,
+      timeoutMs: checkTimeoutMs(frames.length),
+    });
     if (!check.ok)
       throw new SfError(
         'E_GATE_FAILED',

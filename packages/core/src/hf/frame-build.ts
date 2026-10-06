@@ -12,7 +12,7 @@ import type { FrameTiming } from '../graph/timing.js';
 import { Logger } from '../log.js';
 import type { WriteStore } from '../store/writer.js';
 import type { StepRunContext } from '../workflow/engine.js';
-import { hfCheck, hfLint } from './cli.js';
+import { checkTimeoutMs, hfCheck, hfLint } from './cli.js';
 import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
 import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
@@ -321,7 +321,11 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         .filter((f) => f.severity === 'error')
         .map((f) => ({ ...f, where: f.file ?? '' }));
       if (!errs.length && d.check !== false) {
-        const chk = await hfCheck(videoDir, { watch, ...sig });
+        const chk = await hfCheck(videoDir, {
+          watch,
+          ...sig,
+          timeoutMs: checkTimeoutMs(model.frames.length),
+        });
         errs.push(
           ...chk.errors.map((f) => ({
             ...f,
