@@ -88,7 +88,7 @@ function registerMedia(): void {
     });
   });
 }
-const SECRET_NAMES = ['openai', 'deepseek', 'anthropic', 'dashscope_api_key'];
+const SECRET_NAMES = ['openai', 'deepseek', 'anthropic', 'dashscope_api_key', 'youtube_api_key'];
 const MAX_RESTARTS = 3;
 
 let win: BrowserWindow | undefined;

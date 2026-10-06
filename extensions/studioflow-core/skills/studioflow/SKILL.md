@@ -55,3 +55,37 @@ Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, 
 
 - Viết nội dung brief vào `BRIEF.md`, rồi gọi **`workflow.select {workflow_id, output_profile}`** để chọn workflow. Lệnh này ghi đề xuất vào brief và **tạo điểm duyệt brief**, thẻ Duyệt sẽ hiện ở cuối khung chat. (Ghi thẳng `proposed_workflow` vào BRIEF.md thì app cũng tự tạo điểm duyệt, nhưng nên dùng `workflow.select`.)
 - Nhắc người dùng bấm **Duyệt** trên thẻ. Không tự duyệt thay.
+
+## Tạo video từ video YouTube tham khảo (044)
+
+Người dùng gửi URL YouTube và nhờ làm video tương tự / hay hơn. Mục tiêu: **học công thức tạo nội dung hấp dẫn, không sao chép nội dung**.
+
+1. `youtube.video {url}` (tiêu đề, kênh, thời lượng, lượt xem…) và `youtube.transcript {url}` (lời thoại có mốc `[m:ss]`). Không có transcript → phân tích từ tiêu đề, mô tả, tags và nói rõ với người dùng. Lỗi thiếu khóa API → nhắc người dùng thêm khóa YouTube trong Cài đặt.
+2. Phân tích, tập trung vào **"why it works"** và **"how to reproduce the mechanism"**; không viết lại hay diễn đạt lại video. Ghi `REFERENCE.md` của video (`artifact.write`):
+
+   ```markdown
+   # Phân tích video tham khảo
+   Nguồn: <tiêu đề> — <kênh> (<url>), <thời lượng>, <lượt xem>
+
+   ## Core idea
+   Video thực sự nói về gì?
+   ## Audience & promise
+   Video hứa hẹn điều gì với người xem?
+   ## Hook
+   Điều gì khiến người xem muốn xem tiếp (kèm mốc thời gian)?
+   ## Structure
+   Cấu trúc và flow của video (các phần, mốc thời gian, nhịp).
+   ## Retention drivers
+   Yếu tố giữ chân người xem: curiosity, conflict, surprise, storytelling, information gap…
+   ## Winning formula
+   Cô đọng thành một công thức áp dụng được cho video khác.
+   ## Adaptation
+   3 cách áp dụng công thức cho chủ đề mới, không sao chép nội dung gốc (mỗi cách: chủ đề, angle, hook mở đầu).
+   ## Best angle
+   Angle hấp dẫn nhất và vì sao (ngắn gọn).
+   ```
+
+3. Tóm tắt trong chat (công thức + best angle, 4–6 dòng). Người dùng đã nêu chủ đề mới → áp công thức vào chủ đề đó.
+4. Lên brief như bình thường từ best angle: chọn workflow hợp với dạng video (giải thích, truyện, shorts…) và thời lượng, viết `BRIEF.md` với mục **Công thức tham khảo** (Winning formula, Best angle, hook mở đầu và cấu trúc dự kiến — tóm từ `REFERENCE.md`, kèm URL nguồn), rồi `workflow.select` → thẻ duyệt brief. Các bước sau (design system, kịch bản…) đọc `BRIEF.md` nên giữ được công thức; nội dung, ví dụ và câu chữ phải là của kênh, không lấy từ video gốc.
+
+Nghiên cứu thêm (chủ đề đang hot, video đối thủ): `youtube.search {query, order: "viewCount", published_after}` và `youtube.channel_videos {channel_id}`.
