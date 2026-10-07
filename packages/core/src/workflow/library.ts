@@ -125,6 +125,18 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
     gates: () => [{ kind: 'objective', check: 'overlays_valid' }],
   },
+  // 062: look + hiệu ứng + overlay trong một phiên agent (thay ba bước riêng, đỡ hai phiên)
+  finish: {
+    by: 'agent',
+    reads: r('profile'),
+    writes: r('STORYBOARD'),
+    outputs: r('STORYBOARD.md'),
+    gates: () => [
+      { kind: 'objective', check: 'look_valid' },
+      { kind: 'objective', check: 'effects_valid' },
+      { kind: 'objective', check: 'overlays_valid' },
+    ],
+  },
   finalize: {
     by: 'engine',
     reads: r('frames', 'audio', 'captions', 'music'),
@@ -134,6 +146,8 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     gates: () => [
       { kind: 'graph_fresh', nodes: '*' },
       { kind: 'objective', check: 'audio_duration', params: { source: 'timeline' } },
+      // 061: dòng đọc sai chặn render phát hành → báo sớm ở đây (kiểm mềm)
+      { kind: 'objective', check: 'asr_clean' },
     ],
   },
   'publish-meta': {
@@ -142,6 +156,14 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     writes: r('publish'),
     outputs: r('publish.md'),
     gates: () => [valid('publish.md'), { kind: 'objective', check: 'meta_limits' }],
+  },
+  // 063: hình đại diện YouTube theo phong cách kênh (câu móc + ảnh nền), trước render
+  thumbnail: {
+    by: 'engine',
+    reads: r('publish', 'BRIEF', 'frame.md'),
+    writes: r('thumbnail'),
+    outputs: r('thumbnail.jpg'),
+    gates: () => [{ kind: 'objective', check: 'thumbnail_valid' }],
   },
   render: { by: 'engine', reads: r('index'), writes: r('renders'), outputs: r(), gates: () => [] },
 };

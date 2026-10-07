@@ -217,7 +217,10 @@ export function ProgressTab({
       else if (a.kind === 'pause') s = await core.call('workflow.pause', { channel, video });
       else if (a.kind === 'rewind')
         s = await core.call('workflow.rewind', { channel, video, step_id: a.step });
-      else if (a.kind === 'recheck' || a.kind === 'waive') {
+      else if (a.kind === 'recheck' || a.kind === 'waive' || a.kind === 'asr_accept') {
+        // 061: chấp nhận dòng đọc sai rồi kiểm tra lại bước
+        if (a.kind === 'asr_accept')
+          await core.call('asr.accept', { channel, video, line_ids: a.line_ids });
         const r =
           a.kind === 'waive'
             ? await core.call('workflow.waive', { channel, video, step_id: a.step, check: a.check })

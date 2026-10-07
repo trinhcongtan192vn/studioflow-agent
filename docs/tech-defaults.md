@@ -101,6 +101,7 @@
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | 2 / 3 / 8.0 `[chờ S14]` |
 | `frame.min_duration_ms` | 2000 |
 | `frame_build.parallel` | 2 `[chờ S4]` |
+| `frame_build.model` / `frame_build.model_simple` | `claude-sonnet-5-5` / `claude-haiku-4-5-20251001` (060: frame đơn giản ≤ 3 layer, ≤ 10 s, không khẩu hình/bản đồ/biểu đồ → model rẻ ở lần đầu; thử lại → model chính) |
 | `budget.tokens_per_video` | 2 000 000 |
 | `budget.api_cost_usd_per_video` | 5 |
 | `budget.cache_gb` | 20 |
@@ -122,6 +123,7 @@
 | `autopilot.enabled` / `autopilot.paused` | false / false |
 | `autopilot.competitors` / `autopilot.pillars` / `autopilot.workflows` | `[]` / `[]` / `[]` (rỗng = mọi workflow cài sẵn) |
 | `autopilot.max_per_day` | 1 |
+| `autopilot.asr_accept_ratio` | 1.5 (061: Autopilot tự chấp nhận dòng đọc sai có tỉ lệ lỗi ≤ ngưỡng ASR × hệ số) |
 | `autopilot.background` | true (052: có kênh Autopilot → đóng cửa sổ thì chạy nền ở khay hệ thống) |
 | `autopilot.min_score` | 40 (051: chủ đề điểm thấp hơn không được lập vào kế hoạch ngày) |
 | `autopilot.duration_waive_ratio` | 0.25 (052: lệch thời lượng tối đa mà Autopilot tự bỏ qua cảnh báo `audio_duration`) |

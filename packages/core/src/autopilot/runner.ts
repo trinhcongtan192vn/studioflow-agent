@@ -21,6 +21,7 @@ import { WriteStore } from '../store/writer.js';
 import type { Notifier } from '../telegram/notifier.js';
 import type { AutoDecide, WorkflowEngine } from '../workflow/engine.js';
 import { audioDurationReading } from '../workflow/duration.js';
+import { asrCleanCheck } from '../workflow/asr-gate.js';
 import { executionOrder, STEP_LIBRARY } from '../workflow/library.js';
 import type { WorkflowService } from '../workflow/service.js';
 import type { BriefFn } from './brief.js';
@@ -120,6 +121,8 @@ export interface RunnerDeps {
   clock?: () => Date;
   appDataDir?: string;
   logger?: (line: AutopilotLogLine & { channel: string }) => void;
+  /** 061: chấp nhận line ASR đọc sai (asr.accept); không có → đỗ mục khi gặp dòng đọc sai. */
+  acceptAsr?: (channel: string, video: string, lineIds: string[]) => Promise<void>;
 }
 
 export type ItemOutcome = 'produced' | 'parked' | 'failed' | 'wait' | 'stopped';
@@ -339,6 +342,21 @@ export class AutopilotRunner extends EventEmitter {
 
   private app<T>(key: string): T {
     return resolveAppConfig<T>(key, { appDataDir: this.d.appDataDir });
+  }
+
+  /** Ngôn ngữ kênh (`channel.json`) — chọn ngưỡng ASR theo ngôn ngữ. */
+  private cfgChannelLanguage(channel: string): string {
+    try {
+      return (
+        (
+          JSON.parse(readFileSync(path.join(channel, 'channel.json'), 'utf8')) as {
+            language?: string;
+          }
+        ).language ?? 'vi'
+      );
+    } catch {
+      return 'vi';
+    }
   }
 
   private cfg<T>(key: string, channel: string, video?: string): T {
@@ -1179,6 +1197,42 @@ export class AutopilotRunner extends EventEmitter {
     if (blocked)
       return { kind: 'parked', step_id: stepId, reason: `cần xác nhận chi phí: ${blocked}` };
     // 3. cảnh báo thời lượng (043): bỏ qua nếu lệch nhỏ
+    // 3a. dòng đọc sai (061): lỗi nhỏ (≤ ngưỡng ASR × autopilot.asr_accept_ratio) → chấp nhận; lỗi lớn → đỗ
+    if (errCode === 'E_GATE_WARNING' && /asr_clean/.test(msg)) {
+      const r = asrCleanCheck((rel) => c.store.abs(rel), c.video);
+      if (r.lines.length) {
+        const lang = String(this.cfgChannelLanguage(c.channel));
+        const base = Number(
+          this.cfg<number>(`asr.wer_threshold.${lang}`, c.channel, c.video) ?? 0.15,
+        );
+        const ratio = Number(this.cfg<number>('autopilot.asr_accept_ratio', c.channel, c.video));
+        const limit = base * ratio;
+        const heavy = r.lines.filter((l) => l.wer > limit);
+        const pct = (x: number) => `${Math.round(x * 100)}%`;
+        if (heavy.length || !this.d.acceptAsr) {
+          const why = heavy.length
+            ? `${heavy.length} dòng đọc sai nhiều (ngưỡng tự chấp nhận ${pct(limit)}): ${heavy.map((l) => `${l.line_id} lệch ${pct(l.wer)}`).join(', ')} — cần bạn nghe lại / sửa chữ`
+            : `${r.lines.length} dòng đọc sai cần nghe lại: ${r.lines.map((l) => l.line_id).join(', ')}`;
+          this.logItem(c, 'warn', 'gate.decision', `Bước ${stepId}: ${why}.`, { step_id: stepId });
+          return { kind: 'parked', step_id: stepId, reason: why };
+        }
+        await this.d.acceptAsr(
+          c.channel,
+          c.video,
+          r.lines.map((l) => l.line_id),
+        );
+        this.logItem(
+          c,
+          'info',
+          'asr.accept',
+          `Bước ${stepId}: tự chấp nhận ${r.lines.length} dòng đọc sai nhẹ (≤ ${pct(limit)}): ${r.lines.map((l) => `${l.line_id} lệch ${pct(l.wer)}`).join(', ')}.`,
+          { step_id: stepId, data: { lines: r.lines, limit } },
+        );
+        await e.recheck(stepId);
+        await e.idle();
+        return undefined;
+      }
+    }
     if (errCode === 'E_GATE_WARNING' && /audio_duration/.test(msg)) {
       const gate = [...STEP_LIBRARY[decl.uses].gates(decl.params), ...(decl.gate ?? [])].find(
         (g) => g.kind === 'objective' && g.check === 'audio_duration',

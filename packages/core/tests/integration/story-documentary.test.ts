@@ -212,7 +212,7 @@ beforeAll(() => {
       const r = await core.gateway.call(session, 'music.find', { query: 'epic, slow, drums' });
       expect(r).toMatchObject({ ok: false, error: { code: 'E_MUSIC_NOT_FOUND' } });
     }
-    if (step === 'effects') {
+    if (step === 'finish') {
       // 027: dry-run rồi áp hạt phim cho frame dùng ảnh nền đầu tiên (FN-common 6)
       const g = JSON.parse(
         readFileSync(ctx.store.abs(`videos/${ctx.videoId}/.sf/graph.json`), 'utf8'),
@@ -236,7 +236,7 @@ beforeAll(() => {
         treatments.push(w.data.result);
       }
     }
-    await ctx.stepComplete(step === 'music' || step === 'effects' ? ['STORYBOARD.md'] : []);
+    await ctx.stepComplete(step === 'music' || step === 'finish' ? ['STORYBOARD.md'] : []);
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Khởi nghĩa Lam Sơn' }).video_id;
@@ -280,7 +280,7 @@ describeStudio('story-documentary end to end (023 FR-WF-06)', () => {
     // effects sửa STORYBOARD.md đã duyệt → duyệt lại storyboard (D6 3.1)
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
     // assets do engine (nút asset); look/effects/overlays (027) + music giao phiên main
-    expect(agentSteps).toEqual(['look', 'effects', 'overlays', 'music']);
+    expect(agentSteps).toEqual(['finish', 'music']);
     expect(treatments.map((t) => [t.mode, t.within_budget, t.applied.length])).toEqual([
       ['dry_run', true, 0],
       ['apply', true, 1],

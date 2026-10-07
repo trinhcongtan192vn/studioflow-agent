@@ -468,6 +468,8 @@ export type ConfigKey =
   | 'refine.threshold'
   | 'frame.min_duration_ms'
   | 'frame_build.parallel'
+  | 'frame_build.model'
+  | 'frame_build.model_simple'
   | 'budget.tokens_per_video'
   | 'budget.api_cost_usd_per_video'
   | 'budget.cache_gb'
@@ -493,6 +495,7 @@ export type ConfigKey =
   | 'autopilot.enabled'
   | 'autopilot.paused'
   | 'autopilot.background'
+  | 'autopilot.asr_accept_ratio'
   | 'autopilot.competitors'
   | 'autopilot.pillars'
   | 'autopilot.workflows'
@@ -532,7 +535,7 @@ export interface WorkflowManifest {
 }
 
 export type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'lipsync' | 'finalize' | 'publish-meta' | 'render';
+  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render';
 
 export interface StepDecl {
   id: string;                               // duy nhất trong workflow

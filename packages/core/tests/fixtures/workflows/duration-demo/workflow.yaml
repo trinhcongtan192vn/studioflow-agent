@@ -17,5 +17,5 @@ steps:
       id: storyboard,
       uses: storyboard,
       title: Storyboard,
-      gate: [{ kind: objective, check: audio_duration }],
+      gate: [{ kind: objective, check: audio_duration }, { kind: objective, check: asr_clean }],
     }

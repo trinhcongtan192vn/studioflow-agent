@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { GSAP_LOCAL } from '../hf/gsap.js';
 import type {
   AudioMeta,
   CaptionGroups,
@@ -572,6 +573,8 @@ export class BuildGraph {
         model.config('music.volume_db', { sceneId: s.id }),
       ]),
       duck_db: model.config('music.duck_db'),
+      // 059: GSAP cục bộ — đổi bản ghim (hay chuyển từ CDN) → lắp lại index một lần
+      gsap: GSAP_LOCAL,
     }));
     // 020: CREDITS từ nhạc + asset đã dùng; render nháp (chỉ khi được chọn)
     // đọc lúc băm (asset vừa sinh trong cùng lần build làm đổi thư mục assets)

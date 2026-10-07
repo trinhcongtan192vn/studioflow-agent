@@ -23,9 +23,15 @@ export interface GateResult {
  */
 export const WAIVABLE_CHECKS: ReadonlySet<string> = new Set(['audio_duration']);
 
-/** Gate trượt này chỉ là cảnh báo (có thể bỏ qua). */
+/**
+ * Kiểm mềm (lỗi `E_GATE_WARNING`, không phải hỏng): thời lượng (043) và dòng đọc sai (061, `asr_clean` —
+ * xử lý bằng nghe lại + `asr.accept` hoặc sửa chữ, không miễn bằng `workflow.waive`).
+ */
+export const SOFT_CHECKS: ReadonlySet<string> = new Set(['audio_duration', 'asr_clean']);
+
+/** Gate trượt này chỉ là cảnh báo. */
 export const isWarning = (r: GateResult): boolean =>
-  !r.pass && r.gate === 'objective' && WAIVABLE_CHECKS.has(r.target);
+  !r.pass && r.gate === 'objective' && SOFT_CHECKS.has(r.target);
 
 export interface GateContext {
   store: WriteStore;

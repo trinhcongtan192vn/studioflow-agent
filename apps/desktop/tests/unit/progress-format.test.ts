@@ -97,6 +97,20 @@ describe('stepButtons', () => {
     ]);
   });
 
+  it('misread lines put "Chấp nhận N dòng đọc sai" first (061)', () => {
+    const st = S('done', 'failed');
+    const b = stepButtons(
+      st[1]!,
+      st,
+      'objective(asr_clean): 1 line(s) misread: ln_h4k2w9ab (22%) — listen',
+    );
+    expect(b[0]).toMatchObject({
+      action: { kind: 'asr_accept', step: st[1]!.id, line_ids: ['ln_h4k2w9ab'] },
+      label: 'Chấp nhận 1 dòng đọc sai',
+      primary: true,
+    });
+  });
+
   it('a duration warning puts "Bỏ qua cảnh báo" first (043)', () => {
     const st = S('done', 'failed');
     const b = stepButtons(st[1]!, st, 'objective(audio_duration): 294 s vs target 360 s (±10%)');

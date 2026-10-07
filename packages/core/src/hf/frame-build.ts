@@ -14,6 +14,7 @@ import type { WriteStore } from '../store/writer.js';
 import type { StepRunContext } from '../workflow/engine.js';
 import { checkTimeoutMs, hfCheck, hfLint } from './cli.js';
 import { fixVideoFrames } from './clip-fix.js';
+import { frameModel } from './frame-model.js';
 import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
 import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
@@ -203,7 +204,18 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           allowed_paths: [p.packet.output_path],
         };
         const waiter = ctx.waitFrame!(id);
-        const session = await runtime.openSession(sessionOptionsFor('frame', context, d.gateway));
+        // 060: frame đơn giản → model rẻ ở lần đầu; phức tạp / thử lại → model chính
+        const scope = { channelDir: ctx.channelDir, videoId: ctx.videoId };
+        const { model } = frameModel(p.packet, attempt, {
+          model: String(
+            resolveConfig('frame_build.model', scope, { appDataDir: ctx.appDataDir }).value,
+          ),
+          simple: resolveConfig('frame_build.model_simple', scope, { appDataDir: ctx.appDataDir })
+            .value as string | null,
+        });
+        const session = await runtime.openSession(
+          sessionOptionsFor('frame', context, d.gateway, { model }),
+        );
         let reported: { outputs: string[]; new_element_ids?: string[] } | undefined;
         void waiter.then((r) => (reported = r));
         let error: string | undefined;

@@ -173,6 +173,24 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "frame_build.model",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "frame_build.model_simple",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
       "key": "budget.tokens_per_video",
       "pattern": false,
       "type": "number",
@@ -389,6 +407,15 @@ export const configKeyTable = {
       "type": "boolean",
       "tiers": [
         "app"
+      ]
+    },
+    {
+      "key": "autopilot.asr_accept_ratio",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
       ]
     },
     {

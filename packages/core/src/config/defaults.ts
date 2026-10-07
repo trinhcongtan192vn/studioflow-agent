@@ -21,6 +21,9 @@ export const DEFAULTS: Record<string, unknown> = {
   'refine.threshold': 8.0,
   'frame.min_duration_ms': 2000,
   'frame_build.parallel': 2,
+  // 060: model phiên dựng frame — frame đơn giản dùng model rẻ ở lần đầu
+  'frame_build.model': 'claude-sonnet-5-5',
+  'frame_build.model_simple': 'claude-haiku-4-5-20251001',
   'budget.tokens_per_video': 2_000_000,
   'budget.api_cost_usd_per_video': 5,
   'budget.cache_gb': 20,
@@ -46,6 +49,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.paused': false,
   // 052: đóng cửa sổ khi có kênh Autopilot → ẩn xuống khay hệ thống, vẫn sản xuất
   'autopilot.background': true,
+  // 061: Autopilot tự chấp nhận dòng đọc sai nhẹ (≤ asr.wer_threshold × hệ số)
+  'autopilot.asr_accept_ratio': 1.5,
   'autopilot.competitors': [],
   'autopilot.pillars': [],
   'autopilot.workflows': [],

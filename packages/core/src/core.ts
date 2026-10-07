@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
+import { acceptLines } from './asr/regen.js';
 import { assetTools } from './assets/tools.js';
 import { defineImageJobs, imageTools } from './image/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
@@ -22,6 +23,8 @@ import { lipsyncLineBuilder } from './lipsync/builder.js';
 import { lipsyncExecutor, lipsyncTools } from './lipsync/step.js';
 import { castExecutor } from './workflow/cast.js';
 import './hf/safe-area.js';
+import './workflow/asr-gate.js';
+import { thumbnailExecutor } from './thumbnail/thumbnail.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -387,6 +390,14 @@ export function createCore(opts: CoreOptions = {}): Core {
   const autopilotLog = new Logger();
   const autopilot = new AutopilotRunner({
     workflows,
+    // 061: Autopilot chấp nhận line đọc sai nhẹ (asr.accept → dựng lại audio_meta/phụ đề)
+    acceptAsr: async (channel, video, ids) => {
+      await acceptLines(
+        { store: gateway.storeFor(channel), builders: graph, appDataDir },
+        video,
+        ids,
+      );
+    },
     storeFor: plan.storeFor,
     channels: () => [], // host đặt (kênh quản lý đang bật Autopilot) và brief qua agent
     plan: ({ channels, now }) =>
@@ -512,7 +523,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
   workflows.registerExecutor('captions', captionsExecutor(graph));
-  for (const k of ['look', 'effects', 'overlays'] as const)
+  for (const k of ['look', 'effects', 'overlays', 'finish'] as const)
     workflows.registerExecutor(k, finishStepExecutor(k));
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('animatic', animaticExecutor(graph));
@@ -540,6 +551,8 @@ export function createCore(opts: CoreOptions = {}): Core {
     'publish-meta',
     publishMetaExecutor({ text, permissions: gateway.permissions }),
   );
+  // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
+  workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));
   if (opts.start !== false) {
     queue.recover();
     queue.start();

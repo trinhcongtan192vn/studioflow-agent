@@ -26,6 +26,8 @@ afterEach(() => cleanups.splice(0).forEach((c) => c()));
 /** Runtime giả: đọc packet trong chỉ dẫn, ghi frame bằng artifact.write, báo step_complete. */
 function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = {}) {
   const calls: string[] = [];
+  /** 060: model của từng phiên frame (`<frame>:<model>`). */
+  const models: string[] = [];
   const rt: AgentRuntime = {
     id: 'fake',
     authStatus: async () => ({ ok: true, method: 'none' }),
@@ -37,6 +39,7 @@ function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = 
           const step = /"step_id": "([^"]+)"/.exec(m.text)![1]!;
           const fid = packet.frame.id;
           calls.push(fid);
+          models.push(`${fid}:${o.model}`);
           const drop =
             opts.badFirst === fid && calls.filter((c) => c === fid).length === 1
               ? packet.frame.layers[0]!.id
@@ -66,7 +69,7 @@ function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = 
       };
     },
   };
-  return { rt, calls };
+  return { rt, calls, models };
 }
 
 function setup() {
@@ -118,11 +121,16 @@ describe('frame-build (011 US1, US2)', () => {
     const { core, base, v, run } = setup();
     const step = { id: 'ds', uses: 'design-system', title: 'DS' };
     await designSystemExecutor()({ ...base, step, manifest: { id: 't', steps: [step] } } as never);
-    const { rt, calls } = fakeRuntime(core, { badFirst: 'fr_3m8k1w7d' });
+    const { rt, calls, models } = fakeRuntime(core, { badFirst: 'fr_3m8k1w7d' });
     core.workflows.setAgentRuntime(rt);
     const r = await run();
     expect(r.built.sort()).toEqual(['fr_3m8k1w7d', 'fr_9x2b7cqe']);
     expect(calls.filter((c) => c === 'fr_3m8k1w7d')).toHaveLength(2); // thiếu data-sf-id → gửi lại
+    // 060: frame đơn giản dựng bằng model rẻ; lần thử lại leo lên model chính
+    expect(models.filter((m) => m.startsWith('fr_3m8k1w7d'))).toEqual([
+      'fr_3m8k1w7d:claude-haiku-4-5-20251001',
+      'fr_3m8k1w7d:claude-sonnet-5-5',
+    ]);
     const index = readFileSync(path.join(v, 'index.html'), 'utf8');
     expect(index).toContain('data-composition-src="compositions/frames/fr_9x2b7cqe.html"');
     // fixture: transition_in chỉ ở frame đầu (không áp) → cắt thẳng

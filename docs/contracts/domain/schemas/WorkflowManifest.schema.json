@@ -243,9 +243,11 @@
         "look",
         "effects",
         "overlays",
+        "finish",
         "lipsync",
         "finalize",
         "publish-meta",
+        "thumbnail",
         "render"
       ]
     },

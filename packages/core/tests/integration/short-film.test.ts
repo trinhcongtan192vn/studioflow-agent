@@ -310,7 +310,7 @@ describeStudio('short-film end to end (031 FR-WF-08)', () => {
       `tl.set("[data-sf-id=\\"${mouthAnchor}\\"] [data-sf-mouth=\\"open\\"]", { opacity: 1 }, `,
     );
     expect(existsSync(path.join(v(), 'public', 'mouths', 'flat', 'front', 'open.svg'))).toBe(true);
-    expect(agentSteps).toEqual(['cast', 'look', 'effects', 'overlays', 'music']);
+    expect(agentSteps).toEqual(['cast', 'finish', 'music']);
 
     // nhân vật lưu cấp kênh, dùng lại giữa video
     const mai = JSON.parse(

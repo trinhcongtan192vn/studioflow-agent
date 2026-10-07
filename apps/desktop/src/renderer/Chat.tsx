@@ -6,7 +6,7 @@ import {
   fileCtaLabel,
   friendlyStepError,
   groupRuns,
-  isDurationWarning,
+  isSoftWarning,
   noticeCtas,
   stepCtas,
   voiceSuggestion,
@@ -257,8 +257,11 @@ export function Chat({
     else if (c.kind === 'approve') {
       const card = pending.find((x) => x.approval_id === c.approval_id);
       if (card) await decide(card, 'approve');
-    } else if ((c.kind === 'recheck' || c.kind === 'waive') && video) {
+    } else if ((c.kind === 'recheck' || c.kind === 'waive' || c.kind === 'asr_accept') && video) {
       try {
+        // 061: chấp nhận dòng đọc sai rồi kiểm tra lại
+        if (c.kind === 'asr_accept')
+          await core.call('asr.accept', { channel, video, line_ids: c.line_ids });
         const r =
           c.kind === 'waive'
             ? await core.call('workflow.waive', { channel, video, step_id: c.step, check: c.check })
@@ -669,7 +672,7 @@ function NoticeCard({
         <>
           <Markdown
             text={
-              notice.error && isDurationWarning(notice.error)
+              notice.error && isSoftWarning(notice.error)
                 ? `⚠ Cảnh báo ở bước **${notice.step_title}** ${at} — cần bạn chọn`
                 : `✕ Lỗi ở bước **${notice.step_title}** ${at}`
             }

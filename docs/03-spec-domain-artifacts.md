@@ -662,6 +662,8 @@ interface SettingsConfig extends Versioned {
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | number | channel, video |
 | `frame.min_duration_ms` | Ms | channel, video, scene, frame |
 | `frame_build.parallel` | number | app |
+| `frame_build.model` | string (model Claude) | app, channel |
+| `frame_build.model_simple` | string (model Claude, rỗng = tắt) | app, channel |
 | `budget.tokens_per_video` | number | app, channel, video |
 | `budget.api_cost_usd_per_video` | number | app, channel, video |
 | `budget.cache_gb` | number | channel |
@@ -684,6 +686,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.enabled` | boolean | channel |
 | `autopilot.paused` | boolean | app |
 | `autopilot.background` | boolean | app |
+| `autopilot.asr_accept_ratio` | number | app, channel |
 | `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |
