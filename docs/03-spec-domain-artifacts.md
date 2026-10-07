@@ -597,6 +597,7 @@ interface SettingsConfig extends Versioned {
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | number | app |
 | `autopilot.enabled` | boolean | channel |
 | `autopilot.paused` | boolean | app |
+| `autopilot.background` | boolean | app |
 | `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |

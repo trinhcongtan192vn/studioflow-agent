@@ -1164,3 +1164,49 @@ body.resizing iframe {
   max-height: 88vh;
   overflow: auto;
 }
+
+/* 052: màn Autopilot hôm nay */
+.autopilot-entry {
+  width: 100%;
+  text-align: left;
+  margin: 6px 0;
+}
+.modal .card.autopilot-panel {
+  width: min(900px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+}
+.ap-status {
+  font-weight: 600;
+}
+.ap-channel {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.ap-item {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.ap-reasons {
+  margin: 4px 0 0 16px;
+  font-size: 12px;
+}
+.badge.st-produced {
+  background: #dff3e6;
+  color: #1f6b3a;
+}
+.badge.st-in_production {
+  background: var(--user);
+}
+.badge.st-needs_review {
+  background: #fff1d6;
+  color: #8a5300;
+}
+.badge.st-failed {
+  background: #fde2e1;
+  color: var(--warn);
+}
+.badge.st-skipped {
+  opacity: 0.6;
+}

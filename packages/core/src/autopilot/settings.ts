@@ -23,6 +23,7 @@ export const CHANNEL_AUTOPILOT_KEYS = [
 
 export const APP_AUTOPILOT_KEYS = [
   'autopilot.paused',
+  'autopilot.background',
   'autopilot.work_window',
   'autopilot.duration_waive_ratio',
   'autopilot.budget_share',

@@ -12,10 +12,25 @@ export interface StudioflowApi {
   secretsSet(name: string, value: string): Promise<{ name: string; hint: string | null }>;
   secretsDelete(name: string): Promise<{ name: string; deleted: boolean }>;
   onCoreStatus(fn: (s: { ok: boolean; code?: number }) => void): void;
-  /** 045: người dùng đóng cửa sổ → giao diện kiểm việc chạy dở rồi trả lời `closeReply`. */
-  onCloseRequest(fn: () => void): void;
-  /** `asking`: đang hỏi người dùng (main chờ); `close`: đóng; `stay`: ở lại. */
-  closeReply(r: 'asking' | 'close' | 'stay'): Promise<void>;
+  /**
+   * 045: người dùng đóng cửa sổ → giao diện kiểm việc chạy dở rồi trả lời `closeReply`.
+   * `quit`: thoát hẳn (menu khay / thoát app), không ẩn xuống khay (052).
+   */
+  onCloseRequest(fn: (o: { quit: boolean }) => void): void;
+  /** `asking`: đang hỏi người dùng (main chờ); `close`: đóng; `stay`: ở lại; `hide`: ẩn xuống khay (052). */
+  closeReply(r: 'asking' | 'close' | 'stay' | 'hide'): Promise<void>;
+  /** 052: trạng thái Autopilot cho `main` — khay hệ thống, chống ngủ máy khi đang sản xuất. */
+  setAutopilotState(s: {
+    background: boolean;
+    producing: boolean;
+    paused: boolean;
+    any: boolean;
+  }): void;
+  /** 052: lệnh từ menu khay (tạm dừng / tiếp tục Autopilot). */
+  onTrayAction(fn: (a: 'pause' | 'resume') => void): void;
+  /** 052: khởi động cùng Windows (mở thẳng xuống khay). */
+  getAutostart(): Promise<boolean>;
+  setAutostart(on: boolean): Promise<boolean>;
 }
 
 const api: StudioflowApi = {
@@ -32,9 +47,17 @@ const api: StudioflowApi = {
     ipcRenderer.on('core-status', (_e, s) => fn(s));
   },
   onCloseRequest: (fn) => {
-    ipcRenderer.on('app:close-request', () => fn());
+    ipcRenderer.on('app:close-request', (_e, o?: { quit?: boolean }) =>
+      fn({ quit: Boolean(o?.quit) }),
+    );
   },
   closeReply: (r) => ipcRenderer.invoke('app:close-reply', r),
+  setAutopilotState: (s) => ipcRenderer.send('autopilot:state', s),
+  onTrayAction: (fn) => {
+    ipcRenderer.on('tray:action', (_e, a: 'pause' | 'resume') => fn(a));
+  },
+  getAutostart: () => ipcRenderer.invoke('app:autostart-get'),
+  setAutostart: (on) => ipcRenderer.invoke('app:autostart-set', on),
 };
 
 contextBridge.exposeInMainWorld('studioflow', api);

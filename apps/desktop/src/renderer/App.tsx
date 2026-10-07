@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { StudioflowApi } from '../preload/index';
 import { activityLines } from './close-format';
+import { closeAction, desktopState } from './autopilot-view';
 import { Onboarding } from './Onboarding';
 import { core } from './rpc';
 import { versionLabel } from './version-label';
@@ -32,7 +33,37 @@ export function App() {
       // UI-01: thiếu đăng nhập hoặc còn thành phần chưa tải → onboarding
       if (!s.auth.ok || s.install.missing.length) setOnboarding(true);
     });
-    window.studioflow.onCloseRequest(() => {
+    // 052: trạng thái Autopilot → `main` (khay hệ thống, chống ngủ máy); lệnh từ menu khay
+    const background = { on: false };
+    const syncAutopilot = async () => {
+      try {
+        const [status, managed, settings] = await Promise.all([
+          core.call('autopilot.status', {}),
+          core.call('channels.managed', {}),
+          core.call('settings.get', {}) as Promise<{ config: Record<string, unknown> }>,
+        ]);
+        const st = desktopState(status, {
+          anyAutopilot: managed.channels.some((c) => c.autopilot),
+          background: settings.config['autopilot.background'] !== false,
+        });
+        background.on = st.background;
+        window.studioflow.setAutopilotState(st);
+      } catch {
+        /* lõi chưa sẵn sàng → lần cập nhật sau */
+      }
+    };
+    void syncAutopilot();
+    const offAp = core.on('autopilot.updated', () => void syncAutopilot());
+    const apTimer = window.setInterval(() => void syncAutopilot(), 60_000);
+    window.studioflow.onTrayAction((a) => {
+      void core
+        .call(a === 'pause' ? 'autopilot.pause' : 'autopilot.resume', {})
+        .then(() => syncAutopilot());
+    });
+    window.studioflow.onCloseRequest(({ quit }) => {
+      // chạy nền (có kênh Autopilot): nút đóng chỉ ẩn xuống khay
+      if (closeAction({ quit, background: background.on }) === 'hide')
+        return void window.studioflow.closeReply('hide');
       void Promise.race([
         core.call('app.activity', {}).then(activityLines),
         new Promise<string[]>((r) => setTimeout(() => r([]), 2000)),
@@ -63,7 +94,11 @@ export function App() {
         }
       }
     });
-    return off;
+    return () => {
+      off();
+      offAp();
+      window.clearInterval(apTimer);
+    };
   }, []);
 
   return (

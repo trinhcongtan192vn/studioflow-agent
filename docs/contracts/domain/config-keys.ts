@@ -42,6 +42,7 @@ export type ConfigKey =
   | 'gpu.vram_total_gb'
   | 'autopilot.enabled'
   | 'autopilot.paused'
+  | 'autopilot.background'
   | 'autopilot.competitors'
   | 'autopilot.pillars'
   | 'autopilot.workflows'

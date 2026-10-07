@@ -4,6 +4,8 @@ export interface Activity {
   steps: { channel: string; video: string; step_id: string; title: string }[];
   jobs: { kind: string; video?: string }[];
   chats: { channel: string; video: string }[];
+  /** 052: video Autopilot đang làm dở. */
+  autopilot?: { channel: string; video: string; item_id: string; title: string }[];
 }
 
 /** Dòng mô tả việc đang chạy; rỗng = đóng được ngay. */
@@ -21,5 +23,7 @@ export function activityLines(a: Activity): string[] {
       `${a.jobs.length} việc nền đang chạy (${[...new Set(a.jobs.map((j) => j.kind))].slice(0, 3).join(', ')}).`,
     );
   if (a.chats.length) out.push('Agent đang trả lời trong khung chat.');
+  for (const v of a.autopilot ?? [])
+    out.push(`Autopilot đang làm video "${v.title}" — lần mở app sau sẽ làm tiếp.`);
   return out;
 }

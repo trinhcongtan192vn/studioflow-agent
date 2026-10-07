@@ -38,3 +38,13 @@ FR-AP-07 và FR-AP-08 (PRD 8.13), NFR-11: app tự tạo video và chạy workfl
 - [NEEDS CLARIFICATION: `autopilot.run_now` khi đang tạm dừng?] Đã cài: không chạy (`reason: "paused"`), người dùng bấm tiếp tục trước; bỏ qua khung giờ làm việc nhưng không bỏ qua chờ hạn mức Claude.
 - Chờ hạn mức Claude là toàn cục (một tài khoản Claude cho mọi kênh): chờ xong mới làm mục nào tiếp, kể cả kênh khác.
 - Brief khác kế hoạch (agent chọn workflow/dạng xuất khác) → đỗ, không tự sửa brief: kế hoạch (051) là nguồn sự thật cho workflow/giờ đăng.
+
+## Phần desktop + quyết định bổ sung (làm trên Windows, 2026-10-07)
+- **Ngân sách API có phí** (Tan): xem mục "ĐÃ QUYẾT" ở trên; sổ `videos/<vd>/.sf/paid.json`, sự kiện nhật ký `paid.allowed`.
+- **Nhận lại video làm xong bằng tay** (Tan): `item.reclaimed`, kiểm ở mỗi `tick`.
+- **Chạy nền** (`autopilot.background`, app, mặc định true): có kênh Autopilot → nút đóng cửa sổ ẩn app xuống **khay hệ thống**, Autopilot vẫn làm. Menu khay: Mở StudioFlow · Tạm dừng/Tiếp tục Autopilot · Thoát hẳn (đi qua hộp "Còn việc đang chạy dở" của 045). Mở app lần nữa → hiện cửa sổ.
+- **Chống ngủ máy** khi Autopilot đang làm video (`powerSaveBlocker` `prevent-app-suspension`), bỏ khi xong/tạm dừng.
+- **Khởi động cùng Windows** (Cài đặt → Autopilot): mục đăng nhập của Windows, mở với `--hidden` → chỉ hiện ở khay.
+- **Màn "Autopilot hôm nay"** (nút trên sidebar): câu trạng thái, năng lực hôm nay + lý do, kế hoạch từng kênh (trạng thái, giờ đăng, điểm, góc, "Vì sao chọn?", ghi chú), Chạy ngay / Tạm dừng–Tiếp tục / Lập lại kế hoạch, Bỏ qua / Khôi phục mục, Mở video.
+- `SF_AUTOPILOT=0` tắt bộ chạy trong app (test giao diện chạy app thật).
+- Đóng app khi Autopilot đang làm video → hộp xác nhận nêu video đó (`app.activity.autopilot`).

@@ -20,6 +20,7 @@ test('main window shows the core version (001 US3 AC2); one instance per data di
       SF_APP_DATA: appData,
       SF_GPU: '0',
       SF_NO_CREDMAN: '1',
+      SF_AUTOPILOT: '0',
     }).filter((e): e is [string, string] => e[0] !== 'ELECTRON_RUN_AS_NODE' && e[1] !== undefined),
   );
   const app = await electron.launch({ args: [appDir], cwd: appDir, env });
