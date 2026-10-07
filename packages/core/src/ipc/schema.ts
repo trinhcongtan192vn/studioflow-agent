@@ -118,6 +118,22 @@ export interface IpcMethods {
     };
   };
   'publish.youtube.disconnect': { params: { channel: string }; result: { ok: true } };
+  /** 056: TikTok / Facebook — token dán trong Cài đặt kênh (không bao giờ trả lại). */
+  'publish.tiktok.set_token': { params: { channel: string; token: string }; result: { ok: true } };
+  'publish.tiktok.status': {
+    params: { channel: string };
+    result: { connected: boolean; audited?: boolean; page_id?: string };
+  };
+  'publish.tiktok.disconnect': { params: { channel: string }; result: { ok: true } };
+  'publish.facebook.set_token': {
+    params: { channel: string; token: string; page_id?: string };
+    result: { ok: true };
+  };
+  'publish.facebook.status': {
+    params: { channel: string };
+    result: { connected: boolean; audited?: boolean; page_id?: string };
+  };
+  'publish.facebook.disconnect': { params: { channel: string }; result: { ok: true } };
   /** 053: Hủy đăng / Đăng ngay trong cửa sổ phản đối. */
   'publish.cancel': {
     params: {

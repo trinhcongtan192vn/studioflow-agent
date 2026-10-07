@@ -513,6 +513,22 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "publish.tiktok.audited",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.facebook.page_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
       "key": "publish.youtube.channel_id",
       "pattern": false,
       "type": "string",

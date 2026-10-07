@@ -73,6 +73,9 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `publish.youtube.connect` | `{channel}` → `{auth_url}`: bắt đầu OAuth cho kênh (UI mở `auth_url` bằng trình duyệt; app đợi mã ở cổng loopback tối đa 5 phút) (053) |
 | `publish.youtube.status` | `{channel}` → `{connected, audited, youtube_channel_id?, channel_title?, quota{used, limit}, error?}` (053) |
 | `publish.youtube.disconnect` | `{channel}` → `{ok}`: thu hồi và xóa token (053) |
+| `publish.tiktok.set_token` / `publish.facebook.set_token` | `{channel, token, page_id?}` (`page_id` chỉ Facebook, ghi `publish.facebook.page_id`) → `{ok}`: lưu token đã dán vào Credential Manager (qua `main`); không bao giờ trả lại token (056) |
+| `publish.tiktok.status` / `publish.facebook.status` | `{channel}` → `{connected, audited?, page_id?}` (056) |
+| `publish.tiktok.disconnect` / `publish.facebook.disconnect` | `{channel}` → `{ok}`: xóa token (056) |
 | `publish.cancel` / `publish.now` | `{channel, date, item_id, platform?}` → `{status, url?, note?}`: Hủy đăng / Đăng ngay trong cửa sổ phản đối (053) |
 | `telegram.status` | `{}` → `{enabled, state, reason?, bot_username?, chat_id_set, has_token, last_error?}`: bot Telegram đang chạy/tắt và vì sao (token sai, xung đột getUpdates…) (055) |
 | `telegram.test` | `{}` → `{ok}`: gửi tin thử vào `telegram.chat_id` (055) |

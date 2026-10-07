@@ -135,6 +135,7 @@
 | Telegram (055, hằng số trong `telegram/`) | long polling `getUpdates` timeout 25 s; chờ lại 1 s → 60 s (nhân đôi) khi lỗi mạng; tin dài chia ≤ 4096 ký tự theo dòng; phiên `ops` `maxTurns` 10, dùng lại tối đa 15 câu hỏi rồi mở phiên mới; tin định dạng HTML |
 | Đăng YouTube (053, hằng số trong `publish/`) | khúc tải lên 8 MiB; thử lại mỗi khúc ≤ 5 lần (lùi 1 s → 16 s); tối đa 3 lần tải lên mỗi mục; quota 10 000 đơn vị/ngày (giờ Thái Bình Dương); OAuth chờ 5 phút; access token làm mới trước hạn 60 s; `categoryId` 22 |
 | `publish.youtube.audited` | false (`publish.youtube.channel_id`: không đặt) |
+| `publish.tiktok.audited` | false (`publish.facebook.page_id`: không đặt; 056) |
 | `report.enabled` / `report.time` | true / `21:00` (054; giờ theo `publish.timezone` của từng kênh) |
 | Số liệu (054, hằng số trong `analytics/`) | thu mỗi 6 giờ mỗi kênh, cửa sổ 7 ngày; báo cáo so với ngày liền trước và trung bình 7 ngày; top 3 video 7 ngày |
 | `telegram.enabled` | false (`telegram.chat_id` rỗng, `telegram.allowed_user_ids` `[]`) |

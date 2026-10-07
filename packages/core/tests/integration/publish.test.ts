@@ -438,7 +438,7 @@ describe('not connected, failures, retries', () => {
     const r = setup({ item: { status: 'needs_review', platforms: ['youtube'] } });
     await r.core.publisher.process(NOW);
     expect(r.g.calls).toHaveLength(0);
-    const t = setup({ item: { platforms: ['tiktok'] } });
+    const t = setup({ item: { platforms: ['instagram'] } });
     await t.core.publisher.process(NOW);
     expect(t.g.calls).toHaveLength(0);
     expect(t.item().publish).toBeUndefined();

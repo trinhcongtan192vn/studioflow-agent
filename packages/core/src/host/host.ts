@@ -724,6 +724,25 @@ export class CoreHost extends EventEmitter {
         return c.youtube.status(path.resolve(p.channel));
       case 'publish.youtube.disconnect':
         return c.youtube.disconnect(path.resolve(p.channel));
+      case 'publish.tiktok.set_token':
+      case 'publish.facebook.set_token': {
+        const pf = String(method).split('.')[1] as 'tiktok' | 'facebook';
+        return c.social.setToken(pf, path.resolve(p.channel), String(p.token), {
+          ...(pf === 'facebook' && p.page_id !== undefined ? { page_id: String(p.page_id) } : {}),
+        });
+      }
+      case 'publish.tiktok.status':
+      case 'publish.facebook.status':
+        return c.social.status(
+          String(method).split('.')[1] as 'tiktok' | 'facebook',
+          path.resolve(p.channel),
+        );
+      case 'publish.tiktok.disconnect':
+      case 'publish.facebook.disconnect':
+        return c.social.disconnect(
+          String(method).split('.')[1] as 'tiktok' | 'facebook',
+          path.resolve(p.channel),
+        );
       case 'publish.cancel':
         return c.publisher.cancel({
           channel: path.resolve(p.channel),

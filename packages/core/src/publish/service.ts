@@ -301,6 +301,14 @@ export class PublishService {
       }
       return false;
     }
+    const due = p.due?.(ctx);
+    if (due && now < due) {
+      // nền tảng không hẹn giờ: chờ tới giờ công khai rồi mới tải lên
+      const note = `Chờ tới ${fmtLocal(due.toISOString(), this.tz(ref.channel))} để đăng lên ${p.label}.`;
+      if (st?.note !== note || st?.status !== 'pending')
+        this.set(ref, p.platform, { status: 'pending', note });
+      return false;
+    }
     if (!(await p.connected({ channel: ref.channel, channel_id: m.id }))) {
       const error = `Kênh ${m.name} chưa kết nối ${p.label} — kết nối trong Cài đặt kênh rồi video sẽ tự được đăng`;
       if (st?.error !== error) this.set(ref, p.platform, { status: 'pending', error });

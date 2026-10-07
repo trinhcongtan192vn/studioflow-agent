@@ -57,6 +57,7 @@ import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
+import { SfError } from './errors.js';
 import { MemorySecretStore, type SecretStore } from './secrets/store.js';
 import {
   PublishService,
@@ -67,6 +68,12 @@ import {
   YouTubeAuth,
   YouTubePublisher,
   type HttpFetch,
+  TikTokApi,
+  TikTokPublisher,
+  FacebookApi,
+  FacebookPublisher,
+  SocialAccounts,
+  socialTokenSecret,
 } from './publish/index.js';
 import {
   MetricsCollector,
@@ -144,6 +151,8 @@ export interface Core {
   metrics: MetricsCollector;
   /** Kết nối YouTube theo kênh (OAuth, trạng thái, ngắt). */
   youtube: YouTubeAccounts;
+  /** Kết nối TikTok / Facebook theo kênh (056): token dán vào kho bí mật. */
+  social: SocialAccounts;
   /** Kho bí mật (D5 5.4): token Telegram, OAuth… — không bao giờ ghi file/log. */
   secrets: SecretStore;
   /** Bộ chạy Autopilot (052): host gắn danh sách kênh + brief rồi gọi `tick` định kỳ. */
@@ -395,6 +404,40 @@ export function createCore(opts: CoreOptions = {}): Core {
     ...(opts.clock ? { clock: opts.clock } : {}),
   });
   publisher.register(new YouTubePublisher({ auth: ytAuth, api: ytApi, appDataDir }));
+  // 056: TikTok + Facebook Reels — token người dùng dán (kho bí mật), cùng khung bộ đăng
+  publisher.register(
+    new TikTokPublisher({
+      secrets,
+      appDataDir,
+      api: (channelId: string) =>
+        new TikTokApi({
+          ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+          ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+          token: async () => {
+            const t = await secrets.get(socialTokenSecret('tiktok', channelId));
+            if (!t) throw new SfError('E_PROVIDER_UNAVAILABLE', 'chưa kết nối TikTok');
+            return t;
+          },
+        }),
+    }),
+  );
+  publisher.register(
+    new FacebookPublisher({
+      secrets,
+      appDataDir,
+      api: (channelId: string) =>
+        new FacebookApi({
+          ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+          ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+          token: async () => {
+            const t = await secrets.get(socialTokenSecret('facebook', channelId));
+            if (!t) throw new SfError('E_PROVIDER_UNAVAILABLE', 'chưa kết nối Facebook');
+            return t;
+          },
+        }),
+    }),
+  );
+  const social = new SocialAccounts({ secrets, storeFor: plan.storeFor, appDataDir });
   autopilot.setPublisher(publisher);
   const ytAccounts = new YouTubeAccounts({
     auth: ytAuth,
@@ -492,6 +535,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     reports,
     metrics: collector,
     youtube: ytAccounts,
+    social,
     secrets,
     phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),

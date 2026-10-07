@@ -484,6 +484,8 @@ export type ConfigKey =
   | 'telegram.chat_id'
   | 'telegram.allowed_user_ids'
   | 'publish.youtube.audited'
+  | 'publish.tiktok.audited'
+  | 'publish.facebook.page_id'
   | 'publish.youtube.channel_id'
   | 'publish.platforms'
   | 'publish.slots'

@@ -55,6 +55,11 @@ export interface PlatformPublisher {
   connected(ctx: { channel: string; channel_id: string }): Promise<boolean>;
   /** Mục này đăng được lên nền tảng không (ví dụ chỉ video dọc 9:16)? Không → lý do tiếng Việt. */
   eligible(ctx: PublishContext): { ok: true } | { ok: false; reason: string };
+  /**
+   * Chưa tới giờ thì chưa tải lên (nền tảng không hẹn giờ được, ví dụ TikTok đã kiểm duyệt: chỉ đăng công khai
+   * đúng giờ). Trả `undefined` = tải ngay.
+   */
+  due?(ctx: PublishContext): Date | undefined;
   /** Tải lên; ném `SfError` khi lỗi (dịch vụ ghi `failed` + đếm lần thử). */
   upload(ctx: PublishContext): Promise<PlatformPublish>;
   /** Hủy đăng: video ở lại riêng tư/không công khai. */
