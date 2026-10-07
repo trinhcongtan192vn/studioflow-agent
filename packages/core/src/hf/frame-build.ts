@@ -13,6 +13,7 @@ import { Logger } from '../log.js';
 import type { WriteStore } from '../store/writer.js';
 import type { StepRunContext } from '../workflow/engine.js';
 import { checkTimeoutMs, hfCheck, hfLint } from './cli.js';
+import { fixVideoFrames } from './clip-fix.js';
 import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
 import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
@@ -300,6 +301,14 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     const sig = ctx.signal ? { signal: ctx.signal } : {};
     /** Lắp index rồi lint (+ check); lỗi gom theo frame (file `compositions/frames/<fr>.html`). */
     const verify = async () => {
+      // 058: autoAlpha trên phần tử clip → opacity trước khi lint/check (không gửi frame lại vì lỗi này)
+      const fixedFrames = fixVideoFrames(ctx.store, ctx.videoId);
+      if (fixedFrames.length)
+        graph.markBuilt(
+          ctx.videoId,
+          fixedFrames.map((id) => `frame_html:${id}`),
+          { contentOnly: true },
+        );
       const idx = await graph.build(ctx.videoId, { targets: ['index'], ...sig });
       if (idx.status !== 'succeeded') {
         const bad = Object.entries(idx.nodes)

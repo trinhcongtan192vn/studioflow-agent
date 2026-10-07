@@ -260,6 +260,12 @@ ipcMain.handle('dialog:files', async () => {
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('shell:open', (_e, p: string) => shell.openPath(p));
+// 058: "Mở thư mục" sau khi render — chọn sẵn video trong File Explorer
+ipcMain.handle('shell:reveal', (_e, p: string) => {
+  if (!existsSync(p)) return false;
+  shell.showItemInFolder(path.resolve(p));
+  return true;
+});
 ipcMain.handle('app:close-reply', (_e, r: 'asking' | 'close' | 'stay' | 'hide') => {
   clearTimeout(closeTimer);
   if (r === 'hide') {
