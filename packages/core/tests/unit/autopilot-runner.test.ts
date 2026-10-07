@@ -12,7 +12,15 @@ import { briefInstruction } from '../../src/autopilot/brief.js';
 import { limitResumeAt, parseLimit } from '../../src/autopilot/limit.js';
 import type { PlanItem } from '../../src/contracts/types.js';
 import { AUTO_APPROVAL_NOTE, isAutoApproval } from '../../src/domain/autopilot.js';
-import { orderItems, startGate, type QueueEntry } from '../../src/autopilot/runner.js';
+import {
+  canonicalDir,
+  orderItems,
+  startGate,
+  type QueueEntry,
+} from '../../src/autopilot/runner.js';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const item = { workflow_id: 'narrated-explainer', output_profile: 'yt-1080p30' };
 
@@ -354,5 +362,19 @@ describe('briefInstruction (chỉ dẫn lên brief cho phiên main)', () => {
     expect(t).not.toContain('Công thức tham khảo');
     expect(t).toContain('tin nóng');
     expect(t).toContain('workflow.select');
+  });
+});
+
+describe('canonicalDir (052, Windows 8.3)', () => {
+  it('maps short/long spellings of one folder to the same key; missing folder → resolved path', () => {
+    const d = mkdtempSync(path.join(os.tmpdir(), 'sf-canon-'));
+    try {
+      const real = realpathSync.native(d);
+      expect(canonicalDir(d)).toBe(real);
+      expect(canonicalDir(real)).toBe(real);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+    expect(canonicalDir('khong-co/thu-muc')).toBe(path.resolve('khong-co/thu-muc'));
   });
 });

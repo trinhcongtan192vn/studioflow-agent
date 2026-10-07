@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { resolveAppConfig, resolveConfig } from '../config/resolve.js';
 import type {
@@ -183,6 +183,19 @@ type Outcome =
 const message = (e: unknown): string => String((e as Error)?.message ?? e).split('\n')[0]!;
 const code = (e: unknown): string => (isSfError(e) ? e.code : 'E_INTERNAL');
 
+/**
+ * Khóa thư mục kênh ổn định: Windows có thể ghi cùng một thư mục bằng tên ngắn 8.3 (`C:\Users\TANTRI~1`)
+ * hoặc tên dài (`C:\Users\tan trinh`) — `path.resolve` không gộp hai dạng này.
+ */
+export function canonicalDir(dir: string): string {
+  const abs = path.resolve(dir);
+  try {
+    return realpathSync.native(abs);
+  } catch {
+    return abs;
+  }
+}
+
 export class AutopilotRunner extends EventEmitter {
   private inflight?: Promise<TickResult>;
   private stopped = false;
@@ -224,7 +237,7 @@ export class AutopilotRunner extends EventEmitter {
         session: { channel_dir: string; video_id?: string };
         request: { summary: string };
       }) => {
-        this.blocked.set(`${path.resolve(e.session.channel_dir)}|${e.session.video_id ?? ''}`, {
+        this.blocked.set(`${canonicalDir(e.session.channel_dir)}|${e.session.video_id ?? ''}`, {
           summary: e.request.summary,
           ts: Date.now(),
         });
@@ -760,7 +773,7 @@ export class AutopilotRunner extends EventEmitter {
   }
 
   private takeBlocked(c: Ctx, since: number): string | undefined {
-    const key = `${path.resolve(c.channel)}|${c.video}`;
+    const key = `${canonicalDir(c.channel)}|${c.video}`;
     const b = this.blocked.get(key);
     if (!b || b.ts < since) return undefined;
     this.blocked.delete(key);
@@ -772,7 +785,7 @@ export class AutopilotRunner extends EventEmitter {
   private async drive(c: Ctx): Promise<Outcome> {
     const e = this.d.workflows.engine(c.channel, c.video);
     e.open();
-    this.blocked.delete(`${path.resolve(c.channel)}|${c.video}`);
+    this.blocked.delete(`${canonicalDir(c.channel)}|${c.video}`);
     const attempt0 = Object.fromEntries(
       Object.entries(e.readState().steps).map(([id, s]) => [id, s.attempt]),
     );
