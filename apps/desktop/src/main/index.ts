@@ -20,6 +20,7 @@ import {
   type UtilityProcess,
 } from 'electron';
 import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
+import { handleSecretRequest, STATIC_SECRETS } from './secret-bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,7 +94,8 @@ function registerMedia(): void {
     });
   });
 }
-const SECRET_NAMES = ['openai', 'deepseek', 'anthropic', 'dashscope_api_key', 'youtube_api_key'];
+// 055: thêm token Telegram và OAuth client YouTube; tên động `oauth:…` chỉ đi qua cầu thông điệp (secret-bridge)
+const SECRET_NAMES = STATIC_SECRETS;
 const MAX_RESTARTS = 3;
 
 let win: BrowserWindow | undefined;
@@ -146,6 +148,15 @@ function startCore(): void {
   const send = () => win?.webContents.postMessage('core-port', null, [port2]);
   if (win?.webContents.isLoading()) win.webContents.once('did-finish-load', send);
   else send();
+  // 055: core hỏi bí mật qua thông điệp (kho bí mật `SecretStore`); chỉ main chạm Credential Manager
+  core.on('message', (m: unknown) => {
+    const reply = handleSecretRequest(m, {
+      get: secretGet,
+      set: secretSet,
+      delete: secretDelete,
+    });
+    if (reply) core?.postMessage(reply);
+  });
   core.on('exit', (code) => {
     if (quitting) return;
     win?.webContents.send('core-status', { ok: false, code });

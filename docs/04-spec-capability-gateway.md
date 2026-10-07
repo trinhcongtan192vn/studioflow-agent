@@ -33,13 +33,13 @@ Mỗi phiên agent gắn một `SessionContext` khi mở (D5):
 
 ```ts
 interface SessionContext {
-  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
+  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
   allowed_paths?: RelPath[];          // phạm vi ghi (frame/producer)
   read_only_videos?: VideoId[];       // đọc chéo video (shorts từ video dài)
 }
 ```
-Tool không nhận `channel_dir`/`video_id` từ agent; lấy từ ngữ cảnh. Phiên `frame` chỉ ghi được các file trong `allowed_paths`. `artifact.read` chấp nhận tiền tố `video:<vd>/…` cho video trong `read_only_videos`.
+Tool không nhận `channel_dir`/`video_id` từ agent; lấy từ ngữ cảnh. Ngoại lệ — phiên `ops` (055) không gắn với kênh nào (`channel_dir` = thư mục dữ liệu app): các tool vận hành nhận thêm tham số tùy chọn `channel` (đường dẫn hoặc tên kênh quản lý đang bật Autopilot), Gateway đổi thành kho ghi của kênh đó; kênh lạ → `E_ID_UNKNOWN`. Phiên `frame` chỉ ghi được các file trong `allowed_paths`. `artifact.read` chấp nhận tiền tố `video:<vd>/…` cho video trong `read_only_videos`.
 
 ### 2.3 Định dạng kết quả
 
@@ -91,6 +91,10 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `autopilot.plan_run` | — | job → `{date, path, planned, kept, notes[]}` | Lập/lập lại kế hoạch hôm nay cho kênh (051): dùng file quét nghiên cứu hôm nay nếu có, chưa có thì quét; chuyển mục `planned` chưa làm của hôm qua sang trước, bỏ ứng viên dưới `autopilot.min_score`, giữ mọi mục đã có, chỉ lấp chỗ trống; `autopilot.paused` → không làm gì |
 | `autopilot.plan_update` | `date, item_id, patch: {status?: skipped / planned, title?, angle?, workflow_id?, publish_at?}` | `PlanItem` | Sửa một mục kế hoạch (051): workflow phải thuộc danh sách cho phép, `publish_at` là ISO 8601 có offset (hoặc null), không sửa mục `in_production` / `produced` / `failed` (`E_SCHEMA_INVALID`) |
 | `autopilot.status` | — | `{paused, running, waiting_until?, current?, today: {date, items[]}, log[]}` | Tình hình Autopilot của kênh (052): đang tạm dừng/đang chạy, mục kế hoạch hôm nay và trạng thái (`planned` / `in_production` / `produced` / `failed` / `needs_review`), video đang làm ở bước nào, thời điểm chờ nếu hết hạn mức Claude, và 20 dòng nhật ký vận hành gần nhất (D3 5.19). Chỉ đọc |
+| `autopilot.pause`, `autopilot.resume` | — | `{paused}` | Tạm dừng / tiếp tục Autopilot (`autopilot.paused`, app; 055) |
+| `ops.channels` | — | `{channels[{path, name, paused, items{planned, in_production, produced, needs_review, failed}}]}` | Kênh quản lý đang bật Autopilot và số mục kế hoạch hôm nay theo trạng thái (055, phiên `ops`) |
+| `ops.log` | `channel?`, `date?`, `limit?` | `{lines[AutopilotLogLine]}` | Nhật ký vận hành Autopilot của kênh (D3 5.19); mặc định hôm nay, tối đa 100 dòng cuối (055) |
+| `ops.sessions` | `limit?`, `id?` | `{sessions[…]}` hoặc `{lines[…]}` | Nhật ký các phiên `ops` (không có `id` → danh sách; có `id` → dòng của phiên); chỉ đọc (055) |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |

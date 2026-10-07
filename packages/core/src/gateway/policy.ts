@@ -1,13 +1,15 @@
 // Chính sách tool theo loại phiên — chép đúng bảng D5 mục 4 (một nguồn cho Gateway).
 // Read/Glob/Grep/Skill/TodoWrite là tool của runtime, xử lý ở canUseTool (005).
 
-export const SESSION_KINDS = ['main', 'frame', 'producer', 'critic'] as const;
+export const SESSION_KINDS = ['main', 'frame', 'producer', 'critic', 'ops'] as const;
 export type SessionKind = (typeof SESSION_KINDS)[number];
 
 const ALL: SessionKind[] = ['main', 'frame', 'producer', 'critic'];
 const MFP: SessionKind[] = ['main', 'frame', 'producer'];
 const MF: SessionKind[] = ['main', 'frame'];
 const M: SessionKind[] = ['main'];
+const MO: SessionKind[] = ['main', 'ops'];
+const O: SessionKind[] = ['ops'];
 
 /** Thứ tự quan trọng: dòng cụ thể trước dòng mẫu. */
 const TABLE: [string | RegExp, SessionKind[]][] = [
@@ -28,8 +30,12 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   ['render.video', M],
   [/^studio\./, M],
   [/^youtube\./, M],
-  [/^research\.(scan|get)$/, M],
-  [/^autopilot\.(plan_(get|run|update)|status)$/, M],
+  ['research.get', MO],
+  ['research.scan', M],
+  [/^autopilot\.(plan_(get|update)|status|pause|resume)$/, MO],
+  ['autopilot.plan_run', M],
+  [/^ops\./, O],
+  ['job.list', ['main', 'frame', 'ops']],
   [/^job\./, MF],
 ];
 

@@ -5,6 +5,8 @@ const SECRET_PATTERNS = [
   /\bsk-[A-Za-z0-9_-]{20,}/g,
   /\bBearer\s+[A-Za-z0-9._~+/=-]{12,}/g,
   /\bAIza[0-9A-Za-z_-]{30,}/g,
+  // token bot Telegram `<số>:<chuỗi>` (nằm trong URL Bot API, 055)
+  /\d{6,12}:[A-Za-z0-9_-]{30,}/g,
 ];
 
 /** Che chuỗi khớp mẫu khóa API/token; giữ vài ký tự đầu để nhận dạng. */

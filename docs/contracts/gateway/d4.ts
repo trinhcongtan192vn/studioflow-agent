@@ -3,7 +3,7 @@ import type { VideoId, FrameId, VoiceId, AssetId, RelPath, ApprovalId, SessionId
 import type { Rubric } from '../workflow/d6';
 
 export interface SessionContext {
-  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
+  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
   allowed_paths?: RelPath[];          // phạm vi ghi (frame/producer)
   read_only_videos?: VideoId[];       // đọc chéo video (shorts từ video dài)

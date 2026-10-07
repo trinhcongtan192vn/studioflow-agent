@@ -464,6 +464,30 @@
       ]
     },
     {
+      "key": "telegram.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "telegram.chat_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "telegram.allowed_user_ids",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
       "key": "publish.platforms",
       "pattern": false,
       "type": "string[]",

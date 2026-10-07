@@ -432,6 +432,9 @@ export type ConfigKey =
   | 'autopilot.work_window'
   | 'autopilot.budget_share'
   | 'autopilot.daily_tokens'
+  | 'telegram.enabled'
+  | 'telegram.chat_id'
+  | 'telegram.allowed_user_ids'
   | 'publish.platforms'
   | 'publish.slots'
   | 'publish.timezone'
@@ -490,7 +493,7 @@ export interface FramePacket {
 
 
 export interface SessionContext {
-  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
+  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
   allowed_paths?: RelPath[];          // phạm vi ghi (frame/producer)
   read_only_videos?: VideoId[];       // đọc chéo video (shorts từ video dài)
@@ -579,7 +582,7 @@ export interface AgentRuntime {
 }
 
 export interface SessionOptions {
-  kind: 'main' | 'frame' | 'producer' | 'critic';
+  kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   context: SessionContext;                      // D4 mục 2.2
   model: string;                                // theo bảng mục 2
   systemAppend: string;                         // quy tắc app (mục 6) + chỉ dẫn theo kind

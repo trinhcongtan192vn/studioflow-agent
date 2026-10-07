@@ -10,7 +10,7 @@ import { systemAppendFor } from './system-append.js';
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
 
 /** `maxTurns` theo loại phiên (tech-defaults mục 2). */
-export const MAX_TURNS = { main: 60, frame: 30, producer: 10, critic: 10 } as const;
+export const MAX_TURNS = { main: 60, frame: 30, producer: 10, critic: 10, ops: 10 } as const;
 
 import { EXTENSIONS_DIR } from '../paths.js';
 export { EXTENSIONS_DIR };
@@ -24,7 +24,7 @@ export function sessionOptionsFor(
   extra: { model?: string; resume?: string; plugins?: string[] } = {},
 ): SessionOptions {
   const plugins =
-    kind === 'critic'
+    kind === 'critic' || kind === 'ops'
       ? []
       : [
           STUDIOFLOW_CORE_PLUGIN,

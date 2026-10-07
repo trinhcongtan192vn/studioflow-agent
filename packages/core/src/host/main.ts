@@ -2,6 +2,7 @@
 // {type:'init', appDataDir, secrets} kèm MessagePort; JSON-RPC 2.0 renderer ↔ core qua port đó.
 import { setHostSecrets } from '../secrets/credman.js';
 import type { HostControl, IpcRequest } from '../ipc/schema.js';
+import { createMessageSecretStore } from '../secrets/store.js';
 import { CoreHost } from './host.js';
 
 interface PortLike {
@@ -35,6 +36,11 @@ parentPort.on('message', (e) => {
   host = new CoreHost({
     ...(init.appDataDir ? { appDataDir: init.appDataDir } : {}),
     ...(process.env.SF_AUTOPILOT === '0' ? {} : { autopilot: {} }),
+    // 055/D5 5.4: bí mật qua `main` (Credential Manager) — core không tự đọc
+    secrets: createMessageSecretStore({
+      send: (m) => parentPort.postMessage(m),
+      subscribe: (fn) => parentPort.on('message', (ev) => fn(ev.data)),
+    }),
   });
   const port = e.ports[0]!;
   port.on('message', (m) => {

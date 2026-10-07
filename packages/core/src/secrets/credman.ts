@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { SfError } from '../errors.js';
+import { assertSecretName } from './store.js';
 
 /**
  * Kho bí mật Windows (Credential Manager, D5 mục 5.4, FR-OP-07): credential kiểu generic tên
@@ -30,7 +31,11 @@ public static class SfCred {
 "@
 `;
 
-export const credTarget = (name: string) => `StudioFlow/${name}`;
+export const credTarget = (name: string) => {
+  // tên đi vào script PowerShell → chỉ nhận ký tự an toàn (055)
+  assertSecretName(name);
+  return `StudioFlow/${name}`;
+};
 
 function ps(script: string, stdin = ''): string {
   if (process.platform !== 'win32')
@@ -67,7 +72,7 @@ export function secretGet(name: string): string | undefined {
 export function secretSet(name: string, value: string): void {
   if (!value) throw new SfError('E_SCHEMA_INVALID', 'secret is empty');
   const out = ps(
-    `$b = [Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); if ([SfCred]::Write('${credTarget(name)}', '${name}', $b)) { 'ok' } else { 'fail' }`,
+    `$b = [Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); if ([SfCred]::Write('${credTarget(name)}', '${(assertSecretName(name), name)}', $b)) { 'ok' } else { 'fail' }`,
     Buffer.from(value, 'utf8').toString('base64'),
   );
   if (out !== 'ok') throw new SfError('E_PROVIDER_FAILED', `could not store secret ${name}`);

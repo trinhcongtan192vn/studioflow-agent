@@ -433,6 +433,8 @@ Tiêu đề, mô tả, thẻ, chương cho YouTube (bước `publish-meta`, D6).
 
 **Nhật ký phiên con (048, FR-AP-14):** phiên agent không phải `main` (frame, producer, critic…) ghi cùng định dạng dòng vào `videos/<vd>/sessions/<session_id>.jsonl` (kênh: `sessions/`); dòng đầu `role: system` có `session: {id, kind, video_id?, frame_id?}`; dòng `tool` có thêm `tool.ok`; dòng kết thúc có `usage: {input_tokens, output_tokens}`. Chỉ ghi thêm, không qua build graph, không bị dọn đĩa (nhật ký kiểm tra).
 
+Phiên `ops` (055, agent trả lời câu hỏi vận hành qua Telegram) không thuộc kênh nào: nhật ký lưu ở thư mục dữ liệu app `ops/sessions/<session_id>.jsonl` (cùng định dạng dòng chat); vị trí đọc offset getUpdates của bot: `telegram/offset.json` (`{offset}`, dữ liệu app, không chứa bí mật).
+
 ### 5.17 `research/<YYYY-MM-DD>.json` (049)
 Kết quả quét nghiên cứu mỗi ngày của một kênh (FR-AP-04): đối thủ (video mới + video nổi bật cũ), video đã làm của kênh, video trending, Google Trends, Google News theo chủ đề trụ cột; mỗi chủ đề ứng viên có điểm 0–100 và lý do. Ngày theo `publish.timezone`; quét lại trong ngày ghi đè file của ngày đó. Nguồn lỗi không làm hỏng cả lần quét: ghi vào `sources.*.error`. Hằng số chấm điểm: FN-049.
 
@@ -607,6 +609,9 @@ interface SettingsConfig extends Versioned {
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
+| `telegram.enabled` | boolean (bật bot Telegram: thông báo vận hành và hỏi đáp với agent `ops`, 055) | app |
+| `telegram.chat_id` | string (ID nhóm/kênh Telegram nhận thông báo; rỗng = chưa đặt) | app |
+| `telegram.allowed_user_ids` | string[] (ID người dùng Telegram được ra lệnh cho bot; rỗng = mọi thành viên của `telegram.chat_id`) | app |
 | `publish.platforms` | string[] (`youtube`, `tiktok`, `facebook`) | channel |
 | `publish.slots` | string[] (`HH:MM` hoặc `<thứ> HH:MM`, thứ: mon…sun) | channel |
 | `publish.timezone` | string (IANA) | app, channel |

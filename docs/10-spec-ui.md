@@ -68,6 +68,10 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `autopilot.status` | `{}` → `{paused, running, waiting_until?, current?: {channel, video, item_id, step_id?}, today: [{channel, name, date, items[]}]}`: Autopilot đang làm gì, trạng thái từng mục kế hoạch hôm nay (052) |
 | `autopilot.run_now` | `{}` → `{started, reason?}`: chạy một lượt ngay (lập kế hoạch nếu chưa có rồi làm lần lượt các mục), bỏ qua khung giờ làm việc; không chạy khi đang tạm dừng (052) |
 | `autopilot.pause` / `autopilot.resume` | `{}` → `{paused}`: đặt `autopilot.paused` (app) (052) |
+| `telegram.status` | `{}` → `{enabled, state, reason?, bot_username?, chat_id_set, has_token, last_error?}`: bot Telegram đang chạy/tắt và vì sao (token sai, xung đột getUpdates…) (055) |
+| `telegram.test` | `{}` → `{ok}`: gửi tin thử vào `telegram.chat_id` (055) |
+| `telegram.set_token` | `{token}` → `{ok, bot_username}`: kiểm token bằng `getMe` rồi lưu bí mật `telegram_bot_token` qua `main`, khởi động lại bot (055) |
+| `sessions.list` / `sessions.get` | (048) không có `channel` → nhật ký các phiên `ops` (Telegram) trong dữ liệu app (055) |
 | `autopilot.capacity` | Ước tính số video làm được hôm nay cho các kênh quản lý (050, FN-050): thời gian từng bước trên máy, ngân sách Claude, hạn mức đăng YouTube |
 
 | Sự kiện | Dữ liệu |

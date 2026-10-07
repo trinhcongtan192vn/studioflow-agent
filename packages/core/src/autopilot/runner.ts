@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { resolveAppConfig, resolveConfig } from '../config/resolve.js';
+import { defaultAppDataDir, resolveAppConfig, resolveConfig } from '../config/resolve.js';
 import type {
   AutopilotLogLine,
   PlanItem,
@@ -14,10 +14,11 @@ import { AUTOPILOT_APPROVAL_NOTE, AUTOPILOT_PARK_NOTE } from '../domain/autopilo
 import { newId } from '../domain/ids.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { createVideo, listVideoIds } from '../domain/video.js';
-import { isSfError } from '../errors.js';
+import { isSfError, SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
 import { loadVideoModel } from '../graph/model.js';
-import type { WriteStore } from '../store/writer.js';
+import { WriteStore } from '../store/writer.js';
+import type { Notifier } from '../telegram/notifier.js';
 import type { AutoDecide, WorkflowEngine } from '../workflow/engine.js';
 import { audioDurationReading } from '../workflow/duration.js';
 import { executionOrder, STEP_LIBRARY } from '../workflow/library.js';
@@ -208,6 +209,19 @@ export class AutopilotRunner extends EventEmitter {
   private readonly voiceLogged = new Set<string>();
   private readonly blocked = new Map<string, { summary: string; ts: number }>();
   private channelsFn: () => string[];
+  private notifier?: Notifier;
+  private pauseFn: (paused: boolean) => void = (paused) => {
+    const dir = this.d.appDataDir ?? defaultAppDataDir();
+    const f = path.join(dir, 'settings.json');
+    const s = (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}) as {
+      config?: Record<string, unknown>;
+    };
+    s.config = { ...s.config, 'autopilot.paused': paused };
+    new WriteStore(dir).write('settings.json', `${JSON.stringify(s, null, 2)}\n`, {
+      by: 'autopilot.pause',
+      validate: false,
+    });
+  };
   private briefFn?: BriefFn;
 
   constructor(private readonly d: RunnerDeps) {
@@ -218,6 +232,44 @@ export class AutopilotRunner extends EventEmitter {
 
   setChannels(fn: () => string[]): void {
     this.channelsFn = fn;
+  }
+
+  /** 055: bộ thông báo (Telegram…) nhận mọi dòng nhật ký vận hành. */
+  setNotifier(n: Notifier | undefined): void {
+    this.notifier = n;
+  }
+
+  /** Kênh Autopilot đang bật (có `channel.json`, `autopilot.enabled`). */
+  channelDirs(): string[] {
+    return this.channels();
+  }
+
+  /** Tên hoặc đường dẫn kênh → thư mục kênh Autopilot (không phân biệt hoa thường; trùng tên → lỗi). */
+  resolveChannel(ref: string): string | undefined {
+    const dirs = this.channels();
+    const norm = (s: string) => s.trim().toLowerCase();
+    const byPath = dirs.find((d) => norm(path.resolve(d)) === norm(path.resolve(ref)));
+    if (byPath) return byPath;
+    const byName = dirs.filter(
+      (d) => norm(this.channelName(d)) === norm(ref) || norm(path.basename(d)) === norm(ref),
+    );
+    if (byName.length > 1)
+      throw new SfError(
+        'E_SCHEMA_INVALID',
+        `channel "${ref}" matches ${byName.length} channels; use the full path`,
+      );
+    return byName[0];
+  }
+
+  /** 055: host đặt cách ghi `autopilot.paused` (lưu cài đặt app + phát sự kiện); mặc định ghi `settings.json`. */
+  setPauseHandler(fn: (paused: boolean) => void): void {
+    this.pauseFn = fn;
+  }
+
+  setPaused(paused: boolean): { paused: boolean } {
+    this.pauseFn(paused);
+    this.changed();
+    return { paused };
   }
 
   setBrief(fn: BriefFn | undefined): void {
@@ -315,6 +367,35 @@ export class AutopilotRunner extends EventEmitter {
       /* nhật ký là cố gắng tối đa — không làm hỏng việc đang chạy */
     }
     this.d.logger?.({ ...full, channel });
+    // 055: thông báo (Telegram…) — mọi sự kiện của nhật ký, bộ thông báo tự chọn loại cần gửi
+    if (this.notifier)
+      try {
+        void Promise.resolve(
+          this.notifier.notify({
+            kind: full.event,
+            channel,
+            channel_name: this.channelName(channel),
+            level: full.level,
+            message: full.message,
+            ...(full.item_id ? { item_id: full.item_id } : {}),
+            ...(full.video_id ? { video_id: full.video_id } : {}),
+            ...(full.data ? { data: full.data } : {}),
+          }),
+        ).catch(() => {});
+      } catch {
+        /* thông báo là phụ */
+      }
+  }
+
+  private channelName(channel: string): string {
+    try {
+      return (
+        (JSON.parse(readFileSync(path.join(channel, 'channel.json'), 'utf8')) as { name?: string })
+          .name ?? path.basename(channel)
+      );
+    } catch {
+      return path.basename(channel);
+    }
   }
 
   private logItem(

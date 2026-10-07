@@ -57,6 +57,7 @@ import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
+import { MemorySecretStore, type SecretStore } from './secrets/store.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
 import {
@@ -89,6 +90,8 @@ export interface CoreOptions {
   batchWindowMs?: number;
   /** Khóa API provider text (mặc định biến môi trường, 009). */
   getSecret?: (name: string) => string | undefined;
+  /** Cổng bí mật (055): app nối `main`; mặc định kho bộ nhớ (test). */
+  secrets?: SecretStore;
 }
 
 export interface Core {
@@ -111,6 +114,8 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** Kho bí mật (D5 5.4): token Telegram, OAuth… — không bao giờ ghi file/log. */
+  secrets: SecretStore;
   /** Bộ chạy Autopilot (052): host gắn danh sách kênh + brief rồi gọi `tick` định kỳ. */
   autopilot: AutopilotRunner;
   /** Phoenix cục bộ (028). */
@@ -312,6 +317,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   defineAutopilotPlanJob(plan);
   for (const t of autopilotPlanTools(plan)) gateway.register(t);
   // 052: bộ chạy Autopilot — tạo video theo kế hoạch ngày, cổng chất lượng thay điểm chốt, nhật ký vận hành
+  const secrets = opts.secrets ?? new MemorySecretStore();
   const autopilotLog = new Logger();
   const autopilot = new AutopilotRunner({
     workflows,
@@ -340,7 +346,8 @@ export function createCore(opts: CoreOptions = {}): Core {
   });
   workflows.setAutoDecide(autopilot.autoDecide);
   autopilot.attachPermissions(gateway.permissions);
-  for (const t of autopilotRunnerTools(autopilot)) gateway.register(t);
+  for (const t of autopilotRunnerTools(autopilot, appDataDir)) gateway.register(t);
+  gateway.channelResolver = (ref) => autopilot.resolveChannel(ref);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
@@ -392,6 +399,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     pinned,
     captions: new CaptionPanel(gateway),
     autopilot,
+    secrets,
     phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {

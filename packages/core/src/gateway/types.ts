@@ -15,6 +15,15 @@ export interface ToolContext {
   opts: CallOptions;
 }
 
+/** Tham số `channel` cho tool vận hành dùng được trong phiên `ops` (055, D4 mục 2.2): đường dẫn hoặc tên kênh. */
+export const OPS_CHANNEL_PROP = {
+  channel: {
+    type: 'string',
+    description:
+      'Chỉ cho phiên ops: tên hoặc đường dẫn của kênh quản lý đang bật Autopilot (bắt buộc khi có nhiều kênh).',
+  },
+} as const;
+
 /** Tool của Gateway (D4 mục 2.4). Loại phiên được phép lấy từ bảng D5 mục 4 (policy.ts). */
 // `any`: registry giữ tool có kiểu đầu vào khác nhau; đầu vào đã được Ajv kiểm trước handler.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

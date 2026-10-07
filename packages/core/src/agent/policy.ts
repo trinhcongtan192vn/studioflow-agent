@@ -10,6 +10,8 @@ export const RUNTIME_BUILTINS: Record<SessionKind, string[]> = {
   frame: ['Read', 'Glob', 'Grep', 'Skill', 'TodoWrite'],
   producer: ['Read', 'Glob', 'Grep', 'Skill'],
   critic: [],
+  // 055: phiên vận hành chỉ có tool `sf` (không đọc file, không ghi gì)
+  ops: [],
 };
 
 /** Tool ghi file, chạy lệnh, mạng, sub-agent của runtime — luôn tắt (D5 mục 3.4). */

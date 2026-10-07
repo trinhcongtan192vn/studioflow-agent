@@ -9,7 +9,7 @@ export interface AgentRuntime {
 }
 
 export interface SessionOptions {
-  kind: 'main' | 'frame' | 'producer' | 'critic';
+  kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   context: SessionContext;                      // D4 mục 2.2
   model: string;                                // theo bảng mục 2
   systemAppend: string;                         // quy tắc app (mục 6) + chỉ dẫn theo kind

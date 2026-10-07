@@ -55,7 +55,16 @@ import {
   setChannelAutopilot,
 } from '../autopilot/index.js';
 import { getSecretDefault } from '../secrets/credman.js';
-import { getSession, listSessions } from '../agent/session-log.js';
+import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
+import { recordSessions } from '../agent/recorder.js';
+import type { SecretStore } from '../secrets/store.js';
+import {
+  checkTelegramValue,
+  OpsAgent,
+  TELEGRAM_KEYS,
+  TelegramService,
+  type FetchLike,
+} from '../telegram/index.js';
 import { YOUTUBE_SECRET } from '../youtube/index.js';
 import { readResearch } from '../research/index.js';
 
@@ -83,12 +92,19 @@ export class CoreHost extends EventEmitter {
   /** 052: lỗi cuối của lượt agent theo video (hạn mức Claude…) — để bước agent/brief báo đúng lỗi. */
   private readonly agentErrors = new Map<string, { code: string; message: string }>();
   private autopilotTimer?: ReturnType<typeof setInterval>;
+  readonly telegram: TelegramService;
+  private readonly ops: OpsAgent;
 
   constructor(
     opts: CoreOptions & {
       runtime?: AgentRuntime;
       /** 052: bật bộ chạy Autopilot theo chu kỳ (mặc định tắt — test và CLI không tự tạo video). */
       autopilot?: { tick_ms?: number };
+      /** 055: cổng bí mật (app: nối `main`); mặc định kho bộ nhớ. */
+      secrets?: SecretStore;
+      /** 055: `fetch` của bot Telegram (test không chạm mạng). */
+      telegramFetch?: FetchLike;
+      telegramSleep?: (ms: number) => Promise<void>;
     } = {},
   ) {
     super();
@@ -105,9 +121,27 @@ export class CoreHost extends EventEmitter {
       await this.chat(ctx.channelDir, ctx.videoId, instruction, [], 'system');
       this.throwLimit(ctx.channelDir, ctx.videoId);
     });
+    // 055: Telegram — thông báo vận hành + hỏi đáp qua agent `ops` (nhật ký phiên ở ops/sessions/)
+    this.ops = new OpsAgent({
+      runtime: recordSessions(this.runtime, (dir) => this.core.gateway.storeFor(dir)),
+      gateway: this.core.gateway,
+      appDataDir,
+    });
+    this.telegram = new TelegramService({
+      appDataDir,
+      secrets: this.core.secrets,
+      runner: this.core.autopilot,
+      ops: this.ops,
+      ...(opts.telegramFetch ? { fetch: opts.telegramFetch } : {}),
+      ...(opts.telegramSleep ? { sleep: opts.telegramSleep } : {}),
+      log: (level, msg) => this.core.gateway.logger.write(level, 'sf.telegram', { message: msg }),
+    });
+    this.core.autopilot.setNotifier(this.telegram.notifier);
+    if (opts.autopilot) void this.telegram.reconfigure();
     // 052: Autopilot — kênh quản lý đang bật, brief qua phiên `main`, sự kiện, vòng lặp định kỳ
     const ap = this.core.autopilot;
     ap.setChannels(() => this.autopilotChannels());
+    ap.setPauseHandler((paused) => this.writePaused(paused));
     ap.setBrief(async (channel, video, item) => {
       await this.chat(
         channel,
@@ -159,11 +193,13 @@ export class CoreHost extends EventEmitter {
   }
 
   private setPaused(paused: boolean): { paused: boolean } {
+    return this.core.autopilot.setPaused(paused);
+  }
+
+  private writePaused(paused: boolean): void {
     const s = this.settings();
     s.config = { ...s.config, 'autopilot.paused': paused };
     this.saveSettings(s);
-    this.send('autopilot.updated', this.core.autopilot.status());
-    return { paused };
   }
 
   private send<K extends keyof IpcEvents>(name: K, data: IpcEvents[K]): void {
@@ -173,6 +209,8 @@ export class CoreHost extends EventEmitter {
   private watcher?: { close(): void };
 
   close(): void {
+    void this.telegram.close();
+    void this.ops.close();
     if (this.autopilotTimer) clearInterval(this.autopilotTimer);
     this.core.autopilot.stop();
     this.watcher?.close();
@@ -643,6 +681,11 @@ export class CoreHost extends EventEmitter {
           apiKey: getSecretDefault(YOUTUBE_SECRET),
         });
       case 'sessions.list':
+        // 055: không có kênh → nhật ký phiên ops (Telegram) trong dữ liệu app
+        if (!p.channel)
+          return {
+            sessions: listOpsSessions(c.appDataDir, p.limit ? { limit: Number(p.limit) } : {}),
+          };
         return {
           sessions: listSessions(this.store(p.channel), c.db, {
             ...(p.video ? { video: String(p.video) } : {}),
@@ -650,12 +693,19 @@ export class CoreHost extends EventEmitter {
           }),
         };
       case 'sessions.get':
+        if (!p.channel) return { lines: getOpsSession(c.appDataDir, String(p.id)) };
         return {
           lines: getSession(this.store(p.channel), c.db, {
             id: String(p.id),
             ...(p.video ? { video: String(p.video) } : {}),
           }),
         };
+      case 'telegram.status':
+        return this.telegram.status();
+      case 'telegram.test':
+        return this.telegram.test();
+      case 'telegram.set_token':
+        return this.telegram.setToken(String(p.token));
       case 'autopilot.status':
         return c.autopilot.status();
       case 'autopilot.run_now': {
@@ -904,9 +954,12 @@ export class CoreHost extends EventEmitter {
         // 047: khóa Autopilot tầng app được kiểm dạng giá trị (khung giờ, tỉ lệ…)
         if ((APP_AUTOPILOT_KEYS as readonly string[]).includes(String(p.key)))
           checkAutopilotValue(String(p.key), p.value);
+        const tg = (TELEGRAM_KEYS as readonly string[]).includes(String(p.key));
+        if (tg) checkTelegramValue(String(p.key), p.value);
         const s = this.settings();
         s.config = { ...s.config, [String(p.key)]: p.value };
         this.saveSettings(s);
+        if (tg) await this.telegram.reconfigure();
         return { ok: true };
       }
       case 'install.plan':

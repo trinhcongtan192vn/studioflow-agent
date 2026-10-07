@@ -16,6 +16,9 @@ export interface GatewayOptions {
   permissionTimeoutMs?: number;
 }
 
+/** Tool mà phiên ops được bỏ trống `channel` (trả tóm tắt mọi kênh). */
+const OPS_CHANNEL_OPTIONAL = new Set(['autopilot.status']);
+
 const retryable = new Map<string, boolean>(errorRegistry.errors.map((e) => [e.code, e.retryable]));
 
 /**
@@ -29,6 +32,8 @@ export class Gateway {
   private readonly validators = new Map<string, ValidateFunction>();
   private readonly stores = new Map<string, WriteStore>();
   private readonly ajv = new Ajv({ allErrors: true, strict: false });
+  /** 055: tên/đường dẫn kênh (tham số `channel` của phiên `ops`) → thư mục kênh; không thấy → `undefined`. */
+  channelResolver?: (ref: string) => string | undefined;
 
   constructor(readonly opts: GatewayOptions = {}) {
     this.permissions = new PermissionBus({
@@ -104,6 +109,30 @@ export class Gateway {
         );
       }
       const validate = this.validators.get(name)!;
+      // 055: phiên `ops` không gắn kênh — `channel` chọn kho ghi của kênh; phiên khác không được dùng
+      let storeDir = session.channel_dir;
+      const arg = (input as { channel?: unknown } | undefined)?.channel;
+      if (arg !== undefined && session.kind !== 'ops')
+        throw new SfError(
+          'E_SCHEMA_INVALID',
+          `invalid input for ${name}: channel is only for ops sessions`,
+        );
+      if (
+        session.kind === 'ops' &&
+        arg === undefined &&
+        'channel' in ((def.input.properties as object | undefined) ?? {}) &&
+        !OPS_CHANNEL_OPTIONAL.has(name)
+      )
+        throw new SfError(
+          'E_SCHEMA_INVALID',
+          `invalid input for ${name}: channel is required in ops sessions`,
+        );
+      if (session.kind === 'ops' && typeof arg === 'string') {
+        const dir = this.channelResolver?.(arg);
+        if (!dir)
+          throw new SfError('E_ID_UNKNOWN', `channel "${arg}" is not a managed Autopilot channel`);
+        storeDir = dir;
+      }
       if (!validate(input ?? {})) {
         throw new SfError(
           'E_SCHEMA_INVALID',
@@ -113,7 +142,7 @@ export class Gateway {
       }
       const data = await def.handler(input ?? {}, {
         session,
-        store: this.storeFor(session.channel_dir),
+        store: this.storeFor(storeDir),
         permissions: this.permissions,
         appDataDir: this.opts.appDataDir,
         opts,

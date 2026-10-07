@@ -103,6 +103,22 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 055: bot Telegram đang chạy/tắt và vì sao. */
+  'telegram.status': {
+    params: Record<string, never>;
+    result: {
+      enabled: boolean;
+      state: 'stopped' | 'running' | 'disabled';
+      reason?: string;
+      message?: string;
+      bot_username?: string;
+      chat_id_set: boolean;
+      has_token: boolean;
+      last_error?: string;
+    };
+  };
+  'telegram.test': { params: Record<string, never>; result: { ok: true } };
+  'telegram.set_token': { params: { token: string }; result: { ok: true; bot_username?: string } };
   /** 052: Autopilot đang làm gì — tạm dừng/đang chạy/chờ hạn mức Claude, video hiện tại, mục kế hoạch hôm nay. */
   'autopilot.status': { params: Record<string, never>; result: AutopilotStatus };
   /** 052: chạy một lượt ngay (bỏ qua khung giờ làm việc; không chạy khi tạm dừng/đang chờ hạn mức/đang chạy). */
@@ -131,7 +147,7 @@ export interface IpcMethods {
   };
   /** Nhật ký phiên agent (048, FR-AP-14): chat chính, phiên con, phiên chỉ còn trace — mới trước. */
   'sessions.list': {
-    params: ChannelRef & { video?: string; limit?: number };
+    params: { channel?: string; video?: string; limit?: number };
     result: {
       sessions: {
         id: string;
@@ -149,7 +165,7 @@ export interface IpcMethods {
     };
   };
   'sessions.get': {
-    params: ChannelRef & { id: string; video?: string };
+    params: { channel?: string; id: string; video?: string };
     result: { lines: ChatLine[] };
   };
   /** Lần quét nghiên cứu gần nhất của kênh (049, D3 5.17); chưa quét → `null`. */

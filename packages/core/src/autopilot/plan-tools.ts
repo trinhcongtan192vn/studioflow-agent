@@ -1,5 +1,5 @@
 import { SfError } from '../errors.js';
-import type { ToolDefinition } from '../gateway/types.js';
+import { OPS_CHANNEL_PROP, type ToolDefinition } from '../gateway/types.js';
 import type { JobQueue } from '../jobs/queue.js';
 import { researchDate } from '../research/scan.js';
 import { resolveConfig } from '../config/resolve.js';
@@ -95,7 +95,11 @@ export function autopilotPlanTools(d: PlanDeps): ToolDefinition[] {
       name: 'autopilot.plan_get',
       description:
         'Kế hoạch ngày Autopilot của kênh (chủ đề, góc nhìn, workflow, giờ đăng, lý do, trạng thái từng mục). date: YYYY-MM-DD; bỏ trống = hôm nay.',
-      input: { type: 'object', properties: { date: DATE }, additionalProperties: false },
+      input: {
+        type: 'object',
+        properties: { date: DATE, ...OPS_CHANNEL_PROP },
+        additionalProperties: false,
+      },
       handler: async (i: { date?: string }, ctx) => {
         const date = i.date ?? planDateOf(ctx.store.root, d.now?.() ?? new Date(), d.appDataDir);
         const plan = readPlan(ctx.store.root, date);
@@ -120,6 +124,7 @@ export function autopilotPlanTools(d: PlanDeps): ToolDefinition[] {
         type: 'object',
         properties: {
           date: DATE,
+          ...OPS_CHANNEL_PROP,
           item_id: { type: 'string' },
           patch: {
             type: 'object',

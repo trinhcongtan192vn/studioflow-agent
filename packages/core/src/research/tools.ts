@@ -1,5 +1,5 @@
 import { SfError } from '../errors.js';
-import type { ToolDefinition } from '../gateway/types.js';
+import { OPS_CHANNEL_PROP, type ToolDefinition } from '../gateway/types.js';
 import type { JobQueue } from '../jobs/queue.js';
 import type { WriteStore } from '../store/writer.js';
 import type { FetchFn } from '../youtube/data-api.js';
@@ -60,7 +60,10 @@ export function researchTools(d: ResearchDeps): ToolDefinition[] {
         'Kết quả quét nghiên cứu của kênh (chủ đề ứng viên điểm cao trước, lý do, nguồn lỗi). date: YYYY-MM-DD; bỏ trống = lần quét gần nhất.',
       input: {
         type: 'object',
-        properties: { date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
+        properties: {
+          date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+          ...OPS_CHANNEL_PROP,
+        },
         additionalProperties: false,
       },
       handler: async (i: { date?: string }, ctx) => {
