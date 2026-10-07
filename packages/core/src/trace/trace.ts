@@ -350,3 +350,24 @@ export function getTrace(db: Db, traceId: string): (SpanRow & { depth: number })
     s.parent_id && byId.has(s.parent_id) ? depth(byId.get(s.parent_id)!) + 1 : 0;
   return spans.map((s) => ({ ...s, depth: depth(s) }));
 }
+
+/** 048: span phiên agent (`sf.agent.session`) của các video — nhật ký phiên cũ chưa có transcript. */
+export function agentSessionSpans(db: Db, videoIds: string[], limit = 500): SpanRow[] {
+  if (!videoIds.length) return [];
+  const rows = db
+    .prepare(
+      `SELECT * FROM spans WHERE name = 'sf.agent.session' AND video_id IN (${videoIds.map(() => '?').join(',')}) ORDER BY start_ms DESC LIMIT ?`,
+    )
+    .all(...videoIds, limit) as Record<string, unknown>[];
+  return rows.map(row);
+}
+
+/** 048: tool đã gọi trong một phiên (span `sf.tool` có `sf.session_id`). */
+export function toolSpansOfSession(db: Db, sessionId: string): SpanRow[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM spans WHERE name = 'sf.tool' AND json_extract(attrs, '$."sf.session_id"') = ? ORDER BY start_ms`,
+    )
+    .all(sessionId) as Record<string, unknown>[];
+  return rows.map(row);
+}

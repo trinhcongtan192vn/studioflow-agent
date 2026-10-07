@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { StudioflowApi } from '../preload/index';
 import { activityLines } from './close-format';
-import { Home } from './Home';
 import { Onboarding } from './Onboarding';
 import { core } from './rpc';
 import { versionLabel } from './version-label';
@@ -46,12 +45,23 @@ export function App() {
         () => window.studioflow.closeReply('close'),
       );
     });
-    void window.studioflow.boot().then((b) => {
-      if (!b.open_channel) return;
-      // mở kênh như từ trang chủ (ghi kênh gần đây + kênh quản lý, 047)
-      const dir = b.open_channel;
-      void core.call('channel.open', { channel: dir }).catch(() => {});
-      setChannel(dir);
+    // 048: mở thẳng giao diện chính với kênh mở sẵn (SF_OPEN_CHANNEL) hoặc kênh dùng gần nhất
+    void window.studioflow.boot().then(async (b) => {
+      const recent = b.open_channel
+        ? [b.open_channel]
+        : (await core.call('channel.list_recent', {}).catch(() => ({ channels: [] }))).channels.map(
+            (c) => c.path,
+          );
+      for (const dir of recent) {
+        try {
+          // ghi kênh gần đây + kênh quản lý (047)
+          await core.call('channel.open', { channel: dir });
+          setChannel(dir);
+          return;
+        } catch {
+          /* thư mục không còn → thử kênh trước đó */
+        }
+      }
     });
     return off;
   }, []);
@@ -98,11 +108,7 @@ export function App() {
           </div>
         </div>
       )}
-      {channel ? (
-        <Workspace channel={channel} onClose={() => setChannel(null)} />
-      ) : (
-        <Home onOpen={setChannel} />
-      )}
+      <Workspace channel={channel} onSwitch={setChannel} />
       <footer className="statusbar">
         <span data-testid="core-version">{label}</span>
         <span>

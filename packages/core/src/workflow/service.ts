@@ -10,6 +10,7 @@ import { WorkflowEngine, type AgentStepRunner, type StepExecutor } from './engin
 import { loadPacks, type WorkflowPack } from './packs.js';
 import { speakersWithoutVoice } from './cast.js';
 import { autopilotOf } from '../domain/autopilot.js';
+import { recordSessions } from '../agent/recorder.js';
 
 /** Dịch vụ workflow của `core`: gói, executor theo `uses`, runner bước agent, engine theo video. */
 export class WorkflowService {
@@ -62,7 +63,8 @@ export class WorkflowService {
   agentRuntime?: AgentRuntime;
 
   setAgentRuntime(rt: AgentRuntime | undefined): void {
-    this.agentRuntime = rt;
+    // 048: phiên con (frame…) có nhật ký xem lại được (FR-AP-14)
+    this.agentRuntime = rt ? recordSessions(rt, (dir) => this.d.storeFor(dir)) : undefined;
   }
 
   /** Bộ dựng lại frame cho nút `frame_html` (020 R1): executor frame-build cho một frame, trong graph. */
