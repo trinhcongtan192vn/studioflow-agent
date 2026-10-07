@@ -19,7 +19,10 @@
       "source": {
         "kind": "competitor",
         "url": "https://www.youtube.com/watch?v=aaaaaaaaa01",
-        "source_channel": { "id": "UCaaaaaaaaaaaaaaaaaaaaa1", "title": "Sử Kể Mẫu" }
+        "source_channel": {
+          "id": "UCaaaaaaaaaaaaaaaaaaaaa1",
+          "title": "Sử Kể Mẫu"
+        }
       },
       "workflow_id": "narrated-explainer",
       "output_profile": "yt-1080p30",
@@ -37,7 +40,9 @@
       "candidate_id": "trend:chợ nổi",
       "title": "Chợ nổi Cái Răng",
       "angle": "Đang được tìm nhiều: 200K+ lượt tìm",
-      "source": { "kind": "trend" },
+      "source": {
+        "kind": "trend"
+      },
       "workflow_id": "shorts",
       "output_profile": "yt-shorts-1080x1920",
       "publish_at": null,
@@ -46,6 +51,29 @@
       "reasons": [],
       "video_id": "vd_8m2pq7rt",
       "note": "Đã làm xong"
+    },
+    {
+      "id": "pi_i9j0k1l2",
+      "status": "needs_review",
+      "candidate_id": "yt:aaaaaaaaa02",
+      "title": "Hội nghị Diên Hồng",
+      "angle": "Đối thủ vừa đăng: gấp 4× lượt xem trung vị",
+      "source": {
+        "kind": "competitor",
+        "url": "https://www.youtube.com/watch?v=aaaaaaaaa02",
+        "source_channel": {
+          "id": "UCaaaaaaaaaaaaaaaaaaaaa1",
+          "title": "Sử Kể Mẫu"
+        }
+      },
+      "workflow_id": "narrated-explainer",
+      "output_profile": "yt-1080p30",
+      "publish_at": "2026-10-07T21:00:00+07:00",
+      "platforms": ["youtube"],
+      "score": 71,
+      "reasons": ["Điểm nghiên cứu 71/100 (đối thủ vừa đăng)."],
+      "video_id": "vd_8m2pq7rt",
+      "note": "Điểm chốt script: điểm 6,5 thấp hơn ngưỡng 8 sau 3 vòng"
     }
   ]
 }

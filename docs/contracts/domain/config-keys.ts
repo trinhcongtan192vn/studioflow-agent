@@ -47,6 +47,7 @@ export type ConfigKey =
   | 'autopilot.workflows'
   | 'autopilot.max_per_day'
   | 'autopilot.min_score'
+  | 'autopilot.duration_waive_ratio'
   | 'autopilot.work_window'
   | 'autopilot.budget_share'
   | 'autopilot.daily_tokens'

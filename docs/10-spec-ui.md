@@ -65,6 +65,9 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `autopilot.plan.get` | `{channel?, date?}` → kế hoạch ngày (D3 5.18) của mọi kênh Autopilot (051); `channel` bỏ trống = tất cả kênh quản lý đang bật Autopilot |
 | `autopilot.plan.run` | `{date?}` → `{job_id}`: lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot (051, việc dài → job, D4 2.3); `date` chỉ nhận hôm nay |
 | `autopilot.plan.update` | `{channel, date, item_id, patch}` → mục đã sửa (051): bỏ qua/khôi phục, đổi tiêu đề, góc nhìn, workflow, giờ đăng; không sửa mục đang/đã làm |
+| `autopilot.status` | `{}` → `{paused, running, waiting_until?, current?: {channel, video, item_id, step_id?}, today: [{channel, name, date, items[]}]}`: Autopilot đang làm gì, trạng thái từng mục kế hoạch hôm nay (052) |
+| `autopilot.run_now` | `{}` → `{started, reason?}`: chạy một lượt ngay (lập kế hoạch nếu chưa có rồi làm lần lượt các mục), bỏ qua khung giờ làm việc; không chạy khi đang tạm dừng (052) |
+| `autopilot.pause` / `autopilot.resume` | `{}` → `{paused}`: đặt `autopilot.paused` (app) (052) |
 | `autopilot.capacity` | Ước tính số video làm được hôm nay cho các kênh quản lý (050, FN-050): thời gian từng bước trên máy, ngân sách Claude, hạn mức đăng YouTube |
 
 | Sự kiện | Dữ liệu |
@@ -76,5 +79,6 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `artifact.changed` | `{path, hash, by}` |
 | `install.progress` | `{component, done, total}` |
 | `core.health` | `{ok, engines}` |
+| `autopilot.updated` | cùng dữ liệu `autopilot.status` — phát mỗi lần trạng thái Autopilot đổi (052) |
 
 Tên đầy đủ tham số và kiểu trả về được sinh từ `packages/core/ipc/schema.ts` (tính năng 008), phải khớp bảng này.

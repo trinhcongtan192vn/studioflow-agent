@@ -424,6 +424,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.duration_waive_ratio",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
       "key": "autopilot.work_window",
       "pattern": false,
       "type": "string",

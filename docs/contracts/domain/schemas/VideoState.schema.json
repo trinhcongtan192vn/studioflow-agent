@@ -62,6 +62,26 @@
             "$ref": "#/definitions/VideoId"
           }
         },
+        "autopilot": {
+          "type": "object",
+          "properties": {
+            "plan_date": {
+              "type": "string"
+            },
+            "item_id": {
+              "$ref": "#/definitions/PlanItemId"
+            },
+            "channel_id": {
+              "$ref": "#/definitions/ChannelId"
+            }
+          },
+          "required": [
+            "plan_date",
+            "item_id",
+            "channel_id"
+          ],
+          "additionalProperties": false
+        },
         "owner": {
           "type": "string",
           "enum": [
@@ -157,6 +177,13 @@
     },
     "Iso8601": {
       "type": "string"
+    },
+    "PlanItemId": {
+      "$ref": "#/definitions/Id%3C%22pi%22%3E"
+    },
+    "Id<\"pi\">": {
+      "type": "string",
+      "pattern": "^pi_[0-9a-z]{8}$"
     },
     "StepState": {
       "type": "object",

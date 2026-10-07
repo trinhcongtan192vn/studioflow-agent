@@ -206,7 +206,8 @@
         "skipped",
         "in_production",
         "produced",
-        "failed"
+        "failed",
+        "needs_review"
       ]
     },
     "VideoId": {

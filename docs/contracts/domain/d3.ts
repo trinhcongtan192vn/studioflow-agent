@@ -129,6 +129,7 @@ export interface VideoState extends Versioned {
   workflow: { id: string; version: string } | null;   // nguồn chính thức; null khi briefing
   output_profile: string | null;            // nguồn chính thức (khóa output.profile tầng video đọc từ đây)
   read_only_videos?: VideoId[];             // video khác được đọc (shorts từ video dài)
+  autopilot?: { plan_date: string; item_id: PlanItemId; channel_id: ChannelId };  // 052: video do Autopilot tạo theo mục kế hoạch ngày (đánh dấu để áp cổng chất lượng tự động; video làm tay không có trường này)
   owner: 'agent' | 'studio';                 // chủ sửa file cảnh hiện tại
   owner_since?: Iso8601;
   steps: Record<string, StepState>;          // khóa = step id trong manifest
@@ -222,7 +223,7 @@ export interface ResearchCandidate {
   reasons: string[];                               // tiếng Việt, mỗi tín hiệu một câu
 }
 
-export type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed';
+export type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed' | 'needs_review';
 export interface DailyPlan extends Versioned {
   channel_id: ChannelId;
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
@@ -253,6 +254,18 @@ export interface PlanItem {
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
+}
+
+export interface AutopilotLogLine {
+  ts: Iso8601;
+  level: 'info' | 'warn' | 'error';
+  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced. */
+  event: string;
+  item_id?: PlanItemId;
+  video_id?: VideoId;
+  step_id?: string;
+  message: string;                                 // tiếng Việt: việc gì + vì sao
+  data?: Record<string, unknown>;                  // chi tiết máy đọc được (điểm, ngưỡng, thời điểm hết hạn mức…)
 }
 
 export interface ChannelConfig extends Versioned {

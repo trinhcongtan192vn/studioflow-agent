@@ -42,8 +42,13 @@ const C = PLAN_CONSTANTS;
 const MIN = 60_000;
 const PLANS_DIR = 'autopilot/plans';
 const DATE_FILE = /^(\d{4}-\d{2}-\d{2})\.json$/;
-/** Trạng thái đã bắt đầu làm: tính vào trần `autopilot.max_per_day` và việc đã dùng của hôm nay. */
-const STARTED: ReadonlySet<PlanItemStatus> = new Set(['in_production', 'produced', 'failed']);
+/** Trạng thái đã bắt đầu làm (đã có video; `needs_review` = đỗ chờ người, 052): tính vào trần `autopilot.max_per_day` và việc đã dùng của hôm nay. */
+const STARTED: ReadonlySet<PlanItemStatus> = new Set([
+  'in_production',
+  'produced',
+  'failed',
+  'needs_review',
+]);
 const LOCKED = STARTED;
 
 /** Workflow đã cài (tên gọn của gói workflow: id + dạng xuất cho phép, phần tử đầu là mặc định). */
@@ -63,7 +68,7 @@ interface Parts {
   s: number;
 }
 
-function zoneParts(ms: number, timeZone: string): Parts {
+export function zoneParts(ms: number, timeZone: string): Parts {
   const f = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     hourCycle: 'h23',
@@ -92,7 +97,7 @@ function offsetMs(ms: number, timeZone: string): number {
 }
 
 /** Thời điểm UTC của giờ địa phương `date` `hh:mm` (hai vòng để đúng quanh lúc đổi giờ mùa hè). */
-function zonedMs(date: string, hh: number, mm: number, timeZone: string): number {
+export function zonedMs(date: string, hh: number, mm: number, timeZone: string): number {
   const [y, mo, d] = date.split('-').map(Number);
   const guess = Date.UTC(y!, mo! - 1, d!, hh, mm);
   const t = guess - offsetMs(guess, timeZone);
@@ -109,7 +114,7 @@ function isoWithOffset(ms: number, timeZone: string): string {
   return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}${off < 0 ? '-' : '+'}${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
 }
 
-const addDays = (date: string, n: number): string => {
+export const addDays = (date: string, n: number): string => {
   const [y, m, d] = date.split('-').map(Number);
   return new Date(Date.UTC(y!, m! - 1, d! + n)).toISOString().slice(0, 10);
 };
@@ -918,5 +923,41 @@ export function updatePlanItem(
   plan.items[idx] = next;
   plan.generated_at = (o.now ?? new Date()).toISOString();
   writePlan(store, plan, 'autopilot.plan_update');
+  return next;
+}
+
+// ---------- bộ chạy Autopilot cập nhật mục (052) ----------
+
+/** Trường bộ chạy Autopilot được đổi trên mục kế hoạch (không qua luật sửa của người dùng). */
+export interface PlanItemMark {
+  status?: PlanItemStatus;
+  video_id?: PlanItem['video_id'];
+  /** `null` = xóa ghi chú. */
+  note?: string | null;
+}
+
+/**
+ * 052: bộ chạy chuyển trạng thái mục (`in_production` → `produced` / `failed` / `needs_review`), điền `video_id`
+ * và `note` — đường ghi duy nhất của bộ chạy vào file kế hoạch. Khác `updatePlanItem`: không áp luật sửa của
+ * người dùng (mục đang làm vẫn đổi được). Không ghi lại khi không có gì đổi.
+ */
+export function markPlanItem(
+  store: WriteStore,
+  o: { date: string; item_id: string; patch: PlanItemMark; now?: Date },
+): PlanItem {
+  const plan = readPlan(store.root, o.date);
+  if (!plan) throw new SfError('E_FILE_NOT_FOUND', `no plan for ${o.date}`);
+  const idx = plan.items.findIndex((x) => x.id === o.item_id);
+  if (idx < 0) throw new SfError('E_ID_UNKNOWN', `plan item ${o.item_id} not found in ${o.date}`);
+  const cur = plan.items[idx]!;
+  const next: PlanItem = { ...cur };
+  if (o.patch.status) next.status = o.patch.status;
+  if (o.patch.video_id) next.video_id = o.patch.video_id;
+  if (o.patch.note === null) delete next.note;
+  else if (o.patch.note !== undefined) next.note = o.patch.note;
+  if (JSON.stringify(next) === JSON.stringify(cur)) return cur;
+  plan.items[idx] = next;
+  plan.generated_at = (o.now ?? new Date()).toISOString();
+  writePlan(store, plan, 'autopilot.run');
   return next;
 }

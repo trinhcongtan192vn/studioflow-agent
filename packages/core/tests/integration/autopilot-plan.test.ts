@@ -506,6 +506,17 @@ describe('Gateway tools autopilot.plan_* (051)', () => {
     a.store.write(`autopilot/plans/${DATE}.json`, JSON.stringify(locked), { by: 'test' });
     expect(code(await upd({ title: 'x' }))).toBe('E_SCHEMA_INVALID');
     expect(code(await upd({ status: 'skipped' }))).toBe('E_SCHEMA_INVALID');
+    // 052: mục đã đỗ (needs_review) cũng khóa — người dùng làm tiếp bằng tay trong video
+    a.store.write(
+      `autopilot/plans/${DATE}.json`,
+      JSON.stringify({
+        ...locked,
+        items: [{ ...locked.items[0]!, status: 'needs_review' }, plan.items[1]!],
+      }),
+      { by: 'test' },
+    );
+    expect(code(await upd({ title: 'x' }))).toBe('E_SCHEMA_INVALID');
+    a.store.write(`autopilot/plans/${DATE}.json`, JSON.stringify(locked), { by: 'test' });
     const second = plan.items[1]!.id;
     // khôi phục mục đã bỏ qua vượt trần (2 mục chưa bỏ qua / trần 2) bị từ chối
     expect(await upd({ status: 'skipped' }, second)).toMatchObject({ ok: true });

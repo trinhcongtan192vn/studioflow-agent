@@ -73,6 +73,7 @@ export const schemas = {
               "autopilot.workflows": {},
               "autopilot.max_per_day": {},
               "autopilot.min_score": {},
+              "autopilot.duration_waive_ratio": {},
               "autopilot.work_window": {},
               "autopilot.budget_share": {},
               "autopilot.daily_tokens": {},
@@ -172,6 +173,7 @@ export const schemas = {
               "autopilot.workflows": {},
               "autopilot.max_per_day": {},
               "autopilot.min_score": {},
+              "autopilot.duration_waive_ratio": {},
               "autopilot.work_window": {},
               "autopilot.budget_share": {},
               "autopilot.daily_tokens": {},
@@ -430,6 +432,26 @@ export const schemas = {
               "$ref": "#/definitions/VideoId"
             }
           },
+          "autopilot": {
+            "type": "object",
+            "properties": {
+              "plan_date": {
+                "type": "string"
+              },
+              "item_id": {
+                "$ref": "#/definitions/PlanItemId"
+              },
+              "channel_id": {
+                "$ref": "#/definitions/ChannelId"
+              }
+            },
+            "required": [
+              "plan_date",
+              "item_id",
+              "channel_id"
+            ],
+            "additionalProperties": false
+          },
           "owner": {
             "type": "string",
             "enum": [
@@ -525,6 +547,13 @@ export const schemas = {
       },
       "Iso8601": {
         "type": "string"
+      },
+      "PlanItemId": {
+        "$ref": "#/definitions/Id%3C%22pi%22%3E"
+      },
+      "Id<\"pi\">": {
+        "type": "string",
+        "pattern": "^pi_[0-9a-z]{8}$"
       },
       "StepState": {
         "type": "object",
@@ -4136,8 +4165,75 @@ export const schemas = {
           "skipped",
           "in_production",
           "produced",
-          "failed"
+          "failed",
+          "needs_review"
         ]
+      },
+      "VideoId": {
+        "$ref": "#/definitions/Id%3C%22vd%22%3E"
+      },
+      "Id<\"vd\">": {
+        "type": "string",
+        "pattern": "^vd_[0-9a-z]{8}$"
+      }
+    }
+  },
+  AutopilotLogLine: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/AutopilotLogLine",
+    "definitions": {
+      "AutopilotLogLine": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warn",
+              "error"
+            ]
+          },
+          "event": {
+            "type": "string",
+            "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced."
+          },
+          "item_id": {
+            "$ref": "#/definitions/PlanItemId"
+          },
+          "video_id": {
+            "$ref": "#/definitions/VideoId"
+          },
+          "step_id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "ts",
+          "level",
+          "event",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "Iso8601": {
+        "type": "string"
+      },
+      "PlanItemId": {
+        "$ref": "#/definitions/Id%3C%22pi%22%3E"
+      },
+      "Id<\"pi\">": {
+        "type": "string",
+        "pattern": "^pi_[0-9a-z]{8}$"
       },
       "VideoId": {
         "$ref": "#/definitions/Id%3C%22vd%22%3E"

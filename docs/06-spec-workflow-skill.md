@@ -145,6 +145,15 @@ done → stale   (khi đầu vào đổi sau đó)
 
 **Chế độ tự động (034).** Khi `workflow.autopilot` bật (mặc định), approval của bước không thuộc `workflow.key_approvals` (mặc định `story`, `script`, `finalize`) được engine ghi `approved` ngay (note bắt đầu "Tự duyệt (chế độ tự động)") và chạy tiếp; brief luôn do người dùng duyệt. File của approval tự duyệt đổi sau đó: cập nhật hash, không quay về chờ duyệt. Bước `voice` thiếu giọng: engine giao agent gợi ý giọng (`voice.design`) và chờ người dùng chọn rồi mới dựng audio. Agent tự quyết các lựa chọn khác trong bước, không hỏi người dùng.
 
+**Cổng chất lượng Autopilot (052, FR-AP-07).** Với video có `state.autopilot` thuộc kênh bật `autopilot.enabled`, điểm chốt (`workflow.key_approvals`) và điểm duyệt brief không chờ người mà do **cổng chất lượng tự động** quyết, ghi note `Autopilot: <lý do>` (vẫn là approval "tự duyệt": file đổi sau đó → cập nhật hash). Không đạt → **đỗ** video đó (mục kế hoạch `needs_review`, approval giữ `pending` kèm note `Cần người duyệt (Autopilot): <lý do>`), báo người dùng. Video làm tay không đổi hành vi. Luật:
+- **brief:** duyệt nếu `BRIEF.md` đề xuất đúng `workflow_id` và `output_profile` của mục kế hoạch.
+- **story / script (và điểm chốt khác):** bước có vòng refine → duyệt nếu `refine.final_score` ≥ ngưỡng (`refine.threshold`, hoặc `refine.threshold` của bước trong manifest) và không `incomplete`; thiếu điểm → đỗ. Bước không có vòng refine → duyệt dựa trên gate khách quan đã qua.
+- **finalize:** duyệt nếu mọi gate qua và không line nào còn `asr_flag: mismatch` trong `audio_meta.json`.
+- **Cảnh báo `audio_duration` (043, `E_GATE_WARNING`):** tự bỏ qua (`workflow.waive`) khi lệch ≤ `autopilot.duration_waive_ratio` (mặc định 0,25) so với `target_duration_ms`; lệch hơn → đỗ.
+- **Giọng đọc:** người nói chưa có giọng (nhân vật) dùng `voice.id` của kênh, không hỏi người dùng; kênh chưa có `voice.id` → đỗ "Kênh chưa có giọng đọc".
+- **Lỗi bước:** chạy lại đúng một lần (`E_PROVIDER_*`, lỗi agent/runtime, `E_STEP_INCOMPLETE`, `E_GATE_FAILED`); vẫn lỗi → mục `failed`. Chạm hạn mức gói Claude → app tạm dừng tới giờ hết hạn mức trong thông báo (không thì +1 giờ) rồi làm tiếp đúng bước đó.
+Mỗi quyết định ghi nhật ký vận hành (D3 5.19).
+
 ### 3.2 Điều phối tự động
 Mặc định engine tự chạy liên tiếp các bước không cần duyệt; dừng ở điểm duyệt, lỗi, hoặc thẻ xác nhận (D5 mục 5.1). Lệnh qua chat ("chạy tới bước render", "dừng", "quay lại storyboard") được agent chuyển thành `workflow.run_to` / `workflow.pause` / `workflow.rewind`.
 

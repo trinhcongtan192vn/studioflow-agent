@@ -514,6 +514,28 @@ describe('buildPlan (051)', () => {
     expect(buildPlan(input({ existing: next })).items).toEqual(next.items);
   });
 
+  it('a needs_review item (parked by Autopilot, 052) stays untouched and counts as started', () => {
+    const first = buildPlan(input());
+    const [a, b, c] = first.items as [PlanItem, PlanItem, PlanItem];
+    const parked: PlanItem = {
+      ...a,
+      status: 'needs_review',
+      video_id: 'vd_8m2pq7rt',
+      note: 'Điểm 6,5 thấp hơn ngưỡng 8',
+    };
+    const existing: DailyPlan = { ...first, items: [parked, b, c] };
+    // trần 2: một mục đã bắt đầu (needs_review) + một planned → hết chỗ; mục đỗ không bị đụng
+    const next = buildPlan(
+      input({
+        existing,
+        config: { ...input().config, max_per_day: 2 },
+        now: new Date(NOW.getTime() + 60_000),
+      }),
+    );
+    expect(next.items.slice(0, 3)).toEqual(existing.items);
+    expect(freeSlots({ feasible: 3, max_per_day: 2, planned: 1, started: 1 })).toBe(0);
+  });
+
   it('a skipped item frees its cap slot but its topic is not re-planned', () => {
     const first = buildPlan(input({ capacity: { ...input().capacity, videos: 1 } }));
     expect(first.items.map((i) => i.candidate_id)).toEqual(['a']);
