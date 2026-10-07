@@ -240,6 +240,8 @@ export type StepCta =
   | { kind: 'say'; label: string; text: string }
   /** Bỏ qua cảnh báo kiểm mềm rồi kiểm tra lại (043). */
   | { kind: 'waive'; label: string; step: string; check: string }
+  /** Mở thư mục chứa tệp (video đã render) trong File Explorer, chọn sẵn tệp (058). */
+  | { kind: 'reveal'; label: string; path: string }
   /** Duyệt ngay điểm duyệt đang chờ (041). */
   | { kind: 'approve'; label: string; approval_id: string };
 
@@ -345,6 +347,11 @@ export function stepCtas(
       seen.add(label);
       out.push({ kind: 'file', label, path: p });
     }
+    // 058: video đã render → mở thư mục chứa video
+    if (/\.mp4$/i.test(p) && !seen.has('reveal')) {
+      seen.add('reveal');
+      out.push({ kind: 'reveal', label: 'Mở thư mục', path: p });
+    }
   }
   if (PREVIEW_STEPS.has(step.id))
     out.push({ kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' });
@@ -368,7 +375,12 @@ export function noticeCtas(n: WorkflowNotice): StepCta[] {
       ];
     case 'finished': {
       const mp4 = n.outputs?.find((p) => /\.mp4$/i.test(p));
-      const out: StepCta[] = mp4 ? [{ kind: 'file', label: 'Xem video', path: mp4 }] : [];
+      const out: StepCta[] = mp4
+        ? [
+            { kind: 'file', label: 'Xem video', path: mp4 },
+            { kind: 'reveal', label: 'Mở thư mục', path: mp4 },
+          ]
+        : [];
       return [...out, { kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' }];
     }
     case 'done':

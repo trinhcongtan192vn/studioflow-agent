@@ -155,6 +155,18 @@ describe('step CTAs', () => {
         outputs: ['renders/rd_1/video.mp4'],
       })[0],
     ).toEqual({ kind: 'file', label: 'Xem video', path: 'renders/rd_1/video.mp4' });
+    // 058: render xong → nút mở thư mục chứa video
+    expect(
+      noticeCtas({
+        event: 'finished',
+        ...base,
+        step_id: 'render',
+        outputs: ['renders/rd_1/video.mp4'],
+      })[1],
+    ).toEqual({ kind: 'reveal', label: 'Mở thư mục', path: 'renders/rd_1/video.mp4' });
+    expect(
+      stepCtas({ id: 'render', status: 'done' }, ['renders/rd_2/video.mp4']).map((c) => c.kind),
+    ).toEqual(['file', 'reveal']);
   });
 });
 

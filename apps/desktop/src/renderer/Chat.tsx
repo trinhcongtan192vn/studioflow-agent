@@ -250,6 +250,8 @@ export function Chat({
   }
   const runCta = async (i: number, c: StepCta) => {
     if (c.kind === 'file') onOpenFile?.(c.path);
+    else if (c.kind === 'reveal')
+      void window.studioflow.revealFile(`${channel}/${video ? `videos/${video}/` : ''}${c.path}`);
     else if (c.kind === 'tab') onOpenTab?.(c.tab);
     else if (c.kind === 'say') void send(c.text);
     else if (c.kind === 'approve') {
