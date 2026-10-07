@@ -122,6 +122,7 @@
 | `autopilot.enabled` / `autopilot.paused` | false / false |
 | `autopilot.competitors` / `autopilot.pillars` / `autopilot.workflows` | `[]` / `[]` / `[]` (rỗng = mọi workflow cài sẵn) |
 | `autopilot.max_per_day` | 1 |
+| `autopilot.min_score` | 40 (051: chủ đề điểm thấp hơn không được lập vào kế hoạch ngày) |
 | `autopilot.work_window` | `08:00-23:00` |
 | `autopilot.budget_share` | 0.7 |
 | `autopilot.daily_tokens` | null (tự học từ lần chạm hạn mức gần nhất, FN-050) |

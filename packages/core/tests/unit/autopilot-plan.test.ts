@@ -9,6 +9,7 @@ import {
   buildPlan,
   chooseWorkflow,
   freeSlots,
+  planDay,
   selectCandidates,
   type BuildPlanInput,
   type PlanWorkflow,
@@ -131,6 +132,16 @@ describe('selectCandidates (051)', () => {
       slots: 1,
     });
     expect(ids(r.picked)).toEqual(['n2']);
+  });
+
+  it('min_score: candidates below the threshold are never picked (boundary included)', () => {
+    const r = sel({ min_score: 70, slots: 4 });
+    expect(ids(r.picked)).toEqual(['a', 'c', 'b']); // d (60) bị loại; b nhường c vì trùng trụ cột
+    expect(r.low).toBe(1);
+    const edge = [cand('e1', 'Alpha Bravo', 40), cand('e2', 'Charlie Delta', 39.9)];
+    expect(ids(sel({ candidates: edge, min_score: 40, slots: 2 }).picked)).toEqual(['e1']);
+    expect(sel({ candidates: edge, min_score: 40, slots: 2 }).low).toBe(1);
+    expect(ids(sel({ candidates: edge, slots: 2 }).picked)).toEqual(['e1', 'e2']); // mặc định 0
   });
 
   it('empty research → nothing picked', () => {
@@ -399,6 +410,7 @@ describe('buildPlan (051)', () => {
       default_workflow: 'narrated-explainer',
       slots: ['09:00', '12:00', '19:00'],
       platforms: ['youtube', 'tiktok'],
+      min_score: 0,
     },
     installed,
     ...o,
@@ -562,5 +574,143 @@ describe('buildPlan (051)', () => {
       ['e', 'competitor_evergreen'],
       ['n', 'news'],
     ]);
+  });
+  it('min_score: below-threshold topics are not planned and the note says why (Vietnamese)', () => {
+    const c = input().config;
+    const plan = buildPlan(input({ config: { ...c, min_score: 85 } }));
+    expect(plan.items.map((i) => i.candidate_id)).toEqual(['a']);
+    expect(plan.notes?.join(' ')).toContain('Chỉ 1 chủ đề đạt điểm ≥ 85, không làm thêm video kém');
+    // đủ chỗ trống mà không ai đạt ngưỡng → 0 mục + lý do
+    const none = buildPlan(input({ config: { ...c, min_score: 95 } }));
+    expect(none.items).toEqual([]);
+    expect(none.notes?.join(' ')).toMatch(/Không chủ đề mới nào đạt điểm ≥ 95/);
+    // ngưỡng mặc định của kênh (40) không chặn gì khi mọi ứng viên ≥ 60
+    expect(buildPlan(input({ config: { ...c, min_score: 40 } })).items).toHaveLength(3);
+  });
+
+  describe('carry-over of yesterday’s planned items (051)', () => {
+    const yItem = (id: string, o: Partial<Omit<PlanItem, 'id'>> = {}) =>
+      item({
+        id,
+        candidate_id: `old-${id}`,
+        title: `Chủ đề hôm qua số ${id}`,
+        angle: `góc ${id}`,
+        workflow_id: 'shorts',
+        output_profile: 'yt-shorts-1080x1920',
+        publish_at: '2026-10-06T19:00:00+07:00',
+        score: 55,
+        reasons: ['lý do cũ'],
+        ...o,
+      });
+    const plan = (date: string, items: PlanItem[]): DailyPlan => ({
+      schema_version: 1,
+      channel_id: 'ch_k3v9q2xa' as DailyPlan['channel_id'],
+      date,
+      generated_at: '2026-10-06T03:00:00.000Z',
+      capacity: { videos: 1, limiting_factor: 'cap', reasons: [] },
+      items,
+    });
+    const day = (o: Partial<BuildPlanInput> = {}) => planDay(input(o));
+
+    it('moves planned items of the previous day first: keeps topic, gets a new slot and reason; old item is skipped with a note', () => {
+      const p = yItem('p1');
+      const done = yItem('q1', { status: 'produced', publish_at: null });
+      const r = day({ others: [plan('2026-10-06', [p, done])] });
+      const first = r.plan.items[0]!;
+      expect(first).toMatchObject({
+        status: 'planned',
+        candidate_id: p.candidate_id,
+        title: p.title,
+        angle: p.angle,
+        workflow_id: 'shorts',
+        score: 55,
+      });
+      expect(first.id).not.toBe(p.id);
+      expect(first.id).toMatch(/^pi_[0-9a-z]{8}$/);
+      expect(first.reasons).toEqual(
+        expect.arrayContaining(['lý do cũ', 'Chuyển từ kế hoạch 2026-10-06']),
+      );
+      // giờ đăng gán lại theo khung hôm nay (10:00 + 30 phút → 12:00)
+      expect(first.publish_at).toBe('2026-10-07T12:00:00+07:00');
+      expect(first.platforms).toEqual(['youtube', 'tiktok']);
+      // mục mới (capacity 3, đã chuyển 1) lấp 2 chỗ còn lại sau mục chuyển sang
+      expect(r.plan.items.slice(1).map((i) => i.candidate_id)).toEqual(['a', 'b']);
+      expect(r.plan.items).toHaveLength(3);
+      const prev = r.previous!;
+      expect(prev.date).toBe('2026-10-06');
+      expect(prev.items[0]).toMatchObject({
+        id: p.id,
+        status: 'skipped',
+        note: 'chuyển sang 2026-10-07',
+      });
+      expect(prev.items[1]).toEqual(done); // mục đã làm không đụng
+      expect(r.carried).toBe(1);
+    });
+
+    it('only from the day right before — older plans are left alone', () => {
+      const r = day({ others: [plan('2026-10-05', [yItem('p1')])] });
+      expect(r.carried).toBe(0);
+      expect(r.previous).toBeUndefined();
+      expect(r.plan.items.map((i) => i.candidate_id)).not.toContain('old-p1');
+    });
+
+    it('carried items take free slots before new candidates; leftovers stay planned with a note', () => {
+      const cap = { ...input().capacity, videos: 1 };
+      const two = [yItem('p1'), yItem('p2')];
+      const r = day({ capacity: cap, others: [plan('2026-10-06', two)] });
+      expect(r.plan.items.map((i) => i.candidate_id)).toEqual(['old-p1']);
+      expect(r.previous!.items.map((i) => i.status)).toEqual(['skipped', 'planned']);
+      expect(r.plan.notes?.join(' ')).toMatch(
+        /1 mục chưa làm của kế hoạch 2026-10-06 chưa chuyển được/,
+      );
+    });
+
+    it('is not blocked by the 14-day dedupe, and the topic is not planned twice if research offers it again', () => {
+      const same = cand('old-p1', 'Chủ đề hôm qua số p1', 99);
+      const r = day({
+        research: research([same, ...topics]),
+        others: [plan('2026-10-06', [yItem('p1')])],
+      });
+      expect(r.plan.items.filter((i) => i.candidate_id === 'old-p1')).toHaveLength(1);
+      expect(r.plan.items[0]!.candidate_id).toBe('old-p1');
+    });
+
+    it('moves even with no research and respects the allowed workflows', () => {
+      const c = input().config;
+      const r = day({
+        research: undefined,
+        config: { ...c, workflows: ['narrated-explainer'] },
+        others: [plan('2026-10-06', [yItem('p1')])],
+      });
+      // shorts không còn được phép → workflow mặc định + dạng xuất của nó
+      expect(r.plan.items).toHaveLength(1);
+      expect(r.plan.items[0]).toMatchObject({
+        workflow_id: 'narrated-explainer',
+        output_profile: 'yt-1080p30',
+      });
+    });
+
+    it('re-run is idempotent: nothing is carried twice', () => {
+      const first = day({ others: [plan('2026-10-06', [yItem('p1')])] });
+      const again = day({
+        existing: first.plan,
+        others: [first.previous!],
+        now: new Date(NOW.getTime() + 60_000),
+      });
+      expect(again.carried).toBe(0);
+      expect(again.previous).toBeUndefined();
+      expect(again.plan.items).toEqual(first.plan.items);
+    });
+
+    it('heals a half-done carry (copy exists, old item still planned): no duplicate, old item retired', () => {
+      const p = yItem('p1');
+      const first = day({ others: [plan('2026-10-06', [p])] });
+      const r = day({ existing: first.plan, others: [plan('2026-10-06', [p])] });
+      expect(r.plan.items).toEqual(first.plan.items);
+      expect(r.previous!.items[0]).toMatchObject({
+        status: 'skipped',
+        note: 'chuyển sang 2026-10-07',
+      });
+    });
   });
 });

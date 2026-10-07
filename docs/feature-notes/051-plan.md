@@ -5,7 +5,7 @@ Gợi ý, không ràng buộc (CLAUDE.md mục 6). Hợp đồng file: D3 mục 
 ## Luồng `planToday`
 1. `autopilot.paused` (tầng app) → không làm gì, trả `paused: true`.
 2. Mỗi kênh: dùng `research/<hôm nay>.json` nếu có, chưa có → `scanChannel` (lỗi quét ghi vào `notes`, vẫn lập từ ứng viên rỗng).
-3. Một lần gọi mô hình năng lực (050) cho mọi kênh cùng lúc (chia vòng tròn), với `done_today` = số mục của kế hoạch hôm nay đã bắt đầu (`in_production`, `produced`, `failed`).
+3. (Kế hoạch hôm qua được đọc cùng lịch sử 14 ngày.) Một lần gọi mô hình năng lực (050) cho mọi kênh cùng lúc (chia vòng tròn), với `done_today` = số mục của kế hoạch hôm nay đã bắt đầu (`in_production`, `produced`, `failed`).
 4. Mỗi kênh: chọn ứng viên → chọn workflow/dạng xuất → gán khung giờ đăng → ghi `autopilot/plans/<ngày>.json` qua module ghi.
 
 ## Số mục được lập
@@ -13,12 +13,18 @@ Gợi ý, không ràng buộc (CLAUDE.md mục 6). Hợp đồng file: D3 mục 
 - Chỗ trống = `min(videos − số mục planned, max_per_day − số mục không skipped)`, không âm. `videos` là số khả thi của kênh từ 050 (đã trừ phần đã bắt đầu).
 - Lập lại trong ngày: mọi mục đã có được giữ (kể cả `planned` — người dùng có thể đã sửa) và chỉ lấp chỗ trống → chạy lại không đổi gì khi năng lực không tăng.
 
+## Chuyển mục chưa làm của hôm qua
+- Chỉ kế hoạch của ngày **ngay trước** (theo múi giờ kênh); mục cũ hơn không được chuyển.
+- Chạy trước khi chọn ứng viên mới, dùng chính các chỗ trống: mục `planned` của hôm qua (theo thứ tự trong file) được sao sang hôm nay với ID mới, giữ `candidate_id` / `title` / `angle` / `score`, gán lại `publish_at` theo khung giờ hôm nay (làm lần lượt như mục mới), thêm lý do "Chuyển từ kế hoạch <ngày>". Không chạy chống lặp 14 ngày cho các mục này; nhưng chúng nằm trong lịch sử nên ứng viên nghiên cứu trùng sẽ không bị lập lần hai.
+- Workflow giữ nguyên nếu còn được phép, không thì chọn lại theo luật bên dưới.
+- Mục cũ đổi `skipped` kèm `note: "chuyển sang <ngày mới>"` (ghi sau file hôm nay; nếu dừng giữa chừng, lần chạy sau thấy đã có bản sao hôm nay thì chỉ đóng mục cũ, không nhân đôi). Hết chỗ trống thì mục còn lại giữ `planned` và `notes` nói rõ.
+
 ## Chọn ứng viên (hàm thuần `selectCandidates`)
 1. Loại ứng viên: trùng `candidate_id` hoặc gần trùng tiêu đề (Jaccard ≥ 0,6 theo `research/score.ts`) với mục trong kế hoạch 14 ngày gần nhất của kênh (mọi trạng thái, kể cả `skipped` — người dùng đã từ chối); ứng viên nghiên cứu đã chấm gần trùng video kênh đã làm (`metrics.similarity` ≥ 0,6); gần trùng với ứng viên vừa chọn trong cùng ngày.
 2. Xếp theo điểm giảm dần (hòa → thứ tự trong file nghiên cứu).
 3. Chọn tham lam, đa dạng theo ba bậc: (a) khác nguồn (kênh đối thủ / video nguồn) **và** khác chủ đề trụ cột với các mục đã có trong ngày; (b) chỉ khác nguồn; (c) không ràng buộc. Chỉ hạ bậc khi bậc trên không còn ứng viên.
 4. Không có ứng viên nào → 0 mục, `notes` nêu lý do tiếng Việt (nghiên cứu rỗng, hoặc đã dùng hết trong 14 ngày).
-5. Không đặt ngưỡng điểm tối thiểu: số mục bị chặn bởi năng lực và trần ngày. [Mở: có nên bỏ ứng viên điểm quá thấp?]
+5. Ngưỡng điểm `autopilot.min_score` (khóa kênh, 0–100, mặc định 40): ứng viên điểm thấp hơn không được chọn. Nếu vì thế lập ít mục hơn số chỗ trống thì `notes` ghi "Chỉ N chủ đề đạt điểm ≥ X, không làm thêm video kém" (hoặc "Không chủ đề mới nào đạt điểm ≥ X…"). Mục chuyển từ hôm qua không bị ngưỡng chặn (đã được lập từ trước).
 
 Ứng viên Shorts của đối thủ (`duration_s` ≤ 60) vẫn được xét; việc dùng workflow nào do bước 3 dưới đây quyết.
 

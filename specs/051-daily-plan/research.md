@@ -23,3 +23,9 @@ Yêu cầu "không có gì → 0 mục kèm lý do tiếng Việt" cần chỗ g
 
 ## R8. Job `autopilot.plan`, engine `autopilot`
 Lập kế hoạch có thể quét nghiên cứu qua mạng → > 2 s → job (D4 2.3), như `research.scan`. Một job mỗi lúc (engine `autopilot`) vì cùng đọc/ghi file kế hoạch và dùng chung năng lực. `max_attempts: 1`: lỗi quét đã được ghi vào `notes`. Payload mang danh sách kênh (IPC: mọi kênh quản lý đang bật Autopilot; tool Gateway: kênh của phiên). Năng lực dùng chung `capacityRun` (tách từ host, `autopilot/capacity-run.ts`) để IPC `autopilot.capacity` và bộ lập kế hoạch cùng một logic.
+
+## R9. `autopilot.min_score` là khóa cấu hình tầng kênh
+Khác R6 (hằng số): ngưỡng "đủ tốt để làm" phụ thuộc kênh (ngách, độ khắt khe) nên thuộc cấu hình kênh, mặc định 40. Lọc ngay trong `selectCandidates` (sau lọc trùng; `low` đếm riêng để `notes` nêu đúng nguyên nhân). Mục chuyển từ hôm qua không bị lọc lại: người dùng/bộ lập đã chấp nhận chúng. Khóa mới nằm trong D3 7.2 nên `gen-contracts` cập nhật `config-keys` và schema `ChannelConfig`.
+
+## R10. Chuyển mục hôm qua: hai file, thứ tự ghi và tự lành
+Chuyển mục = sao sang hôm nay (ID mới) + đóng mục cũ (`skipped`, `note`). Hai file không ghi nguyên tử; ghi file hôm nay trước rồi file hôm qua: nếu dừng giữa chừng, lần chạy sau thấy bản sao hôm nay (cùng `candidate_id`) và chỉ đóng mục cũ — không nhân đôi, không mất mục. Ngược thứ tự có thể làm mất mục. Không thêm trường `carried_from` vào D3: dấu vết nằm ở `reasons` ("Chuyển từ kế hoạch <ngày>") và `note` của mục cũ. Không ghi "đã chuyển N mục" vào `notes` để chạy lại không đổi file (idempotent theo hash). Mục `planned` còn lại khi hết chỗ giữ nguyên ở file hôm qua và được thử lại ở lần chạy sau (cùng ngày) — nhưng sang ngày kế tiếp thì thành "cũ hơn một ngày" và không được chuyển nữa (theo quyết định).

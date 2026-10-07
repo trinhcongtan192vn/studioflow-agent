@@ -413,6 +413,7 @@ export type ConfigKey =
   | 'autopilot.pillars'
   | 'autopilot.workflows'
   | 'autopilot.max_per_day'
+  | 'autopilot.min_score'
   | 'autopilot.work_window'
   | 'autopilot.budget_share'
   | 'autopilot.daily_tokens'

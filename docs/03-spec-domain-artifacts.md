@@ -465,7 +465,7 @@ interface ResearchCandidate {
 ```
 
 ### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
-Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` không bị sửa (052 chuyển trạng thái và điền `video_id`). Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
+Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` không bị sửa (052 chuyển trạng thái và điền `video_id`). Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
 
 ```ts
 type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed';
@@ -581,6 +581,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |
 | `autopilot.max_per_day` | number | channel |
+| `autopilot.min_score` | number (0–100, điểm tối thiểu của chủ đề được lập vào kế hoạch ngày, 051) | channel |
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |

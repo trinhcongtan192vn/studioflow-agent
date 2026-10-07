@@ -51,6 +51,7 @@ export function defineAutopilotPlanJob(d: PlanDeps): void {
           items: p.plan.items.length,
           added: p.added,
           kept: p.kept,
+          carried: p.carried,
           notes: p.plan.notes ?? [],
         })),
       };

@@ -240,6 +240,8 @@ export interface Selection {
   duplicates: number;
   /** Bị loại vì kênh đã làm chủ đề gần trùng. */
   made: number;
+  /** Bị loại vì điểm thấp hơn `min_score` (không tính ứng viên đã bị loại vì trùng). */
+  low: number;
 }
 
 const sourceKey = (id: string, ch?: { id: string }) => ch?.id ?? id;
@@ -256,6 +258,8 @@ export function selectCandidates(o: {
   history: PlanItem[];
   /** Mục hôm nay chưa bỏ qua — gieo ràng buộc đa dạng. */
   today: PlanItem[];
+  /** `autopilot.min_score`: ứng viên điểm thấp hơn không được chọn (mặc định 0 = không chặn). */
+  min_score?: number;
 }): Selection {
   const seen = new Set(o.history.map((h) => h.candidate_id));
   const seenTokens = o.history.map((h) => tokenize(h.title));
@@ -263,12 +267,15 @@ export function selectCandidates(o: {
     others.some((x) => jaccard(t, x) >= C.DUP_SIMILARITY);
   let duplicates = 0;
   let made = 0;
+  let low = 0;
+  const min = o.min_score ?? 0;
   const pool: { c: ResearchCandidate; tokens: string[] }[] = [];
   // sort ổn định: hòa điểm giữ thứ tự trong file nghiên cứu
   for (const c of [...o.candidates].sort((a, b) => b.score - a.score)) {
     const tokens = tokenize(c.title);
     if (seen.has(c.id) || near(tokens, seenTokens)) duplicates++;
     else if ((c.metrics?.similarity ?? 0) >= C.DUP_SIMILARITY) made++;
+    else if (c.score < min) low++;
     else pool.push({ c, tokens });
   }
 
@@ -302,7 +309,7 @@ export function selectCandidates(o: {
     if (hit.c.pillar) pillars.add(hit.c.pillar);
     left.splice(left.indexOf(hit), 1);
   }
-  return { picked, total: o.candidates.length, pool: pool.length, duplicates, made };
+  return { picked, total: o.candidates.length, pool: pool.length, duplicates, made, low };
 }
 
 // ---------- lập kế hoạch một kênh ----------
@@ -336,8 +343,18 @@ export interface BuildPlanInput {
     default_workflow: string;
     slots: string[];
     platforms: string[];
+    /** `autopilot.min_score` (0–100). */
+    min_score: number;
   };
   installed: PlanWorkflow[];
+}
+
+export interface PlanDay {
+  plan: DailyPlan;
+  /** Kế hoạch ngày hôm trước đã sửa (mục chuyển sang hôm nay → `skipped`); `undefined` = không đổi. */
+  previous?: DailyPlan;
+  /** Số mục chuyển từ hôm qua sang hôm nay lần này. */
+  carried: number;
 }
 
 const FACTOR_TEXT: Record<DailyPlan['capacity']['limiting_factor'], string> = {
@@ -379,21 +396,128 @@ function angleOf(c: ResearchCandidate): string {
 /**
  * Lập (hoặc lập lại) kế hoạch ngày của một kênh — thuần, không đọc/ghi file. Giữ nguyên mọi mục đã có
  * (kể cả `planned`: người dùng có thể đã sửa) và chỉ lấp chỗ trống; `autopilot.max_per_day` chỉ đếm mục
- * của kế hoạch này (video Autopilot), không đếm video làm tay.
+ * của kế hoạch này (video Autopilot), không đếm video làm tay. Chỗ trống được lấp trước bằng mục `planned`
+ * chưa làm của ngày hôm trước (chỉ ngày ngay trước), rồi mới đến ứng viên mới đạt `min_score`.
  */
 export function buildPlan(i: BuildPlanInput): DailyPlan {
+  return planDay(i).plan;
+}
+
+/** Như `buildPlan` nhưng trả thêm kế hoạch hôm trước đã cập nhật khi có mục chuyển sang. */
+export function planDay(i: BuildPlanInput): PlanDay {
   const existing = i.existing?.items ?? [];
   const planned = existing.filter((x) => x.status === 'planned');
   const started = existing.filter((x) => STARTED.has(x.status)).length;
   const allowed = allowedWorkflows(i.config.workflows, i.installed);
-  const free = freeSlots({
+  const free0 = freeSlots({
     feasible: i.capacity.videos,
     max_per_day: i.config.max_per_day,
     planned: planned.length,
     started,
   });
+  let free = free0;
   const notes: string[] = [];
   const added: PlanItem[] = [];
+  let previous: DailyPlan | undefined;
+
+  const others = i.others.flatMap((p) => p.items);
+  const taken = new Set<number>(
+    [...others, ...existing].flatMap((x) => {
+      const t = x.status === 'skipped' ? undefined : toMs(x.publish_at);
+      return t === undefined ? [] : [t];
+    }),
+  );
+  const ids = new Set<string>([...others, ...existing].map((x) => x.id));
+  // các mục planned làm trước, rồi mục mới nối tiếp (làm lần lượt)
+  let ready = i.now.getTime() + planned.reduce((t, x) => t + estOf(i.capacity, x.workflow_id), 0);
+  const schedule = (workflow_id: string): string | null => {
+    ready += estOf(i.capacity, workflow_id);
+    const publish_at = assignPublishSlot({
+      slots: i.config.slots,
+      timezone: i.timezone,
+      after_ms: ready,
+      taken,
+    });
+    const at = toMs(publish_at);
+    if (at !== undefined) taken.add(at);
+    return publish_at;
+  };
+  const fresh = (): PlanItem['id'] => {
+    const id = newId('pi', ids);
+    ids.add(id);
+    return id as PlanItem['id'];
+  };
+
+  // mục planned của ngày ngay trước: chuyển sang hôm nay trước ứng viên mới (không chặn bởi chống lặp 14 ngày)
+  const prevDate = addDays(i.date, -1);
+  const prev = i.others.find((p) => p.date === prevDate);
+  const carry = (prev?.items ?? []).filter((x) => x.status === 'planned');
+  let carried = 0;
+  if (prev && carry.length && allowed.length) {
+    const retired = new Set<string>();
+    const have = new Set(existing.map((x) => x.candidate_id));
+    for (const old of carry) {
+      // đã có bản sao hôm nay (lần chuyển dở dang) → chỉ đóng mục cũ, không nhân đôi
+      if (have.has(old.candidate_id)) {
+        retired.add(old.id);
+        continue;
+      }
+      if (free <= 0) break;
+      const same = allowed.find((x) => x.id === old.workflow_id);
+      const w = same
+        ? { workflow_id: same.id, output_profile: old.output_profile }
+        : chooseWorkflow(
+            {
+              id: old.candidate_id,
+              kind: old.source.kind,
+              title: old.title,
+              score: old.score,
+              reasons: [],
+            },
+            { allowed, default_workflow: i.config.default_workflow },
+          )!;
+      const publish_at = schedule(w.workflow_id);
+      added.push({
+        ...old,
+        id: fresh(),
+        status: 'planned',
+        workflow_id: w.workflow_id,
+        output_profile: w.output_profile,
+        publish_at,
+        platforms: [...i.config.platforms],
+        reasons: [
+          // bỏ dòng giờ đăng và dòng chuyển cũ — giờ đăng được gán lại theo khung giờ hôm nay
+          ...old.reasons.filter(
+            (r) =>
+              !r.startsWith('Chuyển từ kế hoạch') &&
+              !r.startsWith('Giờ đăng') &&
+              !r.startsWith('Kênh chưa đặt khung giờ đăng'),
+          ),
+          `Chuyển từ kế hoạch ${prevDate}`,
+          publish_at
+            ? `Giờ đăng ${publish_at}: khung giờ trống đầu tiên sau khi video làm xong.`
+            : 'Kênh chưa đặt khung giờ đăng (publish.slots) nên chưa có giờ đăng.',
+        ],
+      });
+      retired.add(old.id);
+      carried++;
+      free--;
+    }
+    if (retired.size) {
+      previous = {
+        ...prev,
+        generated_at: i.now.toISOString(),
+        items: prev.items.map((x) =>
+          retired.has(x.id) ? { ...x, status: 'skipped', note: `chuyển sang ${i.date}` } : x,
+        ),
+      };
+    }
+    const left = carry.length - retired.size;
+    if (left > 0)
+      notes.push(
+        `Còn ${left} mục chưa làm của kế hoạch ${prevDate} chưa chuyển được vì hết chỗ trống hôm nay.`,
+      );
+  }
 
   if (!allowed.length) {
     notes.push(
@@ -401,26 +525,39 @@ export function buildPlan(i: BuildPlanInput): DailyPlan {
         ? `Không workflow nào trong danh sách cho phép (${i.config.workflows.join(', ')}) đang được cài — chưa lập video.`
         : 'Chưa cài workflow nào — chưa lập video.',
     );
-  } else if (free <= 0) {
+  } else if (free0 <= 0) {
     if (i.capacity.videos <= 0)
       notes.push(
         `Hôm nay chưa lập thêm được video: năng lực còn lại bằng 0 (giới hạn bởi ${FACTOR_TEXT[i.capacity.limiting_factor]}).`,
       );
     else if (!existing.length)
       notes.push(`Kênh đặt tối đa ${i.config.max_per_day} video mỗi ngày — chưa lập video.`);
+  } else if (free <= 0) {
+    // chỗ trống đã được lấp bằng mục chuyển từ hôm qua
   } else if (!i.research) {
     notes.push('Chưa có kết quả quét nghiên cứu hôm nay nên chưa chọn được chủ đề.');
   } else {
-    const history = [...i.others.flatMap((p) => p.items), ...existing];
+    const history = [...others, ...existing, ...added];
     const sel = selectCandidates({
       candidates: i.research.candidates,
       slots: free,
       history,
-      today: existing.filter((x) => x.status !== 'skipped'),
+      today: [...existing, ...added].filter((x) => x.status !== 'skipped'),
+      min_score: i.config.min_score,
     });
     if (!sel.total)
       notes.push(
         'Nghiên cứu hôm nay không có ứng viên nào (đối thủ chưa đăng gì mới, không có trending/tin phù hợp trụ cột) — không lập video.',
+      );
+    else if (sel.picked.length < free && sel.low > 0)
+      notes.push(
+        `${
+          sel.pool
+            ? `Chỉ ${sel.pool} chủ đề đạt điểm ≥ ${i.config.min_score}`
+            : `Không chủ đề mới nào đạt điểm ≥ ${i.config.min_score}`
+        }, không làm thêm video kém (${sel.low} chủ đề điểm thấp hơn bị bỏ${
+          sel.duplicates + sel.made ? `, ${sel.duplicates + sel.made} chủ đề bị loại vì trùng` : ''
+        }).`,
       );
     else if (!sel.pool)
       notes.push(
@@ -431,31 +568,12 @@ export function buildPlan(i: BuildPlanInput): DailyPlan {
         `Chỉ có ${sel.pool} ứng viên mới cho ${free} chỗ trống (${sel.duplicates + sel.made} ứng viên bị loại vì trùng).`,
       );
 
-    const taken = new Set<number>(
-      [...i.others.flatMap((p) => p.items), ...existing].flatMap((x) => {
-        const t = x.status === 'skipped' ? undefined : toMs(x.publish_at);
-        return t === undefined ? [] : [t];
-      }),
-    );
-    const ids = new Set<string>(history.map((x) => x.id));
-    // các mục planned làm trước, rồi mục mới nối tiếp (làm lần lượt)
-    let ready = i.now.getTime() + planned.reduce((t, x) => t + estOf(i.capacity, x.workflow_id), 0);
     for (const { candidate: c, tier } of sel.picked) {
       const w = chooseWorkflow(c, { allowed, default_workflow: i.config.default_workflow })!;
       const est = estOf(i.capacity, w.workflow_id);
-      ready += est;
-      const publish_at = assignPublishSlot({
-        slots: i.config.slots,
-        timezone: i.timezone,
-        after_ms: ready,
-        taken,
-      });
-      const at = toMs(publish_at);
-      if (at !== undefined) taken.add(at);
-      const id = newId('pi', ids);
-      ids.add(id);
+      const publish_at = schedule(w.workflow_id);
       added.push({
-        id: id as PlanItem['id'],
+        id: fresh(),
         status: 'planned',
         candidate_id: c.id,
         title: c.title,
@@ -487,7 +605,7 @@ export function buildPlan(i: BuildPlanInput): DailyPlan {
     }
   }
 
-  return {
+  const plan: DailyPlan = {
     schema_version: 1,
     channel_id: i.channel_id as DailyPlan['channel_id'],
     date: i.date,
@@ -500,6 +618,7 @@ export function buildPlan(i: BuildPlanInput): DailyPlan {
     ...(notes.length ? { notes } : {}),
     items: [...existing, ...added],
   };
+  return { plan, ...(previous ? { previous } : {}), carried };
 }
 
 // ---------- đọc / ghi file kế hoạch ----------
@@ -574,6 +693,8 @@ export interface PlanResult {
   added: number;
   /** Số mục đã có và được giữ nguyên. */
   kept: number;
+  /** Trong số mục mới: chuyển từ kế hoạch hôm qua. */
+  carried: number;
 }
 
 export interface PlanTodayResult {
@@ -632,6 +753,7 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
       default_workflow: cfg<string>('workflow.default'),
       slots: cfg<string[]>('publish.slots') ?? [],
       platforms: cfg<string[]>('publish.platforms') ?? [],
+      min_score: Number(cfg('autopilot.min_score')),
     };
     return { dir, store, channelDir, meta, timezone, date, existing, settings };
   });
@@ -668,7 +790,7 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
   for (const c of chans) {
     const mine = cap.channels.find((x) => x.channel === c.dir);
     const r = research.get(c.dir)!;
-    const plan = buildPlan({
+    const day = planDay({
       channel_id: c.meta.id,
       date: c.date,
       now,
@@ -685,10 +807,13 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
       config: c.settings,
       installed: o.installed,
     });
+    const plan = day.plan;
     if (r.error) plan.notes = [`Quét nghiên cứu lỗi: ${r.error}`, ...(plan.notes ?? [])];
     // chỉ ghi khi có gì đổi (bỏ qua `generated_at`) để chạy lại không làm nhiễu file
     const changed = !c.existing || stable(c.existing) !== stable(plan);
     if (changed) writePlan(c.store, plan, 'autopilot.plan');
+    // mục chuyển sang hôm nay: đóng mục cũ ở kế hoạch hôm qua (ghi sau — lần dở dang tự lành ở lần chạy sau)
+    if (day.previous) writePlan(c.store, day.previous, 'autopilot.plan');
     const kept = c.existing?.items.length ?? 0;
     plans.push({
       channel: c.dir,
@@ -696,6 +821,7 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
       plan: changed ? plan : c.existing!,
       added: plan.items.length - kept,
       kept,
+      carried: day.carried,
     });
   }
   return { paused: false, plans };

@@ -292,6 +292,96 @@ describe('planToday (051 FR-AP-06)', () => {
     expect(bad.plans[0]!.plan.notes?.[0]).toMatch(/Quét nghiên cứu lỗi: mất mạng/);
   });
 
+  it('autopilot.min_score (channel setting, default 40) keeps low-score topics out and says why', async () => {
+    const low = [
+      cand('yt:l1', 'Chủ đề đạt điểm', 60, { source_channel: { id: 'UCa', title: 'A' } }),
+      cand('yt:l2', 'Chủ đề điểm thấp', 39, { source_channel: { id: 'UCb', title: 'B' } }),
+    ];
+    // mặc định 40: l2 bị loại dù còn chỗ (trần 3)
+    const a = channel({ 'autopilot.max_per_day': 3 }, low);
+    const r = await run([a.dir]);
+    expect(r.plans[0]!.plan.items.map((i) => i.candidate_id)).toEqual(['yt:l1']);
+    expect(r.plans[0]!.plan.notes?.join(' ')).toContain(
+      'Chỉ 1 chủ đề đạt điểm ≥ 40, không làm thêm video kém',
+    );
+    // hạ ngưỡng về 0 → lập cả hai
+    const b = channel({ 'autopilot.max_per_day': 3, 'autopilot.min_score': 0 }, low);
+    expect((await run([b.dir])).plans[0]!.plan.items).toHaveLength(2);
+    // giá trị sai bị từ chối ở tầng kênh
+    expect(() => setChannelAutopilot(b.store, 'autopilot.min_score', 101)).toThrow(/0 and 100/);
+  });
+
+  it('carries yesterday’s planned items (only the day right before) into today, then re-runs without change', async () => {
+    const a = channel(
+      { 'autopilot.max_per_day': 3, 'publish.slots': ['12:00', '19:00'] },
+      A_TOPICS,
+    );
+    const mk = (id: string, status: PlanItem['status'], title: string): PlanItem => ({
+      id: `pi_${id}`,
+      status,
+      candidate_id: `old:${id}`,
+      title,
+      angle: `góc ${id}`,
+      source: { kind: 'news' },
+      workflow_id: 'shorts',
+      output_profile: 'yt-shorts-1080x1920',
+      publish_at: '2026-10-06T19:00:00+07:00',
+      platforms: ['youtube'],
+      score: 50,
+      reasons: ['lý do cũ'],
+    });
+    const wr = (date: string, items: PlanItem[]) =>
+      a.store.write(
+        `autopilot/plans/${date}.json`,
+        JSON.stringify({
+          schema_version: 1,
+          channel_id: 'ch_k3v9q2xa',
+          date,
+          generated_at: `${date}T03:00:00.000Z`,
+          capacity: { videos: 2, limiting_factor: 'cap', reasons: [] },
+          items,
+        }),
+        { by: 'test' },
+      );
+    wr('2026-10-06', [
+      mk('aaaaaaaa', 'planned', 'Tin hôm qua chưa làm'),
+      mk('bbbbbbbb', 'produced', 'Đã làm xong rồi'),
+    ]);
+    wr('2026-10-05', [mk('cccccccc', 'planned', 'Mục cũ hơn một ngày')]);
+
+    const r = await run([a.dir]);
+    const items = r.plans[0]!.plan.items;
+    expect(r.plans[0]!.carried).toBe(1);
+    expect(items[0]).toMatchObject({
+      status: 'planned',
+      candidate_id: 'old:aaaaaaaa',
+      title: 'Tin hôm qua chưa làm',
+      angle: 'góc aaaaaaaa',
+    });
+    expect(items[0]!.reasons).toContain('Chuyển từ kế hoạch 2026-10-06');
+    expect(items[0]!.publish_at).toMatch(/^2026-10-0[78]T/);
+    expect(items[0]!.publish_at).not.toBe('2026-10-06T19:00:00+07:00');
+    expect(items).toHaveLength(3); // 1 chuyển sang + 2 mới (trần 3)
+    expect(items.map((i) => i.candidate_id)).not.toContain('old:cccccccc');
+    // kế hoạch hôm qua: mục chuyển → skipped + note; mục đã làm và kế hoạch cũ hơn không đổi
+    const y = readPlan(a.dir, '2026-10-06')!;
+    expect(y.items.map((i) => [i.status, i.note])).toEqual([
+      ['skipped', 'chuyển sang 2026-10-07'],
+      ['produced', undefined],
+    ]);
+    expect(readPlan(a.dir, '2026-10-05')!.items[0]!.status).toBe('planned');
+    for (const d of ['2026-10-06', '2026-10-07'])
+      expect(
+        validateArtifact(`autopilot/plans/${d}.json`, readFileSync(planFile(a.dir, d), 'utf8'))
+          .valid,
+      ).toBe(true);
+    // chạy lại: không chuyển lần nữa, file không đổi
+    const before = [sha(planFile(a.dir)), sha(planFile(a.dir, '2026-10-06'))];
+    const again = await run([a.dir], { now: new Date(NOW.getTime() + 60_000) });
+    expect(again.plans[0]!.carried).toBe(0);
+    expect([sha(planFile(a.dir)), sha(planFile(a.dir, '2026-10-06'))]).toEqual(before);
+  });
+
   it('autopilot.paused → plans nothing', async () => {
     const app = tempDir('app-');
     cleanups.push(app.cleanup);

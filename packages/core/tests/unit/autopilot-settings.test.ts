@@ -33,6 +33,10 @@ describe('checkAutopilotValue', () => {
     ok('autopilot.work_window', '22:00-06:00'); // qua đêm
     ok('autopilot.budget_share', 0.7);
     ok('autopilot.max_per_day', 3);
+    ok('autopilot.min_score', 0);
+    ok('autopilot.min_score', 40);
+    ok('autopilot.min_score', 55.5);
+    ok('autopilot.min_score', 100);
     ok('publish.platforms', ['youtube', 'tiktok']);
     ok('publish.timezone', 'Asia/Ho_Chi_Minh');
     ok('publish.veto_hours', 0);
@@ -45,6 +49,9 @@ describe('checkAutopilotValue', () => {
     bad('autopilot.budget_share', 1.5);
     bad('autopilot.max_per_day', 2.5);
     bad('autopilot.max_per_day', 50);
+    bad('autopilot.min_score', -1);
+    bad('autopilot.min_score', 100.5);
+    bad('autopilot.min_score', '40');
     bad('publish.platforms', ['instagram']);
     bad('publish.timezone', 'Mars/Base');
     bad('publish.veto_hours', -1);

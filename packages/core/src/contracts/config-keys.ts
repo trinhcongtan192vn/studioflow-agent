@@ -416,6 +416,14 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.min_score",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
       "key": "autopilot.work_window",
       "pattern": false,
       "type": "string",
