@@ -62,6 +62,9 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `install.plan` / `install.start` / `install.pause` | |
 | `disk.usage` / `disk.clean` | |
 | `trace.list` / `trace.get` / `cost.report` | |
+| `autopilot.plan.get` | `{channel?, date?}` → kế hoạch ngày (D3 5.18) của mọi kênh Autopilot (051); `channel` bỏ trống = tất cả kênh quản lý đang bật Autopilot |
+| `autopilot.plan.run` | `{date?}` → `{job_id}`: lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot (051, việc dài → job, D4 2.3); `date` chỉ nhận hôm nay |
+| `autopilot.plan.update` | `{channel, date, item_id, patch}` → mục đã sửa (051): bỏ qua/khôi phục, đổi tiêu đề, góc nhìn, workflow, giờ đăng; không sửa mục đang/đã làm |
 | `autopilot.capacity` | Ước tính số video làm được hôm nay cho các kênh quản lý (050, FN-050): thời gian từng bước trên máy, ngân sách Claude, hạn mức đăng YouTube |
 
 | Sự kiện | Dữ liệu |

@@ -95,6 +95,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `render.video`, `studio.*` | ✓ | — | — | — |
 | `youtube.*` (044) | ✓ | — | — | — |
 | `research.scan`, `research.get` (049) | ✓ | — | — | — |
+| `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — |
 | `job.*` | ✓ | ✓ | — | — |
 
 Tool không có trong cột → không được liệt kê cho phiên đó (`allowedTools`) và bị `canUseTool` từ chối nếu vẫn gọi.

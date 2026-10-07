@@ -128,4 +128,5 @@
 | `publish.platforms` / `publish.slots` | `[youtube]` / `[19:00]` |
 | `publish.timezone` | `Asia/Ho_Chi_Minh` |
 | `publish.veto_hours` | 2 |
+| Kế hoạch ngày (051, hằng số trong `autopilot/plan.ts`, không phải khóa cấu hình — FN-051) | không lặp ứng viên 14 ngày; gần trùng tiêu đề Jaccard ≥ 0,6; quét lịch đăng tối đa 30 ngày |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | comfyui 14 · omnivoice 6 · asr 3 · render 2 / 14 `[chờ S1, S9]` |

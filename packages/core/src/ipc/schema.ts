@@ -5,13 +5,16 @@ import type {
   AgentEvent,
   CaptionOverrides,
   ContextRef,
+  DailyPlan,
   JobInfo,
+  PlanItem,
   ResearchDoc,
   VideoStateSummary,
 } from '../contracts/types.js';
 import type { CaptionsPanelData } from '../captions/panel.js';
 import type { CostReport } from '../trace/cost.js';
 import type { CapacityResult } from '../autopilot/capacity.js';
+import type { PlanPatch } from '../autopilot/plan.js';
 
 export interface ChannelRef {
   channel: string;
@@ -92,6 +95,17 @@ export interface IpcMethods {
    * `channels` (đường dẫn kênh) để xem trước cho kênh chưa bật.
    */
   'autopilot.capacity': { params: { channels?: string[] }; result: CapacityResult };
+  /** Kế hoạch ngày (051, D3 5.18) của mọi kênh Autopilot (hoặc một kênh); chưa lập → `plan: null`. */
+  'autopilot.plan.get': {
+    params: { channel?: string; date?: string };
+    result: { plans: { channel: string; name: string; date: string; plan: DailyPlan | null }[] };
+  };
+  /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
+  'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  'autopilot.plan.update': {
+    params: { channel: string; date: string; item_id: string; patch: PlanPatch };
+    result: { item: PlanItem };
+  };
   /** Kênh YouTube (đối thủ) từ URL / @handle / ID. */
   'youtube.resolve_channel': {
     params: { input: string };

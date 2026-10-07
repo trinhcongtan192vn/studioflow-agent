@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/DailyPlan",
+  "definitions": {
+    "DailyPlan": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "channel_id": {
+          "$ref": "#/definitions/ChannelId"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "generated_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "capacity": {
+          "type": "object",
+          "properties": {
+            "videos": {
+              "type": "number"
+            },
+            "limiting_factor": {
+              "type": "string",
+              "enum": [
+                "time",
+                "tokens",
+                "uploads",
+                "cap"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "videos",
+            "limiting_factor",
+            "reasons"
+          ],
+          "additionalProperties": false
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PlanItem"
+          }
+        }
+      },
+      "required": [
+        "capacity",
+        "channel_id",
+        "date",
+        "generated_at",
+        "items",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "ChannelId": {
+      "$ref": "#/definitions/Id%3C%22ch%22%3E"
+    },
+    "Id<\"ch\">": {
+      "type": "string",
+      "pattern": "^ch_[0-9a-z]{8}$"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "PlanItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/PlanItemId"
+        },
+        "status": {
+          "$ref": "#/definitions/PlanItemStatus"
+        },
+        "candidate_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "angle": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "competitor",
+                "competitor_evergreen",
+                "trending",
+                "trend",
+                "news"
+              ]
+            },
+            "url": {
+              "type": "string"
+            },
+            "source_channel": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "workflow_id": {
+          "type": "string"
+        },
+        "output_profile": {
+          "type": "string"
+        },
+        "publish_at": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Iso8601"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "candidate_id",
+        "title",
+        "angle",
+        "source",
+        "workflow_id",
+        "output_profile",
+        "publish_at",
+        "platforms",
+        "score",
+        "reasons"
+      ],
+      "additionalProperties": false
+    },
+    "PlanItemId": {
+      "$ref": "#/definitions/Id%3C%22pi%22%3E"
+    },
+    "Id<\"pi\">": {
+      "type": "string",
+      "pattern": "^pi_[0-9a-z]{8}$"
+    },
+    "PlanItemStatus": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "skipped",
+        "in_production",
+        "produced",
+        "failed"
+      ]
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    }
+  }
+}

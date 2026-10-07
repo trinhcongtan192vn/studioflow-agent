@@ -87,6 +87,9 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `youtube.channel_videos` | `channel_id, max_results?` | như `youtube.search` | Video mới nhất của kênh (đối thủ) |
 | `research.scan` | — | job → `{path, date, quota_units, candidates, errors[]}` | Quét nghiên cứu của kênh hôm nay (049, mục 9.5) → ghi `research/<YYYY-MM-DD>.json` (D3 5.17); quét lại trong ngày ghi đè; nguồn lỗi ghi vào `sources`, không làm job lỗi |
 | `research.get` | `date?` (`YYYY-MM-DD`) | `ResearchDoc` (D3 5.17) | Kết quả quét của ngày (mặc định ngày gần nhất); chưa có → `E_FILE_NOT_FOUND` |
+| `autopilot.plan_get` | `date?` (`YYYY-MM-DD`) | `DailyPlan` (D3 5.18) | Kế hoạch ngày Autopilot của kênh (051; mặc định hôm nay theo `publish.timezone`); chưa có → `E_FILE_NOT_FOUND` |
+| `autopilot.plan_run` | — | job → `{date, path, planned, kept, notes[]}` | Lập/lập lại kế hoạch hôm nay cho kênh (051): dùng file quét nghiên cứu hôm nay nếu có, chưa có thì quét; giữ mọi mục đã có, chỉ lấp chỗ trống; `autopilot.paused` → không làm gì |
+| `autopilot.plan_update` | `date, item_id, patch: {status?: skipped / planned, title?, angle?, workflow_id?, publish_at?}` | `PlanItem` | Sửa một mục kế hoạch (051): workflow phải thuộc danh sách cho phép, `publish_at` là ISO 8601 có offset (hoặc null), không sửa mục `in_production` / `produced` / `failed` (`E_SCHEMA_INVALID`) |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |

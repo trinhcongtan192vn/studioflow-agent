@@ -93,3 +93,5 @@ Người dùng gửi URL YouTube và nhờ làm video tương tự / hay hơn. M
 Nghiên cứu thêm (chủ đề đang hot, video đối thủ): `youtube.search {query, order: "viewCount", published_after}` và `youtube.channel_videos {channel_id}`.
 
 Người dùng hỏi "hôm nay nên làm chủ đề gì" → `research.get` (lần quét gần nhất: chủ đề ứng viên của đối thủ, trending, Google Trends, tin nóng, điểm cao trước kèm lý do); chưa có hoặc cũ → `research.scan` (job, ghi `research/<ngày>.json`) rồi `job.wait` và `research.get`. Nêu 3–5 chủ đề kèm lý do; nguồn lỗi trong `sources` (ví dụ thiếu khóa YouTube) thì nói rõ.
+
+Kế hoạch ngày Autopilot: "hôm nay kênh làm gì, đăng lúc nào" → `autopilot.plan_get` (chủ đề, góc nhìn, workflow, giờ đăng, lý do, trạng thái từng mục; `notes` nói vì sao ít/không có video). Chưa có hoặc muốn lập lại → `autopilot.plan_run` (job; dùng nghiên cứu hôm nay, chưa có thì quét; giữ mục đã có), rồi `job.wait` và `autopilot.plan_get`. Người dùng muốn bỏ/đổi một mục → `autopilot.plan_update {date, item_id, patch}` (bỏ qua/khôi phục, tiêu đề, góc nhìn, workflow, giờ đăng); mục đang/đã làm không sửa được.

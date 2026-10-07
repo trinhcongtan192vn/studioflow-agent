@@ -22,7 +22,8 @@ export type ArtifactKind =
   | 'storyboard'
   | 'cast'
   | 'publish'
-  | 'research';
+  | 'research'
+  | 'plan';
 
 interface KindSpec {
   kind: ArtifactKind;
@@ -142,6 +143,13 @@ export const ARTIFACTS: KindSpec[] = [
     pattern: /^research\/\d{4}-\d{2}-\d{2}\.json$/,
     format: 'json',
     schema: 'ResearchDoc',
+  },
+  // 051: kế hoạch ngày Autopilot ở gốc kênh (D3 5.18)
+  {
+    kind: 'plan',
+    pattern: /^autopilot\/plans\/\d{4}-\d{2}-\d{2}\.json$/,
+    format: 'json',
+    schema: 'DailyPlan',
   },
 ];
 

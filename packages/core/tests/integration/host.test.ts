@@ -291,6 +291,122 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('autopilot.capacity', {})).daily_tokens_source).not.toBe('override');
   });
 
+  it('autopilot.plan.get/run/update: daily plan of Autopilot channels, edit rules (051 FR-AP-06)', async () => {
+    const { host, dir } = setup();
+    await host.call('channel.open', { channel: dir });
+    const set = (key: string, value: unknown) =>
+      host.call('channel.autopilot.set', { channel: dir, key, value });
+    // chưa kênh nào bật Autopilot → không có kế hoạch
+    expect(await host.call('autopilot.plan.get', {})).toEqual({ plans: [] });
+    await set('autopilot.enabled', true);
+    await set('autopilot.max_per_day', 2);
+    await host.call('settings.set', { key: 'autopilot.work_window', value: '00:00-23:59' });
+    await host.call('settings.set', { key: 'autopilot.daily_tokens', value: 100_000_000 });
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const sample = JSON.parse(
+      readFileSync(path.join(fixtureAppData, '..', '..', 'research', 'research-doc.json'), 'utf8'),
+    );
+    sample.date = today;
+    sample.candidates = [
+      { ...sample.candidates[0], id: 'yt:p1', title: 'Chủ đề thứ nhất về sử Việt', score: 90 },
+      {
+        ...sample.candidates[0],
+        id: 'yt:p2',
+        title: 'Chiếc thuyền buồm cổ',
+        score: 80,
+        source_channel: { id: 'UCz', title: 'Z' },
+        pillar: undefined,
+      },
+      {
+        ...sample.candidates[0],
+        id: 'yt:p3',
+        title: 'Làng nghề gốm Bát Tràng',
+        score: 70,
+        source_channel: { id: 'UCy', title: 'Y' },
+        pillar: undefined,
+      },
+    ];
+    mkdirSync(path.join(dir, 'research'));
+    writeFileSync(path.join(dir, 'research', `${today}.json`), JSON.stringify(sample));
+
+    // chưa lập → plan null
+    expect(await host.call('autopilot.plan.get', { channel: dir, date: today })).toMatchObject({
+      plans: [{ channel: path.resolve(dir), date: today, plan: null }],
+    });
+    // date khác hôm nay bị từ chối
+    const old = await host.handle({
+      id: 5,
+      method: 'autopilot.plan.run',
+      params: { date: '2020-01-01' },
+    });
+    expect(old.error).toMatchObject({ code: 'E_SCHEMA_INVALID' });
+    const { job_id } = await host.call('autopilot.plan.run', {});
+    const job = await host.core.queue.wait(job_id, 15_000);
+    expect(job.status).toBe('succeeded');
+    const got = await host.call('autopilot.plan.get', {});
+    expect(got.plans).toHaveLength(1);
+    const plan = got.plans[0]!.plan!;
+    expect(plan.items).toHaveLength(2); // trần 2
+    expect(plan.items.every((i) => i.status === 'planned' && i.publish_at)).toBe(true);
+    const id = plan.items[0]!.id;
+    const edit = (patch: Record<string, unknown>, item = id) =>
+      host.handle({
+        id: 9,
+        method: 'autopilot.plan.update',
+        params: { channel: dir, date: today, item_id: item, patch },
+      });
+
+    const ok = await host.call('autopilot.plan.update', {
+      channel: dir,
+      date: today,
+      item_id: id,
+      patch: {
+        status: 'skipped',
+        title: 'Tên mới',
+        angle: 'Góc mới',
+        publish_at: '2030-01-02T19:00:00+07:00',
+      },
+    });
+    expect(ok.item).toMatchObject({ status: 'skipped', title: 'Tên mới', angle: 'Góc mới' });
+    expect(
+      (await host.call('autopilot.plan.get', { channel: dir })).plans[0]!.plan!.items[0],
+    ).toMatchObject({ title: 'Tên mới' });
+    expect((await edit({ workflow_id: 'khong-co' })).error).toMatchObject({
+      code: 'E_SCHEMA_INVALID',
+    });
+    expect((await edit({ publish_at: 'ngày mai' })).error).toMatchObject({
+      code: 'E_SCHEMA_INVALID',
+    });
+    expect((await edit({ title: 'x' }, 'pi_zzzzzzzz')).error).toMatchObject({
+      code: 'E_ID_UNKNOWN',
+    });
+    // lập lại: mục đã bỏ qua giữ nguyên, chủ đề của nó không bị lập lại, chỗ trống được lấp
+    const again = await host.core.queue.wait(
+      (await host.call('autopilot.plan.run', {})).job_id,
+      15_000,
+    );
+    expect(again.status).toBe('succeeded');
+    const items = (await host.call('autopilot.plan.get', { channel: dir })).plans[0]!.plan!.items;
+    expect(items).toHaveLength(3);
+    expect(items[0]).toMatchObject({ id, status: 'skipped' });
+    expect(new Set(items.map((i) => i.candidate_id)).size).toBe(3);
+    // mục đang làm không sửa được
+    const f = path.join(dir, 'autopilot', 'plans', `${today}.json`);
+    const doc = JSON.parse(readFileSync(f, 'utf8'));
+    doc.items[1].status = 'in_production';
+    writeFileSync(f, JSON.stringify(doc));
+    expect((await edit({ title: 'x' }, doc.items[1].id)).error).toMatchObject({
+      code: 'E_SCHEMA_INVALID',
+    });
+    // năng lực: trần đếm mục Autopilot đã bắt đầu (1)
+    expect((await host.call('autopilot.capacity', {})).channels[0]).toMatchObject({ cap_left: 1 });
+  });
+
   it('chat streams events, stores history, resumes the SDK session after reopen (FR-CH-02/07)', async () => {
     const { host, dir, app, events } = setup();
     await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'Xin chào' });

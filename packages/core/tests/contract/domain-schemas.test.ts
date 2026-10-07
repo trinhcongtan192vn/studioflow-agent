@@ -139,6 +139,13 @@ const samples: {
     kind: 'research',
     breakJson: (o) => (o.candidates[0].score = 120),
   },
+  {
+    // 051: kế hoạch ngày Autopilot ở gốc kênh (D3 5.18)
+    rel: 'autopilot/plans/2026-10-07.json',
+    abs: path.join(fixturesDir, '..', 'plan', 'daily-plan.json'),
+    kind: 'plan',
+    breakJson: (o) => (o.items[0].status = 'running'),
+  },
 ];
 
 describe('artifact schemas (002 SC-001)', () => {

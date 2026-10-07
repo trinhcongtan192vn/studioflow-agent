@@ -59,6 +59,13 @@ import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
+import {
+  autopilotPlanTools,
+  capacityRun,
+  defineAutopilotPlanJob,
+  installedWorkflows,
+} from './autopilot/index.js';
+import type { CapacityChannel } from './autopilot/index.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -288,6 +295,17 @@ export function createCore(opts: CoreOptions = {}): Core {
   };
   defineResearchJob(research);
   for (const t of researchTools(research)) gateway.register(t);
+  // 051: kế hoạch ngày Autopilot — năng lực (050) + nghiên cứu (049) → chủ đề, workflow, giờ đăng
+  const plan = {
+    queue,
+    storeFor: (dir: string) => gateway.storeFor(dir),
+    capacity: (channels: CapacityChannel[]) => capacityRun({ db, appDataDir, workflows, channels }),
+    installed: () => installedWorkflows(workflows),
+    apiKey: () => (opts.getSecret ?? getSecretDefault)(YOUTUBE_SECRET),
+    appDataDir,
+  };
+  defineAutopilotPlanJob(plan);
+  for (const t of autopilotPlanTools(plan)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại

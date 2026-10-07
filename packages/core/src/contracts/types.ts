@@ -7,7 +7,7 @@ export type LineId = Id<'ln'>; export type CaptionGroupId = Id<'cg'>; export typ
 export type VoiceId = Id<'vo'>; export type AssetId = Id<'as'>; export type MusicTrackId = Id<'mt'>;
 
 export type RelPath = string;          // đường dẫn tương đối, '/'
-export type JobId = Id<'jb'>; export type RenderId = Id<'rd'>; export type ApprovalId = Id<'ap'>; export type SessionId = Id<'ss'>;
+export type JobId = Id<'jb'>; export type RenderId = Id<'rd'>; export type ApprovalId = Id<'ap'>; export type SessionId = Id<'ss'>; export type PlanItemId = Id<'pi'>;
 export type Iso8601 = string;          // '2026-10-03T10:49:00+07:00'
 export type Ms = number;               // mili giây, số nguyên
 export type Lang = 'vi' | 'de' | 'en';
@@ -219,6 +219,39 @@ export interface ResearchCandidate {
   /** @minimum 0 @maximum 100 */
   score: number;
   reasons: string[];                               // tiếng Việt, mỗi tín hiệu một câu
+}
+
+export type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed';
+export interface DailyPlan extends Versioned {
+  channel_id: ChannelId;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // YYYY-MM-DD theo `publish.timezone` của kênh
+  generated_at: Iso8601;                           // lần lập/sửa gần nhất
+  capacity: {
+    videos: number;                                // số video khả thi của kênh hôm nay (050)
+    limiting_factor: 'time' | 'tokens' | 'uploads' | 'cap';
+    reasons: string[];                             // tiếng Việt (từ mô hình năng lực)
+  };
+  notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
+  items: PlanItem[];
+}
+export interface PlanItem {
+  id: PlanItemId;
+  status: PlanItemStatus;
+  candidate_id: string;                            // `ResearchCandidate.id` (5.17); chủ đề do người dùng/agent thêm tay dùng `manual:<id>`
+  title: string;                                   // tên làm việc của video
+  angle: string;                                   // một dòng: vì sao / góc nhìn (tiếng Việt)
+  source: { kind: 'competitor' | 'competitor_evergreen' | 'trending' | 'trend' | 'news'; url?: string;
+            source_channel?: { id: string; title: string } };
+  workflow_id: string;
+  output_profile: string;
+  publish_at: Iso8601 | null;                      // có offset múi giờ; null = kênh không có khung giờ
+  platforms: string[];                             // `publish.platforms` của kênh
+  /** @minimum 0 @maximum 100 */
+  score: number;                                   // điểm ứng viên (5.17)
+  reasons: string[];                               // tiếng Việt
+  video_id?: VideoId;                              // điền khi 052 tạo video
+  note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
 }
 
 export interface ChannelConfig extends Versioned {

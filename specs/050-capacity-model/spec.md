@@ -21,7 +21,7 @@ FR-AP-05 (PRD 8.13): app ước tính số video làm được trong ngày từ 
 - Đếm video Autopilot đã tạo hôm nay và đơn vị YouTube đã dùng: nguồn ghi có ở 052/053 (xem dưới).
 
 ## Chưa rõ
-- [NEEDS CLARIFICATION: video nào tính vào "đã làm hôm nay" cho trần `autopilot.max_per_day` — chỉ video Autopilot tạo (052 đánh dấu) hay cả video làm tay của kênh?] Mặc định an toàn hiện tại: IPC truyền `done_today = 0` (chưa có dấu Autopilot); 051/052 truyền số thật.
+- ĐÃ QUYẾT (chủ dự án, 2026-10-07; thực hiện ở 051): `autopilot.max_per_day` chỉ đếm video do Autopilot tạo, không đếm video làm tay; kế hoạch ngày (`autopilot/plans/<ngày>.json`, D3 5.18) là nguồn sự thật — `done_today` = số mục hôm nay đã bắt đầu (`in_production`, `produced`, `failed`). IPC `autopilot.capacity` đọc từ kế hoạch.
 - [NEEDS CLARIFICATION: đơn vị YouTube Data API đã dùng hôm nay ghi ở đâu (quét đối thủ 049, đăng 053)?] Hiện tham số `youtube_units_used_today` (mặc định 0); các tính năng sau ghi và truyền vào.
 - [NEEDS CLARIFICATION: hạn mức dự án Google có thể được Google nâng — có cần khóa cấu hình riêng?] Hiện hằng số 10 000 / 1 600 (FN-050); thêm khóa khi có người dùng cần.
 
