@@ -33,6 +33,7 @@
   research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
   autopilot/plans/<YYYY-MM-DD>.json kế hoạch ngày Autopilot (051, mục 5.18): chủ đề, workflow, khung giờ đăng, lý do
   autopilot/reports/<YYYY-MM-DD>.json báo cáo ngày của kênh (054, mục 5.20): số liệu, sản xuất, đăng bài, chi phí
+  autopilot/learning.json           điều chỉnh điểm chủ đề học từ hiệu quả thật (057, mục 5.21)
   autopilot/log/<YYYY-MM-DD>.jsonl  nhật ký vận hành Autopilot (052, mục 5.19): mỗi quyết định tự động một dòng, kèm lý do (append-only)
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
@@ -578,6 +579,35 @@ interface DailyReport extends Versioned {
 }
 ```
 
+### 5.21 `autopilot/learning.json` (057)
+Vòng phản hồi (FR-AP-13): từ số liệu thật (bảng `video_metrics`, 054) của các video do app đăng và **đã đủ `min_age_days` (3) ngày**, tính hiệu quả tương đối của từng nhóm so với mức trung bình của kênh, theo năm chiều: dạng ứng viên (`kind`), chủ đề trụ cột (`pillar`), kênh đối thủ nguồn (`source`), workflow, khung giờ đăng (`slot`). Hiệu quả một video = lượt xem trung bình mỗi ngày trong 7 ngày đầu (tối đa 7, tối thiểu 3 ngày có số liệu); `ratio` của nhóm = trung vị hiệu quả nhóm / trung vị hiệu quả cả kênh. `multiplier` = 1 + clamp(`ratio` − 1, −0,3, +0,3) × n / (n + 5) — kéo về 1 khi ít mẫu, luôn trong [0,7; 1,3]; nhóm dưới 2 video không tạo hệ số. Dưới 5 video đủ tuổi trong 60 ngày → `enough_data: false` và **không ảnh hưởng gì**. Tính xác định (cùng dữ liệu → cùng kết quả), làm mới mỗi lần lập kế hoạch ngày, ghi qua WriteStore chỉ khi nội dung đổi. Áp dụng khi chọn chủ đề (051): chỉ **xếp hạng** (điểm gốc 0–100 trong nghiên cứu và `autopilot.min_score` không đổi); hệ số của ứng viên = tích các hệ số `kind`, `pillar`, `source` kẹp trong [0,7; 1,3]; mục kế hoạch ghi lý do tiếng Việt. Chiều `workflow` và `slot` được ghi để xem, chưa dùng khi chọn. Tắt bằng `autopilot.learning` = false.
+
+```ts
+interface ChannelLearning extends Versioned {
+  channel_id: ChannelId;
+  generated_at: Iso8601;
+  enough_data: boolean;                            // false → mọi hệ số bằng 1, không ảnh hưởng
+  /** Số video đủ tuổi có số liệu đã dùng. */
+  videos: number;
+  /** Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`). */
+  baseline_daily_views: number;
+  dimensions: {
+    kind: LearningGroup[]; pillar: LearningGroup[]; source: LearningGroup[];
+    workflow: LearningGroup[]; slot: LearningGroup[];
+  };
+  notes: string[];                                 // tiếng Việt: vì sao chưa đủ dữ liệu…
+}
+interface LearningGroup {
+  key: string;                                     // `trending`, tên trụ cột, ID kênh nguồn, ID workflow, `HH:MM`
+  label?: string;                                  // tên dễ đọc (kênh nguồn)
+  n: number;                                       // số video trong nhóm
+  /** Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình). */
+  ratio: number;
+  /** @minimum 0.7 @maximum 1.3 */
+  multiplier: number;
+}
+```
+
 ## 6. `channel.json` và `settings.json`
 
 Mọi giá trị cấu hình (ở mọi tầng) lưu dưới dạng **map phẳng theo khóa cấu hình** (mục 7.2) — một biểu diễn duy nhất, không có tên trường riêng theo file.
@@ -663,6 +693,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
+| `autopilot.learning` | boolean (dùng hiệu quả thật của video đã đăng để điều chỉnh thứ hạng chủ đề, 057) | app, channel |
 | `report.enabled` | boolean (gửi báo cáo ngày vào nhóm Telegram, 054) | app |
 | `report.time` | string (`HH:MM` theo `publish.timezone` của từng kênh; giờ gửi báo cáo ngày, 054) | app |
 | `telegram.enabled` | boolean (bật bot Telegram: thông báo vận hành và hỏi đáp với agent `ops`, 055) | app |

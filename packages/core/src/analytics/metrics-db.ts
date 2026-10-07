@@ -166,3 +166,17 @@ export function latestVideoStats(db: Db, channelId: string, platform: string): V
     )
     .all(channelId, platform) as unknown as VideoStat[];
 }
+
+/** Chuỗi lượt xem theo ngày của một video (cũ trước) — nguồn cho vòng phản hồi 057. */
+export function videoSeries(
+  db: Db,
+  channelId: string,
+  platform: string,
+  videoRef: string,
+): { day: string; views: number }[] {
+  return db
+    .prepare(
+      'SELECT day, views FROM video_metrics WHERE channel_id = ? AND platform = ? AND video_ref = ? ORDER BY day',
+    )
+    .all(channelId, platform, videoRef) as unknown as { day: string; views: number }[];
+}

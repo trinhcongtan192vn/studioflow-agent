@@ -52,6 +52,7 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.max_per_day': 1,
   // 051: điểm tối thiểu của chủ đề được lập vào kế hoạch ngày
   'autopilot.min_score': 40,
+  'autopilot.learning': true,
   // 052: lệch thời lượng tối đa Autopilot tự bỏ qua cảnh báo audio_duration
   'autopilot.duration_waive_ratio': 0.25,
   'autopilot.work_window': '08:00-23:00',

@@ -314,6 +314,30 @@ export interface DailyReport extends Versioned {
   notes: string[];                                 // tiếng Việt: thiếu dữ liệu, chưa kết nối, v.v.
 }
 
+export interface ChannelLearning extends Versioned {
+  channel_id: ChannelId;
+  generated_at: Iso8601;
+  enough_data: boolean;                            // false → mọi hệ số bằng 1, không ảnh hưởng
+  /** Số video đủ tuổi có số liệu đã dùng. */
+  videos: number;
+  /** Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`). */
+  baseline_daily_views: number;
+  dimensions: {
+    kind: LearningGroup[]; pillar: LearningGroup[]; source: LearningGroup[];
+    workflow: LearningGroup[]; slot: LearningGroup[];
+  };
+  notes: string[];                                 // tiếng Việt: vì sao chưa đủ dữ liệu…
+}
+export interface LearningGroup {
+  key: string;                                     // `trending`, tên trụ cột, ID kênh nguồn, ID workflow, `HH:MM`
+  label?: string;                                  // tên dễ đọc (kênh nguồn)
+  n: number;                                       // số video trong nhóm
+  /** Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình). */
+  ratio: number;
+  /** @minimum 0.7 @maximum 1.3 */
+  multiplier: number;
+}
+
 export interface ChannelConfig extends Versioned {
   id: ChannelId; name: string; language: Lang; created_at: Iso8601;
   profile_dir: 'profile';

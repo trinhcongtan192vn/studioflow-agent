@@ -52,6 +52,7 @@ export type ConfigKey =
   | 'autopilot.work_window'
   | 'autopilot.budget_share'
   | 'autopilot.daily_tokens'
+  | 'autopilot.learning'
   | 'report.enabled'
   | 'report.time'
   | 'telegram.enabled'

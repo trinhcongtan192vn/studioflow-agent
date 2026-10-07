@@ -92,7 +92,14 @@ import {
   installedWorkflows,
   planToday,
 } from './autopilot/index.js';
-import { readClaudeUsage, type CapacityChannel } from './autopilot/index.js';
+import {
+  LearningService,
+  learningTools,
+  rankWithLearning,
+  readClaudeUsage,
+  type CapacityChannel,
+} from './autopilot/index.js';
+import type { PlanDeps } from './autopilot/plan-tools.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -149,6 +156,8 @@ export interface Core {
   reports: ReportService;
   /** Bộ thu số liệu YouTube Analytics vào SQLite (054). */
   metrics: MetricsCollector;
+  /** Vòng phản hồi (057): điều chỉnh điểm chủ đề học từ hiệu quả thật. */
+  learning: LearningService;
   /** Kết nối YouTube theo kênh (OAuth, trạng thái, ngắt). */
   youtube: YouTubeAccounts;
   /** Kết nối TikTok / Facebook theo kênh (056): token dán vào kho bí mật. */
@@ -345,7 +354,25 @@ export function createCore(opts: CoreOptions = {}): Core {
   defineResearchJob(research);
   for (const t of researchTools(research)) gateway.register(t);
   // 051: kế hoạch ngày Autopilot — năng lực (050) + nghiên cứu (049) → chủ đề, workflow, giờ đăng
+  // 057: vòng phản hồi — hiệu quả thật của video đã đăng điều chỉnh thứ hạng chủ đề (lỗi không chặn việc lập kế hoạch)
+  const learning = new LearningService({
+    db,
+    appDataDir,
+    storeFor: (dir: string) => gateway.storeFor(dir),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  const learn: NonNullable<PlanDeps['learn']> = (dir, candidates) => {
+    try {
+      return learning.enabled(dir)
+        ? rankWithLearning(candidates, learning.refresh(dir))
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  for (const t of learningTools(learning)) gateway.register(t);
   const plan = {
+    learn,
     queue,
     storeFor: (dir: string) => gateway.storeFor(dir),
     capacity: (channels: CapacityChannel[]) => capacityRun({ db, appDataDir, workflows, channels }),
@@ -371,6 +398,7 @@ export function createCore(opts: CoreOptions = {}): Core {
         installed: plan.installed(),
         apiKey: plan.apiKey(),
         appDataDir,
+        learn,
       }),
     appDataDir,
     ...(opts.clock ? { clock: opts.clock } : {}),
@@ -534,6 +562,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     publisher,
     reports,
     metrics: collector,
+    learning,
     youtube: ytAccounts,
     social,
     secrets,

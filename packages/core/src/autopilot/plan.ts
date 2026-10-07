@@ -266,6 +266,8 @@ export function selectCandidates(o: {
   today: PlanItem[];
   /** `autopilot.min_score`: ứng viên điểm thấp hơn không được chọn (mặc định 0 = không chặn). */
   min_score?: number;
+  /** 057: thứ hạng đã điều chỉnh theo hiệu quả thật (ID → điểm xếp hạng); chỉ đổi thứ tự, không đổi `min_score`. */
+  rank?: ReadonlyMap<string, number>;
 }): Selection {
   const seen = new Set(o.history.map((h) => h.candidate_id));
   const seenTokens = o.history.map((h) => tokenize(h.title));
@@ -277,7 +279,8 @@ export function selectCandidates(o: {
   const min = o.min_score ?? 0;
   const pool: { c: ResearchCandidate; tokens: string[] }[] = [];
   // sort ổn định: hòa điểm giữ thứ tự trong file nghiên cứu
-  for (const c of [...o.candidates].sort((a, b) => b.score - a.score)) {
+  const rankOf = (c: ResearchCandidate) => o.rank?.get(c.id) ?? c.score;
+  for (const c of [...o.candidates].sort((a, b) => rankOf(b) - rankOf(a))) {
     const tokens = tokenize(c.title);
     if (seen.has(c.id) || near(tokens, seenTokens)) duplicates++;
     else if ((c.metrics?.similarity ?? 0) >= C.DUP_SIMILARITY) made++;
@@ -353,6 +356,8 @@ export interface BuildPlanInput {
     min_score: number;
   };
   installed: PlanWorkflow[];
+  /** 057: thứ hạng đã học (ứng viên → điểm xếp hạng) và lý do tiếng Việt; thiếu = không điều chỉnh. */
+  learning?: { rank: ReadonlyMap<string, number>; reasons: ReadonlyMap<string, string[]> };
 }
 
 export interface PlanDay {
@@ -550,6 +555,7 @@ export function planDay(i: BuildPlanInput): PlanDay {
       history,
       today: [...existing, ...added].filter((x) => x.status !== 'skipped'),
       min_score: i.config.min_score,
+      ...(i.learning ? { rank: i.learning.rank } : {}),
     });
     if (!sel.total)
       notes.push(
@@ -597,6 +603,7 @@ export function planDay(i: BuildPlanInput): PlanDay {
         reasons: [
           `Điểm nghiên cứu ${c.score}/100 (${KIND_TEXT[c.kind].toLowerCase()}).`,
           ...c.reasons,
+          ...(i.learning?.reasons.get(c.id) ?? []),
           ...(tier === 'source'
             ? ['Trùng chủ đề trụ cột với video khác trong ngày — không còn ứng viên khác chủ đề.']
             : tier === 'any'
@@ -722,6 +729,11 @@ export interface PlanTodayOptions {
   apiKey?: string;
   fetch?: FetchFn;
   appDataDir?: string;
+  /** 057: học từ hiệu quả thật — làm mới điều chỉnh của kênh rồi trả thứ hạng cho các ứng viên; thiếu = không học. */
+  learn?: (
+    channelDir: string,
+    candidates: ResearchCandidate[],
+  ) => { rank: ReadonlyMap<string, number>; reasons: ReadonlyMap<string, string[]> } | undefined;
 }
 
 /**
@@ -812,6 +824,10 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
       },
       config: c.settings,
       installed: o.installed,
+      ...(() => {
+        const l = o.learn?.(c.channelDir, r.doc?.candidates ?? []);
+        return l ? { learning: l } : {};
+      })(),
     });
     const plan = day.plan;
     if (r.error) plan.notes = [`Quét nghiên cứu lỗi: ${r.error}`, ...(plan.notes ?? [])];

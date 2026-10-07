@@ -95,6 +95,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `ops.channels` | — | `{channels[{path, name, paused, items{planned, in_production, produced, needs_review, failed}}]}` | Kênh quản lý đang bật Autopilot và số mục kế hoạch hôm nay theo trạng thái (055, phiên `ops`) |
 | `ops.log` | `channel?`, `date?`, `limit?` | `{lines[AutopilotLogLine]}` | Nhật ký vận hành Autopilot của kênh (D3 5.19); mặc định hôm nay, tối đa 100 dòng cuối (055) |
 | `ops.sessions` | `limit?`, `id?` | `{sessions[…]}` hoặc `{lines[…]}` | Nhật ký các phiên `ops` (không có `id` → danh sách; có `id` → dòng của phiên); chỉ đọc (055) |
+| `learning.get` | `channel?` (ops) | `ChannelLearning` (D3 5.21) hoặc `{enough_data: false, …}` | Điều chỉnh điểm chủ đề đã học của kênh: nhóm nào hiệu quả hơn/kém trung bình, hệ số, số mẫu (057) |
 | `report.get` | `date?`, `channel?` (ops) | `DailyReport` (D3 5.20) | Báo cáo ngày của kênh: nếu đã có file của ngày thì trả file, chưa có thì tính ngay từ số liệu hiện có (không gửi, không ghi) (054) |
 | `publish.status` | `date?`, `channel?` (ops) | `{date, items[{id, title, status, publish}]}` | Trạng thái đăng của các mục kế hoạch đã làm xong trong ngày (053, D3 5.18) |
 | `publish.cancel` | `item_id`, `date?`, `platform?` (`youtube`), `channel?` (ops) | `{status}` | Hủy đăng trong cửa sổ phản đối: video ở lại riêng tư, bỏ hẹn giờ (053) |

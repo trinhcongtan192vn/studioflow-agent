@@ -757,6 +757,10 @@ export class CoreHost extends EventEmitter {
           date: String(p.date),
           ...(p.platform ? { platform: p.platform as 'youtube' | 'tiktok' | 'facebook' } : {}),
         });
+      case 'learning.get': {
+        const chans = p.channel ? [path.resolve(p.channel)] : c.autopilot.channelDirs();
+        return { learning: chans.map((d) => c.learning.get(d)) };
+      }
       case 'report.latest': {
         const chans = p.channel ? [path.resolve(p.channel)] : c.autopilot.channelDirs();
         return {

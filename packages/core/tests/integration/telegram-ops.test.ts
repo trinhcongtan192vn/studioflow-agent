@@ -203,6 +203,7 @@ describe('ops session policy (D5 mục 4)', () => {
         'publish.cancel',
         'publish.now',
         'publish.status',
+        'learning.get',
         'report.get',
         'research.get',
       ].sort(),

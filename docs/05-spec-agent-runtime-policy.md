@@ -98,6 +98,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `research.scan`, `research.get` (049) | ✓ | — | — | — | chỉ `research.get` |
 | `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — | chỉ `plan_get`, `plan_update` (kèm `channel`) |
 | `autopilot.status` (052) | ✓ | — | — | — | ✓ |
+| `learning.get` (057) | ✓ | — | — | — | ✓ (kèm `channel`) |
 | `report.get` (054) | ✓ | — | — | — | ✓ (kèm `channel`) |
 | `publish.status`, `publish.cancel`, `publish.now` (053) | ✓ | — | — | — | ✓ (kèm `channel`) |
 | `autopilot.pause`, `autopilot.resume`, `ops.channels`, `ops.log`, `ops.sessions` (055) | ✓ (`autopilot.pause/resume`) | — | — | — | ✓ |

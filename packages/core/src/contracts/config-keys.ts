@@ -465,6 +465,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.learning",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
       "key": "report.enabled",
       "pattern": false,
       "type": "boolean",

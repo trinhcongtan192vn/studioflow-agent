@@ -5,6 +5,7 @@ import type {
   AgentEvent,
   CaptionOverrides,
   ContextRef,
+  ChannelLearning,
   DailyPlan,
   DailyReport,
   JobInfo,
@@ -153,6 +154,8 @@ export interface IpcMethods {
     };
     result: { status: string; url?: string; note?: string };
   };
+  /** 057: điều chỉnh điểm chủ đề đã học từ hiệu quả thật. */
+  'learning.get': { params: { channel?: string }; result: { learning: ChannelLearning[] } };
   /** 054: báo cáo ngày — gần nhất đã lập / lập ngay (tuỳ chọn gửi vào Telegram). */
   'report.latest': { params: { channel?: string }; result: { reports: DailyReport[] } };
   'report.run': {

@@ -6,7 +6,14 @@ import { resolveConfig } from '../config/resolve.js';
 import type { WriteStore } from '../store/writer.js';
 import type { FetchFn } from '../youtube/data-api.js';
 import type { CapacityChannel, CapacityResult } from './capacity.js';
-import { planToday, readPlan, updatePlanItem, type PlanPatch, type PlanWorkflow } from './plan.js';
+import {
+  planToday,
+  readPlan,
+  updatePlanItem,
+  type PlanPatch,
+  type PlanTodayOptions,
+  type PlanWorkflow,
+} from './plan.js';
 
 export interface PlanDeps {
   queue: JobQueue;
@@ -20,6 +27,8 @@ export interface PlanDeps {
   fetch?: FetchFn;
   now?: () => Date;
   appDataDir?: string;
+  /** 057: học từ hiệu quả thật (xem `PlanTodayOptions.learn`). */
+  learn?: PlanTodayOptions['learn'];
 }
 
 const JOB = 'autopilot.plan';
@@ -41,6 +50,7 @@ export function defineAutopilotPlanJob(d: PlanDeps): void {
         ...(d.fetch ? { fetch: d.fetch } : {}),
         ...(d.now ? { now: d.now() } : {}),
         ...(d.appDataDir ? { appDataDir: d.appDataDir } : {}),
+        ...(d.learn ? { learn: d.learn } : {}),
       });
       return {
         paused: r.paused,
