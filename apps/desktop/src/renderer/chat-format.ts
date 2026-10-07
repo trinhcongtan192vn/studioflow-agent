@@ -315,6 +315,18 @@ export function stepCtas(
           text: `Bước ${step.title ?? step.id} lệch thời lượng mục tiêu (${error.replace(/^objective\(audio_duration\):\s*/, '')}). Hãy sửa các beat lệch nhiều nhất trong SCRIPT.md cho gần thời lượng mục tiêu, rồi chạy lại bước ${step.title ?? step.id} (chỉ line đổi được sinh lại).`,
         },
       ];
+    // 046: cảnh báo thời lượng kèm lỗi khác → vẫn bỏ qua được cảnh báo; lỗi còn lại cần chạy lại
+    if (error && hasDurationWarning(error))
+      return [
+        retry,
+        {
+          kind: 'waive',
+          label: 'Bỏ qua cảnh báo thời lượng',
+          step: step.id,
+          check: 'audio_duration',
+        },
+        { kind: 'recheck', label: 'Kiểm tra lại', step: step.id },
+      ];
     // lỗi gate (file sai) → có thể sửa file rồi kiểm tra lại thay vì sinh lại
     if (
       error &&
@@ -381,11 +393,30 @@ const isMissingVoice = (e: string) =>
 /** Lỗi bước dễ đọc cho người dùng (lỗi kỹ thuật vẫn xem được khi mở chi tiết). */
 /** Lỗi bước chỉ gồm cảnh báo thời lượng (objective `audio_duration`, 043) — bỏ qua được. */
 export function isDurationWarning(e: string): boolean {
-  const parts = e.split(/; (?=[a-z_]+\()/);
-  return parts.every((x) => x.startsWith('objective(audio_duration)'));
+  return gateParts(e).every((x) => x.startsWith('objective(audio_duration)'));
 }
 
+/** Lỗi bước có (ít nhất) cảnh báo thời lượng — có nút bỏ qua cảnh báo (046: kể cả khi kèm lỗi khác). */
+export function hasDurationWarning(e: string): boolean {
+  return gateParts(e).some((x) => x.startsWith('objective(audio_duration)'));
+}
+
+/** Tách lỗi gate gộp "a(x): …; b(y): …" thành từng gate (giữ "; " bên trong chi tiết). */
+const gateParts = (e: string) => e.split(/; (?=[a-z_]+\()/);
+
 export function friendlyStepError(e: string): string {
+  const gates = gateParts(e);
+  // 046: nhiều gate trượt → nêu đủ từng cái (không để cảnh báo che lỗi khác)
+  if (gates.length > 1 && gates.some((x) => /^(objective\(audio_duration\)|graph_fresh\()/.test(x)))
+    return gates.map(friendlyStepError).join(' · ');
+  const stale = /^graph_fresh\(([^)]*)\): (.*)$/.exec(e);
+  if (stale) {
+    const keys = stale[2]!
+      .split('; ')
+      .map((x) => x.split(':')[0])
+      .slice(0, 4);
+    return `Còn phần chưa dựng xong (${keys.join(', ')}${stale[2]!.split('; ').length > 4 ? '…' : ''}) — bấm "Chạy lại" để dựng lại.`;
+  }
   const dur = /audio_duration\)?: (.+?) vs target (.+?) \(±(\d+)%\)(?:; beats: (.*))?/.exec(e);
   if (dur)
     return `Cảnh báo thời lượng: audio thật ${dur[1]}, mục tiêu ${dur[2]} (±${dur[3]}%). Video vẫn dùng được — giữ nguyên hoặc nhờ agent sửa các beat lệch.${dur[4] ? ` Từng beat: ${dur[4]}.` : ''}`;

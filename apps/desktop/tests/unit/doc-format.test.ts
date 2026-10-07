@@ -9,6 +9,7 @@ import {
   fileCtaLabel,
   noticeCtas,
   friendlyStepError,
+  hasDurationWarning,
   isDurationWarning,
   stepCtas,
   voiceSuggestion,
@@ -111,6 +112,21 @@ describe('step CTAs', () => {
       /^Cảnh báo thời lượng: audio thật 294 s, mục tiêu 360 s/,
     );
     expect(friendlyStepError(err)).toContain('Từng beat: Mở đầu 19 s, Tóm tắt 29 s.');
+  });
+
+  it('a duration warning mixed with a hard failure shows both and still offers the skip (046)', () => {
+    const err =
+      'graph_fresh(*): index: stale; credits: stale; objective(audio_duration): 294 s vs target 360 s (±10%); beats: Mở đầu 19 s';
+    expect(isDurationWarning(err)).toBe(false);
+    expect(hasDurationWarning(err)).toBe(true);
+    const f = friendlyStepError(err);
+    expect(f).toMatch(/^Còn phần chưa dựng xong \(index, credits\)/);
+    expect(f).toContain(' · Cảnh báo thời lượng: audio thật 294 s');
+    expect(
+      stepCtas({ id: 'finalize', status: 'failed', title: 'Hoàn thiện' }, [], err).map(
+        (c) => c.kind,
+      ),
+    ).toEqual(['retry', 'waive', 'recheck']);
   });
 
   it('noticeCtas gives each workflow notice its actions (041)', () => {

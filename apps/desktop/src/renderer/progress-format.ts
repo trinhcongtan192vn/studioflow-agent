@@ -2,7 +2,7 @@
  * Tab Tiến độ (UI-04, FN-008 mục 3): trạng thái tổng, phản hồi sau mỗi thao tác (chạy tới / chạy lại /
  * quay lại / tạm dừng), nút theo ngữ cảnh từng bước. Hàm thuần.
  */
-import { isDurationWarning } from './chat-format';
+import { hasDurationWarning, isDurationWarning } from './chat-format';
 export interface StepView {
   id: string;
   title: string;
@@ -194,14 +194,16 @@ export function stepButtons(
       ];
     case 'failed': {
       const warn = error !== undefined && isDurationWarning(error);
+      // 046: cảnh báo thời lượng kèm lỗi khác → vẫn có nút bỏ qua (không phải nút chính)
+      const mixed = !warn && error !== undefined && hasDurationWarning(error);
       return [
-        ...(warn
+        ...(warn || mixed
           ? [
               {
                 action: { kind: 'waive', step: s.id, check: 'audio_duration' } as Action,
                 label: 'Bỏ qua cảnh báo',
-                title: 'Giữ thời lượng hiện tại và chạy tiếp (không sinh lại)',
-                primary: true,
+                title: 'Giữ thời lượng hiện tại (không sinh lại); lỗi khác của bước vẫn cần xử lý',
+                primary: warn,
               },
             ]
           : []),

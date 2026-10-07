@@ -848,7 +848,14 @@ export class WorkflowEngine extends EventEmitter {
       appDataDir: this.d.appDataDir,
       ...(this.d.runScript ? { runScript: (id: string) => this.d.runScript!(manifest, id) } : {}),
     };
-    const waived = new Set(st.steps[decl.id]?.waived ?? []);
+    // 043/046: miễn trừ của chính bước + của bước đã xong trước đó (đã chấp nhận thời lượng ở `voice`
+    // thì `finalize` không hỏi lại); chạy lại bước đã miễn → miễn trừ mất
+    const waived = new Set([
+      ...(st.steps[decl.id]?.waived ?? []),
+      ...Object.values(st.steps)
+        .filter((x) => x.status === 'done')
+        .flatMap((x) => x.waived ?? []),
+    ]);
     const out: GateResult[] = [];
     for (const g of all) {
       const r = await evaluateGate(g, ctx);

@@ -118,6 +118,13 @@ describe('build graph — full node set (020)', () => {
     const r = await graph.build(fixtureVideoId);
     expect(r.status).toBe('succeeded');
     expect(rebuilt).toEqual(['fr_3m8k1w7d']);
+    // 046: frame dựng lại trong cùng lần build → index/credits vẫn fresh sau build (băm frame lúc băm nút)
+    expect(
+      graph
+        .status(fixtureVideoId)
+        .filter((n) => n.status === 'stale')
+        .map((n) => `${n.key}:${n.status}`),
+    ).toEqual([]);
   });
 
   it('AC-M2-03: switching the image provider makes asset nodes stale and regenerates them', async () => {
