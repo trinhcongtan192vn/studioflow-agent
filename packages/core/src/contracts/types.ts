@@ -468,6 +468,8 @@ export type ConfigKey =
   | 'refine.threshold'
   | 'frame.min_duration_ms'
   | 'frame_build.parallel'
+  | 'frame_build.model'
+  | 'frame_build.model_simple'
   | 'budget.tokens_per_video'
   | 'budget.api_cost_usd_per_video'
   | 'budget.cache_gb'

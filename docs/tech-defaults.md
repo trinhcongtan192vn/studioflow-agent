@@ -101,6 +101,7 @@
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | 2 / 3 / 8.0 `[chờ S14]` |
 | `frame.min_duration_ms` | 2000 |
 | `frame_build.parallel` | 2 `[chờ S4]` |
+| `frame_build.model` / `frame_build.model_simple` | `claude-sonnet-5-5` / `claude-haiku-4-5-20251001` (060: frame đơn giản ≤ 3 layer, ≤ 10 s, không khẩu hình/bản đồ/biểu đồ → model rẻ ở lần đầu; thử lại → model chính) |
 | `budget.tokens_per_video` | 2 000 000 |
 | `budget.api_cost_usd_per_video` | 5 |
 | `budget.cache_gb` | 20 |
