@@ -15,6 +15,7 @@ import type { CaptionsPanelData } from '../captions/panel.js';
 import type { CostReport } from '../trace/cost.js';
 import type { CapacityResult } from '../autopilot/capacity.js';
 import type { PlanPatch } from '../autopilot/plan.js';
+import type { AutopilotStatus } from '../autopilot/runner.js';
 
 export interface ChannelRef {
   channel: string;
@@ -102,6 +103,16 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 052: Autopilot đang làm gì — tạm dừng/đang chạy/chờ hạn mức Claude, video hiện tại, mục kế hoạch hôm nay. */
+  'autopilot.status': { params: Record<string, never>; result: AutopilotStatus };
+  /** 052: chạy một lượt ngay (bỏ qua khung giờ làm việc; không chạy khi tạm dừng/đang chờ hạn mức/đang chạy). */
+  'autopilot.run_now': {
+    params: Record<string, never>;
+    result: { started: boolean; reason?: 'paused' | 'running' | 'limit_wait' };
+  };
+  /** 052: đặt `autopilot.paused` (app). */
+  'autopilot.pause': { params: Record<string, never>; result: { paused: boolean } };
+  'autopilot.resume': { params: Record<string, never>; result: { paused: boolean } };
   'autopilot.plan.update': {
     params: { channel: string; date: string; item_id: string; patch: PlanPatch };
     result: { item: PlanItem };
@@ -198,6 +209,8 @@ export interface IpcMethods {
       steps: { channel: string; video: string; step_id: string; title: string }[];
       jobs: { kind: string; video?: string }[];
       chats: { channel: string; video: string }[];
+      /** 052: video Autopilot đang làm dở (mục kế hoạch `in_production`) — đóng app thì lần mở sau làm tiếp. */
+      autopilot: { channel: string; video: string; item_id: string; title: string }[];
     };
   };
   'workflow.run_to': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
@@ -317,6 +330,8 @@ export interface IpcEvents {
     total: number | null;
     message?: string;
   };
+  /** 052: trạng thái Autopilot đổi (mục đổi trạng thái, bắt đầu/xong một lượt, chờ hạn mức…). */
+  'autopilot.updated': AutopilotStatus;
   'approval.requested': {
     channel: string;
     video: string;

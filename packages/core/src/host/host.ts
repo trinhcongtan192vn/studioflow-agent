@@ -19,6 +19,8 @@ import { detectChannel, initChannel } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
 import { createVideo, listVideoIds } from '../domain/video.js';
 import { isSfError, SfError } from '../errors.js';
+import { isLimitHit } from '../autopilot/capacity.js';
+import type { PlanItem } from '../contracts/types.js';
 import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '../ipc/schema.js';
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
@@ -46,6 +48,9 @@ import {
   readPlan,
   type PlanPatch,
   updatePlanItem,
+  briefInstruction,
+  RUNNER_CONSTANTS,
+  type ItemOutcomeEvent,
   resolveYouTubeChannel,
   setChannelAutopilot,
 } from '../autopilot/index.js';
@@ -75,8 +80,17 @@ export class CoreHost extends EventEmitter {
   private readonly replying = new Map<string, number>();
   private readonly watched = new Set<string>();
   private readonly announced = new Set<string>();
+  /** 052: lỗi cuối của lượt agent theo video (hạn mức Claude…) — để bước agent/brief báo đúng lỗi. */
+  private readonly agentErrors = new Map<string, { code: string; message: string }>();
+  private autopilotTimer?: ReturnType<typeof setInterval>;
 
-  constructor(opts: CoreOptions & { runtime?: AgentRuntime } = {}) {
+  constructor(
+    opts: CoreOptions & {
+      runtime?: AgentRuntime;
+      /** 052: bật bộ chạy Autopilot theo chu kỳ (mặc định tắt — test và CLI không tự tạo video). */
+      autopilot?: { tick_ms?: number };
+    } = {},
+  ) {
     super();
     const appDataDir = opts.appDataDir ?? defaultAppDataDir();
     this.core = createCore({ ...opts, appDataDir });
@@ -89,7 +103,67 @@ export class CoreHost extends EventEmitter {
     // bước agent của workflow (storyboard…) chạy trong phiên `main` của video, hiện trong chat
     this.core.workflows.setAgentRunner(async (instruction, ctx) => {
       await this.chat(ctx.channelDir, ctx.videoId, instruction, [], 'system');
+      this.throwLimit(ctx.channelDir, ctx.videoId);
     });
+    // 052: Autopilot — kênh quản lý đang bật, brief qua phiên `main`, sự kiện, vòng lặp định kỳ
+    const ap = this.core.autopilot;
+    ap.setChannels(() => this.autopilotChannels());
+    ap.setBrief(async (channel, video, item) => {
+      await this.chat(
+        channel,
+        video,
+        briefInstruction(item as PlanItem, this.planDateOfVideo(channel, video)),
+        [],
+        'system',
+      );
+      this.throwLimit(channel, video);
+    });
+    ap.on('updated', () => this.send('autopilot.updated', ap.status()));
+    ap.on('item.outcome', (e: ItemOutcomeEvent) => {
+      if (!e.video || !e.reason) return;
+      if (e.outcome === 'parked')
+        this.postSystem(
+          e.channel,
+          e.video,
+          `Autopilot đã dừng video này để chờ bạn: ${e.reason}. Xem điểm duyệt đang chờ rồi sửa hoặc duyệt bằng tay.`,
+        );
+      else if (e.outcome === 'failed')
+        this.postSystem(e.channel, e.video, `Autopilot không làm xong video này: ${e.reason}`);
+    });
+    if (opts.autopilot) {
+      const tick = () => void ap.tick().catch(() => {});
+      setTimeout(tick, 0).unref();
+      this.autopilotTimer = setInterval(tick, opts.autopilot.tick_ms ?? RUNNER_CONSTANTS.TICK_MS);
+      this.autopilotTimer.unref();
+    }
+  }
+
+  /** Lượt agent vừa kết thúc bằng lỗi hạn mức Claude → ném để bước/brief báo đúng lỗi (Autopilot chờ tới giờ reset). */
+  private throwLimit(channel: string, video: string): void {
+    const key = `${path.resolve(channel)}|${video}`;
+    const err = this.agentErrors.get(key);
+    this.agentErrors.delete(key);
+    if (err && isLimitHit(err.message)) throw new SfError('E_RUNTIME_RATE_LIMIT', err.message);
+  }
+
+  private planDateOfVideo(channel: string, video: string): string {
+    try {
+      const st = JSON.parse(
+        readFileSync(path.join(path.resolve(channel), 'videos', video, 'state.json'), 'utf8'),
+      ) as VideoState;
+      if (st.autopilot) return st.autopilot.plan_date;
+    } catch {
+      /* dùng ngày hôm nay */
+    }
+    return planDateOf(path.resolve(channel), new Date(), this.core.appDataDir);
+  }
+
+  private setPaused(paused: boolean): { paused: boolean } {
+    const s = this.settings();
+    s.config = { ...s.config, 'autopilot.paused': paused };
+    this.saveSettings(s);
+    this.send('autopilot.updated', this.core.autopilot.status());
+    return { paused };
   }
 
   private send<K extends keyof IpcEvents>(name: K, data: IpcEvents[K]): void {
@@ -99,6 +173,8 @@ export class CoreHost extends EventEmitter {
   private watcher?: { close(): void };
 
   close(): void {
+    if (this.autopilotTimer) clearInterval(this.autopilotTimer);
+    this.core.autopilot.stop();
     this.watcher?.close();
     for (const s of this.sessions.values()) void s.session.close();
     this.core.close();
@@ -369,6 +445,7 @@ export class CoreHost extends EventEmitter {
         .list({ status: 'running' })
         .map((j) => ({ kind: j.kind, ...(j.video_id ? { video: j.video_id } : {}) })),
       chats: [...this.replying.keys()].map(split),
+      autopilot: c.autopilot.activity(),
     };
   }
 
@@ -450,8 +527,10 @@ export class CoreHost extends EventEmitter {
           content: e.summary,
           tool: { name: t?.name ?? '?', input: t?.input, output_summary: e.summary },
         });
-      } else if (e.type === 'error')
+      } else if (e.type === 'error') {
+        if (video) this.agentErrors.set(`${path.resolve(channel)}|${video}`, e);
         this.log(channel, s.chatRel, { role: 'system', content: `${e.code}: ${e.message}` });
+      }
     }
     if (assistant) this.log(channel, s.chatRel, { role: 'assistant', content: assistant });
     const sdk = (s.session as { sdkSessionId?: string }).sdkSessionId;
@@ -577,6 +656,20 @@ export class CoreHost extends EventEmitter {
             ...(p.video ? { video: String(p.video) } : {}),
           }),
         };
+      case 'autopilot.status':
+        return c.autopilot.status();
+      case 'autopilot.run_now': {
+        const s = c.autopilot.status();
+        if (s.paused) return { started: false, reason: 'paused' };
+        if (s.waiting_until) return { started: false, reason: 'limit_wait' };
+        if (s.running) return { started: false, reason: 'running' };
+        void c.autopilot.tick({ force: true }).catch(() => {});
+        return { started: true };
+      }
+      case 'autopilot.pause':
+        return this.setPaused(true);
+      case 'autopilot.resume':
+        return this.setPaused(false);
       case 'autopilot.plan.get': {
         const dirs = p.channel ? [path.resolve(p.channel)] : this.autopilotChannels();
         return {
