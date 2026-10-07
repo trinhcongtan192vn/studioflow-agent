@@ -90,6 +90,54 @@ export class StudioEdits {
     ];
   }
 
+  /** 045: phiên sửa Studio đang mở (`<kênh>|<video>`). */
+  openKeys(): string[] {
+    return [...this.sessions.keys()];
+  }
+
+  /**
+   * 045: khóa `owner = studio` còn sót khi không có phiên Studio nào đang chạy trong app (app tắt lúc
+   * Studio mở) → nhả khóa để agent ghi được. Bản làm việc không có thay đổi chưa commit thì xóa; có thì
+   * giữ lại (không mất chỉnh sửa) và báo danh sách file.
+   */
+  recoverStale(
+    store: WriteStore,
+    videoId: string,
+  ): { released: boolean; kept: { work: string; files: string[] }[] } {
+    if (this.sessions.has(this.key(store, videoId))) return { released: false, kept: [] };
+    const st = this.readState(store, videoId);
+    if (st.owner !== 'studio') return { released: false, kept: [] };
+    const root = `videos/${videoId}/.sf/studio-work`;
+    const kept: { work: string; files: string[] }[] = [];
+    const dirs = existsSync(store.abs(root))
+      ? readdirSync(store.abs(root), { withFileTypes: true }).filter((e) => e.isDirectory())
+      : [];
+    for (const d of dirs) {
+      const work = `${root}/${d.name}`;
+      let base: Record<string, string> = {};
+      try {
+        base = JSON.parse(readFileSync(store.abs(`${work}/base.json`), 'utf8')) as Record<
+          string,
+          string
+        >;
+      } catch {
+        /* thiếu base.json → so toàn bộ file cảnh trong bản làm việc */
+      }
+      const files = this.pending(store, videoId, { base, work });
+      if (files.length) kept.push({ work, files });
+      else
+        try {
+          store.removeDerived(work);
+        } catch {
+          /* file còn bị giữ → dọn ở lần dọn đĩa sau */
+        }
+    }
+    st.owner = 'agent';
+    delete st.owner_since;
+    this.writeState(store, videoId, st);
+    return { released: true, kept };
+  }
+
   session(
     store: WriteStore,
     videoId: string,
@@ -174,7 +222,11 @@ export class StudioEdits {
   }
 
   /** Thay đổi giữa bản làm việc và bản gốc (tương đối video) — không phân loại. */
-  private pending(store: WriteStore, videoId: string, s: EditSession): string[] {
+  private pending(
+    store: WriteStore,
+    videoId: string,
+    s: Pick<EditSession, 'base' | 'work'>,
+  ): string[] {
     const files = new Set([
       ...Object.keys(s.base),
       ...listFiles(store.abs(`${s.work}/compositions`)).map((f) => `compositions/${f}`),

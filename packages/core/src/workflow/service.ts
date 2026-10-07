@@ -78,6 +78,27 @@ export class WorkflowService {
     await exec({ ...ctx, only: [i.frameId], inGraph: true } as typeof ctx);
   };
 
+  /** 045: bước đang chạy của các video đã mở trong tiến trình này. */
+  runningSteps(): { channel: string; video: string; step_id: string; title: string }[] {
+    return [...this.engines.entries()].flatMap(([key, e]) => {
+      const i = key.lastIndexOf('|');
+      let steps: { id: string; title: string; status: string }[] = [];
+      try {
+        steps = e.summary().steps;
+      } catch {
+        return [];
+      }
+      return steps
+        .filter((s) => s.status === 'running')
+        .map((s) => ({
+          channel: key.slice(0, i),
+          video: key.slice(i + 1),
+          step_id: s.id,
+          title: s.title,
+        }));
+    });
+  }
+
   engine(channelDir: string, videoId: string): WorkflowEngine {
     const store = this.d.storeFor(channelDir);
     const key = `${store.root}|${videoId}`;

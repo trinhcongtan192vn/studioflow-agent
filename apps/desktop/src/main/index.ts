@@ -95,6 +95,9 @@ let win: BrowserWindow | undefined;
 let core: UtilityProcess | undefined;
 let restarts = 0;
 let quitting = false;
+// 045: đóng cửa sổ khi còn việc chạy dở → hỏi người dùng (qua giao diện) trước
+let closeConfirmed = false;
+let closeTimer: NodeJS.Timeout | undefined;
 
 /** Bí mật đọc ở `main` (D5 mục 5.4) rồi chuyển cho core; renderer không thấy giá trị. */
 function readSecrets(): Record<string, string> {
@@ -155,6 +158,17 @@ function createWindow(): void {
       sandbox: true,
     },
   });
+  win.on('close', (e) => {
+    if (closeConfirmed || !win || win.webContents.isCrashed()) return;
+    e.preventDefault();
+    win.webContents.send('app:close-request');
+    // giao diện không trả lời (treo) → vẫn đóng
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      closeConfirmed = true;
+      win?.close();
+    }, 4000);
+  });
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void win.loadFile(path.join(here, '../renderer/index.html'));
 }
@@ -171,6 +185,12 @@ ipcMain.handle('dialog:files', async () => {
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('shell:open', (_e, p: string) => shell.openPath(p));
+ipcMain.handle('app:close-reply', (_e, r: 'asking' | 'close' | 'stay') => {
+  clearTimeout(closeTimer);
+  if (r !== 'close') return;
+  closeConfirmed = true;
+  win?.close();
+});
 ipcMain.handle('secrets:status', () =>
   SECRET_NAMES.map((n) => ({ name: n, hint: process.platform === 'win32' ? secretHint(n) : null })),
 );
@@ -207,7 +227,13 @@ if (primary)
     });
   });
 
-app.on('before-quit', () => {
+app.on('before-quit', (e) => {
+  // thoát bằng phím tắt/menu → đi qua bước hỏi của cửa sổ như bấm nút đóng
+  if (!closeConfirmed && win && !win.isDestroyed()) {
+    e.preventDefault();
+    win.close();
+    return;
+  }
   quitting = true;
   core?.kill();
 });
