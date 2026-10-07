@@ -231,6 +231,28 @@ export class AutopilotRunner extends EventEmitter {
 
   /** Yêu cầu quyền có phí từ video Autopilot không treo chờ: ghi lại để đỗ mục với tóm tắt chi phí. */
   attachPermissions(bus: Pick<PermissionBus, 'on'>): void {
+    // 052: lệnh có phí được tự cho phép trong ngân sách video → ghi nhật ký vận hành
+    bus.on(
+      'autopilot.paid_allowed',
+      (e: {
+        session: { channel_dir: string; video_id?: string };
+        request: { summary: string };
+        usd: number;
+        approved_usd: number;
+        limit_usd: number;
+      }) => {
+        const channel = canonicalDir(e.session.channel_dir);
+        this.log(channel, this.dateOf(channel, this.now()), {
+          level: 'info',
+          event: 'paid.allowed',
+          ...(e.session.video_id
+            ? { video_id: e.session.video_id as AutopilotLogLine['video_id'] }
+            : {}),
+          message: `Tự cho phép lệnh có phí (~$${e.usd}): ${e.request.summary} — đã dùng $${e.approved_usd}/$${e.limit_usd} của video.`,
+          data: { usd: e.usd, approved_usd: e.approved_usd, limit_usd: e.limit_usd },
+        });
+      },
+    );
     bus.on(
       'autopilot.blocked',
       (e: {
@@ -431,6 +453,8 @@ export class AutopilotRunner extends EventEmitter {
       this.restored = true;
       this.restoreWait(now0);
     }
+    // 052 (Tan): video bị đỗ mà người dùng đã làm xong bằng tay → nhận lại (rẻ, chạy cả khi tạm dừng)
+    this.reclaimFinished(this.channels(), now0);
     const g0 = this.gate(now0, opts.force);
     if (!g0.ok) return { ...out, skipped: g0.reason };
     this.endWait(now0);
@@ -647,6 +671,46 @@ export class AutopilotRunner extends EventEmitter {
       ...(res.reason ? { reason: res.reason } : {}),
     } satisfies ItemOutcomeEvent);
     return res;
+  }
+
+  /**
+   * Mục `needs_review` (7 ngày gần nhất) có video đã xong mọi bước → `produced` để đi tiếp sang đăng (053).
+   */
+  private reclaimFinished(chans: string[], now: Date): void {
+    for (const channel of chans) {
+      const today = this.dateOf(channel, now);
+      for (const date of [today, ...planDatesBefore(channel, today).slice(0, 7)]) {
+        for (const item of readPlan(channel, date)?.items ?? []) {
+          if (item.status !== 'needs_review' || !item.video_id) continue;
+          let done = false;
+          try {
+            const steps = this.d.workflows.engine(channel, item.video_id).summary().steps;
+            done =
+              steps.length > 0 && steps.every((x) => x.status === 'done' || x.status === 'skipped');
+          } catch {
+            continue;
+          }
+          if (!done) continue;
+          const c = { channel, store: this.d.storeFor(channel), date, item, video: item.video_id };
+          markPlanItem(c.store, {
+            date,
+            item_id: item.id,
+            patch: {
+              status: 'produced',
+              note: 'Bạn đã làm xong video bằng tay — Autopilot nhận lại để đăng',
+            },
+            now,
+          });
+          this.logItem(
+            c,
+            'info',
+            'item.reclaimed',
+            `"${item.title}" đã được làm xong bằng tay — chuyển lại Autopilot (đã làm xong).`,
+          );
+          this.changed();
+        }
+      }
+    }
   }
 
   private finishInner(

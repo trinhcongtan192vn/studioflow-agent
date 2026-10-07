@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import type { SessionContext } from '../contracts/types.js';
 import { resolveConfig, setConfig } from '../config/resolve.js';
@@ -46,6 +47,60 @@ export class PermissionBus extends EventEmitter {
     super();
   }
 
+  /**
+   * 052: lệnh có phí của video Autopilot — cho phép nếu ước tính USD (`estimate.usd`) cộng phần đã cho
+   * phép trước đó và chi phí API đã ghi của video không vượt ngân sách video. Sổ cộng dồn ở
+   * `videos/<vd>/.sf/paid.json` (không đụng state.json do engine giữ). Không có ước tính USD → không tự cho.
+   */
+  private allowWithinBudget(
+    session: SessionContext,
+    req: { summary: string; estimate?: unknown },
+  ): { usd: number; approved_usd: number; limit_usd: number } | undefined {
+    const usd = (req.estimate as { usd?: unknown } | undefined)?.usd;
+    if (typeof usd !== 'number' || !Number.isFinite(usd) || usd < 0 || !session.video_id) return;
+    const store = this.opts.storeFor(session.channel_dir);
+    const v = `videos/${session.video_id}`;
+    const read = <T>(rel: string): T | undefined => {
+      try {
+        return JSON.parse(readFileSync(store.abs(rel), 'utf8')) as T;
+      } catch {
+        return undefined;
+      }
+    };
+    const st = read<{ budget?: { api_cost_usd?: number; limits?: { api_cost_usd?: number } } }>(
+      `${v}/state.json`,
+    );
+    const limit = Number(
+      st?.budget?.limits?.api_cost_usd ??
+        resolveConfig(
+          'budget.api_cost_usd_per_video',
+          { channelDir: session.channel_dir, videoId: session.video_id },
+          { appDataDir: this.opts.appDataDir },
+        ).value,
+    );
+    const book = read<{ approved_usd: number; calls: unknown[] }>(`${v}/.sf/paid.json`) ?? {
+      approved_usd: 0,
+      calls: [],
+    };
+    const spent = (st?.budget?.api_cost_usd ?? 0) + book.approved_usd;
+    if (!Number.isFinite(limit) || spent + usd > limit + 1e-9) return;
+    const approved = Math.round((book.approved_usd + usd) * 1e6) / 1e6;
+    store.write(
+      `${v}/.sf/paid.json`,
+      `${JSON.stringify(
+        {
+          approved_usd: approved,
+          calls: [...book.calls, { ts: new Date().toISOString(), usd, summary: req.summary }],
+        },
+        null,
+        2,
+      )}
+`,
+      { by: 'autopilot.paid', validate: false },
+    );
+    return { usd, approved_usd: approved, limit_usd: limit };
+  }
+
   async ask(
     session: SessionContext,
     req: { tool: string; kind: PermissionKind; summary: string; estimate?: unknown },
@@ -73,6 +128,12 @@ export class PermissionBus extends EventEmitter {
     // 052: video Autopilot chạy không có người — API có phí không chờ (không treo cả hàng đợi): người dùng
     // vẫn thấy yêu cầu, tool trả từ chối ngay, bộ chạy đỗ mục kế hoạch "cần xác nhận chi phí"
     if (req.kind === 'paid_api' && isAutopilotVideo(session.channel_dir, session.video_id)) {
+      // 052 (Tan): trong ngân sách API của video (`budget.api_cost_usd_per_video`) → tự cho phép
+      const allowed = this.allowWithinBudget(session, req);
+      if (allowed) {
+        this.emit('autopilot.paid_allowed', { session, request, ...allowed });
+        return true;
+      }
       this.emit('permission.requested', request);
       this.emit('autopilot.blocked', { session, request });
       return false;

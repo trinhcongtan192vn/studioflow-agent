@@ -30,10 +30,11 @@ parentPort.on('message', (e) => {
   if (msg.type !== 'init' || host) return;
   const init = msg as { appDataDir?: string; secrets?: Record<string, string> };
   setHostSecrets(init.secrets ?? {});
-  // 052: app thật chạy Autopilot theo chu kỳ (5 phút); test/CLI tạo CoreHost không bật
+  // 052: app thật chạy Autopilot theo chu kỳ (5 phút); test/CLI tạo CoreHost không bật;
+  // `SF_AUTOPILOT=0` tắt (test giao diện chạy app thật không được tự tạo video)
   host = new CoreHost({
     ...(init.appDataDir ? { appDataDir: init.appDataDir } : {}),
-    autopilot: {},
+    ...(process.env.SF_AUTOPILOT === '0' ? {} : { autopilot: {} }),
   });
   const port = e.ports[0]!;
   port.on('message', (m) => {

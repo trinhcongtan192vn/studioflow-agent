@@ -114,7 +114,9 @@ function Storage({ channel }: { channel?: string }) {
 function AutopilotApp() {
   const [cfg, setCfg] = useState<Record<string, unknown>>({});
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
+  const [autostart, setAutostart] = useState(false);
   useEffect(() => {
+    void window.studioflow.getAutostart().then(setAutostart);
     void core
       .call('settings.get', {})
       .then((s) => setCfg((s as { config: Record<string, unknown> }).config));
@@ -173,6 +175,26 @@ function AutopilotApp() {
           defaultValue={String(cfg['publish.veto_hours'] ?? 2)}
           onBlur={(e) => void save('publish.veto_hours', Number(e.target.value))}
         />
+      </label>
+      <label className="field">
+        <input
+          type="checkbox"
+          data-testid="autopilot-background"
+          checked={cfg['autopilot.background'] !== false}
+          onChange={(e) => void save('autopilot.background', e.target.checked)}
+        />{' '}
+        Chạy nền khi đóng cửa sổ (ẩn xuống khay hệ thống, Autopilot vẫn làm video)
+      </label>
+      <label className="field">
+        <input
+          type="checkbox"
+          data-testid="autostart"
+          checked={autostart}
+          onChange={async (e) => {
+            setAutostart(await window.studioflow.setAutostart(e.target.checked));
+          }}
+        />{' '}
+        Khởi động cùng Windows (mở thẳng xuống khay)
       </label>
       {msg && <p className={msg.tone === 'error' ? 'error' : 'success'}>{msg.text}</p>}
     </div>

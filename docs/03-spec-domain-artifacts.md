@@ -37,6 +37,7 @@
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
     REFERENCE.md                    (tùy chọn, 044) phân tích video YouTube tham khảo: công thức nội dung, không chép nội dung; markdown tự do, không qua schema
+    .sf/paid.json                   (052) sổ lệnh API có phí được Autopilot tự cho phép trong ngân sách video: {approved_usd, calls[]}
     audio/lines/<line_id>.wav       audio từng line
     audio_meta.json  caption_groups.json  caption-overrides.json
     lipsync/<line_id>.json
@@ -511,7 +512,7 @@ Nhật ký vận hành Autopilot của một kênh (FR-AP-07, NFR-11): **mỗi q
 interface AutopilotLogLine {
   ts: Iso8601;
   level: 'info' | 'warn' | 'error';
-  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced. */
+  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced, paid.allowed, item.reclaimed (052). */
   event: string;
   item_id?: PlanItemId;
   video_id?: VideoId;
@@ -596,6 +597,7 @@ interface SettingsConfig extends Versioned {
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | number | app |
 | `autopilot.enabled` | boolean | channel |
 | `autopilot.paused` | boolean | app |
+| `autopilot.background` | boolean | app |
 | `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |

@@ -300,7 +300,17 @@ describe('CoreHost IPC (008)', () => {
     expect(await host.call('autopilot.plan.get', {})).toEqual({ plans: [] });
     await set('autopilot.enabled', true);
     await set('autopilot.max_per_day', 2);
-    await host.call('settings.set', { key: 'autopilot.work_window', value: '00:00-23:59' });
+    // khung giờ bắt đầu từ giờ hiện tại, dài ~24 h (qua nửa đêm): luôn đủ thời gian máy, chạy giờ nào cũng như nhau
+    const hour = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date());
+    const prev = String((Number(hour) + 23) % 24).padStart(2, '0');
+    await host.call('settings.set', {
+      key: 'autopilot.work_window',
+      value: `${hour}:00-${prev}:59`,
+    });
     await host.call('settings.set', { key: 'autopilot.daily_tokens', value: 100_000_000 });
     const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',

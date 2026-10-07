@@ -258,7 +258,7 @@ export interface PlanItem {
 export interface AutopilotLogLine {
   ts: Iso8601;
   level: 'info' | 'warn' | 'error';
-  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced. */
+  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced, paid.allowed, item.reclaimed (052). */
   event: string;
   item_id?: PlanItemId;
   video_id?: VideoId;
@@ -422,6 +422,7 @@ export type ConfigKey =
   | 'gpu.vram_total_gb'
   | 'autopilot.enabled'
   | 'autopilot.paused'
+  | 'autopilot.background'
   | 'autopilot.competitors'
   | 'autopilot.pillars'
   | 'autopilot.workflows'

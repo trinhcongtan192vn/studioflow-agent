@@ -11,6 +11,7 @@ import {
   type PanelWidths,
 } from './layout';
 import { core } from './rpc';
+import { AutopilotPanel } from './AutopilotPanel';
 import { ChannelSettings } from './ChannelSettings';
 import { ChannelsOverview } from './ChannelsOverview';
 import { ChannelSwitcher } from './ChannelSwitcher';
@@ -48,6 +49,9 @@ export function Workspace({
   const [history, setHistory] = useState<{ initial?: SessionRow } | null>(null);
   const [details, setDetails] = useState(false);
   const [tick, setTick] = useState(0);
+  // 052: màn Autopilot hôm nay
+  const [autopilot, setAutopilot] = useState(false);
+  const [pendingVideo, setPendingVideo] = useState<string | null>(null);
   // độ rộng cột kéo được (nhớ theo máy)
   const root = useRef<HTMLDivElement>(null);
   const total = () => root.current?.clientWidth ?? window.innerWidth;
@@ -69,11 +73,17 @@ export function Workspace({
     setVideos((await core.call('video.list', { channel })).videos);
     setTree(await core.call('explorer.tree', { channel }));
   }, [channel]);
-  // đổi kênh → bỏ video đang mở
+  // đổi kênh → bỏ video đang mở (052: hoặc mở video được chọn từ màn Autopilot)
   useEffect(() => {
     setVideo(undefined);
     setState(undefined);
     setExternal([]);
+    if (pendingVideo && channel) {
+      const id = pendingVideo;
+      setPendingVideo(null);
+      setVideo(id);
+      void core.call('video.open', { channel, video: id }).then((r) => setState(r.state));
+    }
   }, [channel]);
 
   useEffect(() => {
@@ -160,6 +170,14 @@ export function Workspace({
             ⚙
           </button>
         </div>
+        <button
+          className="autopilot-entry"
+          data-testid="open-autopilot"
+          onClick={() => setAutopilot(true)}
+          title="Kế hoạch, tiến độ và lý do chọn chủ đề của Autopilot hôm nay"
+        >
+          ▶ Autopilot hôm nay
+        </button>
         {external.length > 0 && (
           <p className="error" role="alert">
             File bị sửa ngoài app: {external.join(', ')} — app sẽ không tự ghi đè; nhờ agent kiểm
@@ -344,6 +362,20 @@ export function Workspace({
           onClose={() => {
             setManage(false);
             setTick((t) => t + 1);
+          }}
+        />
+      )}
+      {autopilot && (
+        <AutopilotPanel
+          onClose={() => setAutopilot(false)}
+          onOpenVideo={(dir, id) => {
+            setAutopilot(false);
+            if (dir === channel) void openVideo(id);
+            else {
+              // mở video của kênh khác: đổi kênh rồi mở video khi danh sách đã tải
+              setPendingVideo(id);
+              onSwitch(dir);
+            }
           }}
         />
       )}

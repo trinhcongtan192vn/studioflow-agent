@@ -44,6 +44,8 @@ export const DEFAULTS: Record<string, unknown> = {
   // 047: Autopilot theo kênh (M6)
   'autopilot.enabled': false,
   'autopilot.paused': false,
+  // 052: đóng cửa sổ khi có kênh Autopilot → ẩn xuống khay hệ thống, vẫn sản xuất
+  'autopilot.background': true,
   'autopilot.competitors': [],
   'autopilot.pillars': [],
   'autopilot.workflows': [],

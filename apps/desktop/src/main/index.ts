@@ -8,10 +8,15 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  Menu,
   MessageChannelMain,
+  nativeImage,
+  powerSaveBlocker,
   protocol,
   shell,
+  Tray,
   utilityProcess,
+  type NativeImage,
   type UtilityProcess,
 } from 'electron';
 import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
@@ -98,6 +103,12 @@ let quitting = false;
 // 045: đóng cửa sổ khi còn việc chạy dở → hỏi người dùng (qua giao diện) trước
 let closeConfirmed = false;
 let closeTimer: NodeJS.Timeout | undefined;
+// 052: chạy nền ở khay hệ thống + chống ngủ máy khi Autopilot đang sản xuất
+let quitRequested = false;
+let tray: Tray | undefined;
+let blocker: number | undefined;
+let apState = { background: false, producing: false, paused: false, any: false };
+const startHidden = process.argv.includes('--hidden');
 
 /** Bí mật đọc ở `main` (D5 mục 5.4) rồi chuyển cho core; renderer không thấy giá trị. */
 function readSecrets(): Record<string, string> {
@@ -145,8 +156,72 @@ function startCore(): void {
   setTimeout(() => core?.postMessage({ type: 'secrets', secrets: readSecrets() }), 50);
 }
 
+/** Biểu tượng khay vẽ bằng mã (không cần file ảnh): ô vuông bo góc màu nhấn, chấm trắng khi đang làm. */
+function trayIcon(producing: boolean): NativeImage {
+  const n = 32;
+  const buf = Buffer.alloc(n * n * 4);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const i = (y * n + x) * 4;
+      const r = 6;
+      const cx = Math.min(Math.max(x, r), n - 1 - r);
+      const cy = Math.min(Math.max(y, r), n - 1 - r);
+      const inside = (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+      const dot = producing && (x - 23) ** 2 + (y - 23) ** 2 <= 25;
+      // BGRA
+      buf[i] = dot ? 255 : 0xde;
+      buf[i + 1] = dot ? 255 : 0x6f;
+      buf[i + 2] = dot ? 255 : 0x2f;
+      buf[i + 3] = inside ? 255 : 0;
+    }
+  return nativeImage.createFromBitmap(buf, { width: n, height: n });
+}
+
+function showWindow(): void {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+/** Khay hệ thống (052): mở cửa sổ, tạm dừng / tiếp tục Autopilot, thoát hẳn. */
+function updateTray(): void {
+  if (!apState.any && !(win && !win.isVisible())) {
+    tray?.destroy();
+    tray = undefined;
+    return;
+  }
+  tray ??= new Tray(trayIcon(apState.producing));
+  tray.setImage(trayIcon(apState.producing));
+  tray.setToolTip(
+    `StudioFlow — Autopilot ${apState.paused ? 'tạm dừng' : apState.producing ? 'đang làm video' : 'đang chờ'}`,
+  );
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Mở StudioFlow', click: showWindow },
+      {
+        label: apState.paused ? 'Tiếp tục Autopilot' : 'Tạm dừng Autopilot',
+        enabled: apState.any,
+        click: () => win?.webContents.send('tray:action', apState.paused ? 'resume' : 'pause'),
+      },
+      { type: 'separator' },
+      {
+        label: 'Thoát hẳn',
+        click: () => {
+          quitRequested = true;
+          showWindow();
+          win?.close();
+        },
+      },
+    ]),
+  );
+  tray.removeAllListeners('click');
+  tray.on('click', showWindow);
+}
+
 function createWindow(): void {
   win = new BrowserWindow({
+    show: !startHidden,
     width: 1440,
     height: 900,
     minWidth: 1280,
@@ -161,7 +236,7 @@ function createWindow(): void {
   win.on('close', (e) => {
     if (closeConfirmed || !win || win.webContents.isCrashed()) return;
     e.preventDefault();
-    win.webContents.send('app:close-request');
+    win.webContents.send('app:close-request', { quit: quitRequested });
     // giao diện không trả lời (treo) → vẫn đóng
     clearTimeout(closeTimer);
     closeTimer = setTimeout(() => {
@@ -185,11 +260,34 @@ ipcMain.handle('dialog:files', async () => {
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('shell:open', (_e, p: string) => shell.openPath(p));
-ipcMain.handle('app:close-reply', (_e, r: 'asking' | 'close' | 'stay') => {
+ipcMain.handle('app:close-reply', (_e, r: 'asking' | 'close' | 'stay' | 'hide') => {
   clearTimeout(closeTimer);
+  if (r === 'hide') {
+    // 052: chạy nền — ẩn xuống khay, Autopilot vẫn làm
+    win?.hide();
+    updateTray();
+    return;
+  }
+  if (r === 'stay') quitRequested = false;
   if (r !== 'close') return;
   closeConfirmed = true;
   win?.close();
+});
+ipcMain.on('autopilot:state', (_e, s: typeof apState) => {
+  apState = s;
+  // không cho máy ngủ khi đang sản xuất video
+  if (s.producing && blocker === undefined)
+    blocker = powerSaveBlocker.start('prevent-app-suspension');
+  if (!s.producing && blocker !== undefined) {
+    powerSaveBlocker.stop(blocker);
+    blocker = undefined;
+  }
+  updateTray();
+});
+ipcMain.handle('app:autostart-get', () => app.getLoginItemSettings().openAtLogin);
+ipcMain.handle('app:autostart-set', (_e, on: boolean) => {
+  app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
+  return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('secrets:status', () =>
   SECRET_NAMES.map((n) => ({ name: n, hint: process.platform === 'win32' ? secretHint(n) : null })),
@@ -212,9 +310,8 @@ if (process.env.SF_APP_DATA) app.setPath('userData', process.env.SF_APP_DATA);
 const primary = app.requestSingleInstanceLock();
 if (!primary) app.quit();
 app.on('second-instance', () => {
-  if (!win) return;
-  if (win.isMinimized()) win.restore();
-  win.focus();
+  // mở app lần nữa (kể cả khi đang chạy nền ở khay) → hiện cửa sổ
+  showWindow();
 });
 
 if (primary)
@@ -222,6 +319,8 @@ if (primary)
     registerMedia();
     createWindow();
     startCore();
+    // 052: khởi động cùng Windows (`--hidden`) → chỉ hiện ở khay
+    if (startHidden) updateTray();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -231,6 +330,7 @@ app.on('before-quit', (e) => {
   // thoát bằng phím tắt/menu → đi qua bước hỏi của cửa sổ như bấm nút đóng
   if (!closeConfirmed && win && !win.isDestroyed()) {
     e.preventDefault();
+    quitRequested = true;
     win.close();
     return;
   }

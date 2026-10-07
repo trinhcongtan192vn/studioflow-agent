@@ -384,6 +384,14 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.background",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
       "key": "autopilot.competitors",
       "pattern": false,
       "type": "string[]",

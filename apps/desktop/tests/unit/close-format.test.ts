@@ -18,5 +18,14 @@ describe('activityLines', () => {
     expect(l[1]).toBe('Bước "Dựng shot" đang chạy (vd_1) — sẽ dừng giữa chừng.');
     expect(l[2]).toBe('3 việc nền đang chạy (render.video, tts.synthesize).');
     expect(l[3]).toBe('Agent đang trả lời trong khung chat.');
+    expect(
+      activityLines({
+        studio: [],
+        steps: [],
+        jobs: [],
+        chats: [],
+        autopilot: [{ channel: 'C:/k', video: 'vd_1', item_id: 'pi_1', title: 'Nhật thực' }],
+      }),
+    ).toEqual(['Autopilot đang làm video "Nhật thực" — lần mở app sau sẽ làm tiếp.']);
   });
 });

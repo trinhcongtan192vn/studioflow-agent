@@ -68,6 +68,7 @@ export const schemas = {
               "gpu.vram_total_gb": {},
               "autopilot.enabled": {},
               "autopilot.paused": {},
+              "autopilot.background": {},
               "autopilot.competitors": {},
               "autopilot.pillars": {},
               "autopilot.workflows": {},
@@ -168,6 +169,7 @@ export const schemas = {
               "gpu.vram_total_gb": {},
               "autopilot.enabled": {},
               "autopilot.paused": {},
+              "autopilot.background": {},
               "autopilot.competitors": {},
               "autopilot.pillars": {},
               "autopilot.workflows": {},
@@ -4198,7 +4200,7 @@ export const schemas = {
           },
           "event": {
             "type": "string",
-            "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced."
+            "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced, paid.allowed, item.reclaimed (052)."
           },
           "item_id": {
             "$ref": "#/definitions/PlanItemId"
