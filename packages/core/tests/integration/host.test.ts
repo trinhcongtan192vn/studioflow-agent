@@ -92,6 +92,103 @@ describe('CoreHost IPC (008)', () => {
     expect(err.error).toMatchObject({ code: 'E_NOT_CHANNEL' });
   });
 
+  it('session history lists main chats, recorded sub-sessions and trace-only sessions (048 FR-AP-14)', async () => {
+    const { host, dir } = setup();
+    await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'bao nhiêu line?' });
+    // phiên con có nhật ký (recorder, 048)
+    const store = host.core.gateway.storeFor(dir);
+    const rel = `videos/${fixtureVideoId}/sessions/ss_frm00001.jsonl`;
+    const put = (o: object) => store.appendLine(rel, JSON.stringify(o), { by: 'test' });
+    put({
+      ts: '2026-10-07T01:00:00.000Z',
+      role: 'system',
+      content: 'Phiên frame · frame fr_9x2b7cqe · model m',
+      session: { id: 'ss_frm00001', kind: 'frame', frame_id: 'fr_9x2b7cqe' },
+    });
+    put({ ts: '2026-10-07T01:00:01.000Z', role: 'user', content: 'Dựng frame fr_9x2b7cqe' });
+    put({
+      ts: '2026-10-07T01:00:09.000Z',
+      role: 'system',
+      content: 'Kết thúc: end_turn',
+      usage: { input_tokens: 5, output_tokens: 7 },
+    });
+    // phiên con cũ: chỉ còn span
+    const ins = host.core.db.prepare(
+      'INSERT INTO spans (span_id, trace_id, parent_id, name, start_ms, end_ms, status, status_message, video_id, attrs, events) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    );
+    ins.run(
+      's1',
+      't1',
+      null,
+      'sf.agent.session',
+      1000,
+      2000,
+      'error',
+      null,
+      fixtureVideoId,
+      JSON.stringify({
+        'sf.session_kind': 'frame',
+        'sf.session_id': 'ss_old00001',
+        'sf.error': 'hit your limit',
+      }),
+      '[]',
+    );
+    ins.run(
+      's2',
+      't1',
+      's1',
+      'sf.tool',
+      1100,
+      1200,
+      'ok',
+      null,
+      fixtureVideoId,
+      JSON.stringify({
+        'sf.tool_name': 'artifact.write',
+        'sf.session_id': 'ss_old00001',
+        'sf.ok': false,
+        'sf.error_code': 'E_OWNER_CONFLICT',
+      }),
+      '[]',
+    );
+    const { sessions } = await host.call('sessions.list', { channel: dir });
+    const by = Object.fromEntries(sessions.map((s) => [s.id, s]));
+    expect(sessions.find((s) => s.source === 'chat')).toMatchObject({
+      kind: 'main',
+      video: fixtureVideoId,
+      title: 'bao nhiêu line?',
+    });
+    expect(by['ss_frm00001']).toMatchObject({
+      kind: 'frame',
+      source: 'session',
+      frame_id: 'fr_9x2b7cqe',
+      title: 'Dựng frame fr_9x2b7cqe',
+      tokens: 12,
+      lines: 3,
+    });
+    expect(by['ss_old00001']).toMatchObject({
+      kind: 'frame',
+      source: 'trace',
+      error: 'hit your limit',
+    });
+    const got = await host.call('sessions.get', {
+      channel: dir,
+      video: fixtureVideoId,
+      id: 'ss_old00001',
+    });
+    expect(got.lines).toEqual([
+      expect.objectContaining({
+        role: 'tool',
+        content: 'lỗi E_OWNER_CONFLICT',
+        tool: { name: 'artifact.write', ok: false },
+      }),
+    ]);
+    expect(
+      (await host.call('sessions.get', { channel: dir, video: fixtureVideoId, id: 'ss_frm00001' }))
+        .lines,
+    ).toHaveLength(3);
+  });
+
   it('managed channels and per-channel Autopilot settings (047 FR-AP-01..03)', async () => {
     const { host, dir } = setup();
     // mở kênh lần đầu → vào danh sách kênh quản lý (Manual)

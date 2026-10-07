@@ -102,8 +102,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('video-list')).toContainText('Lốc xoáy vòi rồng', {
       timeout: 30_000,
     });
-    // explorer chỉ đọc: xem nội dung tệp
+    // 048: mở thẳng giao diện chính; bộ chọn kênh hiện kênh đang mở (Manual)
+    await expect(win.getByTestId('channel-switcher')).toContainText('Manual');
+    // explorer chỉ đọc (048: trong "Chi tiết kênh"): xem nội dung tệp
     // thư mục cấp 1 (videos/) mở sẵn
+    await win.getByTestId('open-channel-details').click();
     await win
       .getByTestId('explorer')
       .getByRole('button', { name: /vd_8m2pq7rt/ })
@@ -113,7 +116,7 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     // 008: md hiển thị dạng đọc — line có người nói, chú thích kỹ thuật ẩn
     await expect(win.getByTestId('file-content').locator('.script-line')).toHaveCount(3);
     await expect(win.getByTestId('file-content')).not.toContainText('sf:line');
-    await win.getByRole('button', { name: 'Đóng' }).click();
+    await win.getByRole('button', { name: 'Đóng' }).last().click();
     // 008: phát âm thanh trong app (explorer → wav)
     await win
       .getByTestId('explorer')
@@ -124,7 +127,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await player.getByRole('button', { name: /^Phát/ }).click();
     await expect(player.getByTestId('audio-time')).toContainText('/ 0:02', { timeout: 15_000 });
     await expect(player.getByRole('button', { name: 'Tạm dừng' })).toBeVisible();
-    await win.getByRole('button', { name: 'Đóng' }).click();
+    await win.getByRole('button', { name: 'Đóng' }).last().click();
+    await win
+      .getByRole('dialog', { name: 'Chi tiết kênh' })
+      .getByRole('button', { name: 'Đóng' })
+      .click();
     // chọn video → chat với phiên main
     await win
       .getByTestId('video-list')
@@ -139,6 +146,13 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('activity')).toHaveCount(0);
     const messages = win.getByTestId('messages');
     await expect(messages.locator('.msg.assistant').last()).toContainText(/3|ba/i);
+    // 048 (FR-AP-14): lịch sử phiên — phiên chat vừa rồi xem lại được
+    await expect(win.getByTestId('recent-sessions')).toContainText('Chat', { timeout: 15_000 });
+    await win.getByTestId('open-session-history').click();
+    const hist = win.getByTestId('session-history');
+    await hist.getByTestId('session-list').getByRole('button', { name: /Chat/ }).first().click();
+    await expect(hist.getByTestId('session-view')).toContainText('bao nhiêu line');
+    await hist.getByRole('button', { name: 'Đóng' }).click();
     // 008: approval đang chờ (agent xin duyệt khi chat chưa mở) → thẻ ghim ở đáy khung chat, có nút xem file
     const statePath = path.join(channel, 'videos', 'vd_8m2pq7rt', 'state.json');
     const st = JSON.parse(readFileSync(statePath, 'utf8'));
@@ -229,13 +243,17 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('autopilot-app')).toContainText('Khung giờ máy làm việc');
     await win.getByRole('button', { name: 'Đóng', exact: true }).last().click();
     // 047 (FR-AP-01/02): cài đặt kênh → bật Autopilot → trang chủ hiện kênh quản lý ở chế độ Autopilot
+    await win.getByTestId('channel-switcher-toggle').click();
     await win.getByTestId('open-channel-settings').click();
     const cs = win.getByTestId('channel-settings');
     await expect(cs).toContainText('Kênh đối thủ');
     await cs.getByTestId('mode-autopilot').check();
     await expect(cs).toContainText('Đã bật Autopilot cho kênh.');
     await cs.getByRole('button', { name: 'Đóng', exact: true }).click();
-    await win.getByTitle('Về trang chủ').click();
+    // 048: không còn trang chủ riêng — bộ chọn kênh và "Quản lý tất cả kênh" hiện chế độ Autopilot
+    await expect(win.getByTestId('channel-switcher')).toContainText('Autopilot');
+    await win.getByTestId('channel-switcher-toggle').click();
+    await win.getByRole('menuitem', { name: 'Quản lý tất cả kênh…' }).click();
     await expect(win.getByTestId('managed-channels')).toContainText('Autopilot');
   } finally {
     await app.close();

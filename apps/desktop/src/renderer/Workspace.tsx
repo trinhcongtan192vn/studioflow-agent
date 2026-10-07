@@ -12,14 +12,27 @@ import {
 } from './layout';
 import { core } from './rpc';
 import { ChannelSettings } from './ChannelSettings';
+import { ChannelsOverview } from './ChannelsOverview';
+import { ChannelSwitcher } from './ChannelSwitcher';
+import { RecentSessions, SessionHistory } from './SessionHistory';
+import type { SessionRow } from './session-format';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
 type Video = { id: string; title: string; phase: string; updated_at: string };
 const TABS = ['Tiến độ', 'Xem trước', 'Job', 'Nhạc', 'Trace', 'Chi phí'] as const;
 
-/** UI-03 Không gian kênh (FN-008 mục 1). */
-export function Workspace({ channel, onClose }: { channel: string; onClose: () => void }) {
+/**
+ * UI-03 Giao diện chính (FN-008 mục 1; 048): mở app vào thẳng đây. Sidebar: bộ chọn kênh (thêm/tạo kênh),
+ * video, lịch sử phiên agent; "Chi tiết kênh" mở cây thư mục khi cần.
+ */
+export function Workspace({
+  channel,
+  onSwitch,
+}: {
+  channel: string | null;
+  onSwitch: (dir: string) => void;
+}) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [video, setVideo] = useState<string>();
   const [state, setState] = useState<VideoStateSummary>();
@@ -30,6 +43,11 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
   const [settings, setSettings] = useState(false);
   const [channelSettings, setChannelSettings] = useState(false);
+  // 048: quản lý kênh, lịch sử phiên, chi tiết kênh (cây thư mục)
+  const [manage, setManage] = useState(false);
+  const [history, setHistory] = useState<{ initial?: SessionRow } | null>(null);
+  const [details, setDetails] = useState(false);
+  const [tick, setTick] = useState(0);
   // độ rộng cột kéo được (nhớ theo máy)
   const root = useRef<HTMLDivElement>(null);
   const total = () => root.current?.clientWidth ?? window.innerWidth;
@@ -47,8 +65,15 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   }, []);
 
   const reload = useCallback(async () => {
+    if (!channel) return;
     setVideos((await core.call('video.list', { channel })).videos);
     setTree(await core.call('explorer.tree', { channel }));
+  }, [channel]);
+  // đổi kênh → bỏ video đang mở
+  useEffect(() => {
+    setVideo(undefined);
+    setState(undefined);
+    setExternal([]);
   }, [channel]);
 
   useEffect(() => {
@@ -60,13 +85,18 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
       core.on('file.external_change', (d) => {
         if (d.video === video) setExternal((x) => [...new Set([...x, d.path])]);
       }),
+      // lịch sử phiên ở sidebar cập nhật khi agent trả lời xong / bước đổi trạng thái
+      core.on('chat.event', (e) => {
+        if (e.type === 'done') setTick((t) => t + 1);
+      }),
+      core.on('workflow.notice', () => setTick((t) => t + 1)),
     ];
     // Phím tắt: Ctrl+1..5 chuyển tab, Ctrl+R render nháp (FN-008 mục 5)
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey) return;
       const n = Number(e.key);
       if (n >= 1 && n <= TABS.length) setTab(TABS[n - 1]!);
-      if (e.key.toLowerCase() === 'r' && video) {
+      if (e.key.toLowerCase() === 'r' && video && channel) {
         e.preventDefault();
         void core.call('render.start', { channel, video, mode: 'draft' });
       }
@@ -79,6 +109,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   }, [channel, video, reload]);
 
   const openVideo = async (id: string) => {
+    if (!channel) return;
     setVideo(id);
     setState((await core.call('video.open', { channel, video: id })).state);
   };
@@ -86,6 +117,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [creating, setCreating] = useState<string | null>(null);
   const [createErr, setCreateErr] = useState('');
   const newVideo = async () => {
+    if (!channel) return;
     try {
       const title = (creating ?? '').trim();
       const { video_id } = await core.call('video.create', {
@@ -100,8 +132,10 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
       setCreateErr((e as Error).message);
     }
   };
-  const view = async (p: string) =>
+  const view = async (p: string) => {
+    if (!channel) return;
     setFile({ path: p, ...(await core.call('explorer.read', { channel, path: p })) });
+  };
 
   return (
     <div
@@ -114,19 +148,14 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
       }
     >
       <aside className="left">
-        <div className="row">
-          <button className="link" onClick={onClose} title="Về trang chủ">
-            ←
-          </button>
-          <b title={channel}>{channel.split(/[\\/]/).pop()}</b>
-          <button
-            className="link"
-            data-testid="open-channel-settings"
-            onClick={() => setChannelSettings(true)}
-            title="Cài đặt kênh (Autopilot, đối thủ, lịch đăng)"
-          >
-            Kênh
-          </button>
+        <div className="row sidebar-head">
+          <ChannelSwitcher
+            channel={channel}
+            refreshKey={tick}
+            onSwitch={onSwitch}
+            onManage={() => setManage(true)}
+            onChannelSettings={() => setChannelSettings(true)}
+          />
           <button className="link" onClick={() => setSettings(true)} title="Cài đặt app">
             ⚙
           </button>
@@ -140,17 +169,19 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             </button>
           </p>
         )}
-        <h3>Video</h3>
-        <ul className="list" data-testid="video-list">
-          {videos.map((v) => (
-            <li key={v.id} className={v.id === video ? 'active' : ''}>
-              <button className="link" onClick={() => void openVideo(v.id)}>
-                {v.title} <span className="muted">({v.phase})</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {creating === null ? (
+        {channel && <h3>Video</h3>}
+        {channel && (
+          <ul className="list" data-testid="video-list">
+            {videos.map((v) => (
+              <li key={v.id} className={v.id === video ? 'active' : ''}>
+                <button className="link" onClick={() => void openVideo(v.id)}>
+                  {v.title} <span className="muted">({v.phase})</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!channel ? null : creating === null ? (
           <button data-testid="new-video" onClick={() => setCreating('')}>
             + Video mới
           </button>
@@ -175,16 +206,26 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             {createErr && <div className="error">{createErr}</div>}
           </div>
         )}
-        <h3>Explorer</h3>
-        <div className="explorer" data-testid="explorer">
-          {tree && (
-            <Tree
-              node={tree}
-              onOpen={(p) => void view(p)}
-              onReveal={(p) => void window.studioflow.openPath(`${channel}/${p}`)}
+        {channel && (
+          <>
+            <h3>Lịch sử phiên</h3>
+            <RecentSessions
+              channel={channel}
+              videos={videos}
+              refreshKey={tick}
+              onOpen={(s) => setHistory(s ? { initial: s } : {})}
             />
-          )}
-        </div>
+            <div className="sidebar-foot">
+              <button
+                className="link"
+                data-testid="open-channel-details"
+                onClick={() => setDetails(true)}
+              >
+                Chi tiết kênh (thư mục, tệp)…
+              </button>
+            </div>
+          </>
+        )}
       </aside>
       <Splitter
         side="left"
@@ -194,23 +235,35 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
         onReset={() => setWidths(clampWidths({ ...widths, left: DEFAULT_WIDTHS.left }, total()))}
       />
       <section className="center">
-        <header className="video-head">
-          <b>{video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}</b>
-          {state && (
-            <span className="muted">
-              {' '}
-              · {state.phase} · {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
-              {state.budget.api_cost_usd.toFixed(2)}
-            </span>
-          )}
-        </header>
-        <Chat
-          key={`${channel}|${video ?? ''}`}
-          channel={channel}
-          video={video}
-          onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
-          onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
-        />
+        {!channel ? (
+          <div className="empty-state" data-testid="no-channel">
+            <h2>Chào mừng đến StudioFlow</h2>
+            <p>Thêm thư mục kênh có sẵn hoặc tạo kênh mới để bắt đầu.</p>
+            <button className="primary" onClick={() => setManage(true)}>
+              Thêm hoặc tạo kênh…
+            </button>
+          </div>
+        ) : (
+          <>
+            <header className="video-head">
+              <b>{video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}</b>
+              {state && (
+                <span className="muted">
+                  {' '}
+                  · {state.phase} · {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
+                  {state.budget.api_cost_usd.toFixed(2)}
+                </span>
+              )}
+            </header>
+            <Chat
+              key={`${channel}|${video ?? ''}`}
+              channel={channel}
+              video={video}
+              onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
+              onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
+            />
+          </>
+        )}
       </section>
       <Splitter
         side="right"
@@ -228,20 +281,79 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
           ))}
         </nav>
         <div className="tab-body">
-          {tab === 'Tiến độ' && (
+          {channel && tab === 'Tiến độ' && (
             <ProgressTab channel={channel} video={video} state={state} onState={setState} />
           )}
-          {tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
-          {tab === 'Job' && <JobsTab video={video} />}
-          {tab === 'Nhạc' && <MusicTab channel={channel} />}
-          {tab === 'Trace' && <TraceTab video={video} />}
-          {tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
+          {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
+          {channel && tab === 'Job' && <JobsTab video={video} />}
+          {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
+          {channel && tab === 'Trace' && <TraceTab video={video} />}
+          {channel && tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
         </div>
       </aside>
-      {file && <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />}
-      {settings && <Settings channel={channel} onClose={() => setSettings(false)} />}
-      {channelSettings && (
-        <ChannelSettings channel={channel} onClose={() => setChannelSettings(false)} />
+      {details && channel && (
+        <div className="modal" onClick={() => setDetails(false)}>
+          <div
+            className="card channel-details"
+            role="dialog"
+            aria-label="Chi tiết kênh"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>Chi tiết kênh</h2>
+            <p className="muted">{channel}</p>
+            <div className="explorer" data-testid="explorer">
+              {tree && (
+                <Tree
+                  node={tree}
+                  onOpen={(p) => void view(p)}
+                  onReveal={(p) => void window.studioflow.openPath(`${channel}/${p}`)}
+                />
+              )}
+            </div>
+            <div className="row">
+              <button onClick={() => void window.studioflow.openPath(channel)}>
+                Mở thư mục trong Windows
+              </button>
+              <button onClick={() => setDetails(false)}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {file && channel && (
+        <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />
+      )}
+      {settings && (
+        <Settings {...(channel ? { channel } : {})} onClose={() => setSettings(false)} />
+      )}
+      {channelSettings && channel && (
+        <ChannelSettings
+          channel={channel}
+          onClose={() => {
+            setChannelSettings(false);
+            // bộ chọn kênh hiện đúng chế độ Autopilot/Manual mới
+            setTick((t) => t + 1);
+          }}
+        />
+      )}
+      {manage && (
+        <ChannelsOverview
+          onOpen={(dir) => {
+            setManage(false);
+            onSwitch(dir);
+          }}
+          onClose={() => {
+            setManage(false);
+            setTick((t) => t + 1);
+          }}
+        />
+      )}
+      {history && channel && (
+        <SessionHistory
+          channel={channel}
+          videos={videos}
+          {...(history.initial ? { initial: history.initial } : {})}
+          onClose={() => setHistory(null)}
+        />
       )}
     </div>
   );

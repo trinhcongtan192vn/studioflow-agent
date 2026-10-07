@@ -42,6 +42,7 @@ import {
   setChannelAutopilot,
 } from '../autopilot/index.js';
 import { getSecretDefault } from '../secrets/credman.js';
+import { getSession, listSessions } from '../agent/session-log.js';
 import { YOUTUBE_SECRET } from '../youtube/index.js';
 
 interface OpenSession {
@@ -509,6 +510,20 @@ export class CoreHost extends EventEmitter {
         return resolveYouTubeChannel(String(p.input), {
           apiKey: getSecretDefault(YOUTUBE_SECRET),
         });
+      case 'sessions.list':
+        return {
+          sessions: listSessions(this.store(p.channel), c.db, {
+            ...(p.video ? { video: String(p.video) } : {}),
+            ...(p.limit ? { limit: Number(p.limit) } : {}),
+          }),
+        };
+      case 'sessions.get':
+        return {
+          lines: getSession(this.store(p.channel), c.db, {
+            id: String(p.id),
+            ...(p.video ? { video: String(p.video) } : {}),
+          }),
+        };
       case 'channel.list_recent':
         return { channels: this.settings().recent_channels };
       case 'video.list':

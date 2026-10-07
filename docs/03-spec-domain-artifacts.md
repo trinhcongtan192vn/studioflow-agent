@@ -424,6 +424,8 @@ Tiêu đề, mô tả, thẻ, chương cho YouTube (bước `publish-meta`, D6).
 
 `notice` (041): dòng do app ghi khi bước workflow đổi trạng thái — `{event: 'started'|'done'|'waiting'|'failed'|'finished', step_id, step_title, position: [i, n], next?: {id, title}, auto_approved?, approval_id?, outputs?, error?}`; `role` là `assistant`, `content` là câu báo tình trạng. Giao diện vẽ dòng này thành thẻ có nút hành động (xem kết quả, Duyệt, Kiểm tra lại/Chạy lại, Xem video).
 
+
+**Nhật ký phiên con (048, FR-AP-14):** phiên agent không phải `main` (frame, producer, critic…) ghi cùng định dạng dòng vào `videos/<vd>/sessions/<session_id>.jsonl` (kênh: `sessions/`); dòng đầu `role: system` có `session: {id, kind, video_id?, frame_id?}`; dòng `tool` có thêm `tool.ok`; dòng kết thúc có `usage: {input_tokens, output_tokens}`. Chỉ ghi thêm, không qua build graph, không bị dọn đĩa (nhật ký kiểm tra).
 ## 6. `channel.json` và `settings.json`
 
 Mọi giá trị cấu hình (ở mọi tầng) lưu dưới dạng **map phẳng theo khóa cấu hình** (mục 7.2) — một biểu diễn duy nhất, không có tên trường riêng theo file.

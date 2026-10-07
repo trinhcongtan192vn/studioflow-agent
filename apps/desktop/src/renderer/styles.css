@@ -1057,3 +1057,110 @@ body.resizing iframe {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* 048: giao diện chính — bộ chọn kênh, lịch sử phiên, chi tiết kênh */
+.sidebar-head {
+  align-items: flex-start;
+}
+.channel-switcher {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.switcher-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.switcher-head b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.switcher-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: -32px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+.switcher-menu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  width: 100%;
+}
+.switcher-menu li.active button {
+  font-weight: 600;
+}
+.badge.on {
+  background: #dff3e6;
+  color: #1f6b3a;
+}
+.recent-sessions .list li button {
+  text-align: left;
+  font-size: 12px;
+}
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.empty-state {
+  margin: auto;
+  max-width: 420px;
+  text-align: center;
+  padding: 48px 16px;
+}
+.modal .card.session-history {
+  width: min(1100px, 92vw);
+  height: min(760px, 88vh);
+  display: flex;
+  flex-direction: column;
+}
+.session-split {
+  display: grid;
+  grid-template-columns: minmax(240px, 34%) 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+.session-list,
+.session-view {
+  overflow: auto;
+  min-height: 0;
+}
+.session-list li.active {
+  background: var(--user);
+  border-radius: 4px;
+}
+.session-list h4 {
+  margin: 8px 0 4px;
+  color: var(--muted);
+}
+.modal .card.channel-details {
+  width: min(720px, 90vw);
+  max-height: 85vh;
+  overflow: auto;
+}
+.modal .card.channels-overview,
+.modal .card.channel-settings {
+  width: min(760px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+}

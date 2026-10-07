@@ -22,9 +22,13 @@ export interface ChatLine {
   ts: string;
   role: 'user' | 'assistant' | 'tool' | 'system';
   content: string;
-  tool?: { name: string; input?: unknown; output_summary?: string };
+  tool?: { name: string; input?: unknown; output_summary?: string; ok?: boolean };
   /** Thông báo workflow do app đăng (041): giao diện vẽ thẻ có nút hành động. */
   notice?: WorkflowNotice;
+  /** Dòng đầu nhật ký phiên con (048): loại phiên, video/frame. */
+  session?: { id: string; kind: string; video_id?: string; frame_id?: string };
+  /** Token của lượt (dòng kết thúc phiên con, 048). */
+  usage?: { input_tokens: number; output_tokens: number };
 }
 
 export interface ExplorerNode {
@@ -92,6 +96,29 @@ export interface IpcMethods {
       subscribers: number | null;
       videos: number | null;
     };
+  };
+  /** Nhật ký phiên agent (048, FR-AP-14): chat chính, phiên con, phiên chỉ còn trace — mới trước. */
+  'sessions.list': {
+    params: ChannelRef & { video?: string; limit?: number };
+    result: {
+      sessions: {
+        id: string;
+        kind: string;
+        source: 'chat' | 'session' | 'trace';
+        video?: string;
+        frame_id?: string;
+        title: string;
+        started_at: string;
+        ended_at?: string;
+        lines: number;
+        error?: string;
+        tokens?: number;
+      }[];
+    };
+  };
+  'sessions.get': {
+    params: ChannelRef & { id: string; video?: string };
+    result: { lines: ChatLine[] };
   };
   'channel.list_recent': {
     params: Record<string, never>;
