@@ -200,6 +200,9 @@ describe('ops session policy (D5 mục 4)', () => {
         'ops.channels',
         'ops.log',
         'ops.sessions',
+        'publish.cancel',
+        'publish.now',
+        'publish.status',
         'research.get',
       ].sort(),
     );
