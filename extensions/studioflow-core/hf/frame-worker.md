@@ -26,6 +26,7 @@ Rút gọn từ hợp đồng frame worker của HyperFrames v0.8.115 (`skills/h
 - Hé lộ dần theo nhịp lời đọc suốt thời lượng, không dồn hết vào đầu; nhân vật chính hiện trước 0,5 s; dùng `fromTo` cho xuất hiện.
 - **Không có hiệu ứng thoát** (transition giữa frame do app chèn); giữ khung cuối tới hết `duration`.
 - Không đặt CSS `transform` lên phần tử mà GSAP sẽ animate transform.
+- **Không animate `autoAlpha`, `visibility` hay `display` trên phần tử `class="clip"`** — HyperFrames tự quản lý hiển thị của clip (`gsap_animates_clip_element`). Hiện/ẩn dần bằng `opacity`, hoặc animate một phần tử con không phải clip.
 - Tôn trọng `rules` (dải caption, vùng an toàn, font).
 - Tương phản chữ/nền đạt WCAG AA (≥ 4,5:1 chữ thường, ≥ 3:1 chữ lớn) ở mọi thời điểm — `hyperframes check` kiểm và frame sẽ bị gửi lại nếu không đạt.
 - Asset thiếu → vẽ bằng code (SVG/HTML/CSS: hình khối, biểu đồ, bản đồ cách điệu, chữ lớn).

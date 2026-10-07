@@ -3,6 +3,7 @@ import path from 'node:path';
 import { SfError } from '../errors.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
 import { checkTimeoutMs, hfCheck, runHf } from '../hf/cli.js';
+import { fixVideoFrames } from '../hf/clip-fix.js';
 import { renderVideo } from '../render/render.js';
 import { createScratchDir } from '../store/scratch.js';
 import type { StepRunContext } from './engine.js';
@@ -49,6 +50,20 @@ export function finalizeExecutor(builders: BuilderRegistry) {
     });
     if (r.status !== 'succeeded')
       throw new SfError('E_GATE_FAILED', `build: ${failedNodes(r) || r.status}`);
+    // 058: autoAlpha trên phần tử clip (frame cũ / sau hoàn thiện) → opacity, ghi nhận lại rồi lắp lại index
+    const fixedFrames = fixVideoFrames(ctx.store, ctx.videoId);
+    if (fixedFrames.length) {
+      graph.markBuilt(
+        ctx.videoId,
+        fixedFrames.map((id) => `frame_html:${id}`),
+        { contentOnly: true },
+      );
+      const again = await graph.build(ctx.videoId, {
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
+      });
+      if (again.status !== 'succeeded')
+        throw new SfError('E_GATE_FAILED', `build: ${failedNodes(again) || again.status}`);
+    }
     const videoDir = ctx.store.abs(v);
     const frames = existsSync(path.join(videoDir, 'compositions', 'frames'))
       ? readdirSync(path.join(videoDir, 'compositions', 'frames')).map((f) =>

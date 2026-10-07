@@ -1,0 +1,702 @@
+{
+  "request": {
+    "history": [
+      "# Vai: frame worker (StudioFlow)\n\nRút gọn từ hợp đồng frame worker của HyperFrames v0.8.115 (`skills/hyperframes/references/frame-worker-core.md`, Apache-2.0), cộng quy tắc StudioFlow. Bạn dựng **đúng một frame** thành sub-composition HyperFrames. Không làm gì khác.\n\n## Đầu vào\n- **Frame packet** (JSON bên dưới): `frame` (intent, layers, blueprint, transition_in), `scene`, `lines` (lời đọc — chỉ để canh nhịp, KHÔNG hiển thị thành chữ), `timing.duration_ms` (thời lượng cố định), `assets` (file trong `public/` dùng được), `rules`, `output_path`.\n- **frame.md**: design system của kênh (màu, chữ, bố cục). Lấy mọi token hình ảnh từ đây; không lấy chữ trong frame.md làm nội dung.\n\n## Đầu ra — một file `output_path`\n- Toàn bộ file là **một** `<template>…</template>`: byte đầu tiên là `<template`, cuối cùng là `</template>`. Không `<!doctype>`, `<html>`, `<head>`, `<body>`.\n- Mọi `<style>` và `<script>` (kể cả nạp GSAP `https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js`) nằm **trong** template.\n- Phần tử gốc: `<div id=\"root\" data-composition-id=\"<frame_id>\" data-width=\"<W>\" data-height=\"<H>\" data-start=\"0\" data-duration=\"<duration giây>\">`. Định dạng gốc bằng `#root`, **không** đặt class lên phần tử gốc.\n- Nền tràn khung là một phần tử `class=\"clip\"` riêng chạy suốt thời lượng, không đặt `background` lên `#root`.\n- Mỗi phần tử có thời gian: `class=\"clip\"` + `data-start` + `data-duration` + `data-track-index`.\n- Đúng một timeline: `window.__timelines = window.__timelines || {}; const tl = gsap.timeline({ paused: true }); … window.__timelines[\"<frame_id>\"] = tl;` dựng đồng bộ.\n- Chỉ logic tất định: không `Date.now()`, `Math.random()`, fetch, CSS transition, `repeat`/`yoyo`.\n- Không `<audio>`/`<video>` có tiếng: âm thanh do app lắp ở index.\n\n## `data-sf-id` (bắt buộc)\n- Mỗi `layers[].id` trong packet là `data-sf-id` của **đúng một** phần tử tương ứng (layer `text` → phần tử chữ, `background` → lớp nền, `image` → `<img src=\"public/…\">` từ `assets`…).\n- Phần tử phụ trợ bạn tự thêm mà người dùng có thể muốn chỉnh (chữ, hình chính): đặt `data-sf-id=\"el_<8 ký tự 0-9a-z>\"` mới, không trùng, và liệt kê trong `new_element_ids` khi báo xong.\n- Tiền tố id/class tự đặt bằng `<frame_id>-` để không đụng frame khác.\n\n## Dựng hình\n- Bám `intent` và `layers`; chữ trên hình là chữ ngắn kiểu motion graphics (từ khóa, con số), không chép câu thoại — caption đã hiện lời đọc.\n- Hé lộ dần theo nhịp lời đọc suốt thời lượng, không dồn hết vào đầu; nhân vật chính hiện trước 0,5 s; dùng `fromTo` cho xuất hiện.\n- **Không có hiệu ứng thoát** (transition giữa frame do app chèn); giữ khung cuối tới hết `duration`.\n- Không đặt CSS `transform` lên phần tử mà GSAP sẽ animate transform.\n- **Không animate `autoAlpha`, `visibility` hay `display` trên phần tử `class=\"clip\"`** — HyperFrames tự quản lý hiển thị của clip (`gsap_animates_clip_element`). Hiện/ẩn dần bằng `opacity`, hoặc animate một phần tử con không phải clip.\n- Tôn trọng `rules` (dải caption, vùng an toàn, font).\n- Tương phản chữ/nền đạt WCAG AA (≥ 4,5:1 chữ thường, ≥ 3:1 chữ lớn) ở mọi thời điểm — `hyperframes check` kiểm và frame sẽ bị gửi lại nếu không đạt.\n- Asset thiếu → vẽ bằng code (SVG/HTML/CSS: hình khối, biểu đồ, bản đồ cách điệu, chữ lớn).\n\n## Cách làm\n1. Đọc packet và frame.md (đã có bên dưới — không cần mở file khác).\n2. Viết file bằng `artifact.write` (`path` = `output_path`). Viết lại để sửa thì lần ghi cuối có hiệu lực.\n3. Tự kiểm theo danh sách trên, rồi gọi `workflow.step_complete` như phần Nhiệm vụ. Không chạy lệnh, không sửa file khác.\n\n\n# Nhiệm vụ\nDựng frame `fr_9x2b7cqe` của video `vd_8m2pq7rt`. Ghi đúng một file `compositions/frames/fr_9x2b7cqe.html` bằng tool artifact.write, rồi gọi workflow.step_complete với {\"step_id\": \"frames\", \"frame_id\": \"fr_9x2b7cqe\", \"outputs\": [\"compositions/frames/fr_9x2b7cqe.html\"], \"new_element_ids\": [<data-sf-id phụ đã thêm>]}.\n\n# Frame packet\n```json\n{\n  \"video_id\": \"vd_8m2pq7rt\",\n  \"frame\": {\n    \"id\": \"fr_9x2b7cqe\",\n    \"beat_ids\": [\n      \"bt_4nd8w1zc\"\n    ],\n    \"line_ids\": [\n      \"ln_2r7c4kxm\",\n      \"ln_9w3b6tqa\"\n    ],\n    \"blueprint\": \"title-over-map\",\n    \"intent\": \"Bản đồ Đại Việt hiện dần, chữ năm 1428 trượt vào\",\n    \"layers\": [\n      {\n        \"id\": \"el_t5w8n3ja\",\n        \"kind\": \"background\",\n        \"asset_request\": {\n          \"source\": \"generate\",\n          \"prompt\": \"bản đồ cổ Đại Việt, giấy dó\",\n          \"aspect\": \"16:9\"\n        },\n        \"asset_id\": \"as_6khlz5hs\"\n      },\n      {\n        \"id\": \"el_q2k7m4zp\",\n        \"kind\": \"text\",\n        \"text\": \"1428\"\n      }\n    ],\n    \"transition_in\": {\n      \"type\": \"crossfade\",\n      \"duration_ms\": 600\n    },\n    \"config\": {\n      \"look.id\": \"frame-look\"\n    },\n    \"scene_id\": \"sc_p0q2m5ka\",\n    \"order\": 0\n  },\n  \"scene\": {\n    \"id\": \"sc_p0q2m5ka\",\n    \"title\": \"Kinh thành Thăng Long\",\n    \"mood\": \"trang nghiêm\",\n    \"look\": \"warm-archive\",\n    \"music\": {\n      \"query\": \"trang nghiêm, chậm, đàn tranh\",\n      \"volume_db\": -18\n    },\n    \"config\": {\n      \"look.id\": \"scene-look\"\n    },\n    \"order\": 0,\n    \"frame_ids\": [\n      \"fr_9x2b7cqe\",\n      \"fr_3m8k1w7d\"\n    ]\n  },\n  \"lines\": [\n    {\n      \"id\": \"ln_2r7c4kxm\",\n      \"speaker\": \"narrator\",\n      \"emotion\": \"calm\",\n      \"pause_after_ms\": 300,\n      \"beat_id\": \"bt_4nd8w1zc\",\n      \"order\": 0,\n      \"text\": \"Năm 1428, Lê Lợi lên ngôi.\",\n      \"tts_text\": \"Năm một nghìn bốn trăm hai mươi tám, Lê Lợi lên ngôi.\"\n    },\n    {\n      \"id\": \"ln_9w3b6tqa\",\n      \"speaker\": \"ca_a7f2k9wd\",\n      \"direction\": \"giọng run\",\n      \"beat_id\": \"bt_4nd8w1zc\",\n      \"order\": 1,\n      \"text\": \"Bệ hạ…\"\n    }\n  ],\n  \"timing\": {\n    \"start_ms\": 0,\n    \"duration_ms\": 3840\n  },\n  \"design_system\": \"frame.md\",\n  \"assets\": [\n    {\n      \"asset_id\": \"as_6khlz5hs\",\n      \"file\": \"public/as_6khlz5hs.png\",\n      \"width\": 1664,\n      \"height\": 928,\n      \"alpha\": false\n    }\n  ],\n  \"output_path\": \"compositions/frames/fr_9x2b7cqe.html\",\n  \"rules\": [\n    \"Canvas 1920×1080; vùng an toàn 5% mỗi cạnh.\",\n    \"Dải caption: mọi nội dung nằm trên y ≤ 896px (17% dưới dành cho caption).\",\n    \"Ngôn ngữ chữ trên hình: vi. Chỉ dùng font-family chung (sans-serif, serif, system-ui, monospace) — không đặt tên font không có file.\",\n    \"Thời lượng frame 3.840 s; mọi clip kéo tới hết thời lượng.\"\n  ]\n}\n```\n\n# frame.md (design system)\n---\nschema_version: 1\ngenerated_from: \"2200000000000000000000000000000000000000000000000000000000000000\"\n---\n# Design system\n\n(Sinh từ profile/ — định dạng HyperFrames [chờ S3].)\n"
+    ],
+    "kind": "frame",
+    "model": "claude-sonnet-5-5",
+    "plugins": ["studioflow-core", "profile"],
+    "systemAppend": "Bạn là agent sản xuất video của StudioFlow. Quy tắc:\n1. Chỉ ghi file qua tool mcp__sf__artifact_write; chỉ chạy lệnh qua mcp__sf__script_run. Không cố dùng cách khác.\n2. Làm theo workflow hiện tại (xem mcp__sf__workflow_state). Khi xong một bước do bạn thực hiện, gọi mcp__sf__workflow_step_complete.\n3. Không tự duyệt thay người dùng. Điểm duyệt do hệ thống tạo; bạn chỉ gắn tóm tắt bằng mcp__sf__approval_annotate.\n4. Dùng capability theo tên, không nhắc tên model.\n5. Không sửa file của frame đã ghim nếu chưa được người dùng cho phép.\n6. Trả lời người dùng bằng ngôn ngữ của họ; nội dung video theo ngôn ngữ kênh.\n7. Khi thiếu thông tin, hỏi ngắn gọn thay vì đoán.\nĐường dẫn trong tool sf là tương đối thư mục video hiện tại (ví dụ SCRIPT.md).\nChỉ ghi file compositions/frames/fr_9x2b7cqe.html. Giữ mọi data-sf-id của frame packet."
+  },
+  "response": [
+    {
+      "type": "tool_call",
+      "id": "toolu_01PwmbTXiHBmn3yzeDGMgT11",
+      "name": "ToolSearch",
+      "input": {
+        "query": "select:mcp__sf__artifact_write,mcp__sf__workflow_step_complete",
+        "max_results": 2
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01PwmbTXiHBmn3yzeDGMgT11",
+      "ok": true,
+      "summary": ""
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_012rnyFat5T7JDpzLGoq97S6",
+      "name": "mcp__sf__artifact_write",
+      "input": {
+        "path": "compositions/frames/fr_9x2b7cqe.html",
+        "content": "<template>\n<style>\n  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: serif; }\n  .fr_9x2b7cqe-fill { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }\n  .fr_9x2b7cqe-base { background: #2a1b10; }\n  .fr_9x2b7cqe-img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; }\n  .fr_9x2b7cqe-wash { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: linear-gradient(180deg, rgba(42,27,16,0.15) 0%, rgba(42,27,16,0.35) 100%); }\n  .fr_9x2b7cqe-box { position: absolute; left: 500px; top: 350px; width: 920px; height: 300px; }\n  .fr_9x2b7cqe-panel { position: absolute; left: 0; top: 0; width: 920px; height: 300px; background: rgba(32,20,11,0.88); border: 4px solid #c9a24b; box-sizing: border-box; }\n  .fr_9x2b7cqe-year { position: absolute; left: 0; top: 0; width: 920px; height: 300px; display: flex; align-items: center; justify-content: center; font-family: serif; font-weight: 700; font-size: 220px; letter-spacing: 8px; color: #f6e8c8; }\n  .fr_9x2b7cqe-rule { position: absolute; left: 500px; top: 690px; width: 920px; height: 6px; }\n  .fr_9x2b7cqe-rule-bar { width: 920px; height: 6px; background: #c9a24b; transform-origin: 0 50%; }\n</style>\n<div id=\"root\" data-composition-id=\"fr_9x2b7cqe\" data-width=\"1920\" data-height=\"1080\" data-start=\"0\" data-duration=\"3.84\">\n  <div class=\"clip fr_9x2b7cqe-fill fr_9x2b7cqe-base\" data-start=\"0\" data-duration=\"3.84\" data-track-index=\"0\"></div>\n  <div class=\"clip fr_9x2b7cqe-fill\" data-sf-id=\"el_t5w8n3ja\" data-start=\"0\" data-duration=\"3.84\" data-track-index=\"1\">\n    <img class=\"fr_9x2b7cqe-img\" id=\"fr_9x2b7cqe-img\" src=\"public/as_6khlz5hs.png\" alt=\"\">\n    <div class=\"fr_9x2b7cqe-wash\"></div>\n  </div>\n  <div class=\"clip fr_9x2b7cqe-box\" data-start=\"0\" data-duration=\"3.84\" data-track-index=\"2\">\n    <div class=\"fr_9x2b7cqe-panel\" id=\"fr_9x2b7cqe-panel\"></div>\n    <div class=\"fr_9x2b7cqe-year\" data-sf-id=\"el_q2k7m4zp\" id=\"fr_9x2b7cqe-year\">1428</div>\n  </div>\n  <div class=\"clip fr_9x2b7cqe-rule\" data-start=\"0\" data-duration=\"3.84\" data-track-index=\"3\">\n    <div class=\"fr_9x2b7cqe-rule-bar\" id=\"fr_9x2b7cqe-rule\"></div>\n  </div>\n</div>\n<script src=\"https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js\"></script>\n<script>\n  window.__timelines = window.__timelines || {};\n  const tl = gsap.timeline({ paused: true });\n  tl.fromTo(\"#fr_9x2b7cqe-img\", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 1.4, ease: \"power2.out\" }, 0);\n  tl.to(\"#fr_9x2b7cqe-img\", { scale: 1.03, duration: 2.44, ease: \"none\" }, 1.4);\n  tl.fromTo(\"#fr_9x2b7cqe-panel\", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: \"power1.out\" }, 0.3);\n  tl.fromTo(\"#fr_9x2b7cqe-year\", { x: -160, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: \"power3.out\" }, 0.3);\n  tl.fromTo(\"#fr_9x2b7cqe-rule\", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: \"power2.inOut\" }, 1.1);\n  window.__timelines[\"fr_9x2b7cqe\"] = tl;\n</script>\n</template>\n"
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_012rnyFat5T7JDpzLGoq97S6",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{\"hash\":\"af322e9ff6188a5d90481b33f90539acfcb661cc10a4de6fe6add2689238bddc\"}}"
+    },
+    {
+      "type": "tool_call",
+      "id": "toolu_01GnCz7krA7NekzayH5Px9gs",
+      "name": "mcp__sf__workflow_step_complete",
+      "input": {
+        "step_id": "frames",
+        "frame_id": "fr_9x2b7cqe",
+        "outputs": ["compositions/frames/fr_9x2b7cqe.html"],
+        "new_element_ids": []
+      }
+    },
+    {
+      "type": "tool_result",
+      "id": "toolu_01GnCz7krA7NekzayH5Px9gs",
+      "ok": true,
+      "summary": "{\"ok\":true,\"data\":{}}"
+    },
+    {
+      "type": "text_delta",
+      "text": "Fr"
+    },
+    {
+      "type": "text_delta",
+      "text": "ame `fr_9x2"
+    },
+    {
+      "type": "text_delta",
+      "text": "b7cqe` đã"
+    },
+    {
+      "type": "text_delta",
+      "text": " dựng x"
+    },
+    {
+      "type": "text_delta",
+      "text": "ong và ghi v"
+    },
+    {
+      "type": "text_delta",
+      "text": "ào `compositions/frames"
+    },
+    {
+      "type": "text_delta",
+      "text": "/fr_9x2b"
+    },
+    {
+      "type": "text_delta",
+      "text": "7cqe.html`."
+    },
+    {
+      "type": "text_delta",
+      "text": " M"
+    },
+    {
+      "type": "text_delta",
+      "text": "ình"
+    },
+    {
+      "type": "text_delta",
+      "text": " đã bá"
+    },
+    {
+      "type": "text_delta",
+      "text": "o h"
+    },
+    {
+      "type": "text_delta",
+      "text": "oàn t"
+    },
+    {
+      "type": "text_delta",
+      "text": "ất bước `frames`."
+    },
+    {
+      "type": "text_delta",
+      "text": " M"
+    },
+    {
+      "type": "text_delta",
+      "text": "ình chưa ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ạy `hyperframes"
+    },
+    {
+      "type": "text_delta",
+      "text": " check`"
+    },
+    {
+      "type": "text_delta",
+      "text": " h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ay d"
+    },
+    {
+      "type": "text_delta",
+      "text": "ự"
+    },
+    {
+      "type": "text_delta",
+      "text": "ng th"
+    },
+    {
+      "type": "text_delta",
+      "text": "ử, n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ưa k"
+    },
+    {
+      "type": "text_delta",
+      "text": "iểm thực"
+    },
+    {
+      "type": "text_delta",
+      "text": " tế được"
+    },
+    {
+      "type": "text_delta",
+      "text": " t"
+    },
+    {
+      "type": "text_delta",
+      "text": "ương phản h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ay việ"
+    },
+    {
+      "type": "text_delta",
+      "text": "c "
+    },
+    {
+      "type": "text_delta",
+      "text": "ảnh n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ền có n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ạp đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "úng.\n\n- **N"
+    },
+    {
+      "type": "text_delta",
+      "text": "ền:"
+    },
+    {
+      "type": "text_delta",
+      "text": "** một cl"
+    },
+    {
+      "type": "text_delta",
+      "text": "ip nền riêng ("
+    },
+    {
+      "type": "text_delta",
+      "text": "`el_t5w8n"
+    },
+    {
+      "type": "text_delta",
+      "text": "3ja`) chứ"
+    },
+    {
+      "type": "text_delta",
+      "text": "a ảnh `public/"
+    },
+    {
+      "type": "text_delta",
+      "text": "as_6khlz5h"
+    },
+    {
+      "type": "text_delta",
+      "text": "s.png`,"
+    },
+    {
+      "type": "text_delta",
+      "text": " có"
+    },
+    {
+      "type": "text_delta",
+      "text": " l"
+    },
+    {
+      "type": "text_delta",
+      "text": "ớp ph"
+    },
+    {
+      "type": "text_delta",
+      "text": "ủ nhẹ"
+    },
+    {
+      "type": "text_delta",
+      "text": ". Ảnh h"
+    },
+    {
+      "type": "text_delta",
+      "text": "iện dần và th"
+    },
+    {
+      "type": "text_delta",
+      "text": "u từ"
+    },
+    {
+      "type": "text_delta",
+      "text": " "
+    },
+    {
+      "type": "text_delta",
+      "text": "1,08×"
+    },
+    {
+      "type": "text_delta",
+      "text": " về"
+    },
+    {
+      "type": "text_delta",
+      "text": " 1×"
+    },
+    {
+      "type": "text_delta",
+      "text": " trong 1,4 s"
+    },
+    {
+      "type": "text_delta",
+      "text": ", rồi trô"
+    },
+    {
+      "type": "text_delta",
+      "text": "i ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ậm tới h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ết "
+    },
+    {
+      "type": "text_delta",
+      "text": "3,84 s.\n-"
+    },
+    {
+      "type": "text_delta",
+      "text": " **Chữ 1428"
+    },
+    {
+      "type": "text_delta",
+      "text": "**"
+    },
+    {
+      "type": "text_delta",
+      "text": " (`el_q2k7"
+    },
+    {
+      "type": "text_delta",
+      "text": "m4zp`): trượ"
+    },
+    {
+      "type": "text_delta",
+      "text": "t từ"
+    },
+    {
+      "type": "text_delta",
+      "text": " trái v"
+    },
+    {
+      "type": "text_delta",
+      "text": "ào l"
+    },
+    {
+      "type": "text_delta",
+      "text": "úc 0,3 s"
+    },
+    {
+      "type": "text_delta",
+      "text": ", trước m"
+    },
+    {
+      "type": "text_delta",
+      "text": "ốc 0,5 s"
+    },
+    {
+      "type": "text_delta",
+      "text": ". Ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ữ mà"
+    },
+    {
+      "type": "text_delta",
+      "text": "u k"
+    },
+    {
+      "type": "text_delta",
+      "text": "em (#f6e8c"
+    },
+    {
+      "type": "text_delta",
+      "text": "8) n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ằm trên tấm n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ền nâu s"
+    },
+    {
+      "type": "text_delta",
+      "text": "ẫm (#201"
+    },
+    {
+      "type": "text_delta",
+      "text": "409"
+    },
+    {
+      "type": "text_delta",
+      "text": ","
+    },
+    {
+      "type": "text_delta",
+      "text": " độ"
+    },
+    {
+      "type": "text_delta",
+      "text": " đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "ục 88%) có"
+    },
+    {
+      "type": "text_delta",
+      "text": " viền v"
+    },
+    {
+      "type": "text_delta",
+      "text": "àng, n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên tương phản cao d"
+    },
+    {
+      "type": "text_delta",
+      "text": "ù ả"
+    },
+    {
+      "type": "text_delta",
+      "text": "nh b"
+    },
+    {
+      "type": "text_delta",
+      "text": "ản"
+    },
+    {
+      "type": "text_delta",
+      "text": " đồ thế"
+    },
+    {
+      "type": "text_delta",
+      "text": " nào.\n- **Ph"
+    },
+    {
+      "type": "text_delta",
+      "text": "ụ"
+    },
+    {
+      "type": "text_delta",
+      "text": ":"
+    },
+    {
+      "type": "text_delta",
+      "text": "** một đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "ường k"
+    },
+    {
+      "type": "text_delta",
+      "text": "ẻ vàng v"
+    },
+    {
+      "type": "text_delta",
+      "text": "ẽ "
+    },
+    {
+      "type": "text_delta",
+      "text": "ra d"
+    },
+    {
+      "type": "text_delta",
+      "text": "ư"
+    },
+    {
+      "type": "text_delta",
+      "text": "ới t"
+    },
+    {
+      "type": "text_delta",
+      "text": "ấm chữ lúc"
+    },
+    {
+      "type": "text_delta",
+      "text": " 1,1 s."
+    },
+    {
+      "type": "text_delta",
+      "text": " Đây là tr"
+    },
+    {
+      "type": "text_delta",
+      "text": "ang tr"
+    },
+    {
+      "type": "text_delta",
+      "text": "í n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên không g"
+    },
+    {
+      "type": "text_delta",
+      "text": "ắ"
+    },
+    {
+      "type": "text_delta",
+      "text": "n `data-sf-id"
+    },
+    {
+      "type": "text_delta",
+      "text": "`, và `new_element_"
+    },
+    {
+      "type": "text_delta",
+      "text": "ids` để"
+    },
+    {
+      "type": "text_delta",
+      "text": " r"
+    },
+    {
+      "type": "text_delta",
+      "text": "ỗng.\n- **"
+    },
+    {
+      "type": "text_delta",
+      "text": "Giới"
+    },
+    {
+      "type": "text_delta",
+      "text": " hạn:** không có h"
+    },
+    {
+      "type": "text_delta",
+      "text": "iệu ứng tho"
+    },
+    {
+      "type": "text_delta",
+      "text": "át, m"
+    },
+    {
+      "type": "text_delta",
+      "text": "ọi clip ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ạy h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ết "
+    },
+    {
+      "type": "text_delta",
+      "text": "3,84 s, n"
+    },
+    {
+      "type": "text_delta",
+      "text": "ội dung nằm tr"
+    },
+    {
+      "type": "text_delta",
+      "text": "ên y ="
+    },
+    {
+      "type": "text_delta",
+      "text": " 696"
+    },
+    {
+      "type": "text_delta",
+      "text": " px ("
+    },
+    {
+      "type": "text_delta",
+      "text": "dưới "
+    },
+    {
+      "type": "text_delta",
+      "text": "ngưỡng 896 "
+    },
+    {
+      "type": "text_delta",
+      "text": "px) và chỉ d"
+    },
+    {
+      "type": "text_delta",
+      "text": "ùng font `"
+    },
+    {
+      "type": "text_delta",
+      "text": "serif`.\n\n`"
+    },
+    {
+      "type": "text_delta",
+      "text": "frame.md` h"
+    },
+    {
+      "type": "text_delta",
+      "text": "iện chỉ là"
+    },
+    {
+      "type": "text_delta",
+      "text": " b"
+    },
+    {
+      "type": "text_delta",
+      "text": "ản"
+    },
+    {
+      "type": "text_delta",
+      "text": " gi"
+    },
+    {
+      "type": "text_delta",
+      "text": "ữ"
+    },
+    {
+      "type": "text_delta",
+      "text": " ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ỗ, ch"
+    },
+    {
+      "type": "text_delta",
+      "text": "ưa có token mà"
+    },
+    {
+      "type": "text_delta",
+      "text": "u h"
+    },
+    {
+      "type": "text_delta",
+      "text": "ay chữ."
+    },
+    {
+      "type": "text_delta",
+      "text": " V"
+    },
+    {
+      "type": "text_delta",
+      "text": "ì vậy mình t"
+    },
+    {
+      "type": "text_delta",
+      "text": "ự chọn b"
+    },
+    {
+      "type": "text_delta",
+      "text": "ảng màu gi"
+    },
+    {
+      "type": "text_delta",
+      "text": "ấy dó/"
+    },
+    {
+      "type": "text_delta",
+      "text": "v"
+    },
+    {
+      "type": "text_delta",
+      "text": "àng đ"
+    },
+    {
+      "type": "text_delta",
+      "text": "ồng the"
+    },
+    {
+      "type": "text_delta",
+      "text": "o `look"
+    },
+    {
+      "type": "text_delta",
+      "text": ": warm-archive`."
+    },
+    {
+      "type": "text_delta",
+      "text": " Khi design"
+    },
+    {
+      "type": "text_delta",
+      "text": " system có"
+    },
+    {
+      "type": "text_delta",
+      "text": " nội dung th"
+    },
+    {
+      "type": "text_delta",
+      "text": "ật, c"
+    },
+    {
+      "type": "text_delta",
+      "text": "ần đổi các"
+    },
+    {
+      "type": "text_delta",
+      "text": " màu này c"
+    },
+    {
+      "type": "text_delta",
+      "text": "ho kh"
+    },
+    {
+      "type": "text_delta",
+      "text": "ớp."
+    },
+    {
+      "type": "usage",
+      "input_tokens": 8,
+      "output_tokens": 3697,
+      "cost_usd": 0.14836319999999997
+    },
+    {
+      "type": "done",
+      "stop_reason": "end_turn"
+    }
+  ]
+}
