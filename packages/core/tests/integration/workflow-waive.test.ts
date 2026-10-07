@@ -33,6 +33,9 @@ it('a failed audio_duration check is a warning the user can waive; hard failures
   });
   expect(st()).toMatchObject({ status: 'done', waived: ['audio_duration'] });
   expect(notes.length).toBe(calls); // không sinh lại
+  // 046: đã chấp nhận thời lượng ở bước trước → bước sau cùng kiểm (finalize) không hỏi lại
+  await e.idle();
+  expect(e.readState().steps.storyboard).toMatchObject({ status: 'done' });
   // chạy lại bước → miễn trừ mất, cảnh báo quay lại
   await e.rewind('script');
   await e.idle();

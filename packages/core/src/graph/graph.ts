@@ -542,14 +542,17 @@ export class BuildGraph {
         });
       }
     }
-    let frameHtml: string[] = [];
     const framesDir = path.join(model.videoDir, 'compositions', 'frames');
-    if (existsSync(framesDir))
-      frameHtml = readdirSync(framesDir)
-        .sort()
-        .map((f) => `${f}:${model.hashOf(`compositions/frames/${f}`)}`);
-    add('index', ['frame_timing', 'captions', ...frameNodes], {
-      frames_html: frameHtml,
+    // 046: băm file frame lúc băm nút (sau khi nút frame_html trong cùng lần build ghi lại frame),
+    // không lúc bắt đầu build — nếu không index luôn "stale" ngay sau build
+    const frameHtml = () =>
+      existsSync(framesDir)
+        ? readdirSync(framesDir)
+            .sort()
+            .map((f) => `${f}:${model.hashOf(`compositions/frames/${f}`)}`)
+        : [];
+    add('index', ['frame_timing', 'captions', ...frameNodes], () => ({
+      frames_html: frameHtml(),
       overrides: model.hashOf('caption-overrides.json'),
       // 027: overlay theo frame + mẫu khối đang dùng (chỉ khi có — giữ hash dự án cũ)
       ...(model.frames.some((f) => f.overlays?.length)
@@ -569,7 +572,7 @@ export class BuildGraph {
         model.config('music.volume_db', { sceneId: s.id }),
       ]),
       duck_db: model.config('music.duck_db'),
-    });
+    }));
     // 020: CREDITS từ nhạc + asset đã dùng; render nháp (chỉ khi được chọn)
     // đọc lúc băm (asset vừa sinh trong cùng lần build làm đổi thư mục assets)
     add('credits', ['index', ...frameNodes], () => ({ assets: model.hashChannelDir('assets') }));

@@ -179,7 +179,7 @@ Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc n
 
 | Id | Áp cho | Kiểm |
 |---|---|---|
-| `audio_duration` | voice, finalize | thời lượng **đo trên audio thật** (tổng `audio_meta.json` + `pause_after_ms`; ở `finalize` là timeline) lệch `target_duration_ms` không quá `check.duration_tolerance`; trượt → chi tiết nêu thời lượng thật từng beat để sửa đúng cảnh lệch. **Kiểm mềm** (043): chỉ trượt kiểm này → lỗi `E_GATE_WARNING`, người dùng giữ nguyên bằng `workflow.waive` (nút "Bỏ qua cảnh báo" ở chat và tab Tiến độ) hoặc sửa beat lệch |
+| `audio_duration` | voice, finalize | thời lượng **đo trên audio thật** (tổng `audio_meta.json` + `pause_after_ms`; ở `finalize` là timeline) lệch `target_duration_ms` không quá `check.duration_tolerance`; trượt → chi tiết nêu thời lượng thật từng beat để sửa đúng cảnh lệch. **Kiểm mềm** (043): chỉ trượt kiểm này → lỗi `E_GATE_WARNING`, người dùng giữ nguyên bằng `workflow.waive` (nút "Bỏ qua cảnh báo" ở chat và tab Tiến độ) hoặc sửa beat lệch; đã chấp nhận ở một bước đã xong (ví dụ `voice`) thì bước sau cùng kiểm (`finalize`) không hỏi lại (046) |
 | `beat_structure` | script | số beat trong khoảng hồ sơ kênh quy định; mỗi beat ≥ 1 line |
 | `banned_terms` | script, meta | không chứa từ cấm của kênh |
 | `tts_normalized` | script | số/viết tắt có `sf:tts` hoặc đã viết thành chữ |

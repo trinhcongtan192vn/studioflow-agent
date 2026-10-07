@@ -13,4 +13,9 @@ steps:
       title: Kịch bản,
       gate: [{ kind: objective, check: audio_duration }],
     }
-  - { id: storyboard, uses: storyboard, title: Storyboard }
+  - {
+      id: storyboard,
+      uses: storyboard,
+      title: Storyboard,
+      gate: [{ kind: objective, check: audio_duration }],
+    }

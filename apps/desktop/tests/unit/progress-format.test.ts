@@ -82,6 +82,21 @@ describe('stepButtons', () => {
     expect(stepButtons(st[0]!, st)[0]!.confirm).toContain('1 bước đã xong phía sau');
     expect(stepButtons({ id: 'r', title: 'R', status: 'running' }, st)).toEqual([]);
   });
+  it('a mixed failure keeps "Kiểm tra lại" primary but still offers the skip (046)', () => {
+    const st = S('done', 'failed');
+    const b = stepButtons(
+      st[1]!,
+      st,
+      'graph_fresh(*): index: stale; objective(audio_duration): 294 s vs target 360 s (±10%)',
+    );
+    expect(b.map((x) => [x.action.kind, Boolean(x.primary)])).toEqual([
+      ['waive', false],
+      ['recheck', true],
+      ['run_step', false],
+      ['rewind', false],
+    ]);
+  });
+
   it('a duration warning puts "Bỏ qua cảnh báo" first (043)', () => {
     const st = S('done', 'failed');
     const b = stepButtons(st[1]!, st, 'objective(audio_duration): 294 s vs target 360 s (±10%)');
