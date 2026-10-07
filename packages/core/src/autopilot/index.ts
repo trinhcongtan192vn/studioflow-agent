@@ -48,6 +48,8 @@ export {
   selectCandidates,
   updatePlanItem,
   type BuildPlanInput,
+  markPlanItem,
+  type PlanItemMark,
   type PlanDay,
   type PlanCapacity,
   type PlanPatch,
@@ -65,3 +67,26 @@ export {
   type PlanDeps,
 } from './plan-tools.js';
 export { capacityRun, installedWorkflows } from './capacity-run.js';
+export { autopilotRunnerTools } from './runner-tools.js';
+export { briefInstruction, type BriefFn } from './brief.js';
+export {
+  decideBrief,
+  decideDuration,
+  decideFinalize,
+  decideRefine,
+  type Decision,
+} from './gates.js';
+export { limitResumeAt, parseLimit, type ParsedLimit } from './limit.js';
+export {
+  AutopilotRunner,
+  RUNNER_CONSTANTS,
+  orderItems,
+  startGate,
+  type AutopilotStatus,
+  type GateReason,
+  type ItemOutcome,
+  type ItemOutcomeEvent,
+  type QueueEntry,
+  type RunnerDeps,
+  type TickResult,
+} from './runner.js';

@@ -31,6 +31,7 @@ const D5: [string, string[]][] = [
   ['autopilot.plan_get', ['main']],
   ['autopilot.plan_run', ['main']],
   ['autopilot.plan_update', ['main']],
+  ['autopilot.status', ['main']],
   ['approval.annotate', ['main']],
   ['workflow.step_complete', ['main', 'frame', 'producer']],
   ['asset.import', ['main']],

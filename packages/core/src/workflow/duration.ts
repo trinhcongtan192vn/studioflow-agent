@@ -85,6 +85,26 @@ export function audioDurationCheck(
   };
 }
 
+/**
+ * 052: số đo của kiểm `audio_duration` (thời lượng thật và mục tiêu) để Autopilot quyết bỏ qua cảnh báo
+ * theo tỉ lệ lệch; `undefined` khi chưa có audio/timeline hoặc BRIEF.md không có mục tiêu.
+ */
+export function audioDurationReading(
+  store: WriteStore,
+  videoId: string,
+  source: 'audio' | 'timeline' = 'audio',
+): { actual_ms: number; target_ms: number } | undefined {
+  const brief = parseBlocksDoc(readFileSync(store.abs(`videos/${videoId}/BRIEF.md`), 'utf8'))
+    .front as { target_duration_ms?: number | null };
+  if (!brief.target_duration_ms || !readAudioMeta(store, videoId)) return undefined;
+  const timing = source === 'timeline' ? timingOf(store, videoId) : undefined;
+  if (source === 'timeline' && !timing) return undefined;
+  const actual_ms = timing
+    ? timing.total_ms
+    : beatDurations(store, videoId).reduce((s, b) => s + b.duration_ms, 0);
+  return { actual_ms, target_ms: brief.target_duration_ms };
+}
+
 registerObjective('audio_duration', (g, params) =>
   audioDurationCheck(
     g.store,

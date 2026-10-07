@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { CastMember, Frame, Line, Scene } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
+import { isAutopilotVideo } from '../domain/autopilot.js';
 import { sha256 } from '../domain/hash.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
@@ -17,6 +18,8 @@ export interface VideoModel {
   frames: Frame[];
   scenes: Scene[];
   cast: Record<string, Partial<CastMember>>;
+  /** 052: video do Autopilot tạo — người nói chưa có giọng dùng giọng mặc định của kênh. */
+  autopilot: boolean;
   config<T = unknown>(key: string, scope?: { sceneId?: string; frameId?: string }): T;
   /** Hash nội dung một file/thư mục trong video (thiếu → null). */
   hashOf(rel: string): string | null;
@@ -67,6 +70,7 @@ export function loadVideoModel(
       if (c?.id) cast[c.id] = { ...cast[c.id], ...c };
     }
   }
+  const autopilot = isAutopilotVideo(channelDir, videoId);
   const channel = JSON.parse(readFileSync(path.join(channelDir, 'channel.json'), 'utf8')) as {
     language: string;
   };
@@ -84,6 +88,7 @@ export function loadVideoModel(
     frames: sb?.frames ?? [],
     scenes: sb?.scenes ?? [],
     cast,
+    autopilot,
     config: (key, scope = {}) =>
       resolveConfig(key, { channelDir, videoId, ...scope }, { appDataDir }).value as never,
     hashOf: (rel) => {
@@ -102,7 +107,11 @@ export function voiceOf(model: VideoModel, line: Line): string | null {
   // 036: người dẫn khai trong CAST.md (role narrator) mà không có giọng riêng → giọng người dẫn
   if (c?.role === 'narrator')
     return (c.voice_id as string | undefined) ?? model.config<string | null>('voice.id');
-  return (c?.voice_id as string | undefined) ?? null;
+  // 052: video Autopilot không có người chọn giọng → nhân vật chưa có giọng dùng `voice.id` của kênh
+  return (
+    (c?.voice_id as string | undefined) ??
+    (model.autopilot ? model.config<string | null>('voice.id') : null)
+  );
 }
 
 /** Line không khai báo `pause_after_ms` nhận `voice.pause_after_ms` (D3 7.2, 029). */

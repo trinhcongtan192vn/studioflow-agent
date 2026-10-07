@@ -6,10 +6,15 @@ import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
-import { WorkflowEngine, type AgentStepRunner, type StepExecutor } from './engine.js';
+import {
+  WorkflowEngine,
+  type AgentStepRunner,
+  type AutoDecide,
+  type StepExecutor,
+} from './engine.js';
 import { loadPacks, type WorkflowPack } from './packs.js';
 import { speakersWithoutVoice } from './cast.js';
-import { autopilotOf } from '../domain/autopilot.js';
+import { autopilotOf, isAutopilotVideo } from '../domain/autopilot.js';
 import { recordSessions } from '../agent/recorder.js';
 
 /** Dịch vụ workflow của `core`: gói, executor theo `uses`, runner bước agent, engine theo video. */
@@ -17,6 +22,7 @@ export class WorkflowService {
   private readonly executors = new Map<string, StepExecutor>();
   private readonly engines = new Map<string, WorkflowEngine>();
   private runner?: AgentStepRunner;
+  private autoDecide?: AutoDecide;
   private cache?: WorkflowPack[];
 
   constructor(
@@ -57,6 +63,11 @@ export class WorkflowService {
 
   setAgentRunner(fn: AgentStepRunner | undefined): void {
     this.runner = fn;
+  }
+
+  /** 052: cổng chất lượng Autopilot thay người duyệt điểm chốt của video `state.autopilot` (bộ chạy Autopilot gắn). */
+  setAutoDecide(fn: AutoDecide | undefined): void {
+    this.autoDecide = fn;
   }
 
   /** Runtime agent cho phiên `frame` của bước frame-build (011); desktop/CLI gắn khi có. */
@@ -112,6 +123,7 @@ export class WorkflowService {
         packs: () => this.packs(),
         executors: this.executors,
         agentRunner: () => this.runner,
+        autoDecide: () => this.autoDecide,
         builders: this.d.builders,
         appDataDir: this.d.appDataDir,
       });
@@ -127,10 +139,12 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
     // 008 FR-VO-01: thiếu giọng → một lỗi gọn trước khi dựng (thay vì một lỗi cho mỗi line)
     let unvoiced = speakersWithoutVoice(ctx.channelDir, ctx.videoId, ctx.appDataDir);
     // 034: chế độ tự động + có agent → giao agent gợi ý giọng, chờ người dùng chọn, rồi dựng tiếp
+    // 052: video Autopilot không chờ người chọn giọng (dùng giọng mặc định của kênh; kênh chưa có → lỗi, bộ chạy đỗ video)
     if (
       unvoiced.length &&
       ctx.agent &&
-      autopilotOf(ctx.channelDir, ctx.videoId, ctx.appDataDir).on
+      autopilotOf(ctx.channelDir, ctx.videoId, ctx.appDataDir).on &&
+      !isAutopilotVideo(ctx.channelDir, ctx.videoId)
     ) {
       await ctx.agent(
         [

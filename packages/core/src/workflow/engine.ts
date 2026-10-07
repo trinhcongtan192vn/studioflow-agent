@@ -18,7 +18,13 @@ import type { WriteStore } from '../store/writer.js';
 import { evaluateGate, isWarning, WAIVABLE_CHECKS, type GateResult } from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
 import { resolveConfig } from '../config/resolve.js';
-import { AUTO_APPROVAL_NOTE, autopilotOf, isAutoApproval } from '../domain/autopilot.js';
+import {
+  AUTO_APPROVAL_NOTE,
+  AUTOPILOT_APPROVAL_NOTE,
+  AUTOPILOT_PARK_NOTE,
+  autopilotOf,
+  isAutoApproval,
+} from '../domain/autopilot.js';
 import { phaseBefore, type WorkflowPack } from './packs.js';
 
 export interface StepRunContext {
@@ -72,6 +78,13 @@ export type AgentStepRunner = (
   ctx: StepRunContext & { stepComplete(outputs: string[]): Promise<void> },
 ) => Promise<void>;
 
+/** Quyết định của cổng chất lượng Autopilot cho một điểm chốt (052): duyệt kèm lý do, hoặc đỗ chờ người. */
+export type AutoDecide = (
+  step: StepDecl,
+  st: VideoState,
+  ctx: { store: WriteStore; videoId: string; appDataDir?: string; refine?: StepState['refine'] },
+) => { approve: boolean; reason: string };
+
 export interface EngineDeps {
   store: WriteStore;
   videoId: string;
@@ -80,6 +93,8 @@ export interface EngineDeps {
   agentRunner: () => AgentStepRunner | undefined;
   builders: BuilderRegistry;
   appDataDir?: string;
+  /** 052: cổng chất lượng thay người duyệt điểm chốt — chỉ cho video `state.autopilot` của kênh bật Autopilot. */
+  autoDecide?: () => AutoDecide | undefined;
   runScript?: (
     manifest: WorkflowManifest,
     id: string,
@@ -306,13 +321,15 @@ export class WorkflowEngine extends EventEmitter {
 
   // ---------- quyết định duyệt ----------
 
-  async approve(approvalId: string): Promise<void> {
+  /** `note`: ghi chú của người/bên duyệt (cổng Autopilot ghi `Autopilot: <lý do>`, 052). */
+  async approve(approvalId: string, note?: string): Promise<void> {
     await this.exclusive(() => {
       const st = this.readState();
       const a = st.approvals.find((x) => x.id === approvalId);
       if (!a) throw new SfError('E_ID_UNKNOWN', `approval ${approvalId} not found`);
       a.status = 'approved';
       a.decided_at = now();
+      if (note) a.note = note;
       // duyệt nội dung hiện tại: duyệt lại sau khi mất hiệu lực (file đổi) cập nhật hash
       for (const f of Object.keys(a.artifact_hashes)) {
         const h = this.hashOf(f);
@@ -719,6 +736,35 @@ export class WorkflowEngine extends EventEmitter {
           s.status = 'done';
           this.writeState(st);
           return true;
+        }
+        // 052: video Autopilot — cổng chất lượng quyết điểm chốt; không đạt thì đỗ chờ người
+        const gate = this.d.autoDecide?.();
+        if (
+          gate &&
+          st.autopilot &&
+          auto.on &&
+          resolveConfig<boolean>(
+            'autopilot.enabled',
+            { channelDir: this.d.store.root },
+            { appDataDir: this.d.appDataDir },
+          ).value === true
+        ) {
+          const d = gate(decl, st, {
+            store: this.d.store,
+            videoId: this.d.videoId,
+            appDataDir: this.d.appDataDir,
+            refine: s.refine,
+          });
+          if (d.approve) {
+            a.status = 'approved';
+            a.decided_at = now();
+            a.note = `${AUTOPILOT_APPROVAL_NOTE} ${d.reason}`;
+            st.approvals.push(a);
+            s.status = 'done';
+            this.writeState(st);
+            return true;
+          }
+          a.note = `${AUTOPILOT_PARK_NOTE} ${d.reason}`;
         }
         st.approvals.push(a);
         s.status = 'waiting_approval';
