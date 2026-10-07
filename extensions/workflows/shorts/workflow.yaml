@@ -36,7 +36,12 @@ steps:
     gate: [{ kind: objective, check: max_duration, params: { source: audio } }]
   - { id: assets, uses: assets, title: Hình ảnh }
   - { id: frames, uses: frame-build, title: Dựng frame dọc }
-  - { id: finish, uses: finish, title: 'Hoàn thiện hình (look, hiệu ứng, overlay)', skip_if: { phase_before: M3 } }
+  - {
+      id: finish,
+      uses: finish,
+      title: 'Hoàn thiện hình (look, hiệu ứng, overlay)',
+      skip_if: { phase_before: M3 },
+    }
   - { id: captions, uses: captions, title: Phụ đề karaoke }
   - { id: music, uses: music, title: Nhạc nền }
   - id: finalize

@@ -47,7 +47,12 @@ steps:
     skip_if: { config: lipsync.enabled, equals: false }
     gate: [{ kind: objective, check: lipsync_anchors }]
   - { id: frames, uses: frame-build, title: Dựng shot }
-  - { id: finish, uses: finish, title: 'Hoàn thiện hình (look, hiệu ứng, overlay)', skip_if: { phase_before: M3 } }
+  - {
+      id: finish,
+      uses: finish,
+      title: 'Hoàn thiện hình (look, hiệu ứng, overlay)',
+      skip_if: { phase_before: M3 },
+    }
   - { id: captions, uses: captions, title: Phụ đề theo người nói }
   - { id: music, uses: music, title: Nhạc nền }
   - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }

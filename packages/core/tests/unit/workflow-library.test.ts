@@ -49,9 +49,11 @@ describe('validateManifest (007 FR-002)', () => {
         'look',
         'effects',
         'overlays',
+        'finish',
         'lipsync',
         'finalize',
         'publish-meta',
+        'thumbnail',
         'render',
       ].sort(),
     );

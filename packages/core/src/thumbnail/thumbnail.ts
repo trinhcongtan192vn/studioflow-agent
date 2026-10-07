@@ -12,7 +12,6 @@ import { ffmpegPath } from '../models/install.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { createScratchDir, writeOutsideProject } from '../store/scratch.js';
 import type { Db } from '../store/db.js';
-import type { WriteStore } from '../store/writer.js';
 import type { TextService } from '../text/service.js';
 import type { StepRunContext } from '../workflow/engine.js';
 import { registerObjective } from '../workflow/gates.js';
