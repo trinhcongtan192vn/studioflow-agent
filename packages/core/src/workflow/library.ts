@@ -134,6 +134,8 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     gates: () => [
       { kind: 'graph_fresh', nodes: '*' },
       { kind: 'objective', check: 'audio_duration', params: { source: 'timeline' } },
+      // 061: dòng đọc sai chặn render phát hành → báo sớm ở đây (kiểm mềm)
+      { kind: 'objective', check: 'asr_clean' },
     ],
   },
   'publish-meta': {

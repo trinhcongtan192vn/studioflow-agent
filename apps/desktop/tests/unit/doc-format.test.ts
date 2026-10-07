@@ -9,7 +9,9 @@ import {
   fileCtaLabel,
   noticeCtas,
   friendlyStepError,
+  asrWarningLines,
   hasDurationWarning,
+  isSoftWarning,
   isDurationWarning,
   stepCtas,
   voiceSuggestion,
@@ -127,6 +129,35 @@ describe('step CTAs', () => {
         (c) => c.kind,
       ),
     ).toEqual(['retry', 'waive', 'recheck']);
+  });
+
+  it('misread lines at finalize: listen, accept all, or ask to fix (061)', () => {
+    const err =
+      'objective(asr_clean): 2 line(s) misread: ln_h4k2w9ab (22%), ln_ln56k0gk (31%) — listen and asr.accept, or fix the text';
+    expect(asrWarningLines(err)).toEqual(['ln_h4k2w9ab', 'ln_ln56k0gk']);
+    expect(isSoftWarning(err)).toBe(true);
+    expect(friendlyStepError(err)).toMatch(
+      /^Còn 2 dòng đọc sai \(ln_h4k2w9ab 22%, ln_ln56k0gk 31%\)/,
+    );
+    const ctas = stepCtas({ id: 'finalize', status: 'failed', title: 'Hoàn thiện' }, [], err);
+    expect(ctas.map((c) => c.kind)).toEqual(['file', 'file', 'asr_accept', 'say', 'recheck']);
+    expect(ctas[0]).toEqual({
+      kind: 'file',
+      label: 'Nghe ln_h4k2w9ab',
+      path: 'audio/lines/ln_h4k2w9ab.wav',
+    });
+    expect(ctas[2]).toEqual({
+      kind: 'asr_accept',
+      label: 'Chấp nhận 2 dòng',
+      step: 'finalize',
+      line_ids: ['ln_h4k2w9ab', 'ln_ln56k0gk'],
+    });
+    // gộp với cảnh báo thời lượng: vẫn đủ nút
+    const both = `${err}; objective(audio_duration): 294 s vs target 360 s (±10%)`;
+    expect(isSoftWarning(both)).toBe(true);
+    expect(stepCtas({ id: 'finalize', status: 'failed' }, [], both).map((c) => c.kind)).toContain(
+      'waive',
+    );
   });
 
   it('noticeCtas gives each workflow notice its actions (041)', () => {

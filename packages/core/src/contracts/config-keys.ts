@@ -392,6 +392,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.asr_accept_ratio",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
       "key": "autopilot.competitors",
       "pattern": false,
       "type": "string[]",

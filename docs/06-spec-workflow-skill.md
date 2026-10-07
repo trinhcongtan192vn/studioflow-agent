@@ -110,7 +110,7 @@ steps:
 | `captions` | engine | — | `audio_meta.json`, `SCRIPT.md` | `caption_groups.json` | hợp lệ |
 | `music` | agent (`main`) + engine | — | `sf-scene.music`, kho nhạc | `public/music/*`, cập nhật `sf-scene.music.track_id` | mỗi scene có `track_id` hoặc `music: none` |
 | `look` / `effects` / `overlays` | agent (`main`) | — | hồ sơ kênh | `sf-scene.look`, `sf-frame.effects/overlays` | — |
-| `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline) |
+| `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline); `asr_clean` (061: còn line ASR `mismatch` → cảnh báo sớm, vì render phát hành sẽ chặn; xử lý: nghe lại + `asr.accept` hoặc sửa chữ) |
 | `publish-meta` | engine (`text.generate` + `refine-loop`) | — | `BRIEF.md`, `SCRIPT.md`, `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
 | `render` | engine | `mode: 'draft' \| 'release'` | `index.html` | `renders/<rd>/` (+ `CREDITS.txt`, `description.txt` khi release) | gate phát hành (D4) khi `release` |
 

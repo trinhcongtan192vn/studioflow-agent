@@ -684,6 +684,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.enabled` | boolean | channel |
 | `autopilot.paused` | boolean | app |
 | `autopilot.background` | boolean | app |
+| `autopilot.asr_accept_ratio` | number | app, channel |
 | `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |

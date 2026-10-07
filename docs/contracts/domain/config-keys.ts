@@ -43,6 +43,7 @@ export type ConfigKey =
   | 'autopilot.enabled'
   | 'autopilot.paused'
   | 'autopilot.background'
+  | 'autopilot.asr_accept_ratio'
   | 'autopilot.competitors'
   | 'autopilot.pillars'
   | 'autopilot.workflows'

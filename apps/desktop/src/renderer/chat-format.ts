@@ -238,6 +238,8 @@ export type StepCta =
   | { kind: 'voice'; label: string; step: string; prompt: string }
   /** Gửi ngay một lời nhờ agent (ví dụ gợi ý giọng khi chưa có file mẫu, 033). */
   | { kind: 'say'; label: string; text: string }
+  /** Chấp nhận các line ASR đọc sai (asr.accept) rồi kiểm tra lại bước (061). */
+  | { kind: 'asr_accept'; label: string; step: string; line_ids: string[] }
   /** Bỏ qua cảnh báo kiểm mềm rồi kiểm tra lại (043). */
   | { kind: 'waive'; label: string; step: string; check: string }
   /** Mở thư mục chứa tệp (video đã render) trong File Explorer, chọn sẵn tệp (058). */
@@ -316,6 +318,35 @@ export function stepCtas(
           label: '✎ Sửa cho đúng thời lượng',
           text: `Bước ${step.title ?? step.id} lệch thời lượng mục tiêu (${error.replace(/^objective\(audio_duration\):\s*/, '')}). Hãy sửa các beat lệch nhiều nhất trong SCRIPT.md cho gần thời lượng mục tiêu, rồi chạy lại bước ${step.title ?? step.id} (chỉ line đổi được sinh lại).`,
         },
+      ];
+    // 061: dòng đọc sai (render phát hành sẽ chặn) → nghe, chấp nhận, hoặc nhờ agent sửa
+    const asr = error ? asrWarningLines(error) : [];
+    if (error && asr.length && isSoftWarning(error))
+      return [
+        ...asr
+          .slice(0, 4)
+          .map((id): StepCta => ({
+            kind: 'file',
+            label: `Nghe ${id}`,
+            path: `audio/lines/${id}.wav`,
+          })),
+        { kind: 'asr_accept', label: `Chấp nhận ${asr.length} dòng`, step: step.id, line_ids: asr },
+        {
+          kind: 'say',
+          label: '✎ Sửa cho đúng',
+          text: `Các dòng ${asr.join(', ')} bị ASR báo đọc sai. Hãy nghe/so lời thoại, sửa chữ hoặc cách đọc (tts_text) cho đúng rồi sinh lại đúng các dòng đó, sau đó kiểm tra lại bước ${step.title ?? step.id}.`,
+        },
+        ...(hasDurationWarning(error)
+          ? [
+              {
+                kind: 'waive' as const,
+                label: 'Bỏ qua cảnh báo thời lượng',
+                step: step.id,
+                check: 'audio_duration',
+              },
+            ]
+          : []),
+        { kind: 'recheck', label: 'Kiểm tra lại', step: step.id },
       ];
     // 046: cảnh báo thời lượng kèm lỗi khác → vẫn bỏ qua được cảnh báo; lỗi còn lại cần chạy lại
     if (error && hasDurationWarning(error))
@@ -413,14 +444,35 @@ export function hasDurationWarning(e: string): boolean {
   return gateParts(e).some((x) => x.startsWith('objective(audio_duration)'));
 }
 
+/** 061: id các line ASR đọc sai trong lỗi `objective(asr_clean)`. */
+export function asrWarningLines(e: string): string[] {
+  const part = gateParts(e).find((x) => x.startsWith('objective(asr_clean)'));
+  return part ? [...new Set(part.match(/ln_[0-9a-z]{8}/g) ?? [])] : [];
+}
+
+/** Lỗi bước chỉ gồm kiểm mềm (thời lượng 043, dòng đọc sai 061) — cảnh báo, không phải hỏng. */
+export function isSoftWarning(e: string): boolean {
+  return gateParts(e).every(
+    (x) => x.startsWith('objective(audio_duration)') || x.startsWith('objective(asr_clean)'),
+  );
+}
+
 /** Tách lỗi gate gộp "a(x): …; b(y): …" thành từng gate (giữ "; " bên trong chi tiết). */
 const gateParts = (e: string) => e.split(/; (?=[a-z_]+\()/);
 
 export function friendlyStepError(e: string): string {
   const gates = gateParts(e);
   // 046: nhiều gate trượt → nêu đủ từng cái (không để cảnh báo che lỗi khác)
-  if (gates.length > 1 && gates.some((x) => /^(objective\(audio_duration\)|graph_fresh\()/.test(x)))
+  if (
+    gates.length > 1 &&
+    gates.some((x) => /^(objective\((audio_duration|asr_clean)\)|graph_fresh\()/.test(x))
+  )
     return gates.map(friendlyStepError).join(' · ');
+  const asrPart = /^objective\(asr_clean\): \d+ line\(s\) misread: (.*?)(?: — .*)?$/.exec(e);
+  if (asrPart) {
+    const lines = asrPart[1]!.split(', ').map((x) => x.replace(/ \((\d+%)\)$/, ' $1'));
+    return `Còn ${lines.length} dòng đọc sai (${lines.join(', ')}) — render phát hành sẽ bị chặn. Nghe lại rồi chấp nhận, hoặc nhờ agent sửa chữ.`;
+  }
   const stale = /^graph_fresh\(([^)]*)\): (.*)$/.exec(e);
   if (stale) {
     const keys = stale[2]!

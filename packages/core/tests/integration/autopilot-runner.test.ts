@@ -132,6 +132,8 @@ interface RigOpts {
   /** Thời lượng audio giả ghi bởi executor `script` (cho workflow duration-demo). */
   audio_total_ms?: number;
   briefError?: (item: PlanItem, n: number) => Error | undefined;
+  /** 061: line bị ASR báo đọc sai (line_id → tỉ lệ lỗi); cần `audio_total_ms`. */
+  mismatch?: Record<string, number>;
 }
 
 interface Rig {
@@ -142,6 +144,8 @@ interface Rig {
   runner: AutopilotRunner;
   briefs: string[];
   scripts: string[];
+  /** 061: line Autopilot đã chấp nhận (asr.accept). */
+  accepted: string[];
   planCalls: number;
   make(): AutopilotRunner;
 }
@@ -167,6 +171,7 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
     app,
     clock: { now: NOW },
     briefs: [],
+    accepted: [],
     scripts: [],
     planCalls: 0,
     runner: undefined as never,
@@ -199,6 +204,10 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
         line_id: id,
         start_ms: 0,
         duration_ms: Math.round((o.audio_total_ms! - 300) / 3),
+        // 061: line đọc sai giả (tỉ lệ lỗi ASR)
+        ...(o.mismatch?.[id] !== undefined
+          ? { asr_flag: 'mismatch', asr_wer: o.mismatch[id] }
+          : { asr_flag: 'ok', asr_wer: 0 }),
       }));
       ctx.store.write(
         `videos/${ctx.videoId}/audio_meta.json`,
@@ -245,6 +254,15 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
       appDataDir: app,
       clock: () => rig.clock.now,
       brief,
+      // 061: chấp nhận line đọc sai — giả: đổi cờ trong audio_meta (bản thật dựng lại qua build graph)
+      acceptAsr: async (channel, video, ids) => {
+        rig.accepted.push(...ids);
+        const store = core.gateway.storeFor(channel);
+        const rel = `videos/${video}/audio_meta.json`;
+        const meta = JSON.parse(readFileSync(store.abs(rel), 'utf8'));
+        for (const l of meta.lines) if (ids.includes(l.line_id)) l.asr_flag = 'accepted';
+        store.write(rel, JSON.stringify(meta), { by: 'test', validate: false });
+      },
       plan: async ({ channels, now }) => {
         rig.planCalls += 1;
         return planToday({
@@ -960,5 +978,36 @@ describe('052 bổ sung: ngân sách API có phí, video làm xong bằng tay', 
     expect(item.status).toBe('produced');
     expect(item.note).toMatch(/bằng tay/);
     expect(logOf(dir).some((l) => l.event === 'item.reclaimed')).toBe(true);
+  });
+});
+
+describe('061: dòng đọc sai được báo ở Hoàn thiện; Autopilot chấp nhận lỗi nhỏ, đỗ lỗi lớn', () => {
+  it('a slightly misread line is accepted automatically and the video is produced', async () => {
+    // ngưỡng ASR vi 0,15 × 1,5 = 0,225 → 0,18 được chấp nhận
+    const rig = makeRig({
+      audio_total_ms: 60_000,
+      target_ms: 60_000,
+      mismatch: { ln_9w3b6tqa: 0.18 },
+    });
+    const dir = rig.dirs[0]!;
+    writePlan(dir, [{ id: 'pi_d0000001', workflow_id: 'duration-demo' }]);
+    const r = await rig.runner.tick();
+    expect(r.outcomes.map((x) => x.outcome)).toEqual(['produced']);
+    expect(rig.accepted).toEqual(['ln_9w3b6tqa']);
+    expect(logOf(dir).some((l) => l.event === 'asr.accept')).toBe(true);
+  });
+
+  it('a badly misread line parks the item with the line and error rate', async () => {
+    const rig = makeRig({
+      audio_total_ms: 60_000,
+      target_ms: 60_000,
+      mismatch: { ln_9w3b6tqa: 0.4 },
+    });
+    const dir = rig.dirs[0]!;
+    writePlan(dir, [{ id: 'pi_d0000002', workflow_id: 'duration-demo' }]);
+    const r = await rig.runner.tick();
+    expect(r.outcomes.map((x) => x.outcome)).toEqual(['parked']);
+    expect(rig.accepted).toEqual([]);
+    expect(itemOf(dir, 'pi_d0000002').note).toMatch(/đọc sai.*ln_9w3b6tqa.*40%/);
   });
 });

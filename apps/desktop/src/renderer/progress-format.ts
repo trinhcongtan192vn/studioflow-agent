@@ -2,7 +2,7 @@
  * Tab Tiến độ (UI-04, FN-008 mục 3): trạng thái tổng, phản hồi sau mỗi thao tác (chạy tới / chạy lại /
  * quay lại / tạm dừng), nút theo ngữ cảnh từng bước. Hàm thuần.
  */
-import { hasDurationWarning, isDurationWarning } from './chat-format';
+import { asrWarningLines, hasDurationWarning, isDurationWarning } from './chat-format';
 export interface StepView {
   id: string;
   title: string;
@@ -55,6 +55,8 @@ export type Action =
   | { kind: 'run_step'; step: string }
   /** 036: kiểm gate lại trên file đã sửa tay, không sinh lại. */
   | { kind: 'recheck'; step: string }
+  /** 061: chấp nhận các line ASR đọc sai rồi kiểm tra lại. */
+  | { kind: 'asr_accept'; step: string; line_ids: string[] }
   /** 043: bỏ qua cảnh báo kiểm mềm (audio_duration) rồi kiểm tra lại. */
   | { kind: 'waive'; step: string; check: string }
   | { kind: 'rewind'; step: string }
@@ -89,11 +91,15 @@ export function feedbackFor(
         }
       : { tone: 'success', text: 'Đã tạm dừng workflow.', settled: true };
   }
-  if (a.kind === 'recheck' || a.kind === 'waive') {
+  if (a.kind === 'recheck' || a.kind === 'waive' || a.kind === 'asr_accept') {
     const f = feedbackFor({ kind: 'run_step', step: a.step }, steps, stepError);
     const t = title(steps, a.step);
     const head =
-      a.kind === 'waive' ? `Đã bỏ qua cảnh báo ở bước "${t}"` : `Kiểm tra lại bước "${t}": đạt`;
+      a.kind === 'waive'
+        ? `Đã bỏ qua cảnh báo ở bước "${t}"`
+        : a.kind === 'asr_accept'
+          ? `Đã chấp nhận ${a.line_ids.length} dòng ở bước "${t}"`
+          : `Kiểm tra lại bước "${t}": đạt`;
     return {
       ...f,
       text: f.settled
@@ -194,9 +200,22 @@ export function stepButtons(
       ];
     case 'failed': {
       const warn = error !== undefined && isDurationWarning(error);
+      // 061: dòng đọc sai → nút chấp nhận lên đầu
+      const asr = error !== undefined ? asrWarningLines(error) : [];
       // 046: cảnh báo thời lượng kèm lỗi khác → vẫn có nút bỏ qua (không phải nút chính)
       const mixed = !warn && error !== undefined && hasDurationWarning(error);
       return [
+        ...(asr.length
+          ? [
+              {
+                action: { kind: 'asr_accept', step: s.id, line_ids: asr } as Action,
+                label: `Chấp nhận ${asr.length} dòng đọc sai`,
+                title:
+                  'Đã nghe lại và thấy ổn: chấp nhận audio hiện tại của các dòng ASR báo lệch, rồi kiểm tra lại',
+                primary: true,
+              },
+            ]
+          : []),
         ...(warn || mixed
           ? [
               {
