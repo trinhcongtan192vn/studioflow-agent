@@ -171,7 +171,8 @@ beforeAll(() => {
       });
       if (!w.ok) throw new Error(JSON.stringify(w));
       await ctx.stepComplete(['STORYBOARD.md']);
-    } else if (step === 'overlays') {
+    } else if (step === 'finish') {
+      // 062: look + hiệu ứng + overlay trong một bước
       // 027: lower third ở frame đầu (khối của app, biến bắt buộc `title`)
       const rel = `videos/${ctx.videoId}/STORYBOARD.md`;
       const sb = readFileSync(ctx.store.abs(rel), 'utf8').replace(
@@ -236,7 +237,7 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
     expect(asked).toContain('overwrite_approved');
     // assets do engine (nút asset, 023): không có layer cần ảnh thư viện → không giao agent
-    expect(agentSteps).toEqual(['storyboard', 'look', 'effects', 'overlays', 'music']);
+    expect(agentSteps).toEqual(['storyboard', 'finish', 'music']);
     const st = state();
     expect(Object.fromEntries(Object.entries(st.steps).map(([k, s]) => [k, s.status]))).toEqual({
       design: 'done',
@@ -244,10 +245,8 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
       storyboard: 'done',
       voice: 'done',
       assets: 'done',
-      look: 'done',
       frames: 'done',
-      effects: 'done',
-      overlays: 'done',
+      finish: 'done',
       captions: 'done',
       music: 'done',
       finalize: 'done',

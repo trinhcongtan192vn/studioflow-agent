@@ -108,6 +108,31 @@ const RUNNABLE = new Set<StepState['status']>(['pending', 'stale']);
  * Workflow Engine của một video (D6 mục 3): briefing, vòng đời bước, gate, approval, rewind,
  * điều phối tự động, khôi phục. Trạng thái nguồn là `state.json` (ghi qua module ghi).
  */
+/**
+ * 062: workflow gộp `look`/`effects`/`overlays` thành `finish`. Video cũ có các bước cũ mà chưa có
+ * `finish` → `finish` = `done` nếu mọi bước cũ đã `done`/`skipped`, ngược lại `pending`. Trả true nếu đổi.
+ */
+export function migrateMergedSteps(
+  manifestStepIds: string[],
+  steps: Record<string, StepState>,
+): boolean {
+  if (!manifestStepIds.includes('finish') || steps.finish) return false;
+  const old = ['look', 'effects', 'overlays'].map((id) => steps[id]).filter((x) => x !== undefined);
+  if (!old.length) return false;
+  const done = old.every((x) => x.status === 'done' || x.status === 'skipped');
+  const fin = old
+    .map((x) => x.finished_at)
+    .filter((x): x is string => Boolean(x))
+    .sort()
+    .pop();
+  steps.finish = {
+    status: done ? 'done' : 'pending',
+    attempt: Math.max(0, ...old.map((x) => x.attempt ?? 0)),
+    ...(done && fin ? { finished_at: fin as StepState['finished_at'] } : {}),
+  };
+  return true;
+}
+
 export class WorkflowEngine extends EventEmitter {
   private chain: Promise<unknown> = Promise.resolve();
   private paused = false;
@@ -515,6 +540,15 @@ export class WorkflowEngine extends EventEmitter {
     if (st.phase !== 'workflow') return;
     const manifest = this.pack(st)?.manifest;
     let changed = this.invalidate(st);
+    // 062: video làm trước khi gộp look/effects/overlays → `finish` lấy trạng thái từ các bước cũ
+    if (
+      manifest &&
+      migrateMergedSteps(
+        manifest.steps.map((x) => x.id),
+        st.steps,
+      )
+    )
+      changed = true;
     // 008: vòng điều phối của engine này đang chạy → bước `running` là thật (người dùng chỉ mở lại
     // video trong cùng tiến trình), không phải bước mồ côi sau khi app tắt
     for (const [id, s] of Object.entries(st.steps)) {

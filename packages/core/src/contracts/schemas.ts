@@ -3251,6 +3251,7 @@ export const schemas = {
           "look",
           "effects",
           "overlays",
+          "finish",
           "lipsync",
           "finalize",
           "publish-meta",

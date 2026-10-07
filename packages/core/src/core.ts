@@ -522,7 +522,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
   workflows.registerExecutor('captions', captionsExecutor(graph));
-  for (const k of ['look', 'effects', 'overlays'] as const)
+  for (const k of ['look', 'effects', 'overlays', 'finish'] as const)
     workflows.registerExecutor(k, finishStepExecutor(k));
   workflows.registerExecutor('finalize', finalizeExecutor(graph));
   workflows.registerExecutor('animatic', animaticExecutor(graph));

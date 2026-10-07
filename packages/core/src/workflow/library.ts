@@ -125,6 +125,18 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
     gates: () => [{ kind: 'objective', check: 'overlays_valid' }],
   },
+  // 062: look + hiệu ứng + overlay trong một phiên agent (thay ba bước riêng, đỡ hai phiên)
+  finish: {
+    by: 'agent',
+    reads: r('profile'),
+    writes: r('STORYBOARD'),
+    outputs: r('STORYBOARD.md'),
+    gates: () => [
+      { kind: 'objective', check: 'look_valid' },
+      { kind: 'objective', check: 'effects_valid' },
+      { kind: 'objective', check: 'overlays_valid' },
+    ],
+  },
   finalize: {
     by: 'engine',
     reads: r('frames', 'audio', 'captions', 'music'),

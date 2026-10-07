@@ -25,10 +25,8 @@ steps:
   - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
   - { id: voice, uses: voice, title: Giọng đọc }
   - { id: assets, uses: assets, title: Hình ảnh }
-  - { id: look, uses: look, title: Look màu, skip_if: { phase_before: M3 } }
   - { id: frames, uses: frame-build, title: Dựng frame }
-  - { id: effects, uses: effects, title: Hiệu ứng, skip_if: { phase_before: M3 } }
-  - { id: overlays, uses: overlays, title: Overlay, skip_if: { phase_before: M3 } }
+  - { id: finish, uses: finish, title: 'Hoàn thiện hình (look, hiệu ứng, overlay)', skip_if: { phase_before: M3 } }
   - { id: captions, uses: captions, title: Phụ đề }
   - { id: music, uses: music, title: Nhạc nền }
   - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }

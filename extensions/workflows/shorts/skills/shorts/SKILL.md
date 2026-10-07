@@ -29,6 +29,10 @@ Các bước engine tự làm: design-system, script (refine-loop, rubric shorts
 ## Bước `music`
 
 Nhạc có nhịp rõ, năng lượng cao, ngắn. `music.find` với query tiếng Anh (`min_duration_ms` ≈ thời lượng short). Có kết quả → `music: { track_id: mt_… }`. Không có (`E_MUSIC_NOT_FOUND`) là bình thường: thử lại một lần; vẫn không có → `music: none`, vẫn ghi `STORYBOARD.md` và `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
+## Bước `finish` (M3, 062)
+
+Engine giao **một phiên** cho cả ba phần hoàn thiện hình, kèm danh mục look, hiệu ứng, khối overlay, ngân sách hiệu ứng nặng và hiện trạng từng frame. Làm lần lượt theo ba mục dưới — look (mục "Bước `look`"), hiệu ứng (mục "Bước `effects`"), overlay (mục "Bước `overlays`"); phần nào không cần thì bỏ qua. Ghi `STORYBOARD.md` (giữ mọi `id`) rồi gọi **một lần** `workflow.step_complete {step_id: "finish", outputs: ["STORYBOARD.md"]}` (bỏ qua lời dặn `step_complete` riêng trong từng mục).
+
 ## Bước `look` (M3)
 
 Chỉ dẫn của engine có danh mục look (gói phong cách + biến thể) và look hiện tại của từng frame. Look kênh là `{{config:look.id}}`. Mặc định giữ look kênh; chỉ đặt `look` cho scene khi không khí khác rõ (đêm, hồi tưởng, tư liệu cũ): ghi `look: <biến thể>` (ví dụ `night`) hoặc `look: <gói khác>` vào `sf-scene`; ngoại lệ một frame thì `config: { look.id: … }` trong `sf-frame`. Muốn so sánh trước: `grade.compare {asset_ids: [ảnh tiêu biểu], looks: [...]}` rồi xem `contact_sheet`. Look được nướng vào ảnh khi dựng frame (chữ/hình HTML không đổi màu). Không có gì cần đổi → không ghi file. Xong: `workflow.step_complete {step_id: "look", outputs: ["STORYBOARD.md"]}`.
