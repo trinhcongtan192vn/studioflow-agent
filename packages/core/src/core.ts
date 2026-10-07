@@ -58,6 +58,7 @@ import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
+import { defineResearchJob, researchTools } from './research/index.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -278,6 +279,15 @@ export function createCore(opts: CoreOptions = {}): Core {
     apiKey: () => (opts.getSecret ?? getSecretDefault)(YOUTUBE_SECRET),
   });
   for (const t of youtubeTools(youtube)) gateway.register(t);
+  // 049: quét nghiên cứu Autopilot (đối thủ, trending, tin nóng → chủ đề chấm điểm), Data API trực tiếp
+  const research = {
+    queue,
+    storeFor: (dir: string) => gateway.storeFor(dir),
+    apiKey: () => (opts.getSecret ?? getSecretDefault)(YOUTUBE_SECRET),
+    appDataDir,
+  };
+  defineResearchJob(research);
+  for (const t of researchTools(research)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại

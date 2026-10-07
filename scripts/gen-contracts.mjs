@@ -39,6 +39,7 @@ export const SCHEMA_ROOTS = [
   'WorkflowManifest',
   'ProviderManifest',
   'MusicManifest',
+  'ResearchDoc',
 ];
 
 const ID_PREFIXES = [

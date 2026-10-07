@@ -85,6 +85,8 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `youtube.transcript` | `url, language?` | `{video_id, language, segments, text, truncated?}` — `text` gộp mốc ~20 giây `[m:ss] …` | Thử ngôn ngữ yêu cầu → vi → en → ngôn ngữ có sẵn; không có → `E_FILE_NOT_FOUND` |
 | `youtube.search` | `query, max_results?, order?, published_after?` | `{videos[]: {video_id, url, title, channel, published_at}}` | Nghiên cứu chủ đề / video hot |
 | `youtube.channel_videos` | `channel_id, max_results?` | như `youtube.search` | Video mới nhất của kênh (đối thủ) |
+| `research.scan` | — | job → `{path, date, quota_units, candidates, errors[]}` | Quét nghiên cứu của kênh hôm nay (049, mục 9.5) → ghi `research/<YYYY-MM-DD>.json` (D3 5.17); quét lại trong ngày ghi đè; nguồn lỗi ghi vào `sources`, không làm job lỗi |
+| `research.get` | `date?` (`YYYY-MM-DD`) | `ResearchDoc` (D3 5.17) | Kết quả quét của ngày (mặc định ngày gần nhất); chưa có → `E_FILE_NOT_FOUND` |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
@@ -328,6 +330,12 @@ interface JobInfo {
 - Gói `zubeid-youtube-mcp-server` (MIT) ghim phiên bản trong `packages/core/src/youtube/mcp.ts`; cài lần đầu dùng vào `<app-data>/mcp/youtube/` bằng `npm install` (riêng app, không dùng chung); chạy `node <cài>/dist/cli.js` qua stdio, cwd = thư mục cài.
 - Core là MCP client; tool của server được bọc thành tool Gateway `youtube.*` (mục 2.4) — kết quả rút gọn cho agent, lỗi chuẩn hoá (`E_PROVIDER_UNAVAILABLE` khi thiếu khóa, `E_PROVIDER_FAILED` khi server lỗi). Mở rộng (trending, kênh đối thủ, playlist) = bọc thêm tool của server.
 - Khóa YouTube Data API v3: bí mật `youtube_api_key` (D5 mục 5.4), truyền vào server qua biến môi trường `YOUTUBE_API_KEY`.
+
+### 9.5 Quét nghiên cứu Autopilot (049)
+- Gọi thẳng REST (không qua MCP server mục 9.4) để tiết kiệm quota, cùng khóa `youtube_api_key`: `channels.list part=contentDetails` → playlist uploads (1 đơn vị); `playlistItems.list` (1 đơn vị/trang 50 video); `videos.list part=snippet,statistics,contentDetails` theo lô ≤ 50 ID (1 đơn vị); trending `videos.list chart=mostPopular regionCode` theo ngôn ngữ kênh (`vi`→VN, `de`→DE, `en`→US; 1 đơn vị). Không dùng `search.list` (100 đơn vị). Số đơn vị đã dùng ghi vào `quota_units`.
+- Không cần khóa: Google Trends RSS `https://trends.google.com/trending/rss?geo=<VN|DE|US>`; Google News RSS `https://news.google.com/rss/search?q=<chủ đề>&hl=<lang>&gl=<geo>&ceid=<geo>:<lang>` cho mỗi chủ đề trụ cột.
+- Mỗi nguồn độc lập: thiếu khóa → `E_PROVIDER_UNAVAILABLE`, HTTP lỗi → `E_PROVIDER_FAILED`, kênh đối thủ không có → `E_FILE_NOT_FOUND`, ghi vào `sources.*.error` của file kết quả; lần quét vẫn thành công.
+- Tín hiệu và hằng số chấm điểm: FN-049.
 
 ### 9.3 Worker Python
 - Mỗi engine một tiến trình, giao tiếp **JSON-RPC 2.0 qua stdio** (một JSON mỗi dòng). Log ra stderr.

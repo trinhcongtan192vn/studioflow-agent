@@ -94,6 +94,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | capability (`tts.*`, `asr.*`, `voice.*`, `image.*`, `music.*`, `sfx.*`, `lipsync.*`, `grade.*`, `media.*`) | ✓ | `image.*` | — | — |
 | `render.video`, `studio.*` | ✓ | — | — | — |
 | `youtube.*` (044) | ✓ | — | — | — |
+| `research.scan`, `research.get` (049) | ✓ | — | — | — |
 | `job.*` | ✓ | ✓ | — | — |
 
 Tool không có trong cột → không được liệt kê cho phiên đó (`allowedTools`) và bị `canUseTool` từ chối nếu vẫn gọi.
@@ -139,7 +140,7 @@ Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 v
 
 ### 5.3 Mạng
 - Agent không có tool mạng.
-- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
+- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, YouTube Data API (`www.googleapis.com`, 044/049), Google Trends / Google News RSS (`trends.google.com`, `news.google.com`, quét nghiên cứu 049), và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
 - Lệnh `script.run` không có mạng trừ khi được đánh dấu cần mạng trong danh sách cho phép (cơ chế chặn: tech-defaults `[chờ S8]`).
 
 ### 5.4 Khóa bí mật (FR-OP-07)

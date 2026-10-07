@@ -91,3 +91,5 @@ Người dùng gửi URL YouTube và nhờ làm video tương tự / hay hơn. M
 4. Lên brief như bình thường từ best angle: chọn workflow hợp với dạng video (giải thích, truyện, shorts…) và thời lượng, viết `BRIEF.md` với mục **Công thức tham khảo** (Winning formula, Best angle, hook mở đầu và cấu trúc dự kiến — tóm từ `REFERENCE.md`, kèm URL nguồn), rồi `workflow.select` → thẻ duyệt brief. Các bước sau (design system, kịch bản…) đọc `BRIEF.md` nên giữ được công thức; nội dung, ví dụ và câu chữ phải là của kênh, không lấy từ video gốc.
 
 Nghiên cứu thêm (chủ đề đang hot, video đối thủ): `youtube.search {query, order: "viewCount", published_after}` và `youtube.channel_videos {channel_id}`.
+
+Người dùng hỏi "hôm nay nên làm chủ đề gì" → `research.get` (lần quét gần nhất: chủ đề ứng viên của đối thủ, trending, Google Trends, tin nóng, điểm cao trước kèm lý do); chưa có hoặc cũ → `research.scan` (job, ghi `research/<ngày>.json`) rồi `job.wait` và `research.get`. Nêu 3–5 chủ đề kèm lý do; nguồn lỗi trong `sources` (ví dụ thiếu khóa YouTube) thì nói rõ.
