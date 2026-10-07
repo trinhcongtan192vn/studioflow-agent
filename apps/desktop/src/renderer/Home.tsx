@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
 import { core } from './rpc';
+import { channelSummary } from './autopilot-format';
+import { ChannelSettings } from './ChannelSettings';
 
-/** UI-02 Trang chủ: kênh gần đây, mở thư mục kênh, tạo kênh mới. */
+type Managed = Awaited<ReturnType<typeof core.call<'channels.managed'>>>['channels'][number];
+
+/** UI-02 Trang chủ: kênh đang quản lý (Autopilot / Manual, 047), mở thư mục kênh, tạo kênh mới. */
 export function Home({ onOpen }: { onOpen: (dir: string) => void }) {
-  const [recent, setRecent] = useState<{ path: string; opened_at: string }[]>([]);
+  const [channels, setChannels] = useState<Managed[]>([]);
+  const [paused, setPaused] = useState(false);
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [name, setName] = useState('');
 
+  const load = async () => {
+    setChannels((await core.call('channels.managed', {})).channels);
+    const s = (await core.call('settings.get', {})) as { config: Record<string, unknown> };
+    setPaused(s.config['autopilot.paused'] === true);
+  };
   useEffect(() => {
-    void core.call('channel.list_recent', {}).then((r) => setRecent(r.channels));
+    void load();
   }, []);
 
   const open = async (dir: string) => {
@@ -33,21 +44,89 @@ export function Home({ onOpen }: { onOpen: (dir: string) => void }) {
       setError((e as Error).message);
     }
   };
+  const setMode = async (c: Managed, on: boolean) => {
+    try {
+      await core.call('channel.autopilot.set', {
+        channel: c.path,
+        key: 'autopilot.enabled',
+        value: on,
+      });
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  const anyAutopilot = channels.some((c) => c.autopilot);
 
   return (
     <main className="home">
       <h1>StudioFlow</h1>
       <section>
-        <h2>Kênh gần đây</h2>
-        <ul className="list" data-testid="recent-channels">
-          {recent.map((c) => (
-            <li key={c.path}>
-              <button className="link" onClick={() => void open(c.path)}>
-                {c.path}
-              </button>
+        <div className="row">
+          <h2>Kênh đang quản lý</h2>
+          {anyAutopilot && (
+            <label className="autopilot-pause" data-testid="autopilot-pause">
+              <input
+                type="checkbox"
+                checked={paused}
+                onChange={async (e) => {
+                  await core.call('settings.set', {
+                    key: 'autopilot.paused',
+                    value: e.target.checked,
+                  });
+                  setPaused(e.target.checked);
+                }}
+              />
+              Tạm dừng Autopilot (mọi kênh)
+            </label>
+          )}
+        </div>
+        <ul className="list managed-channels" data-testid="managed-channels">
+          {channels.map((c) => (
+            <li key={c.path} className={`managed${c.autopilot ? ' autopilot' : ''}`}>
+              <div>
+                <button className="link" disabled={!c.exists} onClick={() => void open(c.path)}>
+                  <b>{c.name}</b>
+                </button>{' '}
+                <span className={`badge${c.autopilot ? ' on' : ''}`}>
+                  {c.autopilot ? (paused ? 'Autopilot (tạm dừng)' : 'Autopilot') : 'Manual'}
+                </span>
+                <div className="muted" title={c.path}>
+                  {channelSummary(c)} · {c.path}
+                </div>
+              </div>
+              <div className="row">
+                <label title="Bật Autopilot cho kênh này">
+                  <input
+                    type="checkbox"
+                    data-testid="channel-autopilot"
+                    checked={c.autopilot}
+                    disabled={!c.exists}
+                    onChange={(e) => void setMode(c, e.target.checked)}
+                  />
+                  Autopilot
+                </label>
+                <button
+                  className="link"
+                  disabled={!c.exists}
+                  onClick={() => setSettingsFor(c.path)}
+                >
+                  Cài đặt kênh
+                </button>
+                <button
+                  className="link muted"
+                  title="Bỏ khỏi danh sách (không xóa thư mục)"
+                  onClick={async () => {
+                    await core.call('channels.managed.remove', { channel: c.path });
+                    await load();
+                  }}
+                >
+                  Bỏ
+                </button>
+              </div>
             </li>
           ))}
-          {!recent.length && <li className="muted">Chưa có kênh nào.</li>}
+          {!channels.length && <li className="muted">Chưa có kênh nào.</li>}
         </ul>
         <button onClick={() => void pickAndOpen()}>Mở thư mục kênh…</button>
       </section>
@@ -59,6 +138,15 @@ export function Home({ onOpen }: { onOpen: (dir: string) => void }) {
         </button>
       </section>
       {error && <p className="error">{error}</p>}
+      {settingsFor && (
+        <ChannelSettings
+          channel={settingsFor}
+          onClose={() => {
+            setSettingsFor(null);
+            void load();
+          }}
+        />
+      )}
     </main>
   );
 }

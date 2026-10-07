@@ -57,7 +57,7 @@ export function ProgressTab({
   const [busy, setBusy] = useState<string>();
   const [confirm, setConfirm] = useState<StepButton>();
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
-  // 034: chế độ tự động (agent tự quyết, chỉ dừng ở điểm chốt)
+  // 034: "Tự duyệt bước" (agent tự quyết, chỉ dừng ở điểm chốt; tên mới từ 047)
   const [autopilot, setAutopilot] = useState<boolean>();
   useEffect(() => {
     if (!video) return;
@@ -75,8 +75,8 @@ export function ProgressTab({
       setFb({
         tone: 'success',
         text: r.on
-          ? 'Đã bật chế độ tự động: agent tự quyết, chỉ dừng ở brief, truyện/kịch bản, chọn giọng (khi thiếu) và duyệt bản nháp trước render.'
-          : 'Đã tắt chế độ tự động: mọi điểm duyệt của workflow đều chờ bạn.',
+          ? 'Đã bật Tự duyệt bước: agent tự quyết, chỉ dừng ở brief, truyện/kịch bản, chọn giọng (khi thiếu) và duyệt bản nháp trước render.'
+          : 'Đã tắt Tự duyệt bước: mọi điểm duyệt của workflow đều chờ bạn.',
         settled: true,
       });
     } catch (e) {
@@ -360,10 +360,10 @@ export function ProgressTab({
           <label
             className="autopilot"
             data-testid="autopilot"
-            title="Tự động: agent tự quyết các bước, chỉ dừng ở điểm chốt"
+            title="Tự duyệt bước: agent tự quyết các bước, chỉ dừng ở điểm chốt"
           >
             <input type="checkbox" checked={autopilot} onChange={() => void toggleAutopilot()} />
-            {autopilot ? 'Tự động (chỉ dừng ở điểm chốt)' : 'Duyệt từng bước'}
+            {autopilot ? 'Tự duyệt bước (chỉ dừng ở điểm chốt)' : 'Duyệt từng bước'}
           </label>
         )}
         <div className="progress-bar" aria-hidden="true">

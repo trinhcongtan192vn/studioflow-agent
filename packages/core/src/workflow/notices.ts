@@ -90,7 +90,7 @@ export function noticeText(n: WorkflowNotice): string {
     case 'started':
       return `▶ Đang làm bước **${n.step_title}** ${at}…`;
     case 'done':
-      return `✓ Xong bước **${n.step_title}** ${at}${n.auto_approved ? ' — tự duyệt (chế độ tự động)' : ''}.${n.next ? ` Đang làm tiếp **${n.next.title}**…` : ''}`;
+      return `✓ Xong bước **${n.step_title}** ${at}${n.auto_approved ? ' — tự duyệt bước' : ''}.${n.next ? ` Đang làm tiếp **${n.next.title}**…` : ''}`;
     case 'waiting':
       return `⏸ Bước **${n.step_title}** đã xong và cần bạn duyệt. Xem kết quả rồi bấm **Duyệt** (hoặc ghi điều cần sửa).`;
     case 'failed':

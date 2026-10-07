@@ -208,6 +208,7 @@ export interface SettingsConfig extends Versioned {
   pricing: { provider: string; model: string; unit: 'mtok_in' | 'mtok_out' | 'image' | 'second'; usd: number }[];
   trace: { capture_content: boolean; retention_days: number; phoenix_enabled: boolean };   // mặc định true / 30 / false
   recent_channels: { path: string; opened_at: Iso8601 }[];
+  managed_channels?: { path: string; added_at: Iso8601 }[];   // kênh app quản lý (047, Autopilot M6); mở kênh lần đầu → thêm
 }
 
 export interface ResolvedValue<T> { value: T; source: 'default' | 'app' | 'channel' | 'video' | 'scene' | 'frame'; path: string; }
