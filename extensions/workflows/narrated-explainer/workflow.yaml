@@ -34,4 +34,5 @@ steps:
     uses: publish-meta
     title: Tiêu đề và mô tả
     refine: { enabled: true, rubric: meta-default }
+  - { id: thumbnail, uses: thumbnail, title: Thumbnail }
   - { id: render, uses: render, title: Render phát hành, params: { mode: release } }

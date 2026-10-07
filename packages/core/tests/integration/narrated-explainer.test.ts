@@ -3,6 +3,7 @@
 // phiên frame giả; HyperFrames (lint/check/snapshot/render) và FFmpeg thật.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { jpegSize } from '../../src/thumbnail/thumbnail.js';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { describeStudio } from '../../src/testing/gpu.js';
 import {
@@ -251,8 +252,12 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
       music: 'done',
       finalize: 'done',
       meta: 'done',
+      thumbnail: 'done',
       render: 'done',
     });
+    // 063: thumbnail JPEG 1280×720 (tiêu đề rút gọn + ảnh frame khi không có LLM/ảnh sinh)
+    const thumb = readFileSync(path.join(v(), 'thumbnail.jpg'));
+    expect(jpegSize(thumb)).toEqual({ width: 1280, height: 720 });
     // 027: overlay ở tầng riêng (trên frame, dưới caption), biến đã điền
     const index = readFileSync(path.join(v(), 'index.html'), 'utf8');
     expect(index).toMatch(/data-sf-overlay="lower-third"[^>]*data-track-index="2"/);

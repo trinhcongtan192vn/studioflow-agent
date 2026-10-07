@@ -3255,6 +3255,7 @@ export const schemas = {
           "lipsync",
           "finalize",
           "publish-meta",
+          "thumbnail",
           "render"
         ]
       },

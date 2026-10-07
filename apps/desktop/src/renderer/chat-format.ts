@@ -254,6 +254,7 @@ const DOC_LABELS: Record<string, string> = {
   'STORY.md': 'Xem truyện',
   'CAST.md': 'Xem nhân vật',
   'publish.md': 'Xem tiêu đề & mô tả',
+  'thumbnail.jpg': 'Xem thumbnail',
   'frame.md': 'Xem design system',
 };
 
@@ -323,13 +324,11 @@ export function stepCtas(
     const asr = error ? asrWarningLines(error) : [];
     if (error && asr.length && isSoftWarning(error))
       return [
-        ...asr
-          .slice(0, 4)
-          .map((id): StepCta => ({
-            kind: 'file',
-            label: `Nghe ${id}`,
-            path: `audio/lines/${id}.wav`,
-          })),
+        ...asr.slice(0, 4).map((id): StepCta => ({
+          kind: 'file',
+          label: `Nghe ${id}`,
+          path: `audio/lines/${id}.wav`,
+        })),
         { kind: 'asr_accept', label: `Chấp nhận ${asr.length} dòng`, step: step.id, line_ids: asr },
         {
           kind: 'say',

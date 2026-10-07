@@ -157,6 +157,14 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     outputs: r('publish.md'),
     gates: () => [valid('publish.md'), { kind: 'objective', check: 'meta_limits' }],
   },
+  // 063: hình đại diện YouTube theo phong cách kênh (câu móc + ảnh nền), trước render
+  thumbnail: {
+    by: 'engine',
+    reads: r('publish', 'BRIEF', 'frame.md'),
+    writes: r('thumbnail'),
+    outputs: r('thumbnail.jpg'),
+    gates: () => [{ kind: 'objective', check: 'thumbnail_valid' }],
+  },
   render: { by: 'engine', reads: r('index'), writes: r('renders'), outputs: r(), gates: () => [] },
 };
 

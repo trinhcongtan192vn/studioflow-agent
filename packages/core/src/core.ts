@@ -24,6 +24,7 @@ import { lipsyncExecutor, lipsyncTools } from './lipsync/step.js';
 import { castExecutor } from './workflow/cast.js';
 import './hf/safe-area.js';
 import './workflow/asr-gate.js';
+import { thumbnailExecutor } from './thumbnail/thumbnail.js';
 import { PinnedDecider } from './studio/pinned.js';
 import { defineRenderJob, renderExecutor, renderTools } from './render/tools.js';
 import { designSystemExecutor } from './hf/design-system.js';
@@ -550,6 +551,8 @@ export function createCore(opts: CoreOptions = {}): Core {
     'publish-meta',
     publishMetaExecutor({ text, permissions: gateway.permissions }),
   );
+  // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
+  workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));
   if (opts.start !== false) {
     queue.recover();
     queue.start();

@@ -16,7 +16,7 @@ export interface WorkflowManifest {
 }
 
 export type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'render';
+  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render';
 
 export interface StepDecl {
   id: string;                               // duy nhất trong workflow

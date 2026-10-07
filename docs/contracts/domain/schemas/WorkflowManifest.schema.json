@@ -247,6 +247,7 @@
         "lipsync",
         "finalize",
         "publish-meta",
+        "thumbnail",
         "render"
       ]
     },
