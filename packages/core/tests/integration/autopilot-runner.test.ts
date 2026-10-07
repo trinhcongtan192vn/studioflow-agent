@@ -24,6 +24,8 @@ import type {
   ResearchDoc,
   VideoState,
 } from '../../src/contracts/types.js';
+import { markPlanItem } from '../../src/autopilot/plan.js';
+import { setConfig } from '../../src/config/resolve.js';
 import { isAutoApproval } from '../../src/domain/autopilot.js';
 import { parseBlocksDoc, serializeBlocksDoc } from '../../src/domain/markdown/blocks.js';
 import { schemas } from '../../src/contracts/schemas.js';
@@ -893,5 +895,70 @@ describe('giọng đọc, chi phí', () => {
     const t0 = Date.now();
     expect(await p).toBe(false);
     expect(Date.now() - t0).toBeGreaterThanOrEqual(900);
+  });
+});
+
+describe('052 bổ sung: ngân sách API có phí, video làm xong bằng tay', () => {
+  it('paid calls within budget.api_cost_usd_per_video are allowed for an Autopilot video; past it the item is parked', async () => {
+    const rig = makeRig({});
+    const dir = rig.dirs[0]!;
+    setConfig(new WriteStore(dir), 'budget.api_cost_usd_per_video', 1, { tier: 'channel' });
+    writePlan(dir, [{ id: 'pi_b0000001' }]);
+    const bus = rig.fx.core.gateway.permissions;
+    const base = rig.fx.core.workflows.executor('script')!;
+    const answers: boolean[] = [];
+    let first = true;
+    rig.fx.core.workflows.registerExecutor('script', async (ctx) => {
+      if (first) {
+        first = false;
+        const session = {
+          session_id: 'ss_workflow' as const,
+          kind: 'main' as const,
+          channel_dir: ctx.channelDir,
+          video_id: ctx.videoId as never,
+        };
+        for (let i = 0; i < 3; i++)
+          answers.push(
+            await bus.ask(session, {
+              tool: 'image.generate',
+              kind: 'paid_api',
+              summary: `Sinh ảnh ${i + 1} qua qwen (có phí, ước ≤ $0.5/ảnh)`,
+              estimate: { provider: 'image.qwen20-api', images: 1, usd: 0.5 },
+            }),
+          );
+        if (answers.includes(false))
+          throw new SfError('E_PERMISSION_DECLINED', 'paid call declined');
+      }
+      return base(ctx);
+    });
+    const r = await rig.runner.tick();
+    expect(answers).toEqual([true, true, false]); // 0,5 + 0,5 ≤ $1; lần 3 vượt
+    expect(r.outcomes.map((x) => x.outcome)).toEqual(['parked']);
+    expect(itemOf(dir, 'pi_b0000001').note).toMatch(/cần xác nhận chi phí: Sinh ảnh 3/);
+    const video = itemOf(dir, 'pi_b0000001').video_id!;
+    expect(
+      readJson<{ approved_usd: number }>(path.join(dir, 'videos', video, '.sf', 'paid.json')),
+    ).toMatchObject({
+      approved_usd: 1,
+    });
+    expect(logOf(dir).some((l) => l.event === 'paid.allowed')).toBe(true);
+  });
+
+  it('a parked video that the user finished by hand returns to Autopilot as produced', async () => {
+    const rig = makeRig({});
+    const dir = rig.dirs[0]!;
+    writePlan(dir, [{ id: 'pi_c0000001' }]);
+    expect((await rig.runner.tick()).outcomes.map((x) => x.outcome)).toEqual(['produced']);
+    // giả lập: Autopilot đã đỗ mục, người dùng làm nốt video bằng tay (mọi bước xong)
+    markPlanItem(new WriteStore(dir), {
+      date: DATE,
+      item_id: 'pi_c0000001',
+      patch: { status: 'needs_review', note: 'Cần người duyệt (Autopilot): thử' },
+    });
+    await rig.runner.tick();
+    const item = itemOf(dir, 'pi_c0000001');
+    expect(item.status).toBe('produced');
+    expect(item.note).toMatch(/bằng tay/);
+    expect(logOf(dir).some((l) => l.event === 'item.reclaimed')).toBe(true);
   });
 });

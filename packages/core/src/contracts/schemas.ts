@@ -4198,7 +4198,7 @@ export const schemas = {
           },
           "event": {
             "type": "string",
-            "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced."
+            "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced, paid.allowed, item.reclaimed (052)."
           },
           "item_id": {
             "$ref": "#/definitions/PlanItemId"
