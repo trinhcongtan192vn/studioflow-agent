@@ -14,6 +14,7 @@ import {
   type CapacityChannel,
   type CapacityResult,
 } from './capacity.js';
+import { readQuotaUsed } from '../publish/quota.js';
 import type { PlanWorkflow } from './plan.js';
 
 /** Workflow đã cài và tương thích (id, bước, dạng xuất) — đầu vào của năng lực (050) và kế hoạch ngày (051). */
@@ -72,5 +73,7 @@ export function capacityRun(o: {
     channels: o.channels,
     busy_ms,
     busy_tokens,
+    // 053: quota YouTube thật đã dùng hôm nay (sổ đếm của bộ đăng) thay vì 0
+    youtube_units_used_today: readQuotaUsed(o.appDataDir, new Date(o.now ?? Date.now())),
   });
 }

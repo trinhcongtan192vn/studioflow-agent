@@ -6,7 +6,7 @@ import type { AutopilotRunner } from '../autopilot/runner.js';
 import type { SecretStore } from '../secrets/store.js';
 import { writeOutsideProject } from '../store/scratch.js';
 import { TelegramBot, type BotReply, type BotStatus, type CommandCtx } from './bot.js';
-import { TelegramClient, type FetchLike } from './client.js';
+import { TelegramClient, type FetchLike, type InlineKeyboard } from './client.js';
 import { formatPlans, formatStatus, HELP_TEXT } from './format.js';
 import { TelegramNotifier, type Notifier } from './notifier.js';
 import type { OpsAgent } from './ops.js';
@@ -139,6 +139,29 @@ export class TelegramService {
     this.bot = bot;
     for (const [p, h] of this.pendingCallbacks) bot.onCallback(p, h);
     bot.start();
+  }
+
+  /** Tin xem trước bản đăng (053) kèm nút inline vào `telegram.chat_id`; chưa bật/chưa có token → bỏ qua. */
+  async sendPreview(m: {
+    text: string;
+    photo?: { bytes: Uint8Array; filename: string };
+    buttons: { text: string; data: string }[][];
+  }): Promise<void> {
+    const client = this.client;
+    const chat = this.chatId();
+    if (!client || !chat || !this.enabled()) return;
+    const kb: InlineKeyboard = {
+      inline_keyboard: m.buttons.map((r) =>
+        r.map((b) => ({ text: b.text, callback_data: b.data })),
+      ),
+    };
+    if (m.photo)
+      await client.sendPhoto(chat, m.photo, {
+        caption: m.text,
+        parse_mode: 'HTML',
+        reply_markup: kb,
+      });
+    else await client.sendMessage(chat, m.text, { parse_mode: 'HTML', reply_markup: kb });
   }
 
   /** Cho tính năng sau (053 nút Hủy/Đăng ngay…) đăng ký xử lý nút inline. */

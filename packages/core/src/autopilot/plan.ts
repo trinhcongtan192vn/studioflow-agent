@@ -6,6 +6,7 @@ import type {
   DailyPlan,
   PlanItem,
   PlanItemStatus,
+  PublishState,
   ResearchCandidate,
   ResearchDoc,
 } from '../contracts/types.js';
@@ -934,6 +935,8 @@ export interface PlanItemMark {
   video_id?: PlanItem['video_id'];
   /** `null` = xóa ghi chú. */
   note?: string | null;
+  /** 053: trạng thái đăng theo nền tảng — gộp theo nền tảng (nền tảng không nêu giữ nguyên). */
+  publish?: PublishState;
 }
 
 /**
@@ -953,6 +956,7 @@ export function markPlanItem(
   const next: PlanItem = { ...cur };
   if (o.patch.status) next.status = o.patch.status;
   if (o.patch.video_id) next.video_id = o.patch.video_id;
+  if (o.patch.publish) next.publish = { ...cur.publish, ...o.patch.publish };
   if (o.patch.note === null) delete next.note;
   else if (o.patch.note !== undefined) next.note = o.patch.note;
   if (JSON.stringify(next) === JSON.stringify(cur)) return cur;

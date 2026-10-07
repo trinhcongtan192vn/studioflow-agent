@@ -81,6 +81,8 @@ export const schemas = {
               "telegram.enabled": {},
               "telegram.chat_id": {},
               "telegram.allowed_user_ids": {},
+              "publish.youtube.audited": {},
+              "publish.youtube.channel_id": {},
               "publish.platforms": {},
               "publish.slots": {},
               "publish.timezone": {},
@@ -185,6 +187,8 @@ export const schemas = {
               "telegram.enabled": {},
               "telegram.chat_id": {},
               "telegram.allowed_user_ids": {},
+              "publish.youtube.audited": {},
+              "publish.youtube.channel_id": {},
               "publish.platforms": {},
               "publish.slots": {},
               "publish.timezone": {},
@@ -4139,6 +4143,9 @@ export const schemas = {
           "video_id": {
             "$ref": "#/definitions/VideoId"
           },
+          "publish": {
+            "$ref": "#/definitions/PublishState"
+          },
           "note": {
             "type": "string"
           }
@@ -4183,6 +4190,69 @@ export const schemas = {
       "Id<\"vd\">": {
         "type": "string",
         "pattern": "^vd_[0-9a-z]{8}$"
+      },
+      "PublishState": {
+        "type": "object",
+        "properties": {
+          "youtube": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "tiktok": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "facebook": {
+            "$ref": "#/definitions/PlatformPublish"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformPublish": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/definitions/PublishStatus"
+          },
+          "video_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "publish_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "veto_until": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "uploaded_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublishStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "uploading",
+          "scheduled",
+          "private",
+          "public",
+          "cancelled",
+          "failed"
+        ]
       }
     }
   },

@@ -236,6 +236,19 @@ export interface DailyPlan extends Versioned {
   notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
   items: PlanItem[];
 }
+export type PublishStatus = 'pending' | 'uploading' | 'scheduled' | 'private' | 'public' | 'cancelled' | 'failed';
+export interface PlatformPublish {
+  status: PublishStatus;
+  video_id?: string;                               // ID video trên nền tảng (không phải VideoId của StudioFlow)
+  url?: string;
+  publish_at?: Iso8601;                            // giờ công khai đã đặt trên nền tảng (chỉ khi nền tảng tự công khai theo lịch)
+  veto_until?: Iso8601;                            // hết giờ này mà không bị phản đối → làm theo lịch
+  uploaded_at?: Iso8601;
+  attempts?: number;                               // số lần tải lên đã thử (tối đa 3)
+  error?: string;                                  // tiếng Việt: vì sao chưa đăng / lỗi
+  note?: string;
+}
+export interface PublishState { youtube?: PlatformPublish; tiktok?: PlatformPublish; facebook?: PlatformPublish }
 export interface PlanItem {
   id: PlanItemId;
   status: PlanItemStatus;
@@ -252,6 +265,7 @@ export interface PlanItem {
   score: number;                                   // điểm ứng viên (5.17)
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
+  publish?: PublishState;                          // 053: trạng thái đăng từng nền tảng (chỉ mục `produced`)
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
 }
 
@@ -435,6 +449,8 @@ export type ConfigKey =
   | 'telegram.enabled'
   | 'telegram.chat_id'
   | 'telegram.allowed_user_ids'
+  | 'publish.youtube.audited'
+  | 'publish.youtube.channel_id'
   | 'publish.platforms'
   | 'publish.slots'
   | 'publish.timezone'

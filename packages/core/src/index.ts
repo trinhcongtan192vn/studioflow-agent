@@ -352,6 +352,7 @@ export {
   type SecretStore,
 } from './secrets/store.js';
 export * from './telegram/index.js';
+export * from './publish/index.js';
 export { StudioPreviews, syncSnapshot, snapshotRel, snapshotMtime } from './studio/preview.js';
 export { studioTools } from './studio/tools.js';
 export { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';

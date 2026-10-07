@@ -489,6 +489,22 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "publish.youtube.audited",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.youtube.channel_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
       "key": "publish.platforms",
       "pattern": false,
       "type": "string[]",

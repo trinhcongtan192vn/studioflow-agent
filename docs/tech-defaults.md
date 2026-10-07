@@ -133,6 +133,8 @@
 | `publish.veto_hours` | 2 |
 | Bộ chạy Autopilot (052, hằng số trong `autopilot/runner.ts`, không phải khóa cấu hình) | host gọi `tick` mỗi 5 phút và khi khởi động; một video một lúc; chạy lại một lần cho bước lỗi; chạm hạn mức Claude → chờ tới giờ hết hạn mức trong thông báo (không đọc được thì +1 giờ, cộng 1 phút đệm) |
 | Telegram (055, hằng số trong `telegram/`) | long polling `getUpdates` timeout 25 s; chờ lại 1 s → 60 s (nhân đôi) khi lỗi mạng; tin dài chia ≤ 4096 ký tự theo dòng; phiên `ops` `maxTurns` 10, dùng lại tối đa 15 câu hỏi rồi mở phiên mới; tin định dạng HTML |
+| Đăng YouTube (053, hằng số trong `publish/`) | khúc tải lên 8 MiB; thử lại mỗi khúc ≤ 5 lần (lùi 1 s → 16 s); tối đa 3 lần tải lên mỗi mục; quota 10 000 đơn vị/ngày (giờ Thái Bình Dương); OAuth chờ 5 phút; access token làm mới trước hạn 60 s; `categoryId` 22 |
+| `publish.youtube.audited` | false (`publish.youtube.channel_id`: không đặt) |
 | `telegram.enabled` | false (`telegram.chat_id` rỗng, `telegram.allowed_user_ids` `[]`) |
 | Kế hoạch ngày (051, hằng số trong `autopilot/plan.ts`, không phải khóa cấu hình — FN-051) | không lặp ứng viên 14 ngày; gần trùng tiêu đề Jaccard ≥ 0,6; quét lịch đăng tối đa 30 ngày |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | comfyui 14 · omnivoice 6 · asr 3 · render 2 / 14 `[chờ S1, S9]` |

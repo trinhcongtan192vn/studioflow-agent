@@ -62,6 +62,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'telegram.enabled': false,
   'telegram.chat_id': '',
   'telegram.allowed_user_ids': [],
+  // 053: dự án API YouTube chưa kiểm duyệt → chỉ tải lên riêng tư, không hẹn giờ
+  'publish.youtube.audited': false,
   'publish.platforms': ['youtube'],
   'publish.slots': ['19:00'],
   'publish.timezone': 'Asia/Ho_Chi_Minh',

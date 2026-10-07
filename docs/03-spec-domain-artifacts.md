@@ -470,7 +470,9 @@ interface ResearchCandidate {
 ```
 
 ### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
-Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
+Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`.
+
+**Đăng bài (053, FR-AP-09):** mục `produced` được bộ đăng (Publisher) xử lý và ghi `publish.<nền tảng>`: `pending` (chờ tải lên: chưa kết nối OAuth, ngoài khung giờ làm việc…), `uploading`, `private` (đã tải lên riêng tư, **không** hẹn giờ vì `publish.youtube.audited` = false — người dùng tự công khai trong YouTube Studio), `scheduled` (riêng tư + `publishAt`, nền tảng tự công khai; có `veto_until`), `public`, `cancelled` (người dùng bấm Hủy đăng — video vẫn riêng tư), `failed`. Giờ công khai thật = max(`publish_at` của mục, lúc tải lên + `publish.veto_hours`). Trạng thái chỉ do Publisher ghi (qua `markPlanItem`), người dùng không sửa tay. Dữ liệu app (không thuộc kênh): `<app-data>/youtube/quota.json` (`{date, units}` theo ngày Thái Bình Dương — lúc Google đặt lại quota) và `<app-data>/publish/sessions/<item_id>.json` (URI phiên tải lên có thể tiếp tục, không chứa token). Luật chọn workflow, khung giờ: FN-051.
 
 ```ts
 type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed' | 'needs_review';
@@ -487,6 +489,19 @@ interface DailyPlan extends Versioned {
   notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
   items: PlanItem[];
 }
+type PublishStatus = 'pending' | 'uploading' | 'scheduled' | 'private' | 'public' | 'cancelled' | 'failed';
+interface PlatformPublish {
+  status: PublishStatus;
+  video_id?: string;                               // ID video trên nền tảng (không phải VideoId của StudioFlow)
+  url?: string;
+  publish_at?: Iso8601;                            // giờ công khai đã đặt trên nền tảng (chỉ khi nền tảng tự công khai theo lịch)
+  veto_until?: Iso8601;                            // hết giờ này mà không bị phản đối → làm theo lịch
+  uploaded_at?: Iso8601;
+  attempts?: number;                               // số lần tải lên đã thử (tối đa 3)
+  error?: string;                                  // tiếng Việt: vì sao chưa đăng / lỗi
+  note?: string;
+}
+interface PublishState { youtube?: PlatformPublish; tiktok?: PlatformPublish; facebook?: PlatformPublish }
 interface PlanItem {
   id: PlanItemId;
   status: PlanItemStatus;
@@ -503,6 +518,7 @@ interface PlanItem {
   score: number;                                   // điểm ứng viên (5.17)
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
+  publish?: PublishState;                          // 053: trạng thái đăng từng nền tảng (chỉ mục `produced`)
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
 }
 ```
@@ -612,6 +628,8 @@ interface SettingsConfig extends Versioned {
 | `telegram.enabled` | boolean (bật bot Telegram: thông báo vận hành và hỏi đáp với agent `ops`, 055) | app |
 | `telegram.chat_id` | string (ID nhóm/kênh Telegram nhận thông báo; rỗng = chưa đặt) | app |
 | `telegram.allowed_user_ids` | string[] (ID người dùng Telegram được ra lệnh cho bot; rỗng = mọi thành viên của `telegram.chat_id`) | app |
+| `publish.youtube.audited` | boolean (dự án API YouTube đã qua kiểm duyệt của Google: được đăng công khai/hẹn giờ; false = chỉ tải lên riêng tư, người dùng tự công khai trong YouTube Studio, 053) | app |
+| `publish.youtube.channel_id` | string (ID kênh YouTube `UC…` gắn với kênh StudioFlow, ghi khi kết nối OAuth; không phải bí mật) | channel |
 | `publish.platforms` | string[] (`youtube`, `tiktok`, `facebook`) | channel |
 | `publish.slots` | string[] (`HH:MM` hoặc `<thứ> HH:MM`, thứ: mon…sun) | channel |
 | `publish.timezone` | string (IANA) | app, channel |

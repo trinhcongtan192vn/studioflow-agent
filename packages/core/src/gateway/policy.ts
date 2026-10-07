@@ -35,6 +35,7 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   [/^autopilot\.(plan_(get|update)|status|pause|resume)$/, MO],
   ['autopilot.plan_run', M],
   [/^ops\./, O],
+  [/^publish\.(status|cancel|now)$/, MO],
   ['job.list', ['main', 'frame', 'ops']],
   [/^job\./, MF],
 ];

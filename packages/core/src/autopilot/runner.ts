@@ -210,6 +210,7 @@ export class AutopilotRunner extends EventEmitter {
   private readonly blocked = new Map<string, { summary: string; ts: number }>();
   private channelsFn: () => string[];
   private notifier?: Notifier;
+  private publisher?: { process(now: Date): Promise<unknown> };
   private pauseFn: (paused: boolean) => void = (paused) => {
     const dir = this.d.appDataDir ?? defaultAppDataDir();
     const f = path.join(dir, 'settings.json');
@@ -237,6 +238,11 @@ export class AutopilotRunner extends EventEmitter {
   /** 055: bộ thông báo (Telegram…) nhận mọi dòng nhật ký vận hành. */
   setNotifier(n: Notifier | undefined): void {
     this.notifier = n;
+  }
+
+  /** 053: bộ đăng bài — sau khi làm video, đăng các mục đã xong (trong khung giờ làm việc). */
+  setPublisher(p: { process(now: Date): Promise<unknown> } | undefined): void {
+    this.publisher = p;
   }
 
   /** Kênh Autopilot đang bật (có `channel.json`, `autopilot.enabled`). */
@@ -583,6 +589,28 @@ export class AutopilotRunner extends EventEmitter {
         ...(r.reason ? { reason: r.reason } : {}),
       });
       if (r.outcome === 'wait' || r.outcome === 'stopped') break;
+    }
+    // 053: đăng các mục đã làm xong. Tải lên không dùng Claude nên vẫn chạy khi đang chờ hạn mức, nhưng vẫn
+    // tuân theo tạm dừng và khung giờ làm việc
+    if (this.publisher && !this.stopped) {
+      const g = startGate({
+        now: this.now(),
+        paused: this.app<boolean>('autopilot.paused') === true,
+        window: this.app<string>('autopilot.work_window'),
+        timezone: this.app<string>('publish.timezone'),
+        ...(opts.force ? { force: true } : {}),
+      });
+      if (g.ok)
+        try {
+          await this.publisher.process(this.now());
+        } catch (e) {
+          for (const c of chans)
+            this.log(c, this.dateOf(c, this.now()), {
+              level: 'error',
+              event: 'publish.error',
+              message: `Lỗi bộ đăng bài: ${message(e)}`,
+            });
+        }
     }
     return out;
   }

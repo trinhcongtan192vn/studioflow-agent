@@ -105,6 +105,10 @@ const NOTIFY_ICON: Record<string, string> = {
   'item.failed': '❌',
   'limit.hit': '⏳',
   'plan.built': '🗓',
+  // 053: đăng bài (bản xem trước đã có tin riêng kèm nút)
+  'publish.failed': '📤❌',
+  'publish.pending': '🔌',
+  'publish.public': '🌐',
 };
 
 /** Các loại sự kiện được gửi; loại khác → `undefined` (không thông báo). */

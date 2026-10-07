@@ -58,6 +58,16 @@ import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
 import { MemorySecretStore, type SecretStore } from './secrets/store.js';
+import {
+  PublishService,
+  publishTools,
+  QuotaLedger,
+  YouTubeAccounts,
+  YouTubeApi,
+  YouTubeAuth,
+  YouTubePublisher,
+  type HttpFetch,
+} from './publish/index.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
 import {
@@ -92,6 +102,12 @@ export interface CoreOptions {
   getSecret?: (name: string) => string | undefined;
   /** Cổng bí mật (055): app nối `main`; mặc định kho bộ nhớ (test). */
   secrets?: SecretStore;
+  /** `fetch` của bộ đăng bài (053/056; test không chạm mạng). */
+  publishFetch?: HttpFetch;
+  /** Chờ giữa các lần thử lại khi tải lên (test). */
+  publishSleep?: (ms: number) => Promise<void>;
+  /** Đồng hồ cho bộ chạy Autopilot, sổ quota và bộ đăng bài (test đặt giờ giả). */
+  clock?: () => Date;
 }
 
 export interface Core {
@@ -114,6 +130,10 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** Bộ đăng bài (053): tải lên các mục đã làm xong, xem trước/hủy/đăng ngay. */
+  publisher: PublishService;
+  /** Kết nối YouTube theo kênh (OAuth, trạng thái, ngắt). */
+  youtube: YouTubeAccounts;
   /** Kho bí mật (D5 5.4): token Telegram, OAuth… — không bao giờ ghi file/log. */
   secrets: SecretStore;
   /** Bộ chạy Autopilot (052): host gắn danh sách kênh + brief rồi gọi `tick` định kỳ. */
@@ -334,6 +354,7 @@ export function createCore(opts: CoreOptions = {}): Core {
         appDataDir,
       }),
     appDataDir,
+    ...(opts.clock ? { clock: opts.clock } : {}),
     logger: (l) =>
       autopilotLog.write(l.level, 'sf.autopilot', {
         event: l.event,
@@ -344,6 +365,35 @@ export function createCore(opts: CoreOptions = {}): Core {
         message: l.message,
       }),
   });
+  // 053: đăng YouTube — OAuth theo kênh, tải lên có thể tiếp tục, sổ quota nuôi mô hình năng lực (050)
+  const quota = new QuotaLedger(appDataDir, opts.clock);
+  const ytAuth = new YouTubeAuth({
+    secrets,
+    ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+  });
+  const ytApi = (channelId: string) =>
+    new YouTubeApi({
+      ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+      ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+      token: (force) => ytAuth.accessToken(channelId, force),
+      quota,
+    });
+  const publisher = new PublishService({
+    appDataDir,
+    storeFor: plan.storeFor,
+    channels: () => autopilot.channelDirs(),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  publisher.register(new YouTubePublisher({ auth: ytAuth, api: ytApi, appDataDir }));
+  autopilot.setPublisher(publisher);
+  const ytAccounts = new YouTubeAccounts({
+    auth: ytAuth,
+    api: ytApi,
+    storeFor: plan.storeFor,
+    quota,
+    appDataDir,
+  });
+  for (const t of publishTools(publisher)) gateway.register(t);
   workflows.setAutoDecide(autopilot.autoDecide);
   autopilot.attachPermissions(gateway.permissions);
   for (const t of autopilotRunnerTools(autopilot, appDataDir)) gateway.register(t);
@@ -399,6 +449,8 @@ export function createCore(opts: CoreOptions = {}): Core {
     pinned,
     captions: new CaptionPanel(gateway),
     autopilot,
+    publisher,
+    youtube: ytAccounts,
     secrets,
     phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
@@ -406,6 +458,7 @@ export function createCore(opts: CoreOptions = {}): Core {
       if (closed) return;
       closed = true;
       autopilot.stop();
+      ytAuth.close();
       studio.closeAll();
       phoenix.stop();
       void edits.closeAll();

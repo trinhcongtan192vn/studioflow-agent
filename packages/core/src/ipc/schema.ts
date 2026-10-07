@@ -103,6 +103,39 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 053: kết nối YouTube theo kênh (OAuth loopback + PKCE). */
+  'publish.youtube.connect': { params: { channel: string }; result: { auth_url: string } };
+  'publish.youtube.status': {
+    params: { channel: string };
+    result: {
+      connected: boolean;
+      audited: boolean;
+      youtube_channel_id?: string;
+      channel_title?: string;
+      quota: { used: number; limit: number };
+      error?: string;
+    };
+  };
+  'publish.youtube.disconnect': { params: { channel: string }; result: { ok: true } };
+  /** 053: Hủy đăng / Đăng ngay trong cửa sổ phản đối. */
+  'publish.cancel': {
+    params: {
+      channel: string;
+      date: string;
+      item_id: string;
+      platform?: 'youtube' | 'tiktok' | 'facebook';
+    };
+    result: { status: string; note?: string };
+  };
+  'publish.now': {
+    params: {
+      channel: string;
+      date: string;
+      item_id: string;
+      platform?: 'youtube' | 'tiktok' | 'facebook';
+    };
+    result: { status: string; url?: string; note?: string };
+  };
   /** 055: bot Telegram đang chạy/tắt và vì sao. */
   'telegram.status': {
     params: Record<string, never>;
@@ -348,6 +381,8 @@ export interface IpcEvents {
   };
   /** 052: trạng thái Autopilot đổi (mục đổi trạng thái, bắt đầu/xong một lượt, chờ hạn mức…). */
   'autopilot.updated': AutopilotStatus;
+  /** 053: kết nối YouTube của một kênh đổi (đã kết nối / đã ngắt). */
+  'publish.updated': { channel: string };
   'approval.requested': {
     channel: string;
     video: string;

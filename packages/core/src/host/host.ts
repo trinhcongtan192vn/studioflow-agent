@@ -58,6 +58,7 @@ import { getSecretDefault } from '../secrets/credman.js';
 import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
+import { PUBLISH_CALLBACK } from '../publish/index.js';
 import {
   checkTelegramValue,
   OpsAgent,
@@ -93,6 +94,7 @@ export class CoreHost extends EventEmitter {
   private readonly agentErrors = new Map<string, { code: string; message: string }>();
   private autopilotTimer?: ReturnType<typeof setInterval>;
   readonly telegram: TelegramService;
+  private readonly clock: () => Date;
   private readonly ops: OpsAgent;
 
   constructor(
@@ -110,6 +112,7 @@ export class CoreHost extends EventEmitter {
     super();
     const appDataDir = opts.appDataDir ?? defaultAppDataDir();
     this.core = createCore({ ...opts, appDataDir });
+    this.clock = opts.clock ?? (() => new Date());
     this.runtime = opts.runtime ?? createRuntime({ gateway: this.core.gateway });
     this.core.queue.on('job.updated', (j) => this.send('job.updated', j));
     this.core.gateway.permissions.on('permission.requested', (r) =>
@@ -137,6 +140,11 @@ export class CoreHost extends EventEmitter {
       log: (level, msg) => this.core.gateway.logger.write(level, 'sf.telegram', { message: msg }),
     });
     this.core.autopilot.setNotifier(this.telegram.notifier);
+    // 053: bản xem trước + nút Hủy đăng / Đăng ngay trong nhóm Telegram
+    this.core.publisher.setNotifier(this.telegram.notifier);
+    this.core.publisher.setPreview({ send: (m) => this.telegram.sendPreview(m) });
+    this.telegram.onCallback(PUBLISH_CALLBACK, (data) => this.core.publisher.handleCallback(data));
+    this.core.youtube.onChange = (channel) => this.send('publish.updated', { channel });
     if (opts.autopilot) void this.telegram.reconfigure();
     // 052: Autopilot — kênh quản lý đang bật, brief qua phiên `main`, sự kiện, vòng lặp định kỳ
     const ap = this.core.autopilot;
@@ -296,7 +304,7 @@ export class CoreHost extends EventEmitter {
    */
   private capacity(dirs?: string[]): IpcMethods['autopilot.capacity']['result'] {
     const app = this.core.appDataDir;
-    const now = Date.now();
+    const now = this.clock().getTime();
     const list = dirs?.length ? dirs.map((d) => path.resolve(d)) : this.autopilotChannels();
     const channels = list
       .flatMap((d) => {
@@ -700,6 +708,26 @@ export class CoreHost extends EventEmitter {
             ...(p.video ? { video: String(p.video) } : {}),
           }),
         };
+      case 'publish.youtube.connect':
+        return c.youtube.connect(path.resolve(p.channel));
+      case 'publish.youtube.status':
+        return c.youtube.status(path.resolve(p.channel));
+      case 'publish.youtube.disconnect':
+        return c.youtube.disconnect(path.resolve(p.channel));
+      case 'publish.cancel':
+        return c.publisher.cancel({
+          channel: path.resolve(p.channel),
+          item_id: String(p.item_id),
+          date: String(p.date),
+          ...(p.platform ? { platform: p.platform as 'youtube' | 'tiktok' | 'facebook' } : {}),
+        });
+      case 'publish.now':
+        return c.publisher.publishNow({
+          channel: path.resolve(p.channel),
+          item_id: String(p.item_id),
+          date: String(p.date),
+          ...(p.platform ? { platform: p.platform as 'youtube' | 'tiktok' | 'facebook' } : {}),
+        });
       case 'telegram.status':
         return this.telegram.status();
       case 'telegram.test':

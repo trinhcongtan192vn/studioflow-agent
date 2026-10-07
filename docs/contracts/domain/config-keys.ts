@@ -55,6 +55,8 @@ export type ConfigKey =
   | 'telegram.enabled'
   | 'telegram.chat_id'
   | 'telegram.allowed_user_ids'
+  | 'publish.youtube.audited'
+  | 'publish.youtube.channel_id'
   | 'publish.platforms'
   | 'publish.slots'
   | 'publish.timezone'
