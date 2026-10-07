@@ -96,6 +96,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `youtube.*` (044) | ✓ | — | — | — |
 | `research.scan`, `research.get` (049) | ✓ | — | — | — |
 | `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — |
+| `autopilot.status` (052) | ✓ | — | — | — |
 | `job.*` | ✓ | ✓ | — | — |
 
 Tool không có trong cột → không được liệt kê cho phiên đó (`allowedTools`) và bị `canUseTool` từ chối nếu vẫn gọi.
@@ -120,6 +121,8 @@ Cơ chế: handler tool **chờ** quyết định qua bus sự kiện của `cor
 | Xóa | không có tool xóa; dọn dẹp chỉ qua màn dung lượng (người dùng tự bấm) |
 
 Chế độ tự động (`workflow.autopilot`, 034): sinh hàng loạt miễn phí được đồng ý tự động; ghi đè artifact của approval **tự duyệt** không hỏi; API có phí và render vẫn hỏi.
+
+**Video do Autopilot tạo (052, `state.autopilot`)** chạy không có người: yêu cầu `paid_api` **không chờ** — app vẫn phát `permission.requested` (người dùng thấy), tool trả `E_PERMISSION_DECLINED` ngay, và mục kế hoạch được đỗ `needs_review` với lý do "cần xác nhận chi phí: <tóm tắt>" (an toàn mặc định; người dùng cho phép rồi làm tiếp video bằng tay). `batch_gen` vẫn tự đồng ý như chế độ tự động.
 
 Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 và 3; lưu ở `state.json.config_overrides` khóa `policy.auto_approve.batch_gen` / `policy.auto_approve.paid_api` (D3 mục 7.2). Render luôn hỏi.
 

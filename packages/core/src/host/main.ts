@@ -30,7 +30,11 @@ parentPort.on('message', (e) => {
   if (msg.type !== 'init' || host) return;
   const init = msg as { appDataDir?: string; secrets?: Record<string, string> };
   setHostSecrets(init.secrets ?? {});
-  host = new CoreHost(init.appDataDir ? { appDataDir: init.appDataDir } : {});
+  // 052: app thật chạy Autopilot theo chu kỳ (5 phút); test/CLI tạo CoreHost không bật
+  host = new CoreHost({
+    ...(init.appDataDir ? { appDataDir: init.appDataDir } : {}),
+    autopilot: {},
+  });
   const port = e.ports[0]!;
   port.on('message', (m) => {
     const req = m.data as IpcRequest;

@@ -41,6 +41,7 @@ export const SCHEMA_ROOTS = [
   'MusicManifest',
   'ResearchDoc',
   'DailyPlan',
+  'AutopilotLogLine',
 ];
 
 const ID_PREFIXES = [

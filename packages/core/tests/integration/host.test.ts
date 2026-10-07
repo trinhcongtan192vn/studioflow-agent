@@ -407,6 +407,117 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('autopilot.capacity', {})).channels[0]).toMatchObject({ cap_left: 1 });
   });
 
+  it('autopilot.status/pause/resume/run_now, autopilot.updated and app.activity (052 FR-AP-07/08)', async () => {
+    const { host, dir, app, events } = setup();
+    await host.call('channel.open', { channel: dir });
+    const call = (key: string, value: unknown) =>
+      host.call('channel.autopilot.set', { channel: dir, key, value });
+    // chưa kênh nào bật Autopilot: trạng thái trống, không đang làm gì
+    expect(await host.call('autopilot.status', {})).toEqual({
+      paused: false,
+      running: false,
+      today: [],
+    });
+    await call('autopilot.enabled', true);
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const channelId = JSON.parse(readFileSync(path.join(dir, 'channel.json'), 'utf8')).id;
+    const item = (id: string, status: string, extra: object = {}) => ({
+      id,
+      status,
+      candidate_id: `yt:${id}`,
+      title: `Video ${id}`,
+      angle: 'góc',
+      source: { kind: 'trend' },
+      workflow_id: 'demo-explainer',
+      output_profile: 'yt-1080p30',
+      publish_at: null,
+      platforms: ['youtube'],
+      score: 70,
+      reasons: [],
+      ...extra,
+    });
+    const putPlan = (items: object[]) => {
+      mkdirSync(path.join(dir, 'autopilot', 'plans'), { recursive: true });
+      writeFileSync(
+        path.join(dir, 'autopilot', 'plans', `${today}.json`),
+        JSON.stringify({
+          schema_version: 1,
+          channel_id: channelId,
+          date: today,
+          generated_at: new Date().toISOString(),
+          capacity: { videos: 3, limiting_factor: 'cap', reasons: [] },
+          items,
+        }),
+      );
+    };
+    const { video_id } = await host.call('video.create', { channel: dir, title: 'Đang làm' });
+    putPlan([
+      item('pi_a0000001', 'in_production', { video_id }),
+      item('pi_a0000002', 'needs_review', {
+        video_id: fixtureVideoId,
+        note: 'Điểm 6,5 thấp hơn ngưỡng 8',
+      }),
+      item('pi_a0000003', 'skipped'),
+    ]);
+    const st = await host.call('autopilot.status', {});
+    expect(st).toMatchObject({ paused: false, running: false });
+    expect(st.today).toEqual([
+      {
+        channel: path.resolve(dir),
+        name: expect.any(String),
+        date: today,
+        items: [
+          expect.objectContaining({ id: 'pi_a0000001', status: 'in_production', video_id }),
+          expect.objectContaining({
+            id: 'pi_a0000002',
+            status: 'needs_review',
+            note: 'Điểm 6,5 thấp hơn ngưỡng 8',
+          }),
+          expect.objectContaining({ id: 'pi_a0000003', status: 'skipped' }),
+        ],
+      },
+    ]);
+    // đóng app khi video Autopilot đang làm dở → cảnh báo (045)
+    expect((await host.call('app.activity', {})).autopilot).toEqual([
+      {
+        channel: path.resolve(dir),
+        video: video_id,
+        item_id: 'pi_a0000001',
+        title: 'Video pi_a0000001',
+      },
+    ]);
+
+    // tạm dừng / tiếp tục: ghi `autopilot.paused` (app), phát autopilot.updated
+    events.length = 0;
+    expect(await host.call('autopilot.pause', {})).toEqual({ paused: true });
+    expect(JSON.parse(readFileSync(path.join(app, 'settings.json'), 'utf8')).config).toMatchObject({
+      'autopilot.paused': true,
+    });
+    expect((await host.call('autopilot.status', {})).paused).toBe(true);
+    expect(
+      events.some(([n, d]) => n === 'autopilot.updated' && (d as { paused: boolean }).paused),
+    ).toBe(true);
+    expect(await host.call('autopilot.run_now', {})).toEqual({ started: false, reason: 'paused' });
+    expect(await host.call('autopilot.resume', {})).toEqual({ paused: false });
+    expect((await host.call('autopilot.status', {})).paused).toBe(false);
+
+    // chạy ngay: không còn mục chờ làm (needs_review / skipped không được xếp hàng) → lượt chạy xong ngay
+    putPlan([
+      item('pi_a0000002', 'needs_review', { video_id: fixtureVideoId }),
+      item('pi_a0000003', 'skipped'),
+    ]);
+    expect(await host.call('autopilot.run_now', {})).toEqual({ started: true });
+    for (let i = 0; i < 100 && (await host.call('autopilot.status', {})).running; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    expect((await host.call('autopilot.status', {})).running).toBe(false);
+    expect(events.some(([n]) => n === 'autopilot.updated')).toBe(true);
+  });
+
   it('chat streams events, stores history, resumes the SDK session after reopen (FR-CH-02/07)', async () => {
     const { host, dir, app, events } = setup();
     await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'Xin chào' });
@@ -540,6 +651,7 @@ describe('CoreHost IPC (008)', () => {
       steps: [],
       jobs: [],
       chats: [],
+      autopilot: [],
     });
     const traces = (await host.call('trace.list', { video: fixtureVideoId })).traces as {
       trace_id: string;

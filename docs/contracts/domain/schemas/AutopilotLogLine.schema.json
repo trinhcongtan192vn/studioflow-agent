@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/AutopilotLogLine",
+  "definitions": {
+    "AutopilotLogLine": {
+      "type": "object",
+      "properties": {
+        "ts": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "event": {
+          "type": "string",
+          "description": "Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced."
+        },
+        "item_id": {
+          "$ref": "#/definitions/PlanItemId"
+        },
+        "video_id": {
+          "$ref": "#/definitions/VideoId"
+        },
+        "step_id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "ts",
+        "level",
+        "event",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "PlanItemId": {
+      "$ref": "#/definitions/Id%3C%22pi%22%3E"
+    },
+    "Id<\"pi\">": {
+      "type": "string",
+      "pattern": "^pi_[0-9a-z]{8}$"
+    },
+    "VideoId": {
+      "$ref": "#/definitions/Id%3C%22vd%22%3E"
+    },
+    "Id<\"vd\">": {
+      "type": "string",
+      "pattern": "^vd_[0-9a-z]{8}$"
+    }
+  }
+}

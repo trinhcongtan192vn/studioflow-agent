@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import type { SessionContext } from '../contracts/types.js';
 import { resolveConfig, setConfig } from '../config/resolve.js';
 import type { WriteStore } from '../store/writer.js';
-import { autopilotOf } from '../domain/autopilot.js';
+import { autopilotOf, isAutopilotVideo } from '../domain/autopilot.js';
 
 export type PermissionKind =
   'overwrite_approved' | 'pinned_frame' | 'batch_gen' | 'paid_api' | 'render';
@@ -70,6 +70,13 @@ export class PermissionBus extends EventEmitter {
       session_id: session.session_id,
       ...req,
     };
+    // 052: video Autopilot chạy không có người — API có phí không chờ (không treo cả hàng đợi): người dùng
+    // vẫn thấy yêu cầu, tool trả từ chối ngay, bộ chạy đỗ mục kế hoạch "cần xác nhận chi phí"
+    if (req.kind === 'paid_api' && isAutopilotVideo(session.channel_dir, session.video_id)) {
+      this.emit('permission.requested', request);
+      this.emit('autopilot.blocked', { session, request });
+      return false;
+    }
     const decision = await new Promise<PermissionDecision | undefined>((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(request.request_id);

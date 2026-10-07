@@ -60,10 +60,13 @@ import { getSecretDefault } from './secrets/credman.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
 import {
+  AutopilotRunner,
   autopilotPlanTools,
+  autopilotRunnerTools,
   capacityRun,
   defineAutopilotPlanJob,
   installedWorkflows,
+  planToday,
 } from './autopilot/index.js';
 import type { CapacityChannel } from './autopilot/index.js';
 
@@ -108,6 +111,8 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** Bộ chạy Autopilot (052): host gắn danh sách kênh + brief rồi gọi `tick` định kỳ. */
+  autopilot: AutopilotRunner;
   /** Phoenix cục bộ (028). */
   phoenix: PhoenixServer;
   /** Embedding văn bản CLAP cho tìm nhạc (021). */
@@ -306,6 +311,36 @@ export function createCore(opts: CoreOptions = {}): Core {
   };
   defineAutopilotPlanJob(plan);
   for (const t of autopilotPlanTools(plan)) gateway.register(t);
+  // 052: bộ chạy Autopilot — tạo video theo kế hoạch ngày, cổng chất lượng thay điểm chốt, nhật ký vận hành
+  const autopilotLog = new Logger();
+  const autopilot = new AutopilotRunner({
+    workflows,
+    storeFor: plan.storeFor,
+    channels: () => [], // host đặt (kênh quản lý đang bật Autopilot) và brief qua agent
+    plan: ({ channels, now }) =>
+      planToday({
+        channels,
+        now,
+        storeFor: plan.storeFor,
+        capacity: plan.capacity,
+        installed: plan.installed(),
+        apiKey: plan.apiKey(),
+        appDataDir,
+      }),
+    appDataDir,
+    logger: (l) =>
+      autopilotLog.write(l.level, 'sf.autopilot', {
+        event: l.event,
+        channel: l.channel,
+        item_id: l.item_id,
+        video_id: l.video_id,
+        step_id: l.step_id,
+        message: l.message,
+      }),
+  });
+  workflows.setAutoDecide(autopilot.autoDecide);
+  autopilot.attachPermissions(gateway.permissions);
+  for (const t of autopilotRunnerTools(autopilot)) gateway.register(t);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
@@ -356,11 +391,13 @@ export function createCore(opts: CoreOptions = {}): Core {
     edits,
     pinned,
     captions: new CaptionPanel(gateway),
+    autopilot,
     phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;
       closed = true;
+      autopilot.stop();
       studio.closeAll();
       phoenix.stop();
       void edits.closeAll();

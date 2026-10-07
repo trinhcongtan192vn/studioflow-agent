@@ -32,6 +32,7 @@
   chat/<session_id>.jsonl           chat cấp kênh (khi chưa chọn video, ví dụ tạo kênh)
   research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
   autopilot/plans/<YYYY-MM-DD>.json kế hoạch ngày Autopilot (051, mục 5.18): chủ đề, workflow, khung giờ đăng, lý do
+  autopilot/log/<YYYY-MM-DD>.jsonl  nhật ký vận hành Autopilot (052, mục 5.19): mỗi quyết định tự động một dòng, kèm lý do (append-only)
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
@@ -336,6 +337,7 @@ interface VideoState extends Versioned {
   workflow: { id: string; version: string } | null;   // nguồn chính thức; null khi briefing
   output_profile: string | null;            // nguồn chính thức (khóa output.profile tầng video đọc từ đây)
   read_only_videos?: VideoId[];             // video khác được đọc (shorts từ video dài)
+  autopilot?: { plan_date: string; item_id: PlanItemId; channel_id: ChannelId };  // 052: video do Autopilot tạo theo mục kế hoạch ngày (đánh dấu để áp cổng chất lượng tự động; video làm tay không có trường này)
   owner: 'agent' | 'studio';                 // chủ sửa file cảnh hiện tại
   owner_since?: Iso8601;
   steps: Record<string, StepState>;          // khóa = step id trong manifest
@@ -465,10 +467,10 @@ interface ResearchCandidate {
 ```
 
 ### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
-Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` không bị sửa (052 chuyển trạng thái và điền `video_id`). Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
+Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
 
 ```ts
-type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed';
+type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed' | 'needs_review';
 interface DailyPlan extends Versioned {
   channel_id: ChannelId;
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
@@ -499,6 +501,23 @@ interface PlanItem {
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
+}
+```
+
+### 5.19 `autopilot/log/<YYYY-MM-DD>.jsonl` (052)
+Nhật ký vận hành Autopilot của một kênh (FR-AP-07, NFR-11): **mỗi quyết định tự động một dòng JSON**, kèm lý do tiếng Việt — duyệt/đỗ điểm chốt, bỏ qua cảnh báo thời lượng, chạy lại bước, tạm dừng vì hết hạn mức Claude, đỗ/hỏng một mục. Ngày theo `publish.timezone` của kênh (ngày của kế hoạch). Chỉ nối thêm (`WriteStore.appendLine`), không sửa dòng cũ. Giao diện/agent đọc để giải thích "vì sao video này dừng".
+
+```ts
+interface AutopilotLogLine {
+  ts: Iso8601;
+  level: 'info' | 'warn' | 'error';
+  /** Mã sự kiện, ví dụ plan.built, item.start, gate.decision, step.retry, step.waive, limit.hit, item.parked, item.failed, item.produced. */
+  event: string;
+  item_id?: PlanItemId;
+  video_id?: VideoId;
+  step_id?: string;
+  message: string;                                 // tiếng Việt: việc gì + vì sao
+  data?: Record<string, unknown>;                  // chi tiết máy đọc được (điểm, ngưỡng, thời điểm hết hạn mức…)
 }
 ```
 
@@ -582,6 +601,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.workflows` | string[] (id workflow) | channel |
 | `autopilot.max_per_day` | number | channel |
 | `autopilot.min_score` | number (0–100, điểm tối thiểu của chủ đề được lập vào kế hoạch ngày, 051) | channel |
+| `autopilot.duration_waive_ratio` | number (tỉ lệ 0–1: lệch thời lượng so với mục tiêu mà Autopilot tự bỏ qua cảnh báo `audio_duration`, 052) | app, channel |
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
