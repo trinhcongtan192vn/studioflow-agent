@@ -13,3 +13,23 @@ export {
   type ChannelCard,
   type ChannelInput,
 } from '../youtube/data-api.js';
+export {
+  CAPACITY_SAFETY,
+  DEFAULT_WORKFLOW_COST,
+  capacityFromDb,
+  capacityToday,
+  learnDailyTokens,
+  readClaudeUsage,
+  readLimitHits,
+  readStepSpans,
+  readVideoTokens,
+  remainingWork,
+  workWindow,
+  workflowCost,
+  type CapacityChannel,
+  type CapacityInput,
+  type CapacityResult,
+  type LimitingFactor,
+  type StepSpan,
+  type WorkflowCost,
+} from './capacity.js';

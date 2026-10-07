@@ -600,7 +600,15 @@ export class WorkflowEngine extends EventEmitter {
         'sf.step_id': decl.id,
         'sf.attempt': (st.steps[decl.id]?.attempt ?? 0) + 1,
       },
-      () => this.runStepInner(decl).finally(() => this.setProgress(decl.id, null)),
+      (span) =>
+        this.runStepInner(decl).finally(() => {
+          this.setProgress(decl.id, null);
+          // 050: kết quả bước (gate trượt → `failed`) để mô hình năng lực bỏ lần chạy không tính
+          span.setAttribute(
+            'sf.step_outcome',
+            this.readState().steps[decl.id]?.status ?? 'unknown',
+          );
+        }),
     );
   }
 

@@ -140,6 +140,43 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('channels.managed', {})).channels).toHaveLength(1);
   });
 
+  it('autopilot.capacity for Autopilot channels; daily_tokens override checked (050 FR-AP-05)', async () => {
+    const { host, dir } = setup();
+    await host.call('channel.open', { channel: dir });
+    // chưa kênh nào bật Autopilot → 0 video, lý do rõ
+    const none = await host.call('autopilot.capacity', {});
+    expect(none).toMatchObject({ videos: 0, limiting_factor: 'cap', channels: [] });
+    await host.call('channel.autopilot.set', {
+      channel: dir,
+      key: 'autopilot.enabled',
+      value: true,
+    });
+    await host.call('channel.autopilot.set', {
+      channel: dir,
+      key: 'autopilot.max_per_day',
+      value: 2,
+    });
+    await host.call('settings.set', { key: 'autopilot.work_window', value: '00:00-23:59' });
+    await host.call('settings.set', { key: 'autopilot.daily_tokens', value: 100_000_000 });
+    const r = await host.call('autopilot.capacity', {});
+    expect(r.channels).toEqual([
+      expect.objectContaining({ channel: path.resolve(dir), cap_left: 2 }),
+    ]);
+    expect(r.daily_tokens_source).toBe('override');
+    expect(r.by_workflow.length).toBeGreaterThan(0);
+    expect(r.reasons.length).toBeGreaterThan(0);
+    // chọn kênh tường minh (xem trước khi chưa bật)
+    expect((await host.call('autopilot.capacity', { channels: [dir] })).channels).toHaveLength(1);
+    const bad = await host.handle({
+      id: 4,
+      method: 'settings.set',
+      params: { key: 'autopilot.daily_tokens', value: -5 },
+    });
+    expect(bad.error).toMatchObject({ code: 'E_SCHEMA_INVALID' });
+    await host.call('settings.set', { key: 'autopilot.daily_tokens', value: null });
+    expect((await host.call('autopilot.capacity', {})).daily_tokens_source).not.toBe('override');
+  });
+
   it('chat streams events, stores history, resumes the SDK session after reopen (FR-CH-02/07)', async () => {
     const { host, dir, app, events } = setup();
     await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'Xin chào' });

@@ -58,8 +58,16 @@ describe('checkAutopilotValue', () => {
         'autopilot.work_window',
         'autopilot.budget_share',
         'autopilot.paused',
+        'autopilot.daily_tokens',
       ]),
     );
+  });
+  it('autopilot.daily_tokens: positive whole number or null = learn (050)', () => {
+    ok('autopilot.daily_tokens', 3_000_000);
+    ok('autopilot.daily_tokens', null);
+    bad('autopilot.daily_tokens', 0);
+    bad('autopilot.daily_tokens', 1.5);
+    bad('autopilot.daily_tokens', '1000');
   });
 });
 

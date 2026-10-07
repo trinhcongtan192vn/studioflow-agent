@@ -13,7 +13,12 @@ import type {
   SettingsConfig,
   VideoState,
 } from '../contracts/types.js';
-import { defaultAppDataDir, resolveConfig, setConfig } from '../config/resolve.js';
+import {
+  defaultAppDataDir,
+  resolveAppConfig,
+  resolveConfig,
+  setConfig,
+} from '../config/resolve.js';
 import { createCore, type Core, type CoreOptions } from '../core.js';
 import { detectChannel, initChannel } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
@@ -36,7 +41,12 @@ import type { WorkflowEngine } from '../workflow/engine.js';
 import { noticeText, workflowNotices, type WorkflowNotice } from '../workflow/notices.js';
 import {
   APP_AUTOPILOT_KEYS,
+  capacityFromDb,
   channelAutopilot,
+  readStepSpans,
+  readVideoTokens,
+  remainingWork,
+  workflowCost,
   checkAutopilotValue,
   resolveYouTubeChannel,
   setChannelAutopilot,
@@ -163,6 +173,73 @@ export class CoreHost extends EventEmitter {
         competitors: Array.isArray(competitors) ? competitors.length : 0,
         added_at: m.added_at,
       };
+    });
+  }
+
+  /**
+   * 050 (FR-AP-05): năng lực hôm nay cho các kênh (mặc định: kênh quản lý đang bật Autopilot). Video đang có
+   * bước `running` của các kênh đó trừ phần việc còn lại vào quỹ thời gian/token.
+   */
+  private capacity(dirs?: string[]): IpcMethods['autopilot.capacity']['result'] {
+    const app = this.core.appDataDir;
+    const cfg = <T>(k: string) => resolveAppConfig<T>(k, { appDataDir: app });
+    const workflows = this.core.workflows
+      .packs()
+      .filter((p) => p.compatible)
+      .map((p) => ({ id: p.manifest.id, steps: p.manifest.steps.map((s) => s.id) }));
+    const list = dirs?.length
+      ? dirs.map((d) => path.resolve(d))
+      : this.managedChannels()
+          .filter((m) => m.exists && m.autopilot)
+          .map((m) => m.path);
+    const channels = list
+      .flatMap((d) => {
+        const det = detectChannel(d);
+        return det.kind === 'channel' ? [{ d, det }] : [];
+      })
+      .map(({ d, det }) => {
+        const v = channelAutopilot(d, app);
+        const name = (det.config as { name?: string } | undefined)?.name;
+        return {
+          channel: d,
+          ...(name ? { name } : {}),
+          workflows: v['autopilot.workflows']!.value as string[],
+          max_per_day: Number(v['autopilot.max_per_day']!.value),
+          // [NEEDS CLARIFICATION 050] video do Autopilot tạo được đánh dấu ở 052; trước đó chưa đếm
+          done_today: 0,
+          platforms: v['publish.platforms']!.value as string[],
+        };
+      });
+    // video đang chạy dở của các kênh này
+    const spans = readStepSpans(this.core.db);
+    const tokens = readVideoTokens(this.core.db);
+    let busy_ms = 0;
+    let busy_tokens = 0;
+    for (const ch of channels)
+      for (const id of listVideoIds(ch.channel)) {
+        const f = path.join(ch.channel, 'videos', id, 'state.json');
+        if (!existsSync(f)) continue;
+        const st = JSON.parse(readFileSync(f, 'utf8')) as VideoState;
+        if (!st.workflow || !Object.values(st.steps).some((s) => s.status === 'running')) continue;
+        const steps = workflows.find((w) => w.id === st.workflow!.id)?.steps;
+        const left = remainingWork(
+          workflowCost(st.workflow.id, spans, tokens, steps ? { steps } : {}),
+          st.steps,
+        );
+        busy_ms += left.ms;
+        busy_tokens += left.tokens;
+      }
+    const daily = cfg<number | null>('autopilot.daily_tokens');
+    return capacityFromDb(this.core.db, {
+      now: Date.now(),
+      timezone: cfg<string>('publish.timezone'),
+      work_window: cfg<string>('autopilot.work_window'),
+      budget_share: Number(cfg('autopilot.budget_share')),
+      daily_tokens: typeof daily === 'number' && daily > 0 ? daily : null,
+      workflows,
+      channels,
+      busy_ms,
+      busy_tokens,
     });
   }
 
@@ -505,6 +582,8 @@ export class CoreHost extends EventEmitter {
       case 'channel.autopilot.set':
         setChannelAutopilot(this.store(p.channel), String(p.key), p.value);
         return { ok: true };
+      case 'autopilot.capacity':
+        return this.capacity(Array.isArray(p.channels) ? p.channels.map(String) : undefined);
       case 'youtube.resolve_channel':
         return resolveYouTubeChannel(String(p.input), {
           apiKey: getSecretDefault(YOUTUBE_SECRET),

@@ -353,6 +353,7 @@ export type ConfigKey =
   | 'autopilot.max_per_day'
   | 'autopilot.work_window'
   | 'autopilot.budget_share'
+  | 'autopilot.daily_tokens'
   | 'publish.platforms'
   | 'publish.slots'
   | 'publish.timezone'
