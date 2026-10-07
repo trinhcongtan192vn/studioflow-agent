@@ -29,6 +29,7 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   [/^studio\./, M],
   [/^youtube\./, M],
   [/^research\.(scan|get)$/, M],
+  [/^autopilot\.plan_(get|run|update)$/, M],
   [/^job\./, MF],
 ];
 

@@ -48,6 +48,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.pillars': [],
   'autopilot.workflows': [],
   'autopilot.max_per_day': 1,
+  // 051: điểm tối thiểu của chủ đề được lập vào kế hoạch ngày
+  'autopilot.min_score': 40,
   'autopilot.work_window': '08:00-23:00',
   'autopilot.budget_share': 0.7,
   // 050: null = học từ lần chạm hạn mức Claude gần nhất (FN-050)

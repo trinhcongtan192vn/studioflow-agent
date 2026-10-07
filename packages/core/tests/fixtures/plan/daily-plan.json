@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "channel_id": "ch_k3v9q2xa",
+  "date": "2026-10-07",
+  "generated_at": "2026-10-07T03:00:00.000Z",
+  "capacity": {
+    "videos": 2,
+    "limiting_factor": "time",
+    "reasons": ["Còn 13 giờ trong khung giờ 08:00-23:00 (Asia/Ho_Chi_Minh)."]
+  },
+  "notes": ["Chỉ có 1 ứng viên mới cho 2 chỗ trống (1 ứng viên bị loại vì trùng)."],
+  "items": [
+    {
+      "id": "pi_a1b2c3d4",
+      "status": "planned",
+      "candidate_id": "yt:aaaaaaaaa01",
+      "title": "Trận Bạch Đằng 1288: nhà Trần đánh tan quân Nguyên",
+      "angle": "Đối thủ vừa đăng (Sử Kể Mẫu): gấp 15,4× lượt xem trung vị — chủ đề \"nhà Trần\"",
+      "source": {
+        "kind": "competitor",
+        "url": "https://www.youtube.com/watch?v=aaaaaaaaa01",
+        "source_channel": { "id": "UCaaaaaaaaaaaaaaaaaaaaa1", "title": "Sử Kể Mẫu" }
+      },
+      "workflow_id": "narrated-explainer",
+      "output_profile": "yt-1080p30",
+      "publish_at": "2026-10-07T19:00:00+07:00",
+      "platforms": ["youtube"],
+      "score": 99,
+      "reasons": [
+        "Điểm nghiên cứu 99/100 (đối thủ vừa đăng).",
+        "Workflow mặc định của kênh (narrated-explainer)."
+      ]
+    },
+    {
+      "id": "pi_e5f6g7h8",
+      "status": "produced",
+      "candidate_id": "trend:chợ nổi",
+      "title": "Chợ nổi Cái Răng",
+      "angle": "Đang được tìm nhiều: 200K+ lượt tìm",
+      "source": { "kind": "trend" },
+      "workflow_id": "shorts",
+      "output_profile": "yt-shorts-1080x1920",
+      "publish_at": null,
+      "platforms": ["youtube", "tiktok"],
+      "score": 60,
+      "reasons": [],
+      "video_id": "vd_8m2pq7rt",
+      "note": "Đã làm xong"
+    }
+  ]
+}

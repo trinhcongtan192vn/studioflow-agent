@@ -13,6 +13,7 @@ export const CHANNEL_AUTOPILOT_KEYS = [
   'autopilot.pillars',
   'autopilot.workflows',
   'autopilot.max_per_day',
+  'autopilot.min_score',
   'publish.platforms',
   'publish.slots',
   'publish.timezone',
@@ -78,6 +79,9 @@ export function checkAutopilotValue(key: string, value: unknown): void {
     case 'autopilot.max_per_day':
       if (!Number.isInteger(n) || n < 0 || n > 20)
         throw invalid(key, 'must be a whole number 0–20');
+      return;
+    case 'autopilot.min_score':
+      if (n < 0 || n > 100) throw invalid(key, 'must be between 0 and 100');
       return;
     case 'autopilot.daily_tokens':
       if (!Number.isInteger(n) || n <= 0)

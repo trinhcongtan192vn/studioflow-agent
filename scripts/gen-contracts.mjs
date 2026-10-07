@@ -40,6 +40,7 @@ export const SCHEMA_ROOTS = [
   'ProviderManifest',
   'MusicManifest',
   'ResearchDoc',
+  'DailyPlan',
 ];
 
 const ID_PREFIXES = [
@@ -59,6 +60,7 @@ const ID_PREFIXES = [
   'rd',
   'ap',
   'ss',
+  'pi',
 ];
 
 const norm = (s) => s.replace(/\r\n/g, '\n');

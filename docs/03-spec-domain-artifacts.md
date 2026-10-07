@@ -31,6 +31,7 @@
   cache/                            cache theo nội dung (D4)
   chat/<session_id>.jsonl           chat cấp kênh (khi chưa chọn video, ví dụ tạo kênh)
   research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
+  autopilot/plans/<YYYY-MM-DD>.json kế hoạch ngày Autopilot (051, mục 5.18): chủ đề, workflow, khung giờ đăng, lý do
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
@@ -82,6 +83,7 @@ Quy tắc:
 | Render | `rd_` | `rd_…` |
 | Approval | `ap_` | `ap_…` |
 | Chat session | `ss_` | `ss_…` (ID của app; ID phiên của Agent SDK lưu kèm trong file chat) |
+| Plan item (051) | `pi_` | `pi_…` (một mục trong kế hoạch ngày Autopilot) |
 
 - Định dạng: `<tiền tố>_<8 ký tự [0-9a-z]>`, sinh ngẫu nhiên (crypto), kiểm trùng trong phạm vi video/kênh.
 - ID **không bao giờ đổi** và không dùng lại sau khi xóa. Thứ tự dựa trên trường `order`/danh sách, không dựa trên ID.
@@ -97,7 +99,7 @@ type LineId = Id<'ln'>; type CaptionGroupId = Id<'cg'>; type CastId = Id<'ca'>;
 type VoiceId = Id<'vo'>; type AssetId = Id<'as'>; type MusicTrackId = Id<'mt'>;
 
 type RelPath = string;          // đường dẫn tương đối, '/'
-type JobId = Id<'jb'>; type RenderId = Id<'rd'>; type ApprovalId = Id<'ap'>; type SessionId = Id<'ss'>;
+type JobId = Id<'jb'>; type RenderId = Id<'rd'>; type ApprovalId = Id<'ap'>; type SessionId = Id<'ss'>; type PlanItemId = Id<'pi'>;
 type Iso8601 = string;          // '2026-10-03T10:49:00+07:00'
 type Ms = number;               // mili giây, số nguyên
 type Lang = 'vi' | 'de' | 'en';
@@ -462,6 +464,44 @@ interface ResearchCandidate {
 }
 ```
 
+### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
+Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` không bị sửa (052 chuyển trạng thái và điền `video_id`). Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
+
+```ts
+type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed';
+interface DailyPlan extends Versioned {
+  channel_id: ChannelId;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // YYYY-MM-DD theo `publish.timezone` của kênh
+  generated_at: Iso8601;                           // lần lập/sửa gần nhất
+  capacity: {
+    videos: number;                                // số video khả thi của kênh hôm nay (050)
+    limiting_factor: 'time' | 'tokens' | 'uploads' | 'cap';
+    reasons: string[];                             // tiếng Việt (từ mô hình năng lực)
+  };
+  notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
+  items: PlanItem[];
+}
+interface PlanItem {
+  id: PlanItemId;
+  status: PlanItemStatus;
+  candidate_id: string;                            // `ResearchCandidate.id` (5.17); chủ đề do người dùng/agent thêm tay dùng `manual:<id>`
+  title: string;                                   // tên làm việc của video
+  angle: string;                                   // một dòng: vì sao / góc nhìn (tiếng Việt)
+  source: { kind: 'competitor' | 'competitor_evergreen' | 'trending' | 'trend' | 'news'; url?: string;
+            source_channel?: { id: string; title: string } };
+  workflow_id: string;
+  output_profile: string;
+  publish_at: Iso8601 | null;                      // có offset múi giờ; null = kênh không có khung giờ
+  platforms: string[];                             // `publish.platforms` của kênh
+  /** @minimum 0 @maximum 100 */
+  score: number;                                   // điểm ứng viên (5.17)
+  reasons: string[];                               // tiếng Việt
+  video_id?: VideoId;                              // điền khi 052 tạo video
+  note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
+}
+```
+
 ## 6. `channel.json` và `settings.json`
 
 Mọi giá trị cấu hình (ở mọi tầng) lưu dưới dạng **map phẳng theo khóa cấu hình** (mục 7.2) — một biểu diễn duy nhất, không có tên trường riêng theo file.
@@ -541,6 +581,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.pillars` | string[] | channel |
 | `autopilot.workflows` | string[] (id workflow) | channel |
 | `autopilot.max_per_day` | number | channel |
+| `autopilot.min_score` | number (0–100, điểm tối thiểu của chủ đề được lập vào kế hoạch ngày, 051) | channel |
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |

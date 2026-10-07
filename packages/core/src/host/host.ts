@@ -13,12 +13,7 @@ import type {
   SettingsConfig,
   VideoState,
 } from '../contracts/types.js';
-import {
-  defaultAppDataDir,
-  resolveAppConfig,
-  resolveConfig,
-  setConfig,
-} from '../config/resolve.js';
+import { defaultAppDataDir, resolveConfig, setConfig } from '../config/resolve.js';
 import { createCore, type Core, type CoreOptions } from '../core.js';
 import { detectChannel, initChannel } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
@@ -41,13 +36,16 @@ import type { WorkflowEngine } from '../workflow/engine.js';
 import { noticeText, workflowNotices, type WorkflowNotice } from '../workflow/notices.js';
 import {
   APP_AUTOPILOT_KEYS,
-  capacityFromDb,
+  autopilotDoneToday,
+  capacityRun,
   channelAutopilot,
-  readStepSpans,
-  readVideoTokens,
-  remainingWork,
-  workflowCost,
   checkAutopilotValue,
+  enqueuePlanRun,
+  installedWorkflows,
+  planDateOf,
+  readPlan,
+  type PlanPatch,
+  updatePlanItem,
   resolveYouTubeChannel,
   setChannelAutopilot,
 } from '../autopilot/index.js';
@@ -184,16 +182,8 @@ export class CoreHost extends EventEmitter {
    */
   private capacity(dirs?: string[]): IpcMethods['autopilot.capacity']['result'] {
     const app = this.core.appDataDir;
-    const cfg = <T>(k: string) => resolveAppConfig<T>(k, { appDataDir: app });
-    const workflows = this.core.workflows
-      .packs()
-      .filter((p) => p.compatible)
-      .map((p) => ({ id: p.manifest.id, steps: p.manifest.steps.map((s) => s.id) }));
-    const list = dirs?.length
-      ? dirs.map((d) => path.resolve(d))
-      : this.managedChannels()
-          .filter((m) => m.exists && m.autopilot)
-          .map((m) => m.path);
+    const now = Date.now();
+    const list = dirs?.length ? dirs.map((d) => path.resolve(d)) : this.autopilotChannels();
     const channels = list
       .flatMap((d) => {
         const det = detectChannel(d);
@@ -207,42 +197,25 @@ export class CoreHost extends EventEmitter {
           ...(name ? { name } : {}),
           workflows: v['autopilot.workflows']!.value as string[],
           max_per_day: Number(v['autopilot.max_per_day']!.value),
-          // [NEEDS CLARIFICATION 050] video do Autopilot tạo được đánh dấu ở 052; trước đó chưa đếm
-          done_today: 0,
+          // 051: trần chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật
+          done_today: autopilotDoneToday(d, new Date(now), app),
           platforms: v['publish.platforms']!.value as string[],
         };
       });
-    // video đang chạy dở của các kênh này
-    const spans = readStepSpans(this.core.db);
-    const tokens = readVideoTokens(this.core.db);
-    let busy_ms = 0;
-    let busy_tokens = 0;
-    for (const ch of channels)
-      for (const id of listVideoIds(ch.channel)) {
-        const f = path.join(ch.channel, 'videos', id, 'state.json');
-        if (!existsSync(f)) continue;
-        const st = JSON.parse(readFileSync(f, 'utf8')) as VideoState;
-        if (!st.workflow || !Object.values(st.steps).some((s) => s.status === 'running')) continue;
-        const steps = workflows.find((w) => w.id === st.workflow!.id)?.steps;
-        const left = remainingWork(
-          workflowCost(st.workflow.id, spans, tokens, steps ? { steps } : {}),
-          st.steps,
-        );
-        busy_ms += left.ms;
-        busy_tokens += left.tokens;
-      }
-    const daily = cfg<number | null>('autopilot.daily_tokens');
-    return capacityFromDb(this.core.db, {
-      now: Date.now(),
-      timezone: cfg<string>('publish.timezone'),
-      work_window: cfg<string>('autopilot.work_window'),
-      budget_share: Number(cfg('autopilot.budget_share')),
-      daily_tokens: typeof daily === 'number' && daily > 0 ? daily : null,
-      workflows,
+    return capacityRun({
+      db: this.core.db,
+      appDataDir: app,
+      workflows: this.core.workflows,
       channels,
-      busy_ms,
-      busy_tokens,
+      now,
     });
+  }
+
+  /** 051: thư mục các kênh quản lý đang bật Autopilot. */
+  private autopilotChannels(): string[] {
+    return this.managedChannels()
+      .filter((m) => m.exists && m.autopilot)
+      .map((m) => m.path);
   }
 
   private engine(channel: string, video: string): WorkflowEngine {
@@ -602,6 +575,34 @@ export class CoreHost extends EventEmitter {
           lines: getSession(this.store(p.channel), c.db, {
             id: String(p.id),
             ...(p.video ? { video: String(p.video) } : {}),
+          }),
+        };
+      case 'autopilot.plan.get': {
+        const dirs = p.channel ? [path.resolve(p.channel)] : this.autopilotChannels();
+        return {
+          plans: dirs.flatMap((dir) => {
+            const det = detectChannel(dir);
+            if (det.kind !== 'channel') return [];
+            const date = p.date ? String(p.date) : planDateOf(dir, new Date(), c.appDataDir);
+            const name = (det.config as { name?: string } | undefined)?.name ?? path.basename(dir);
+            return [{ channel: dir, name, date, plan: readPlan(dir, date) ?? null }];
+          }),
+        };
+      }
+      case 'autopilot.plan.run':
+        return enqueuePlanRun(
+          { queue: c.queue, appDataDir: c.appDataDir },
+          this.autopilotChannels(),
+          p.date ? String(p.date) : undefined,
+        );
+      case 'autopilot.plan.update':
+        return {
+          item: updatePlanItem(this.store(p.channel), {
+            date: String(p.date),
+            item_id: String(p.item_id),
+            patch: p.patch as PlanPatch,
+            installed: installedWorkflows(c.workflows),
+            appDataDir: c.appDataDir,
           }),
         };
       case 'research.latest':

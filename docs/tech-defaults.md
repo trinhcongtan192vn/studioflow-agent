@@ -122,10 +122,12 @@
 | `autopilot.enabled` / `autopilot.paused` | false / false |
 | `autopilot.competitors` / `autopilot.pillars` / `autopilot.workflows` | `[]` / `[]` / `[]` (rỗng = mọi workflow cài sẵn) |
 | `autopilot.max_per_day` | 1 |
+| `autopilot.min_score` | 40 (051: chủ đề điểm thấp hơn không được lập vào kế hoạch ngày) |
 | `autopilot.work_window` | `08:00-23:00` |
 | `autopilot.budget_share` | 0.7 |
 | `autopilot.daily_tokens` | null (tự học từ lần chạm hạn mức gần nhất, FN-050) |
 | `publish.platforms` / `publish.slots` | `[youtube]` / `[19:00]` |
 | `publish.timezone` | `Asia/Ho_Chi_Minh` |
 | `publish.veto_hours` | 2 |
+| Kế hoạch ngày (051, hằng số trong `autopilot/plan.ts`, không phải khóa cấu hình — FN-051) | không lặp ứng viên 14 ngày; gần trùng tiêu đề Jaccard ≥ 0,6; quét lịch đăng tối đa 30 ngày |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | comfyui 14 · omnivoice 6 · asr 3 · render 2 / 14 `[chờ S1, S9]` |

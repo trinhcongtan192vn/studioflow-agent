@@ -33,3 +33,35 @@ export {
   type StepSpan,
   type WorkflowCost,
 } from './capacity.js';
+export {
+  PLAN_CONSTANTS,
+  allowedWorkflows,
+  assignPublishSlot,
+  autopilotDoneToday,
+  buildPlan,
+  chooseWorkflow,
+  freeSlots,
+  planDates,
+  planDay,
+  planToday,
+  readPlan,
+  selectCandidates,
+  updatePlanItem,
+  type BuildPlanInput,
+  type PlanDay,
+  type PlanCapacity,
+  type PlanPatch,
+  type PlanResult,
+  type PlanTodayOptions,
+  type PlanTodayResult,
+  type PlanWorkflow,
+  type Selection,
+} from './plan.js';
+export {
+  autopilotPlanTools,
+  defineAutopilotPlanJob,
+  enqueuePlanRun,
+  planDateOf,
+  type PlanDeps,
+} from './plan-tools.js';
+export { capacityRun, installedWorkflows } from './capacity-run.js';
