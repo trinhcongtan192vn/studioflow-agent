@@ -155,3 +155,22 @@ export function getSession(
     tool: { name: String(t.attrs['sf.tool_name'] ?? '?'), ok: t.attrs['sf.ok'] !== false },
   }));
 }
+
+/** 055: các phiên `ops` (Telegram) trong dữ liệu app — `ops/sessions/<ss>.jsonl`, mới trước. */
+export function listOpsSessions(appDataDir: string, o: { limit?: number } = {}): SessionEntry[] {
+  const dir = path.join(appDataDir, 'ops', 'sessions');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.jsonl'))
+    .flatMap((f) => {
+      const e = fromFile(path.join(dir, f), 'session', undefined);
+      return e ? [{ ...e, kind: 'ops' }] : [];
+    })
+    .sort((a, b) => (a.started_at < b.started_at ? 1 : a.started_at > b.started_at ? -1 : 0))
+    .slice(0, o.limit ?? 300);
+}
+
+export function getOpsSession(appDataDir: string, id: string): ChatLine[] {
+  const f = path.join(appDataDir, 'ops', 'sessions', `${id.replace(/[^\w-]/g, '')}.jsonl`);
+  return existsSync(f) ? read(f) : [];
+}

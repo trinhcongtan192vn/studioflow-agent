@@ -42,6 +42,8 @@ export const SCHEMA_ROOTS = [
   'ResearchDoc',
   'DailyPlan',
   'AutopilotLogLine',
+  'DailyReport',
+  'ChannelLearning',
 ];
 
 const ID_PREFIXES = [

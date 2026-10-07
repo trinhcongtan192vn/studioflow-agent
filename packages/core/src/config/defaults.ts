@@ -52,12 +52,23 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.max_per_day': 1,
   // 051: điểm tối thiểu của chủ đề được lập vào kế hoạch ngày
   'autopilot.min_score': 40,
+  'autopilot.learning': true,
   // 052: lệch thời lượng tối đa Autopilot tự bỏ qua cảnh báo audio_duration
   'autopilot.duration_waive_ratio': 0.25,
   'autopilot.work_window': '08:00-23:00',
   'autopilot.budget_share': 0.7,
   // 050: null = học từ lần chạm hạn mức Claude gần nhất (FN-050)
   'autopilot.daily_tokens': null,
+  // 054: báo cáo ngày vào nhóm Telegram
+  'report.enabled': true,
+  'report.time': '21:00',
+  // 055: bot Telegram (chat_id rỗng = chưa đặt)
+  'telegram.enabled': false,
+  'telegram.chat_id': '',
+  'telegram.allowed_user_ids': [],
+  // 053: dự án API YouTube chưa kiểm duyệt → chỉ tải lên riêng tư, không hẹn giờ
+  'publish.youtube.audited': false,
+  'publish.tiktok.audited': false,
   'publish.platforms': ['youtube'],
   'publish.slots': ['19:00'],
   'publish.timezone': 'Asia/Ho_Chi_Minh',

@@ -57,6 +57,30 @@ import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { getSecretDefault } from './secrets/credman.js';
+import { SfError } from './errors.js';
+import { MemorySecretStore, type SecretStore } from './secrets/store.js';
+import {
+  PublishService,
+  publishTools,
+  QuotaLedger,
+  YouTubeAccounts,
+  YouTubeApi,
+  YouTubeAuth,
+  YouTubePublisher,
+  type HttpFetch,
+  TikTokApi,
+  TikTokPublisher,
+  FacebookApi,
+  FacebookPublisher,
+  SocialAccounts,
+  socialTokenSecret,
+} from './publish/index.js';
+import {
+  MetricsCollector,
+  ReportService,
+  reportTools,
+  YouTubeAnalytics,
+} from './analytics/index.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
 import {
@@ -68,7 +92,14 @@ import {
   installedWorkflows,
   planToday,
 } from './autopilot/index.js';
-import type { CapacityChannel } from './autopilot/index.js';
+import {
+  LearningService,
+  learningTools,
+  rankWithLearning,
+  readClaudeUsage,
+  type CapacityChannel,
+} from './autopilot/index.js';
+import type { PlanDeps } from './autopilot/plan-tools.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -89,6 +120,14 @@ export interface CoreOptions {
   batchWindowMs?: number;
   /** Khóa API provider text (mặc định biến môi trường, 009). */
   getSecret?: (name: string) => string | undefined;
+  /** Cổng bí mật (055): app nối `main`; mặc định kho bộ nhớ (test). */
+  secrets?: SecretStore;
+  /** `fetch` của bộ đăng bài (053/056; test không chạm mạng). */
+  publishFetch?: HttpFetch;
+  /** Chờ giữa các lần thử lại khi tải lên (test). */
+  publishSleep?: (ms: number) => Promise<void>;
+  /** Đồng hồ cho bộ chạy Autopilot, sổ quota và bộ đăng bài (test đặt giờ giả). */
+  clock?: () => Date;
 }
 
 export interface Core {
@@ -111,6 +150,20 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** Bộ đăng bài (053): tải lên các mục đã làm xong, xem trước/hủy/đăng ngay. */
+  publisher: PublishService;
+  /** Báo cáo ngày (054): thu số liệu YouTube Analytics, soạn và gửi Telegram. */
+  reports: ReportService;
+  /** Bộ thu số liệu YouTube Analytics vào SQLite (054). */
+  metrics: MetricsCollector;
+  /** Vòng phản hồi (057): điều chỉnh điểm chủ đề học từ hiệu quả thật. */
+  learning: LearningService;
+  /** Kết nối YouTube theo kênh (OAuth, trạng thái, ngắt). */
+  youtube: YouTubeAccounts;
+  /** Kết nối TikTok / Facebook theo kênh (056): token dán vào kho bí mật. */
+  social: SocialAccounts;
+  /** Kho bí mật (D5 5.4): token Telegram, OAuth… — không bao giờ ghi file/log. */
+  secrets: SecretStore;
   /** Bộ chạy Autopilot (052): host gắn danh sách kênh + brief rồi gọi `tick` định kỳ. */
   autopilot: AutopilotRunner;
   /** Phoenix cục bộ (028). */
@@ -301,7 +354,25 @@ export function createCore(opts: CoreOptions = {}): Core {
   defineResearchJob(research);
   for (const t of researchTools(research)) gateway.register(t);
   // 051: kế hoạch ngày Autopilot — năng lực (050) + nghiên cứu (049) → chủ đề, workflow, giờ đăng
+  // 057: vòng phản hồi — hiệu quả thật của video đã đăng điều chỉnh thứ hạng chủ đề (lỗi không chặn việc lập kế hoạch)
+  const learning = new LearningService({
+    db,
+    appDataDir,
+    storeFor: (dir: string) => gateway.storeFor(dir),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  const learn: NonNullable<PlanDeps['learn']> = (dir, candidates) => {
+    try {
+      return learning.enabled(dir)
+        ? rankWithLearning(candidates, learning.refresh(dir))
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  for (const t of learningTools(learning)) gateway.register(t);
   const plan = {
+    learn,
     queue,
     storeFor: (dir: string) => gateway.storeFor(dir),
     capacity: (channels: CapacityChannel[]) => capacityRun({ db, appDataDir, workflows, channels }),
@@ -312,6 +383,7 @@ export function createCore(opts: CoreOptions = {}): Core {
   defineAutopilotPlanJob(plan);
   for (const t of autopilotPlanTools(plan)) gateway.register(t);
   // 052: bộ chạy Autopilot — tạo video theo kế hoạch ngày, cổng chất lượng thay điểm chốt, nhật ký vận hành
+  const secrets = opts.secrets ?? new MemorySecretStore();
   const autopilotLog = new Logger();
   const autopilot = new AutopilotRunner({
     workflows,
@@ -326,8 +398,10 @@ export function createCore(opts: CoreOptions = {}): Core {
         installed: plan.installed(),
         apiKey: plan.apiKey(),
         appDataDir,
+        learn,
       }),
     appDataDir,
+    ...(opts.clock ? { clock: opts.clock } : {}),
     logger: (l) =>
       autopilotLog.write(l.level, 'sf.autopilot', {
         event: l.event,
@@ -338,9 +412,102 @@ export function createCore(opts: CoreOptions = {}): Core {
         message: l.message,
       }),
   });
+  // 053: đăng YouTube — OAuth theo kênh, tải lên có thể tiếp tục, sổ quota nuôi mô hình năng lực (050)
+  const quota = new QuotaLedger(appDataDir, opts.clock);
+  const ytAuth = new YouTubeAuth({
+    secrets,
+    ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+  });
+  const ytApi = (channelId: string) =>
+    new YouTubeApi({
+      ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+      ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+      token: (force) => ytAuth.accessToken(channelId, force),
+      quota,
+    });
+  const publisher = new PublishService({
+    appDataDir,
+    storeFor: plan.storeFor,
+    channels: () => autopilot.channelDirs(),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  publisher.register(new YouTubePublisher({ auth: ytAuth, api: ytApi, appDataDir }));
+  // 056: TikTok + Facebook Reels — token người dùng dán (kho bí mật), cùng khung bộ đăng
+  publisher.register(
+    new TikTokPublisher({
+      secrets,
+      appDataDir,
+      api: (channelId: string) =>
+        new TikTokApi({
+          ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+          ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+          token: async () => {
+            const t = await secrets.get(socialTokenSecret('tiktok', channelId));
+            if (!t) throw new SfError('E_PROVIDER_UNAVAILABLE', 'chưa kết nối TikTok');
+            return t;
+          },
+        }),
+    }),
+  );
+  publisher.register(
+    new FacebookPublisher({
+      secrets,
+      appDataDir,
+      api: (channelId: string) =>
+        new FacebookApi({
+          ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+          ...(opts.publishSleep ? { sleep: opts.publishSleep } : {}),
+          token: async () => {
+            const t = await secrets.get(socialTokenSecret('facebook', channelId));
+            if (!t) throw new SfError('E_PROVIDER_UNAVAILABLE', 'chưa kết nối Facebook');
+            return t;
+          },
+        }),
+    }),
+  );
+  const social = new SocialAccounts({ secrets, storeFor: plan.storeFor, appDataDir });
+  autopilot.setPublisher(publisher);
+  const ytAccounts = new YouTubeAccounts({
+    auth: ytAuth,
+    api: ytApi,
+    storeFor: plan.storeFor,
+    quota,
+    appDataDir,
+  });
+  for (const t of publishTools(publisher)) gateway.register(t);
+  // 054: số liệu YouTube Analytics → SQLite, báo cáo ngày (gửi qua Telegram do host nối `reports.setSend`)
+  const collector = new MetricsCollector({
+    db,
+    auth: ytAuth,
+    api: (channelId: string) =>
+      new YouTubeAnalytics({
+        ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+        token: (force) => ytAuth.accessToken(channelId, force),
+        quota,
+      }),
+    channels: () => autopilot.channelDirs(),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  const reports = new ReportService({
+    db,
+    appDataDir,
+    storeFor: plan.storeFor,
+    channels: () => autopilot.channelDirs(),
+    collector,
+    quota,
+    claude: (sinceMs) => {
+      const used = readClaudeUsage(db, sinceMs).reduce((s, u) => s + u.tokens, 0);
+      const cap = plan.capacity([]);
+      return { used_tokens: used, budget_tokens: cap.daily_tokens ?? null };
+    },
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  autopilot.setReporter(reports);
+  for (const t of reportTools(reports)) gateway.register(t);
   workflows.setAutoDecide(autopilot.autoDecide);
   autopilot.attachPermissions(gateway.permissions);
-  for (const t of autopilotRunnerTools(autopilot)) gateway.register(t);
+  for (const t of autopilotRunnerTools(autopilot, appDataDir)) gateway.register(t);
+  gateway.channelResolver = (ref) => autopilot.resolveChannel(ref);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
   // narrated-explainer (016): bước engine còn lại
@@ -392,12 +559,20 @@ export function createCore(opts: CoreOptions = {}): Core {
     pinned,
     captions: new CaptionPanel(gateway),
     autopilot,
+    publisher,
+    reports,
+    metrics: collector,
+    learning,
+    youtube: ytAccounts,
+    social,
+    secrets,
     phoenix,
     ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
     close() {
       if (closed) return;
       closed = true;
       autopilot.stop();
+      ytAuth.close();
       studio.closeAll();
       phoenix.stop();
       void edits.closeAll();

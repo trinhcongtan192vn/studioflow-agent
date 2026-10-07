@@ -30,9 +30,26 @@ CREATE TABLE IF NOT EXISTS usage (
   span_id TEXT, trace_id TEXT
 );
 CREATE INDEX IF NOT EXISTS usage_video ON usage(video_id, step_id);
+CREATE TABLE IF NOT EXISTS channel_metrics (
+  channel_id TEXT NOT NULL, platform TEXT NOT NULL, day TEXT NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0, minutes_watched REAL NOT NULL DEFAULT 0, avg_view_duration_s REAL,
+  subs_gained INTEGER NOT NULL DEFAULT 0, subs_lost INTEGER NOT NULL DEFAULT 0, likes INTEGER NOT NULL DEFAULT 0,
+  fetched_at TEXT NOT NULL, PRIMARY KEY (channel_id, platform, day)
+);
+CREATE TABLE IF NOT EXISTS video_metrics (
+  channel_id TEXT NOT NULL, platform TEXT NOT NULL, video_ref TEXT NOT NULL, day TEXT NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0, minutes_watched REAL NOT NULL DEFAULT 0, avg_view_duration_s REAL,
+  likes INTEGER NOT NULL DEFAULT 0, comments INTEGER NOT NULL DEFAULT 0, subs_gained INTEGER NOT NULL DEFAULT 0,
+  fetched_at TEXT NOT NULL, PRIMARY KEY (channel_id, platform, video_ref, day)
+);
+CREATE TABLE IF NOT EXISTS video_stats (
+  channel_id TEXT NOT NULL, platform TEXT NOT NULL, video_ref TEXT NOT NULL, day TEXT NOT NULL,
+  view_count INTEGER NOT NULL DEFAULT 0, like_count INTEGER NOT NULL DEFAULT 0, comment_count INTEGER NOT NULL DEFAULT 0,
+  fetched_at TEXT NOT NULL, PRIMARY KEY (channel_id, platform, video_ref, day)
+);
 `;
 
-/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7), `spans` (D11 mục 1), `usage` (D11 mục 3, 028). */
+/** `<app-data>/studioflow.db` (D3 mục 1): bảng `jobs` (D4 mục 5), `cache_entries` (D4 mục 7), `spans` (D11 mục 1), `usage` (D11 mục 3, 028), `channel_metrics` / `video_metrics` / `video_stats` (D11 mục 3.1, 054). */
 export function openDb(file: string): Db {
   if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);

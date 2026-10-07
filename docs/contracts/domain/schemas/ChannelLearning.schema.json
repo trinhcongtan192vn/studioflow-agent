@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ChannelLearning",
+  "definitions": {
+    "ChannelLearning": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "channel_id": {
+          "$ref": "#/definitions/ChannelId"
+        },
+        "generated_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "enough_data": {
+          "type": "boolean"
+        },
+        "videos": {
+          "type": "number",
+          "description": "Số video đủ tuổi có số liệu đã dùng."
+        },
+        "baseline_daily_views": {
+          "type": "number",
+          "description": "Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`)."
+        },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LearningGroup"
+              }
+            },
+            "pillar": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LearningGroup"
+              }
+            },
+            "source": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LearningGroup"
+              }
+            },
+            "workflow": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LearningGroup"
+              }
+            },
+            "slot": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LearningGroup"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "pillar",
+            "source",
+            "workflow",
+            "slot"
+          ],
+          "additionalProperties": false
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "baseline_daily_views",
+        "channel_id",
+        "dimensions",
+        "enough_data",
+        "generated_at",
+        "notes",
+        "schema_version",
+        "videos"
+      ],
+      "additionalProperties": false
+    },
+    "ChannelId": {
+      "$ref": "#/definitions/Id%3C%22ch%22%3E"
+    },
+    "Id<\"ch\">": {
+      "type": "string",
+      "pattern": "^ch_[0-9a-z]{8}$"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "LearningGroup": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "n": {
+          "type": "number"
+        },
+        "ratio": {
+          "type": "number",
+          "description": "Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình)."
+        },
+        "multiplier": {
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.3
+        }
+      },
+      "required": [
+        "key",
+        "n",
+        "ratio",
+        "multiplier"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

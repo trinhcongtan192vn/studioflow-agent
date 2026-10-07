@@ -5,7 +5,9 @@ import type {
   AgentEvent,
   CaptionOverrides,
   ContextRef,
+  ChannelLearning,
   DailyPlan,
+  DailyReport,
   JobInfo,
   PlanItem,
   ResearchDoc,
@@ -103,6 +105,79 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 053: kết nối YouTube theo kênh (OAuth loopback + PKCE). */
+  'publish.youtube.connect': { params: { channel: string }; result: { auth_url: string } };
+  'publish.youtube.status': {
+    params: { channel: string };
+    result: {
+      connected: boolean;
+      audited: boolean;
+      youtube_channel_id?: string;
+      channel_title?: string;
+      quota: { used: number; limit: number };
+      error?: string;
+    };
+  };
+  'publish.youtube.disconnect': { params: { channel: string }; result: { ok: true } };
+  /** 056: TikTok / Facebook — token dán trong Cài đặt kênh (không bao giờ trả lại). */
+  'publish.tiktok.set_token': { params: { channel: string; token: string }; result: { ok: true } };
+  'publish.tiktok.status': {
+    params: { channel: string };
+    result: { connected: boolean; audited?: boolean; page_id?: string };
+  };
+  'publish.tiktok.disconnect': { params: { channel: string }; result: { ok: true } };
+  'publish.facebook.set_token': {
+    params: { channel: string; token: string; page_id?: string };
+    result: { ok: true };
+  };
+  'publish.facebook.status': {
+    params: { channel: string };
+    result: { connected: boolean; audited?: boolean; page_id?: string };
+  };
+  'publish.facebook.disconnect': { params: { channel: string }; result: { ok: true } };
+  /** 053: Hủy đăng / Đăng ngay trong cửa sổ phản đối. */
+  'publish.cancel': {
+    params: {
+      channel: string;
+      date: string;
+      item_id: string;
+      platform?: 'youtube' | 'tiktok' | 'facebook';
+    };
+    result: { status: string; note?: string };
+  };
+  'publish.now': {
+    params: {
+      channel: string;
+      date: string;
+      item_id: string;
+      platform?: 'youtube' | 'tiktok' | 'facebook';
+    };
+    result: { status: string; url?: string; note?: string };
+  };
+  /** 057: điều chỉnh điểm chủ đề đã học từ hiệu quả thật. */
+  'learning.get': { params: { channel?: string }; result: { learning: ChannelLearning[] } };
+  /** 054: báo cáo ngày — gần nhất đã lập / lập ngay (tuỳ chọn gửi vào Telegram). */
+  'report.latest': { params: { channel?: string }; result: { reports: DailyReport[] } };
+  'report.run': {
+    params: { channel?: string; send?: boolean };
+    result: { reports: DailyReport[]; text: string };
+  };
+  /** 055: bot Telegram đang chạy/tắt và vì sao. */
+  'telegram.status': {
+    params: Record<string, never>;
+    result: {
+      enabled: boolean;
+      state: 'stopped' | 'running' | 'disabled';
+      reason?: string;
+      message?: string;
+      bot_username?: string;
+      chat_id_set: boolean;
+      has_token: boolean;
+      last_error?: string;
+    };
+  };
+  'telegram.test': { params: Record<string, never>; result: { ok: true } };
+  'telegram.set_token': { params: { token: string }; result: { ok: true; bot_username?: string } };
   /** 052: Autopilot đang làm gì — tạm dừng/đang chạy/chờ hạn mức Claude, video hiện tại, mục kế hoạch hôm nay. */
   'autopilot.status': { params: Record<string, never>; result: AutopilotStatus };
   /** 052: chạy một lượt ngay (bỏ qua khung giờ làm việc; không chạy khi tạm dừng/đang chờ hạn mức/đang chạy). */
@@ -131,7 +206,7 @@ export interface IpcMethods {
   };
   /** Nhật ký phiên agent (048, FR-AP-14): chat chính, phiên con, phiên chỉ còn trace — mới trước. */
   'sessions.list': {
-    params: ChannelRef & { video?: string; limit?: number };
+    params: { channel?: string; video?: string; limit?: number };
     result: {
       sessions: {
         id: string;
@@ -149,7 +224,7 @@ export interface IpcMethods {
     };
   };
   'sessions.get': {
-    params: ChannelRef & { id: string; video?: string };
+    params: { channel?: string; id: string; video?: string };
     result: { lines: ChatLine[] };
   };
   /** Lần quét nghiên cứu gần nhất của kênh (049, D3 5.17); chưa quét → `null`. */
@@ -332,6 +407,8 @@ export interface IpcEvents {
   };
   /** 052: trạng thái Autopilot đổi (mục đổi trạng thái, bắt đầu/xong một lượt, chờ hạn mức…). */
   'autopilot.updated': AutopilotStatus;
+  /** 053: kết nối YouTube của một kênh đổi (đã kết nối / đã ngắt). */
+  'publish.updated': { channel: string };
   'approval.requested': {
     channel: string;
     video: string;

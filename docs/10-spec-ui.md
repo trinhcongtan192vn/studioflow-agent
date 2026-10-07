@@ -68,6 +68,20 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `autopilot.status` | `{}` → `{paused, running, waiting_until?, current?: {channel, video, item_id, step_id?}, today: [{channel, name, date, items[]}]}`: Autopilot đang làm gì, trạng thái từng mục kế hoạch hôm nay (052) |
 | `autopilot.run_now` | `{}` → `{started, reason?}`: chạy một lượt ngay (lập kế hoạch nếu chưa có rồi làm lần lượt các mục), bỏ qua khung giờ làm việc; không chạy khi đang tạm dừng (052) |
 | `autopilot.pause` / `autopilot.resume` | `{}` → `{paused}`: đặt `autopilot.paused` (app) (052) |
+| `learning.get` | `{channel?}` → `{learning: ChannelLearning[]}`: điều chỉnh điểm chủ đề đã học (mặc định mọi kênh Autopilot; kênh chưa đủ dữ liệu trả `enough_data: false`) (057) |
+| `report.latest` | `{channel?}` → `{reports: DailyReport[]}`: báo cáo ngày gần nhất đã lập của kênh (mặc định mọi kênh Autopilot) (054) |
+| `report.run` | `{channel?, send?}` → `{reports: DailyReport[], text: string}`: lập báo cáo ngay (thu số liệu mới nếu cũ); `send: true` gửi vào Telegram (054) |
+| `publish.youtube.connect` | `{channel}` → `{auth_url}`: bắt đầu OAuth cho kênh (UI mở `auth_url` bằng trình duyệt; app đợi mã ở cổng loopback tối đa 5 phút) (053) |
+| `publish.youtube.status` | `{channel}` → `{connected, audited, youtube_channel_id?, channel_title?, quota{used, limit}, error?}` (053) |
+| `publish.youtube.disconnect` | `{channel}` → `{ok}`: thu hồi và xóa token (053) |
+| `publish.tiktok.set_token` / `publish.facebook.set_token` | `{channel, token, page_id?}` (`page_id` chỉ Facebook, ghi `publish.facebook.page_id`) → `{ok}`: lưu token đã dán vào Credential Manager (qua `main`); không bao giờ trả lại token (056) |
+| `publish.tiktok.status` / `publish.facebook.status` | `{channel}` → `{connected, audited?, page_id?}` (056) |
+| `publish.tiktok.disconnect` / `publish.facebook.disconnect` | `{channel}` → `{ok}`: xóa token (056) |
+| `publish.cancel` / `publish.now` | `{channel, date, item_id, platform?}` → `{status, url?, note?}`: Hủy đăng / Đăng ngay trong cửa sổ phản đối (053) |
+| `telegram.status` | `{}` → `{enabled, state, reason?, bot_username?, chat_id_set, has_token, last_error?}`: bot Telegram đang chạy/tắt và vì sao (token sai, xung đột getUpdates…) (055) |
+| `telegram.test` | `{}` → `{ok}`: gửi tin thử vào `telegram.chat_id` (055) |
+| `telegram.set_token` | `{token}` → `{ok, bot_username}`: kiểm token bằng `getMe` rồi lưu bí mật `telegram_bot_token` qua `main`, khởi động lại bot (055) |
+| `sessions.list` / `sessions.get` | (048) không có `channel` → nhật ký các phiên `ops` (Telegram) trong dữ liệu app (055) |
 | `autopilot.capacity` | Ước tính số video làm được hôm nay cho các kênh quản lý (050, FN-050): thời gian từng bước trên máy, ngân sách Claude, hạn mức đăng YouTube |
 
 | Sự kiện | Dữ liệu |

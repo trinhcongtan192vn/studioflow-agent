@@ -3,8 +3,17 @@ import type { ChatLine } from '../ipc/schema.js';
 import type { WriteStore } from '../store/writer.js';
 
 /** Thư mục nhật ký phiên con của video (D3 5.16, 048): `videos/<vd>/sessions/<ss>.jsonl`. */
-export const sessionLogRel = (videoId: string | undefined, sessionId: string): string =>
-  videoId ? `videos/${videoId}/sessions/${sessionId}.jsonl` : `sessions/${sessionId}.jsonl`;
+export const sessionLogRel = (
+  videoId: string | undefined,
+  sessionId: string,
+  kind?: string,
+): string =>
+  // 055: phiên `ops` (Telegram) không thuộc kênh nào → thư mục dữ liệu app
+  kind === 'ops'
+    ? `ops/sessions/${sessionId}.jsonl`
+    : videoId
+      ? `videos/${videoId}/sessions/${sessionId}.jsonl`
+      : `sessions/${sessionId}.jsonl`;
 
 /**
  * 048 (FR-AP-14): nhật ký mọi phiên agent không phải `main` (frame, producer, critic…) — cùng định dạng
@@ -22,7 +31,7 @@ export function recordSessions(
       const session = await runtime.openSession(opts);
       if (opts.kind === 'main') return session;
       const ctx = opts.context;
-      const rel = sessionLogRel(ctx.video_id, session.id);
+      const rel = sessionLogRel(ctx.video_id, session.id, opts.kind);
       const write = (line: Omit<ChatLine, 'ts'>) => {
         try {
           storeFor(ctx.channel_dir).appendLine(

@@ -465,6 +465,87 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.learning",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "report.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "report.time",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "telegram.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "telegram.chat_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "telegram.allowed_user_ids",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.youtube.audited",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.tiktok.audited",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.facebook.page_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "publish.youtube.channel_id",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
       "key": "publish.platforms",
       "pattern": false,
       "type": "string[]",

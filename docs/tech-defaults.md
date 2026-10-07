@@ -132,5 +132,14 @@
 | `publish.timezone` | `Asia/Ho_Chi_Minh` |
 | `publish.veto_hours` | 2 |
 | Bộ chạy Autopilot (052, hằng số trong `autopilot/runner.ts`, không phải khóa cấu hình) | host gọi `tick` mỗi 5 phút và khi khởi động; một video một lúc; chạy lại một lần cho bước lỗi; chạm hạn mức Claude → chờ tới giờ hết hạn mức trong thông báo (không đọc được thì +1 giờ, cộng 1 phút đệm) |
+| Telegram (055, hằng số trong `telegram/`) | long polling `getUpdates` timeout 25 s; chờ lại 1 s → 60 s (nhân đôi) khi lỗi mạng; tin dài chia ≤ 4096 ký tự theo dòng; phiên `ops` `maxTurns` 10, dùng lại tối đa 15 câu hỏi rồi mở phiên mới; tin định dạng HTML |
+| Đăng YouTube (053, hằng số trong `publish/`) | khúc tải lên 8 MiB; thử lại mỗi khúc ≤ 5 lần (lùi 1 s → 16 s); tối đa 3 lần tải lên mỗi mục; quota 10 000 đơn vị/ngày (giờ Thái Bình Dương); OAuth chờ 5 phút; access token làm mới trước hạn 60 s; `categoryId` 22 |
+| `publish.youtube.audited` | false (`publish.youtube.channel_id`: không đặt) |
+| `publish.tiktok.audited` | false (`publish.facebook.page_id`: không đặt; 056) |
+| `autopilot.learning` | true (057) |
+| Học từ hiệu quả (FN-057) | tuổi tối thiểu 3 ngày; hiệu quả = lượt xem/ngày trong 7 ngày đầu; tối thiểu 5 video đủ tuổi (60 ngày gần nhất) và 2 video mỗi nhóm; hệ số = 1 + clamp(ratio − 1, ±0,3) × n/(n+5), kẹp [0,7; 1,3]; tích 3 chiều (`kind`, `pillar`, `source`) kẹp [0,7; 1,3]; chỉ đổi thứ hạng, không đổi điểm gốc/`min_score` |
+| `report.enabled` / `report.time` | true / `21:00` (054; giờ theo `publish.timezone` của từng kênh) |
+| Số liệu (054, hằng số trong `analytics/`) | thu mỗi 6 giờ mỗi kênh, cửa sổ 7 ngày; báo cáo so với ngày liền trước và trung bình 7 ngày; top 3 video 7 ngày |
+| `telegram.enabled` | false (`telegram.chat_id` rỗng, `telegram.allowed_user_ids` `[]`) |
 | Kế hoạch ngày (051, hằng số trong `autopilot/plan.ts`, không phải khóa cấu hình — FN-051) | không lặp ứng viên 14 ngày; gần trùng tiêu đề Jaccard ≥ 0,6; quét lịch đăng tối đa 30 ngày |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | comfyui 14 · omnivoice 6 · asr 3 · render 2 / 14 `[chờ S1, S9]` |

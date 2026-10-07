@@ -33,13 +33,13 @@ Mỗi phiên agent gắn một `SessionContext` khi mở (D5):
 
 ```ts
 interface SessionContext {
-  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic';
+  session_id: SessionId; kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   channel_dir: string; video_id?: VideoId; frame_id?: FrameId;
   allowed_paths?: RelPath[];          // phạm vi ghi (frame/producer)
   read_only_videos?: VideoId[];       // đọc chéo video (shorts từ video dài)
 }
 ```
-Tool không nhận `channel_dir`/`video_id` từ agent; lấy từ ngữ cảnh. Phiên `frame` chỉ ghi được các file trong `allowed_paths`. `artifact.read` chấp nhận tiền tố `video:<vd>/…` cho video trong `read_only_videos`.
+Tool không nhận `channel_dir`/`video_id` từ agent; lấy từ ngữ cảnh. Ngoại lệ — phiên `ops` (055) không gắn với kênh nào (`channel_dir` = thư mục dữ liệu app): các tool vận hành nhận thêm tham số tùy chọn `channel` (đường dẫn hoặc tên kênh quản lý đang bật Autopilot), Gateway đổi thành kho ghi của kênh đó; kênh lạ → `E_ID_UNKNOWN`. Phiên `frame` chỉ ghi được các file trong `allowed_paths`. `artifact.read` chấp nhận tiền tố `video:<vd>/…` cho video trong `read_only_videos`.
 
 ### 2.3 Định dạng kết quả
 
@@ -91,6 +91,15 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `autopilot.plan_run` | — | job → `{date, path, planned, kept, notes[]}` | Lập/lập lại kế hoạch hôm nay cho kênh (051): dùng file quét nghiên cứu hôm nay nếu có, chưa có thì quét; chuyển mục `planned` chưa làm của hôm qua sang trước, bỏ ứng viên dưới `autopilot.min_score`, giữ mọi mục đã có, chỉ lấp chỗ trống; `autopilot.paused` → không làm gì |
 | `autopilot.plan_update` | `date, item_id, patch: {status?: skipped / planned, title?, angle?, workflow_id?, publish_at?}` | `PlanItem` | Sửa một mục kế hoạch (051): workflow phải thuộc danh sách cho phép, `publish_at` là ISO 8601 có offset (hoặc null), không sửa mục `in_production` / `produced` / `failed` (`E_SCHEMA_INVALID`) |
 | `autopilot.status` | — | `{paused, running, waiting_until?, current?, today: {date, items[]}, log[]}` | Tình hình Autopilot của kênh (052): đang tạm dừng/đang chạy, mục kế hoạch hôm nay và trạng thái (`planned` / `in_production` / `produced` / `failed` / `needs_review`), video đang làm ở bước nào, thời điểm chờ nếu hết hạn mức Claude, và 20 dòng nhật ký vận hành gần nhất (D3 5.19). Chỉ đọc |
+| `autopilot.pause`, `autopilot.resume` | — | `{paused}` | Tạm dừng / tiếp tục Autopilot (`autopilot.paused`, app; 055) |
+| `ops.channels` | — | `{channels[{path, name, paused, items{planned, in_production, produced, needs_review, failed}}]}` | Kênh quản lý đang bật Autopilot và số mục kế hoạch hôm nay theo trạng thái (055, phiên `ops`) |
+| `ops.log` | `channel?`, `date?`, `limit?` | `{lines[AutopilotLogLine]}` | Nhật ký vận hành Autopilot của kênh (D3 5.19); mặc định hôm nay, tối đa 100 dòng cuối (055) |
+| `ops.sessions` | `limit?`, `id?` | `{sessions[…]}` hoặc `{lines[…]}` | Nhật ký các phiên `ops` (không có `id` → danh sách; có `id` → dòng của phiên); chỉ đọc (055) |
+| `learning.get` | `channel?` (ops) | `ChannelLearning` (D3 5.21) hoặc `{enough_data: false, …}` | Điều chỉnh điểm chủ đề đã học của kênh: nhóm nào hiệu quả hơn/kém trung bình, hệ số, số mẫu (057) |
+| `report.get` | `date?`, `channel?` (ops) | `DailyReport` (D3 5.20) | Báo cáo ngày của kênh: nếu đã có file của ngày thì trả file, chưa có thì tính ngay từ số liệu hiện có (không gửi, không ghi) (054) |
+| `publish.status` | `date?`, `channel?` (ops) | `{date, items[{id, title, status, publish}]}` | Trạng thái đăng của các mục kế hoạch đã làm xong trong ngày (053, D3 5.18) |
+| `publish.cancel` | `item_id`, `date?`, `platform?` (`youtube`), `channel?` (ops) | `{status}` | Hủy đăng trong cửa sổ phản đối: video ở lại riêng tư, bỏ hẹn giờ (053) |
+| `publish.now` | `item_id`, `date?`, `platform?`, `channel?` (ops) | `{status, url?, note?}` | Đăng ngay: chuyển video sang công khai; khi `publish.youtube.audited` = false thì không làm được và trả hướng dẫn công khai thủ công (053) |
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
@@ -340,6 +349,23 @@ interface JobInfo {
 - Không cần khóa: Google Trends RSS `https://trends.google.com/trending/rss?geo=<VN|DE|US>`; Google News RSS `https://news.google.com/rss/search?q=<chủ đề>&hl=<lang>&gl=<geo>&ceid=<geo>:<lang>` cho mỗi chủ đề trụ cột.
 - Mỗi nguồn độc lập: thiếu khóa → `E_PROVIDER_UNAVAILABLE`, HTTP lỗi → `E_PROVIDER_FAILED`, kênh đối thủ không có → `E_FILE_NOT_FOUND`, ghi vào `sources.*.error` của file kết quả; lần quét vẫn thành công.
 - Tín hiệu và hằng số chấm điểm: FN-049.
+
+### 9.6 Đăng YouTube (053)
+- **OAuth theo kênh** (ứng dụng cài đặt, loopback + PKCE): máy chủ HTTP tạm trên `127.0.0.1:<cổng ngẫu nhiên>`, `state` ngẫu nhiên, `code_challenge` S256; đổi `code` ở `https://oauth2.googleapis.com/token` (client id/secret = bí mật `youtube_oauth_client_id` / `youtube_oauth_client_secret`). Phạm vi: `youtube.upload`, `youtube.readonly`, `yt-analytics.readonly`, `youtube.force-ssl` (phụ đề). Refresh token lưu bí mật `oauth:youtube:<channel_id>` (`<channel_id>` = ID kênh StudioFlow `ch_…`) qua `SecretStore`; access token chỉ giữ trong bộ nhớ, tự làm mới trước hạn 60 s. Chờ người dùng tối đa 5 phút. Ngắt kết nối: thu hồi token (`/revoke`) rồi xóa bí mật.
+- **Tải lên có thể tiếp tục:** `POST /upload/youtube/v3/videos?uploadType=resumable&part=snippet,status` (+ `X-Upload-Content-Type`, `X-Upload-Content-Length`) lấy URI phiên; `PUT` từng khúc 8 MiB (bội của 256 KiB) với `Content-Range`; `308` → gửi tiếp; lỗi mạng/5xx → hỏi vị trí đã nhận (`Content-Range: bytes */<tổng>`) rồi gửi tiếp từ đó (tối đa 5 lần mỗi khúc); URI phiên lưu để tiếp tục sau khi tắt app. `snippet`: `title` (≤ 100), `description` (≤ 5000 byte; mô tả của `renders/<rd>/description.txt` + chương nếu chưa có), `tags` (tổng ≤ 500 ký tự), `defaultLanguage`/`defaultAudioLanguage` = ngôn ngữ kênh, `categoryId` cố định 22 (People & Blogs); `status`: `privacyStatus: private`, `publishAt` (ISO UTC, chỉ khi `publish.youtube.audited` = true), `selfDeclaredMadeForKids: false`, `containsSyntheticMedia: true` (khai báo nội dung do AI tạo). Phụ đề: `captions.insert` (SRT dựng từ `caption_groups.json`, `isDraft: false`) nếu có. Hình đại diện: `thumbnails.set` nếu video có `thumbnail.jpg|png` (hiện chưa workflow nào sinh).
+- **Quota** (đơn vị/lời gọi, mặc định 10 000 mỗi ngày Thái Bình Dương): `videos.insert` 1600, `captions.insert` 400, `videos.update` 50, `thumbnails.set` 50, `channels.list`/`videos.list` 1. Sổ đếm ở `<app-data>/youtube/quota.json`, nuôi mô hình năng lực (050 `youtube_units_used_today`). Google tính quota cả khi lỗi → đếm trước khi gọi.
+- Lỗi chuẩn hoá: chưa kết nối / thiếu client id → `E_PROVIDER_UNAVAILABLE`; Google trả lỗi → `E_PROVIDER_FAILED` (`quotaExceeded` → kèm gợi ý đợi tới ngày sau); người dùng đóng trang cấp quyền → `E_PERMISSION_DECLINED`.
+
+### 9.8 Đăng TikTok và Facebook Reels (056)
+- Token do người dùng dán vào Cài đặt kênh (IPC `publish.<nền tảng>.set_token`), lưu bí mật `oauth:tiktok:<channel_id>` / `oauth:facebook:<channel_id>` qua `SecretStore`, không bao giờ vào file/log. OAuth đầy đủ để sau.
+- **TikTok Content Posting API** (`https://open.tiktokapis.com/v2`, `Authorization: Bearer`): `POST /post/publish/video/init/` với `post_info{title ≤ 150, privacy_level, disable_duet/comment/stitch}` + `source_info{source: FILE_UPLOAD, video_size, chunk_size, total_chunk_count}` → `publish_id`, `upload_url`; `PUT upload_url` từng khúc (5–64 MiB, khúc cuối tới 128 MiB) với `Content-Range`, `Content-Type: video/mp4`; hỏi `POST /post/publish/status/fetch/ {publish_id}` đến `PUBLISH_COMPLETE` (hoặc `SEND_TO_USER_INBOX`) / `FAILED{fail_reason}`. `privacy_level` = `SELF_ONLY` trừ khi `publish.tiktok.audited` = true và đã tới giờ công khai (`PUBLIC_TO_EVERYONE`). Lỗi `access_token_invalid` → `E_PERMISSION_DECLINED` kèm hướng dẫn dán lại token.
+- **Facebook Page Reels** (Graph API `https://graph.facebook.com/v21.0`): `POST /{page_id}/video_reels {upload_phase: start}` → `video_id`, `upload_url`; `POST upload_url` (`Authorization: OAuth <token>`, `offset: 0`, `file_size`) gửi nguyên tệp; `POST /{page_id}/video_reels {upload_phase: finish, video_id, video_state: SCHEDULED, scheduled_publish_time, description}` (hẹn giờ ≥ 10 phút sau). Hủy → `DELETE /{video_id}`; đăng ngay → `POST /{video_id} {published: true}`; làm mới → `GET /{video_id}?fields=published,status`. Token là access token Trang dài hạn (`pages_manage_posts`, `pages_read_engagement`).
+- Cùng khung `PlatformPublisher` của 053: hàng đợi, thử lại tối đa 3 lần, nhật ký `publish.*`, tin xem trước Telegram với nút Hủy đăng / Đăng ngay.
+
+### 9.7 Số liệu YouTube (054)
+- Dùng token OAuth của kênh (9.6, phạm vi `yt-analytics.readonly`, `youtube.readonly`). **YouTube Analytics API** `GET https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate&endDate&dimensions=day&metrics=views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost,likes&sort=day` cho kênh; mỗi video do app đăng: thêm `filters=video==<id>` và `metrics=views,estimatedMinutesWatched,averageViewDuration,likes,comments,subscribersGained`. Cửa sổ 7 ngày gần nhất mỗi lần (dữ liệu YouTube trễ và được chỉnh lại). **Data API** `videos.list part=statistics` theo lô ≤ 50 (1 đơn vị) cho ảnh chụp lũy kế.
+- Thu tối đa mỗi 6 giờ mỗi kênh (cũng được thu trước khi soạn báo cáo nếu dữ liệu cũ hơn 6 giờ). Kênh chưa kết nối OAuth → bỏ qua, báo cáo ghi chú. Lỗi một nguồn không làm hỏng báo cáo.
+- Chưa làm: impressions / CTR (YouTube Reporting API, báo cáo hàng loạt).
 
 ### 9.3 Worker Python
 - Mỗi engine một tiến trình, giao tiếp **JSON-RPC 2.0 qua stdio** (một JSON mỗi dòng). Log ra stderr.

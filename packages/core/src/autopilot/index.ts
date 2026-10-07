@@ -34,6 +34,19 @@ export {
   type WorkflowCost,
 } from './capacity.js';
 export {
+  LEARNING_CONSTANTS,
+  LEARNING_REL,
+  LearningService,
+  adjustCandidate,
+  learnFromSamples,
+  multiplierOf,
+  rankWithLearning,
+  type CandidateAdjust,
+  type LearnSample,
+  type LearnedPart,
+} from './learning.js';
+export { learningTools } from './learning-tools.js';
+export {
   PLAN_CONSTANTS,
   allowedWorkflows,
   assignPublishSlot,

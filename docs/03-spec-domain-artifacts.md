@@ -32,6 +32,8 @@
   chat/<session_id>.jsonl           chat cấp kênh (khi chưa chọn video, ví dụ tạo kênh)
   research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
   autopilot/plans/<YYYY-MM-DD>.json kế hoạch ngày Autopilot (051, mục 5.18): chủ đề, workflow, khung giờ đăng, lý do
+  autopilot/reports/<YYYY-MM-DD>.json báo cáo ngày của kênh (054, mục 5.20): số liệu, sản xuất, đăng bài, chi phí
+  autopilot/learning.json           điều chỉnh điểm chủ đề học từ hiệu quả thật (057, mục 5.21)
   autopilot/log/<YYYY-MM-DD>.jsonl  nhật ký vận hành Autopilot (052, mục 5.19): mỗi quyết định tự động một dòng, kèm lý do (append-only)
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
@@ -433,6 +435,8 @@ Tiêu đề, mô tả, thẻ, chương cho YouTube (bước `publish-meta`, D6).
 
 **Nhật ký phiên con (048, FR-AP-14):** phiên agent không phải `main` (frame, producer, critic…) ghi cùng định dạng dòng vào `videos/<vd>/sessions/<session_id>.jsonl` (kênh: `sessions/`); dòng đầu `role: system` có `session: {id, kind, video_id?, frame_id?}`; dòng `tool` có thêm `tool.ok`; dòng kết thúc có `usage: {input_tokens, output_tokens}`. Chỉ ghi thêm, không qua build graph, không bị dọn đĩa (nhật ký kiểm tra).
 
+Phiên `ops` (055, agent trả lời câu hỏi vận hành qua Telegram) không thuộc kênh nào: nhật ký lưu ở thư mục dữ liệu app `ops/sessions/<session_id>.jsonl` (cùng định dạng dòng chat); vị trí đọc offset getUpdates của bot: `telegram/offset.json` (`{offset}`, dữ liệu app, không chứa bí mật).
+
 ### 5.17 `research/<YYYY-MM-DD>.json` (049)
 Kết quả quét nghiên cứu mỗi ngày của một kênh (FR-AP-04): đối thủ (video mới + video nổi bật cũ), video đã làm của kênh, video trending, Google Trends, Google News theo chủ đề trụ cột; mỗi chủ đề ứng viên có điểm 0–100 và lý do. Ngày theo `publish.timezone`; quét lại trong ngày ghi đè file của ngày đó. Nguồn lỗi không làm hỏng cả lần quét: ghi vào `sources.*.error`. Hằng số chấm điểm: FN-049.
 
@@ -468,7 +472,9 @@ interface ResearchCandidate {
 ```
 
 ### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
-Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`. Luật chọn workflow, khung giờ: FN-051.
+Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`.
+
+**Đăng bài (053, FR-AP-09):** mục `produced` được bộ đăng (Publisher) xử lý và ghi `publish.<nền tảng>`: `pending` (chờ tải lên: chưa kết nối OAuth, ngoài khung giờ làm việc…), `uploading`, `private` (đã tải lên riêng tư, **không** hẹn giờ vì `publish.youtube.audited` = false — người dùng tự công khai trong YouTube Studio), `scheduled` (riêng tư + `publishAt`, nền tảng tự công khai; có `veto_until`), `public`, `cancelled` (người dùng bấm Hủy đăng — video vẫn riêng tư), `failed`. Giờ công khai thật = max(`publish_at` của mục, lúc tải lên + `publish.veto_hours`). Trạng thái chỉ do Publisher ghi (qua `markPlanItem`), người dùng không sửa tay. Dữ liệu app (không thuộc kênh): `<app-data>/youtube/quota.json` (`{date, units}` theo ngày Thái Bình Dương — lúc Google đặt lại quota) và `<app-data>/publish/sessions/<item_id>.json` (URI phiên tải lên có thể tiếp tục, không chứa token). **TikTok / Facebook (056, FR-AP-10):** cùng trạng thái. Chỉ video dọc 9:16 (hồ sơ xuất có chiều cao > chiều rộng, ví dụ `yt-shorts-1080x1920`); bản ngang bị bỏ qua (`cancelled`, `note: "Bỏ qua …"`). TikTok không hẹn giờ được: `publish.tiktok.audited` = false → bài `SELF_ONLY` (`private`, người dùng tự công khai); = true → bài chỉ được đăng công khai khi tới giờ công khai (chưa tới giờ: không tải lên, mục ở trạng thái `pending`). Facebook Reels hẹn giờ được (`scheduled`). Luật chọn workflow, khung giờ: FN-051.
 
 ```ts
 type PlanItemStatus = 'planned' | 'skipped' | 'in_production' | 'produced' | 'failed' | 'needs_review';
@@ -485,6 +491,19 @@ interface DailyPlan extends Versioned {
   notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
   items: PlanItem[];
 }
+type PublishStatus = 'pending' | 'uploading' | 'scheduled' | 'private' | 'public' | 'cancelled' | 'failed';
+interface PlatformPublish {
+  status: PublishStatus;
+  video_id?: string;                               // ID video trên nền tảng (không phải VideoId của StudioFlow)
+  url?: string;
+  publish_at?: Iso8601;                            // giờ công khai đã đặt trên nền tảng (chỉ khi nền tảng tự công khai theo lịch)
+  veto_until?: Iso8601;                            // hết giờ này mà không bị phản đối → làm theo lịch
+  uploaded_at?: Iso8601;
+  attempts?: number;                               // số lần tải lên đã thử (tối đa 3)
+  error?: string;                                  // tiếng Việt: vì sao chưa đăng / lỗi
+  note?: string;
+}
+interface PublishState { youtube?: PlatformPublish; tiktok?: PlatformPublish; facebook?: PlatformPublish }
 interface PlanItem {
   id: PlanItemId;
   status: PlanItemStatus;
@@ -501,6 +520,7 @@ interface PlanItem {
   score: number;                                   // điểm ứng viên (5.17)
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
+  publish?: PublishState;                          // 053: trạng thái đăng từng nền tảng (chỉ mục `produced`)
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
 }
 ```
@@ -519,6 +539,72 @@ interface AutopilotLogLine {
   step_id?: string;
   message: string;                                 // tiếng Việt: việc gì + vì sao
   data?: Record<string, unknown>;                  // chi tiết máy đọc được (điểm, ngưỡng, thời điểm hết hạn mức…)
+}
+```
+
+### 5.20 `autopilot/reports/<YYYY-MM-DD>.json` (054)
+Báo cáo ngày của một kênh Autopilot (FR-AP-11): số liệu hiệu quả (bảng `channel_metrics` / `video_metrics` trong `studioflow.db`, D11 3.1), sản xuất và đăng bài hôm nay (kế hoạch 5.18), chi phí Claude so với ngân sách, quota YouTube, tiêu đề kế hoạch ngày mai. Là nguồn cho tin nhắn Telegram và cho màn hình ứng dụng sau này. Ngày theo `publish.timezone`. Ghi một lần mỗi ngày vào giờ `report.time` (idempotent: có file `delivered_at` thì không gửi lại; có file chưa `delivered_at` → chỉ gửi lại); `/report` tạo bản mới không đánh dấu đã gửi.
+
+```ts
+interface DailyReport extends Versioned {
+  channel_id: ChannelId;
+  channel_name: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // ngày báo cáo theo `publish.timezone` của kênh
+  generated_at: Iso8601;
+  delivered_at?: Iso8601;                          // đã gửi vào Telegram
+  youtube: {
+    connected: boolean;
+    /** Ngày dữ liệu mới nhất đã có (YouTube Analytics thường trễ 1–3 ngày). */
+    metrics_day?: string;
+    views?: number;
+    views_prev?: number;                           // ngày liền trước
+    views_avg7?: number;                           // trung bình 7 ngày trước `metrics_day`
+    views_change_pct?: number;                     // so với ngày liền trước
+    views_change_avg7_pct?: number;
+    watch_minutes?: number;
+    avg_view_duration_s?: number;
+    subs_gained?: number; subs_lost?: number;
+    likes?: number;
+    top_videos: { title: string; url?: string; views: number; item_id?: string }[];   // 7 ngày gần nhất, video do app đăng
+  };
+  production: { produced: number; in_production: number; needs_review: number; failed: number; planned: number;
+                items: { title: string; status: PlanItemStatus; note?: string }[] };
+  publishing: { uploaded: { title: string; status: PublishStatus; url?: string; publish_at?: Iso8601 }[];
+                waiting: { title: string; status: PublishStatus; note?: string }[] };   // pending / failed / private chờ công khai
+  claude: { used_tokens: number; budget_tokens: number | null; used_pct: number | null };
+  quota: { youtube_used: number; youtube_limit: number };
+  tomorrow: string;                                // một dòng tiếng Việt
+  notes: string[];                                 // tiếng Việt: thiếu dữ liệu, chưa kết nối, v.v.
+}
+```
+
+### 5.21 `autopilot/learning.json` (057)
+Vòng phản hồi (FR-AP-13): từ số liệu thật (bảng `video_metrics`, 054) của các video do app đăng và **đã đủ `min_age_days` (3) ngày**, tính hiệu quả tương đối của từng nhóm so với mức trung bình của kênh, theo năm chiều: dạng ứng viên (`kind`), chủ đề trụ cột (`pillar`), kênh đối thủ nguồn (`source`), workflow, khung giờ đăng (`slot`). Hiệu quả một video = lượt xem trung bình mỗi ngày trong 7 ngày đầu (tối đa 7, tối thiểu 3 ngày có số liệu); `ratio` của nhóm = trung vị hiệu quả nhóm / trung vị hiệu quả cả kênh. `multiplier` = 1 + clamp(`ratio` − 1, −0,3, +0,3) × n / (n + 5) — kéo về 1 khi ít mẫu, luôn trong [0,7; 1,3]; nhóm dưới 2 video không tạo hệ số. Dưới 5 video đủ tuổi trong 60 ngày → `enough_data: false` và **không ảnh hưởng gì**. Tính xác định (cùng dữ liệu → cùng kết quả), làm mới mỗi lần lập kế hoạch ngày, ghi qua WriteStore chỉ khi nội dung đổi. Áp dụng khi chọn chủ đề (051): chỉ **xếp hạng** (điểm gốc 0–100 trong nghiên cứu và `autopilot.min_score` không đổi); hệ số của ứng viên = tích các hệ số `kind`, `pillar`, `source` kẹp trong [0,7; 1,3]; mục kế hoạch ghi lý do tiếng Việt. Chiều `workflow` và `slot` được ghi để xem, chưa dùng khi chọn. Tắt bằng `autopilot.learning` = false.
+
+```ts
+interface ChannelLearning extends Versioned {
+  channel_id: ChannelId;
+  generated_at: Iso8601;
+  enough_data: boolean;                            // false → mọi hệ số bằng 1, không ảnh hưởng
+  /** Số video đủ tuổi có số liệu đã dùng. */
+  videos: number;
+  /** Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`). */
+  baseline_daily_views: number;
+  dimensions: {
+    kind: LearningGroup[]; pillar: LearningGroup[]; source: LearningGroup[];
+    workflow: LearningGroup[]; slot: LearningGroup[];
+  };
+  notes: string[];                                 // tiếng Việt: vì sao chưa đủ dữ liệu…
+}
+interface LearningGroup {
+  key: string;                                     // `trending`, tên trụ cột, ID kênh nguồn, ID workflow, `HH:MM`
+  label?: string;                                  // tên dễ đọc (kênh nguồn)
+  n: number;                                       // số video trong nhóm
+  /** Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình). */
+  ratio: number;
+  /** @minimum 0.7 @maximum 1.3 */
+  multiplier: number;
 }
 ```
 
@@ -607,6 +693,16 @@ interface SettingsConfig extends Versioned {
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
+| `autopilot.learning` | boolean (dùng hiệu quả thật của video đã đăng để điều chỉnh thứ hạng chủ đề, 057) | app, channel |
+| `report.enabled` | boolean (gửi báo cáo ngày vào nhóm Telegram, 054) | app |
+| `report.time` | string (`HH:MM` theo `publish.timezone` của từng kênh; giờ gửi báo cáo ngày, 054) | app |
+| `telegram.enabled` | boolean (bật bot Telegram: thông báo vận hành và hỏi đáp với agent `ops`, 055) | app |
+| `telegram.chat_id` | string (ID nhóm/kênh Telegram nhận thông báo; rỗng = chưa đặt) | app |
+| `telegram.allowed_user_ids` | string[] (ID người dùng Telegram được ra lệnh cho bot; rỗng = mọi thành viên của `telegram.chat_id`) | app |
+| `publish.youtube.audited` | boolean (dự án API YouTube đã qua kiểm duyệt của Google: được đăng công khai/hẹn giờ; false = chỉ tải lên riêng tư, người dùng tự công khai trong YouTube Studio, 053) | app |
+| `publish.tiktok.audited` | boolean (ứng dụng TikTok đã qua kiểm duyệt Content Posting API: được đăng công khai; false = mọi bài đăng `SELF_ONLY`, người dùng tự công khai trong app TikTok, 056) | app |
+| `publish.facebook.page_id` | string (ID Trang Facebook nhận Reels; không phải bí mật, 056) | channel |
+| `publish.youtube.channel_id` | string (ID kênh YouTube `UC…` gắn với kênh StudioFlow, ghi khi kết nối OAuth; không phải bí mật) | channel |
 | `publish.platforms` | string[] (`youtube`, `tiktok`, `facebook`) | channel |
 | `publish.slots` | string[] (`HH:MM` hoặc `<thứ> HH:MM`, thứ: mon…sun) | channel |
 | `publish.timezone` | string (IANA) | app, channel |

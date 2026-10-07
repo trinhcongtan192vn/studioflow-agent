@@ -1,12 +1,19 @@
 import { SfError } from '../errors.js';
-import type { ToolDefinition } from '../gateway/types.js';
+import { OPS_CHANNEL_PROP, type ToolDefinition } from '../gateway/types.js';
 import type { JobQueue } from '../jobs/queue.js';
 import { researchDate } from '../research/scan.js';
 import { resolveConfig } from '../config/resolve.js';
 import type { WriteStore } from '../store/writer.js';
 import type { FetchFn } from '../youtube/data-api.js';
 import type { CapacityChannel, CapacityResult } from './capacity.js';
-import { planToday, readPlan, updatePlanItem, type PlanPatch, type PlanWorkflow } from './plan.js';
+import {
+  planToday,
+  readPlan,
+  updatePlanItem,
+  type PlanPatch,
+  type PlanTodayOptions,
+  type PlanWorkflow,
+} from './plan.js';
 
 export interface PlanDeps {
   queue: JobQueue;
@@ -20,6 +27,8 @@ export interface PlanDeps {
   fetch?: FetchFn;
   now?: () => Date;
   appDataDir?: string;
+  /** 057: học từ hiệu quả thật (xem `PlanTodayOptions.learn`). */
+  learn?: PlanTodayOptions['learn'];
 }
 
 const JOB = 'autopilot.plan';
@@ -41,6 +50,7 @@ export function defineAutopilotPlanJob(d: PlanDeps): void {
         ...(d.fetch ? { fetch: d.fetch } : {}),
         ...(d.now ? { now: d.now() } : {}),
         ...(d.appDataDir ? { appDataDir: d.appDataDir } : {}),
+        ...(d.learn ? { learn: d.learn } : {}),
       });
       return {
         paused: r.paused,
@@ -95,7 +105,11 @@ export function autopilotPlanTools(d: PlanDeps): ToolDefinition[] {
       name: 'autopilot.plan_get',
       description:
         'Kế hoạch ngày Autopilot của kênh (chủ đề, góc nhìn, workflow, giờ đăng, lý do, trạng thái từng mục). date: YYYY-MM-DD; bỏ trống = hôm nay.',
-      input: { type: 'object', properties: { date: DATE }, additionalProperties: false },
+      input: {
+        type: 'object',
+        properties: { date: DATE, ...OPS_CHANNEL_PROP },
+        additionalProperties: false,
+      },
       handler: async (i: { date?: string }, ctx) => {
         const date = i.date ?? planDateOf(ctx.store.root, d.now?.() ?? new Date(), d.appDataDir);
         const plan = readPlan(ctx.store.root, date);
@@ -120,6 +134,7 @@ export function autopilotPlanTools(d: PlanDeps): ToolDefinition[] {
         type: 'object',
         properties: {
           date: DATE,
+          ...OPS_CHANNEL_PROP,
           item_id: { type: 'string' },
           patch: {
             type: 'object',

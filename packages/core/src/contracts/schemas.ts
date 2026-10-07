@@ -78,6 +78,16 @@ export const schemas = {
               "autopilot.work_window": {},
               "autopilot.budget_share": {},
               "autopilot.daily_tokens": {},
+              "autopilot.learning": {},
+              "report.enabled": {},
+              "report.time": {},
+              "telegram.enabled": {},
+              "telegram.chat_id": {},
+              "telegram.allowed_user_ids": {},
+              "publish.youtube.audited": {},
+              "publish.tiktok.audited": {},
+              "publish.facebook.page_id": {},
+              "publish.youtube.channel_id": {},
               "publish.platforms": {},
               "publish.slots": {},
               "publish.timezone": {},
@@ -179,6 +189,16 @@ export const schemas = {
               "autopilot.work_window": {},
               "autopilot.budget_share": {},
               "autopilot.daily_tokens": {},
+              "autopilot.learning": {},
+              "report.enabled": {},
+              "report.time": {},
+              "telegram.enabled": {},
+              "telegram.chat_id": {},
+              "telegram.allowed_user_ids": {},
+              "publish.youtube.audited": {},
+              "publish.tiktok.audited": {},
+              "publish.facebook.page_id": {},
+              "publish.youtube.channel_id": {},
               "publish.platforms": {},
               "publish.slots": {},
               "publish.timezone": {},
@@ -4133,6 +4153,9 @@ export const schemas = {
           "video_id": {
             "$ref": "#/definitions/VideoId"
           },
+          "publish": {
+            "$ref": "#/definitions/PublishState"
+          },
           "note": {
             "type": "string"
           }
@@ -4177,6 +4200,69 @@ export const schemas = {
       "Id<\"vd\">": {
         "type": "string",
         "pattern": "^vd_[0-9a-z]{8}$"
+      },
+      "PublishState": {
+        "type": "object",
+        "properties": {
+          "youtube": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "tiktok": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "facebook": {
+            "$ref": "#/definitions/PlatformPublish"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformPublish": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/definitions/PublishStatus"
+          },
+          "video_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "publish_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "veto_until": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "uploaded_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublishStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "uploading",
+          "scheduled",
+          "private",
+          "public",
+          "cancelled",
+          "failed"
+        ]
       }
     }
   },
@@ -4243,6 +4329,446 @@ export const schemas = {
       "Id<\"vd\">": {
         "type": "string",
         "pattern": "^vd_[0-9a-z]{8}$"
+      }
+    }
+  },
+  DailyReport: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/DailyReport",
+    "definitions": {
+      "DailyReport": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "number"
+          },
+          "channel_id": {
+            "$ref": "#/definitions/ChannelId"
+          },
+          "channel_name": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "generated_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "delivered_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "youtube": {
+            "type": "object",
+            "properties": {
+              "connected": {
+                "type": "boolean"
+              },
+              "metrics_day": {
+                "type": "string",
+                "description": "Ngày dữ liệu mới nhất đã có (YouTube Analytics thường trễ 1–3 ngày)."
+              },
+              "views": {
+                "type": "number"
+              },
+              "views_prev": {
+                "type": "number"
+              },
+              "views_avg7": {
+                "type": "number"
+              },
+              "views_change_pct": {
+                "type": "number"
+              },
+              "views_change_avg7_pct": {
+                "type": "number"
+              },
+              "watch_minutes": {
+                "type": "number"
+              },
+              "avg_view_duration_s": {
+                "type": "number"
+              },
+              "subs_gained": {
+                "type": "number"
+              },
+              "subs_lost": {
+                "type": "number"
+              },
+              "likes": {
+                "type": "number"
+              },
+              "top_videos": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "views": {
+                      "type": "number"
+                    },
+                    "item_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "views"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "connected",
+              "top_videos"
+            ],
+            "additionalProperties": false
+          },
+          "production": {
+            "type": "object",
+            "properties": {
+              "produced": {
+                "type": "number"
+              },
+              "in_production": {
+                "type": "number"
+              },
+              "needs_review": {
+                "type": "number"
+              },
+              "failed": {
+                "type": "number"
+              },
+              "planned": {
+                "type": "number"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/definitions/PlanItemStatus"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "produced",
+              "in_production",
+              "needs_review",
+              "failed",
+              "planned",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          "publishing": {
+            "type": "object",
+            "properties": {
+              "uploaded": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/definitions/PublishStatus"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "publish_at": {
+                      "$ref": "#/definitions/Iso8601"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "waiting": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/definitions/PublishStatus"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "uploaded",
+              "waiting"
+            ],
+            "additionalProperties": false
+          },
+          "claude": {
+            "type": "object",
+            "properties": {
+              "used_tokens": {
+                "type": "number"
+              },
+              "budget_tokens": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "used_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "used_tokens",
+              "budget_tokens",
+              "used_pct"
+            ],
+            "additionalProperties": false
+          },
+          "quota": {
+            "type": "object",
+            "properties": {
+              "youtube_used": {
+                "type": "number"
+              },
+              "youtube_limit": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "youtube_used",
+              "youtube_limit"
+            ],
+            "additionalProperties": false
+          },
+          "tomorrow": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "channel_id",
+          "channel_name",
+          "claude",
+          "date",
+          "generated_at",
+          "notes",
+          "production",
+          "publishing",
+          "quota",
+          "schema_version",
+          "tomorrow",
+          "youtube"
+        ],
+        "additionalProperties": false
+      },
+      "ChannelId": {
+        "$ref": "#/definitions/Id%3C%22ch%22%3E"
+      },
+      "Id<\"ch\">": {
+        "type": "string",
+        "pattern": "^ch_[0-9a-z]{8}$"
+      },
+      "Iso8601": {
+        "type": "string"
+      },
+      "PlanItemStatus": {
+        "type": "string",
+        "enum": [
+          "planned",
+          "skipped",
+          "in_production",
+          "produced",
+          "failed",
+          "needs_review"
+        ]
+      },
+      "PublishStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "uploading",
+          "scheduled",
+          "private",
+          "public",
+          "cancelled",
+          "failed"
+        ]
+      }
+    }
+  },
+  ChannelLearning: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/ChannelLearning",
+    "definitions": {
+      "ChannelLearning": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "number"
+          },
+          "channel_id": {
+            "$ref": "#/definitions/ChannelId"
+          },
+          "generated_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "enough_data": {
+            "type": "boolean"
+          },
+          "videos": {
+            "type": "number",
+            "description": "Số video đủ tuổi có số liệu đã dùng."
+          },
+          "baseline_daily_views": {
+            "type": "number",
+            "description": "Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`)."
+          },
+          "dimensions": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/LearningGroup"
+                }
+              },
+              "pillar": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/LearningGroup"
+                }
+              },
+              "source": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/LearningGroup"
+                }
+              },
+              "workflow": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/LearningGroup"
+                }
+              },
+              "slot": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/LearningGroup"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "pillar",
+              "source",
+              "workflow",
+              "slot"
+            ],
+            "additionalProperties": false
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "baseline_daily_views",
+          "channel_id",
+          "dimensions",
+          "enough_data",
+          "generated_at",
+          "notes",
+          "schema_version",
+          "videos"
+        ],
+        "additionalProperties": false
+      },
+      "ChannelId": {
+        "$ref": "#/definitions/Id%3C%22ch%22%3E"
+      },
+      "Id<\"ch\">": {
+        "type": "string",
+        "pattern": "^ch_[0-9a-z]{8}$"
+      },
+      "Iso8601": {
+        "type": "string"
+      },
+      "LearningGroup": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "n": {
+            "type": "number"
+          },
+          "ratio": {
+            "type": "number",
+            "description": "Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình)."
+          },
+          "multiplier": {
+            "type": "number",
+            "minimum": 0.7,
+            "maximum": 1.3
+          }
+        },
+        "required": [
+          "key",
+          "n",
+          "ratio",
+          "multiplier"
+        ],
+        "additionalProperties": false
       }
     }
   },

@@ -17,7 +17,7 @@ interface AgentRuntime {
 }
 
 interface SessionOptions {
-  kind: 'main' | 'frame' | 'producer' | 'critic';
+  kind: 'main' | 'frame' | 'producer' | 'critic' | 'ops';
   context: SessionContext;                      // D4 mục 2.2
   model: string;                                // theo bảng mục 2
   systemAppend: string;                         // quy tắc app (mục 6) + chỉ dẫn theo kind
@@ -61,6 +61,7 @@ Mọi phần khác của app chỉ dùng giao diện này. Thêm runtime mới =
 | `frame` | Bước `frame-build` | Frame packet (D6) | như `main` | Một frame; đóng sau `workflow.step_complete` |
 | `producer` | `refine-loop` của storyboard | Brief, script, hồ sơ kênh, nhận xét vòng trước | như `main` | Một vòng |
 | `critic` | `text.review` với provider `text.claude` | Chỉ bản nháp + rubric + brief | Claude khác tầng với producer khi producer cũng là Claude | Một lần chấm |
+| `ops` | Người dùng hỏi/ra lệnh qua bot Telegram (055): nhắc tên bot, trả lời tin của bot, hoặc nhắn riêng | Không gắn kênh/video; chỉ các tool vận hành (mục 4), chỉ dẫn trả lời ngắn bằng tiếng Việt | như `main` | Theo cuộc trò chuyện Telegram (đóng sau một số câu hỏi); nhật ký ở `ops/sessions/` trong dữ liệu app |
 
 Song song: tối đa `frame_build.parallel` phiên `frame` (D3 mục 7.2). Phiên `critic`/`producer` không có lịch sử chat.
 
@@ -80,24 +81,30 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 
 ## 4. Chính sách tool theo loại phiên
 
-| Tool | main | frame | producer | critic |
-|---|---|---|---|---|
-| `Read`, `Glob`, `Grep` (chỉ project + thư mục plugin) | ✓ | ✓ | ✓ | — |
-| `Skill` | ✓ | ✓ | ✓ | — |
-| `TodoWrite` | ✓ | ✓ | — | — |
-| `artifact.read/list/validate`, `config.resolve` | ✓ | ✓ | ✓ | ✓ (`read`) |
-| `config.set` | ✓ | — | — | — |
-| `artifact.write` | ✓ | chỉ `allowed_paths` | chỉ artifact của bước | — |
-| `script.run` | ✓ | lint/check/snapshot của frame mình | — | — |
-| `graph.*`, `workflow.*` (gồm `list`, `select`, `run_to`, `pause`, `rewind`), `approval.annotate` | ✓ | `workflow.step_complete` | `workflow.step_complete` | — |
-| `asset.import`, `asset.search` | ✓ | `asset.search` | — | — |
-| capability (`tts.*`, `asr.*`, `voice.*`, `image.*`, `music.*`, `sfx.*`, `lipsync.*`, `grade.*`, `media.*`) | ✓ | `image.*` | — | — |
-| `render.video`, `studio.*` | ✓ | — | — | — |
-| `youtube.*` (044) | ✓ | — | — | — |
-| `research.scan`, `research.get` (049) | ✓ | — | — | — |
-| `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — |
-| `autopilot.status` (052) | ✓ | — | — | — |
-| `job.*` | ✓ | ✓ | — | — |
+| Tool | main | frame | producer | critic | ops |
+|---|---|---|---|---|---|
+| `Read`, `Glob`, `Grep` (chỉ project + thư mục plugin) | ✓ | ✓ | ✓ | — | — |
+| `Skill` | ✓ | ✓ | ✓ | — | — |
+| `TodoWrite` | ✓ | ✓ | — | — | — |
+| `artifact.read/list/validate`, `config.resolve` | ✓ | ✓ | ✓ | ✓ (`read`) | — |
+| `config.set` | ✓ | — | — | — | — |
+| `artifact.write` | ✓ | chỉ `allowed_paths` | chỉ artifact của bước | — | — |
+| `script.run` | ✓ | lint/check/snapshot của frame mình | — | — | — |
+| `graph.*`, `workflow.*` (gồm `list`, `select`, `run_to`, `pause`, `rewind`), `approval.annotate` | ✓ | `workflow.step_complete` | `workflow.step_complete` | — | — |
+| `asset.import`, `asset.search` | ✓ | `asset.search` | — | — | — |
+| capability (`tts.*`, `asr.*`, `voice.*`, `image.*`, `music.*`, `sfx.*`, `lipsync.*`, `grade.*`, `media.*`) | ✓ | `image.*` | — | — | — |
+| `render.video`, `studio.*` | ✓ | — | — | — | — |
+| `youtube.*` (044) | ✓ | — | — | — | — |
+| `research.scan`, `research.get` (049) | ✓ | — | — | — | chỉ `research.get` |
+| `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — | chỉ `plan_get`, `plan_update` (kèm `channel`) |
+| `autopilot.status` (052) | ✓ | — | — | — | ✓ |
+| `learning.get` (057) | ✓ | — | — | — | ✓ (kèm `channel`) |
+| `report.get` (054) | ✓ | — | — | — | ✓ (kèm `channel`) |
+| `publish.status`, `publish.cancel`, `publish.now` (053) | ✓ | — | — | — | ✓ (kèm `channel`) |
+| `autopilot.pause`, `autopilot.resume`, `ops.channels`, `ops.log`, `ops.sessions` (055) | ✓ (`autopilot.pause/resume`) | — | — | — | ✓ |
+| `job.*` | ✓ | ✓ | — | — | chỉ `job.list` |
+
+Phiên `ops` **không** có Read/Glob/Grep/Skill/TodoWrite, không có `artifact.write` và không ghi được file nào; chỉ đọc trạng thái vận hành và thực hiện các hành động trong cột (tạm dừng/tiếp tục, bỏ qua/khôi phục mục kế hoạch, và — từ 053 — hủy/đăng ngay bản đăng). Tool nhận `channel` (đường dẫn hoặc tên kênh).
 
 Tool không có trong cột → không được liệt kê cho phiên đó (`allowedTools`) và bị `canUseTool` từ chối nếu vẫn gọi.
 
@@ -144,12 +151,13 @@ Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 v
 
 ### 5.3 Mạng
 - Agent không có tool mạng.
-- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, YouTube Data API (`www.googleapis.com`, 044/049), Google Trends / Google News RSS (`trends.google.com`, `news.google.com`, quét nghiên cứu 049), và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
+- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, YouTube Data API (`www.googleapis.com`, 044/049), Google Trends / Google News RSS (`trends.google.com`, `news.google.com`, quét nghiên cứu 049), Telegram Bot API (`api.telegram.org`, 055), đăng YouTube (053: `accounts.google.com` — trang cấp quyền mở bằng trình duyệt của người dùng —, `oauth2.googleapis.com`, `www.googleapis.com` gồm `/upload/youtube/v3`, và `youtubeanalytics.googleapis.com` cho số liệu 054) đăng TikTok (056: `open.tiktokapis.com` và máy chủ tải lên `upload_url` do TikTok trả về) và Facebook Reels (056: `graph.facebook.com`, `rupload.facebook.com`), và cổng loopback `127.0.0.1:<ngẫu nhiên>` nhận mã OAuth trong lúc kết nối và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
 - Lệnh `script.run` không có mạng trừ khi được đánh dấu cần mạng trong danh sách cho phép (cơ chế chặn: tech-defaults `[chờ S8]`).
 
 ### 5.4 Khóa bí mật (FR-OP-07)
 - Lưu trong kho bí mật của Windows (Credential Manager), tên `StudioFlow/<provider>`; chỉ `main` đọc/ghi, chuyển cho `core` qua IPC khi cần.
-- Không ghi khóa vào file, log, trace, provenance; logger che chuỗi khớp mẫu khóa.
+- `core` đọc/ghi bí mật qua cổng `SecretStore` ({get, set, delete}; 055). Trong app: `core` gửi thông điệp `{type:'secret.get'|'secret.set'|'secret.delete', id, name, value?}` cho `main`, `main` trả `{type:'secret.result', id, ok, value?, error?}` sau khi dùng Credential Manager; `main` chỉ nhận tên hợp lệ (tên tĩnh như `telegram_bot_token`, `youtube_oauth_client_id`, hoặc tiền tố `oauth:` như `oauth:youtube:<channel_id>`). Trong test dùng kho bộ nhớ.
+- Token bot Telegram: bí mật `telegram_bot_token`. OAuth YouTube (053): `youtube_oauth_client_id`, `youtube_oauth_client_secret`, và refresh token mỗi kênh `oauth:youtube:<channel_id>` — chỉ trong kho bí mật, không bao giờ trong file kênh/kế hoạch/log/trace (kế hoạch chỉ ghi ID và URL video công khai). TikTok/Facebook (056): token người dùng dán, `oauth:tiktok:<channel_id>` và `oauth:facebook:<channel_id>` (cùng quy tắc: chỉ trong kho bí mật; ID Trang Facebook `publish.facebook.page_id` không phải bí mật). Không ghi khóa vào file, log, trace, provenance; logger che chuỗi khớp mẫu khóa (kể cả token bot `<số>:<chuỗi>` trong URL).
 
 ## 6. Chỉ dẫn hệ thống (`systemAppend`)
 

@@ -342,6 +342,17 @@ export {
   type PlanTodayOptions,
 } from './autopilot/index.js';
 export { setHostSecrets } from './secrets/credman.js';
+export {
+  MemorySecretStore,
+  SECRET_NAME,
+  assertSecretName,
+  createMessageSecretStore,
+  type SecretRequest,
+  type SecretResult,
+  type SecretStore,
+} from './secrets/store.js';
+export * from './telegram/index.js';
+export * from './publish/index.js';
 export { StudioPreviews, syncSnapshot, snapshotRel, snapshotMtime } from './studio/preview.js';
 export { studioTools } from './studio/tools.js';
 export { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';

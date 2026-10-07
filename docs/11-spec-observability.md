@@ -41,6 +41,13 @@ JSON mỗi dòng ở `<app-data>/logs/<tiến trình>-<ngày>.log` với trườ
 - **Ngân sách (FR-OB-03):** trước mỗi lệnh có phí, `core` ước tính; vượt `budget.*` của video → `E_BUDGET_EXCEEDED` + thẻ xác nhận nâng ngân sách. `state.json.budget` cập nhật sau mỗi lệnh.
 - **Báo cáo (UI-12):** theo video → bước → loại; xuất CSV.
 
+### 3.1 Số liệu hiệu quả (054)
+Bảng trong `studioflow.db` (YouTube Analytics API + Data API; khóa chính làm `INSERT OR REPLACE` nên thu lại cùng ngày là idempotent):
+- `channel_metrics(channel_id, platform, day, views, minutes_watched, avg_view_duration_s, subs_gained, subs_lost, likes, fetched_at)` — khóa `(channel_id, platform, day)`; `channel_id` là ID kênh StudioFlow, `day` theo múi giờ báo cáo của YouTube Analytics (Thái Bình Dương).
+- `video_metrics(channel_id, platform, video_ref, day, views, minutes_watched, avg_view_duration_s, likes, comments, subs_gained, fetched_at)` — khóa `(channel_id, platform, video_ref, day)`; `video_ref` = ID video trên nền tảng; chỉ video do app đăng (từ kế hoạch ngày).
+- `video_stats(channel_id, platform, video_ref, day, view_count, like_count, comment_count, fetched_at)` — ảnh chụp lũy kế của Data API `statistics` mỗi lần thu.
+CTR/số lần hiển thị không có trong Analytics API (chỉ ở YouTube Reporting API) — chưa làm.
+
 ## 4. Eval nội dung
 
 - **Dữ liệu:** `reviews/*/round-*.json` + quyết định duyệt (`state.json.approvals` kèm ghi chú) + chỉnh sửa người dùng sau duyệt (diff `SCRIPT.md` giữa bản duyệt và bản phát hành).

@@ -237,6 +237,19 @@ export interface DailyPlan extends Versioned {
   notes?: string[];                                // tiếng Việt: vì sao lập ít/không lập video (không đủ ứng viên, tạm dừng…)
   items: PlanItem[];
 }
+export type PublishStatus = 'pending' | 'uploading' | 'scheduled' | 'private' | 'public' | 'cancelled' | 'failed';
+export interface PlatformPublish {
+  status: PublishStatus;
+  video_id?: string;                               // ID video trên nền tảng (không phải VideoId của StudioFlow)
+  url?: string;
+  publish_at?: Iso8601;                            // giờ công khai đã đặt trên nền tảng (chỉ khi nền tảng tự công khai theo lịch)
+  veto_until?: Iso8601;                            // hết giờ này mà không bị phản đối → làm theo lịch
+  uploaded_at?: Iso8601;
+  attempts?: number;                               // số lần tải lên đã thử (tối đa 3)
+  error?: string;                                  // tiếng Việt: vì sao chưa đăng / lỗi
+  note?: string;
+}
+export interface PublishState { youtube?: PlatformPublish; tiktok?: PlatformPublish; facebook?: PlatformPublish }
 export interface PlanItem {
   id: PlanItemId;
   status: PlanItemStatus;
@@ -253,6 +266,7 @@ export interface PlanItem {
   score: number;                                   // điểm ứng viên (5.17)
   reasons: string[];                               // tiếng Việt
   video_id?: VideoId;                              // điền khi 052 tạo video
+  publish?: PublishState;                          // 053: trạng thái đăng từng nền tảng (chỉ mục `produced`)
   note?: string;                                   // ghi chú của người dùng / lý do bỏ qua hoặc lỗi
 }
 
@@ -266,6 +280,62 @@ export interface AutopilotLogLine {
   step_id?: string;
   message: string;                                 // tiếng Việt: việc gì + vì sao
   data?: Record<string, unknown>;                  // chi tiết máy đọc được (điểm, ngưỡng, thời điểm hết hạn mức…)
+}
+
+export interface DailyReport extends Versioned {
+  channel_id: ChannelId;
+  channel_name: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // ngày báo cáo theo `publish.timezone` của kênh
+  generated_at: Iso8601;
+  delivered_at?: Iso8601;                          // đã gửi vào Telegram
+  youtube: {
+    connected: boolean;
+    /** Ngày dữ liệu mới nhất đã có (YouTube Analytics thường trễ 1–3 ngày). */
+    metrics_day?: string;
+    views?: number;
+    views_prev?: number;                           // ngày liền trước
+    views_avg7?: number;                           // trung bình 7 ngày trước `metrics_day`
+    views_change_pct?: number;                     // so với ngày liền trước
+    views_change_avg7_pct?: number;
+    watch_minutes?: number;
+    avg_view_duration_s?: number;
+    subs_gained?: number; subs_lost?: number;
+    likes?: number;
+    top_videos: { title: string; url?: string; views: number; item_id?: string }[];   // 7 ngày gần nhất, video do app đăng
+  };
+  production: { produced: number; in_production: number; needs_review: number; failed: number; planned: number;
+                items: { title: string; status: PlanItemStatus; note?: string }[] };
+  publishing: { uploaded: { title: string; status: PublishStatus; url?: string; publish_at?: Iso8601 }[];
+                waiting: { title: string; status: PublishStatus; note?: string }[] };   // pending / failed / private chờ công khai
+  claude: { used_tokens: number; budget_tokens: number | null; used_pct: number | null };
+  quota: { youtube_used: number; youtube_limit: number };
+  tomorrow: string;                                // một dòng tiếng Việt
+  notes: string[];                                 // tiếng Việt: thiếu dữ liệu, chưa kết nối, v.v.
+}
+
+export interface ChannelLearning extends Versioned {
+  channel_id: ChannelId;
+  generated_at: Iso8601;
+  enough_data: boolean;                            // false → mọi hệ số bằng 1, không ảnh hưởng
+  /** Số video đủ tuổi có số liệu đã dùng. */
+  videos: number;
+  /** Trung vị lượt xem mỗi ngày của kênh (mẫu số của `ratio`). */
+  baseline_daily_views: number;
+  dimensions: {
+    kind: LearningGroup[]; pillar: LearningGroup[]; source: LearningGroup[];
+    workflow: LearningGroup[]; slot: LearningGroup[];
+  };
+  notes: string[];                                 // tiếng Việt: vì sao chưa đủ dữ liệu…
+}
+export interface LearningGroup {
+  key: string;                                     // `trending`, tên trụ cột, ID kênh nguồn, ID workflow, `HH:MM`
+  label?: string;                                  // tên dễ đọc (kênh nguồn)
+  n: number;                                       // số video trong nhóm
+  /** Hiệu quả nhóm / hiệu quả kênh (1 = bằng trung bình). */
+  ratio: number;
+  /** @minimum 0.7 @maximum 1.3 */
+  multiplier: number;
 }
 
 export interface ChannelConfig extends Versioned {
