@@ -61,6 +61,8 @@ Tùy kết quả S6 (c):
 ### 3.5 Đóng
 `studio.close`: nếu còn thay đổi chưa commit → hỏi người dùng (commit / bỏ). Dừng `hf-studio`; xóa bản làm việc; `owner = 'agent'`.
 
+**Khóa còn sót (045):** app tắt khi phiên sửa còn mở → `owner = 'studio'` ở lại trong `state.json` mà không có phiên nào (phiên chỉ sống trong tiến trình). Mở lại video (`video.open`) → nhả khóa (`owner = 'agent'`); bản làm việc không có thay đổi chưa commit thì xóa, có thì **giữ lại** trong `.sf/studio-work/<ss>/` và báo trong chat (danh sách file). Đóng app khi phiên Studio / bước workflow / job / agent còn chạy → giao diện hỏi xác nhận (`app.activity`).
+
 ### 3.6 File watcher (FR-WS-06)
 `core` theo dõi thư mục video; thay đổi không do `core` ghi (so với nhật ký ghi của Gateway) → thông báo người dùng, đánh dấu file `external_change` trong `graph.status`, không tự ghi đè.
 

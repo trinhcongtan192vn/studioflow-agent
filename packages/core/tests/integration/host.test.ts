@@ -214,7 +214,18 @@ describe('CoreHost IPC (008)', () => {
 
   it('jobs, traces, settings and status for the side panels', async () => {
     const { host, dir, events, app } = setup();
-    await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'x' });
+    // 045: chat đang trả lời → có trong app.activity (cảnh báo khi đóng app); xong → hết
+    const sent = host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'x' });
+    expect((await host.call('app.activity', {})).chats).toEqual([
+      { channel: path.resolve(dir), video: fixtureVideoId },
+    ]);
+    await sent;
+    expect(await host.call('app.activity', {})).toEqual({
+      studio: [],
+      steps: [],
+      jobs: [],
+      chats: [],
+    });
     const traces = (await host.call('trace.list', { video: fixtureVideoId })).traces as {
       trace_id: string;
       name: string;

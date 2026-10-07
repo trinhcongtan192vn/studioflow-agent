@@ -52,6 +52,8 @@ export class CoreHost extends EventEmitter {
   readonly core: Core;
   readonly runtime: AgentRuntime;
   private readonly sessions = new Map<string, OpenSession>();
+  /** 045: phiên chat đang trả lời (`<kênh>|<video>`) — để cảnh báo khi đóng app. */
+  private readonly replying = new Map<string, number>();
   private readonly watched = new Set<string>();
   private readonly announced = new Set<string>();
 
@@ -266,6 +268,34 @@ export class CoreHost extends EventEmitter {
     this.send('workflow.notice', { channel, video, line });
   }
 
+  /** 045: việc đang chạy dở (phiên Studio sửa, bước workflow, job, agent đang trả lời) — cảnh báo khi đóng app. */
+  activity(): IpcMethods['app.activity']['result'] {
+    const c = this.core;
+    const split = (key: string) => {
+      const i = key.lastIndexOf('|');
+      return { channel: key.slice(0, i), video: key.slice(i + 1) };
+    };
+    return {
+      studio: c.edits.openKeys().map(split),
+      steps: c.workflows.runningSteps(),
+      jobs: c.queue
+        .list({ status: 'running' })
+        .map((j) => ({ kind: j.kind, ...(j.video_id ? { video: j.video_id } : {}) })),
+      chats: [...this.replying.keys()].map(split),
+    };
+  }
+
+  /** 045: ghi chú của app vào lịch sử chat của video (dòng `system`). */
+  private postSystem(channel: string, video: string, content: string): void {
+    const rel =
+      this.latestChat(channel, video) ?? `${this.chatDir(channel, video)}/${newId('ss')}.jsonl`;
+    try {
+      this.log(channel, rel, { role: 'system', content });
+    } catch {
+      /* ghi lịch sử là cố gắng tối đa */
+    }
+  }
+
   private log(channel: string, rel: string, line: Omit<ChatLine, 'ts'>): void {
     this.store(channel).appendLine(rel, JSON.stringify({ ts: new Date().toISOString(), ...line }), {
       by: 'chat',
@@ -281,12 +311,31 @@ export class CoreHost extends EventEmitter {
     role: 'user' | 'system' = 'user',
     contextRefs: ContextRef[] = [],
   ) {
-    const s = await this.session(channel, video);
-    this.log(channel, s.chatRel, {
-      role,
-      content: text,
-      ...(contextRefs.length ? { context_refs: contextRefs } : {}),
-    });
+    const busyKey = `${path.resolve(channel)}|${video ?? ''}`;
+    this.replying.set(busyKey, (this.replying.get(busyKey) ?? 0) + 1);
+    try {
+      const s = await this.session(channel, video);
+      this.log(channel, s.chatRel, {
+        role,
+        content: text,
+        ...(contextRefs.length ? { context_refs: contextRefs } : {}),
+      });
+      return await this.chatTurn(s, channel, video, text, attachments, contextRefs);
+    } finally {
+      const n = (this.replying.get(busyKey) ?? 1) - 1;
+      if (n > 0) this.replying.set(busyKey, n);
+      else this.replying.delete(busyKey);
+    }
+  }
+
+  private async chatTurn(
+    s: OpenSession,
+    channel: string,
+    video: string | undefined,
+    text: string,
+    attachments: { path: string; mime: string }[],
+    contextRefs: ContextRef[],
+  ) {
     let assistant = '';
     const tools = new Map<string, { name: string; input: unknown }>();
     for await (const e of s.session.send({
@@ -403,7 +452,11 @@ export class CoreHost extends EventEmitter {
           video_id: createVideo(this.store(p.channel), p.title ? { title: String(p.title) } : {})
             .video_id,
         };
+      case 'app.activity':
+        return this.activity();
       case 'video.open': {
+        // 045: khóa Studio còn sót (app tắt khi Studio mở) → nhả để agent ghi được frame
+        const stale = c.edits.recoverStale(this.store(p.channel), p.video);
         const e = this.engine(p.channel, p.video);
         e.open();
         // FR-WS-06: theo dõi video đang mở; sửa ngoài app → cảnh báo
@@ -429,6 +482,12 @@ export class CoreHost extends EventEmitter {
           },
         };
         this.announceApprovals(p.channel, p.video, e);
+        for (const k of stale.kept)
+          this.postSystem(
+            p.channel,
+            p.video,
+            `Phiên sửa Studio trước bị đóng giữa chừng (app tắt khi Studio đang mở). Đã mở khóa để agent dựng tiếp; ${k.files.length} file sửa trong Studio chưa lưu được giữ lại ở ${k.work} (${k.files.slice(0, 5).join(', ')}${k.files.length > 5 ? '…' : ''}).`,
+          );
         return { state: e.summary(), history: this.history(p.channel, p.video) };
       }
       case 'chat.send':

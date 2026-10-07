@@ -103,6 +103,16 @@ export interface IpcMethods {
     result: VideoStateSummary;
   };
   'workflow.state': { params: VideoRef; result: VideoStateSummary };
+  /** Việc đang chạy dở — giao diện hỏi xác nhận trước khi đóng app (045). */
+  'app.activity': {
+    params: Record<string, never>;
+    result: {
+      studio: { channel: string; video: string }[];
+      steps: { channel: string; video: string; step_id: string; title: string }[];
+      jobs: { kind: string; video?: string }[];
+      chats: { channel: string; video: string }[];
+    };
+  };
   'workflow.run_to': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'workflow.pause': { params: VideoRef; result: VideoStateSummary };
   /** Kiểm tra lại gate của bước trên file đã sửa tay, không sinh lại (036). */
