@@ -192,6 +192,35 @@ export interface RenderRecord extends Versioned {
   index_hash: Sha256;
 }
 
+export interface ResearchDoc extends Versioned {
+  channel_id: ChannelId;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // YYYY-MM-DD theo `publish.timezone`
+  generated_at: Iso8601;
+  quota_units: number;                             // đơn vị quota YouTube Data API v3 đã dùng
+  sources: {
+    competitors: { channel_id: string; title?: string; videos: number; error?: ResearchSourceError }[];
+    own_videos: number;                            // số video đã làm của kênh dùng để chấm độ mới
+    trending: { region: string; videos: number; error?: ResearchSourceError };
+    trends: { geo: string; items: number; error?: ResearchSourceError };
+    news: { pillar: string; items: number; error?: ResearchSourceError }[];
+  };
+  candidates: ResearchCandidate[];                 // điểm cao trước
+}
+export interface ResearchSourceError { code: string; message: string; }
+export interface ResearchCandidate {
+  id: string;                                      // `yt:<video_id>` / `trend:<từ khóa>` / `news:<sha256-12 của link>`
+  kind: 'competitor' | 'competitor_evergreen' | 'trending' | 'trend' | 'news';
+  title: string; url?: string; source_channel?: { id: string; title: string };
+  published_at?: Iso8601; pillar?: string;         // chủ đề trụ cột khớp nhất
+  metrics?: { views?: number; likes?: number; comments?: number; duration_s?: number;
+              outlier_ratio?: number; views_per_hour?: number; age_hours?: number;
+              traffic?: number; similarity?: number };
+  /** @minimum 0 @maximum 100 */
+  score: number;
+  reasons: string[];                               // tiếng Việt, mỗi tín hiệu một câu
+}
+
 export interface ChannelConfig extends Versioned {
   id: ChannelId; name: string; language: Lang; created_at: Iso8601;
   profile_dir: 'profile';

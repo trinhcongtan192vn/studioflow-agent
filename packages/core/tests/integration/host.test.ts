@@ -1,6 +1,6 @@
 // 008 · FR-CH-02/03/07, FR-WS-02 — CoreHost (tiến trình core của app): IPC D10, chat + lịch sử,
 // đính kèm, explorer chỉ đọc, thẻ duyệt, job/trace (runtime agent giả, SF_GPU=0).
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -235,6 +235,23 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('channels.managed', {})).channels).toEqual([]);
     await host.call('channels.managed.add', { channel: dir });
     expect((await host.call('channels.managed', {})).channels).toHaveLength(1);
+  });
+
+  it('research.latest returns the newest research scan of a channel (049 FR-AP-04)', async () => {
+    const { host, dir } = setup();
+    expect(await host.call('research.latest', { channel: dir })).toEqual({ doc: null });
+    const sample = readFileSync(
+      path.join(fixtureAppData, '..', '..', 'research', 'research-doc.json'),
+      'utf8',
+    );
+    mkdirSync(path.join(dir, 'research'));
+    writeFileSync(
+      path.join(dir, 'research', '2026-10-06.json'),
+      sample.replace('2026-10-07"', '2026-10-06"'),
+    );
+    writeFileSync(path.join(dir, 'research', '2026-10-07.json'), sample);
+    const r = await host.call('research.latest', { channel: dir });
+    expect(r.doc).toMatchObject({ date: '2026-10-07', candidates: [{ id: 'yt:aaaaaaaaa01' }] });
   });
 
   it('chat streams events, stores history, resumes the SDK session after reopen (FR-CH-02/07)', async () => {

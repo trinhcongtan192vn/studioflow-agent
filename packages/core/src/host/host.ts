@@ -44,6 +44,7 @@ import {
 import { getSecretDefault } from '../secrets/credman.js';
 import { getSession, listSessions } from '../agent/session-log.js';
 import { YOUTUBE_SECRET } from '../youtube/index.js';
+import { readResearch } from '../research/index.js';
 
 interface OpenSession {
   id: string;
@@ -524,6 +525,8 @@ export class CoreHost extends EventEmitter {
             ...(p.video ? { video: String(p.video) } : {}),
           }),
         };
+      case 'research.latest':
+        return { doc: readResearch(path.resolve(p.channel)) ?? null };
       case 'channel.list_recent':
         return { channels: this.settings().recent_channels };
       case 'video.list':

@@ -26,6 +26,8 @@ const D5: [string, string[]][] = [
   ['youtube.transcript', ['main']],
   ['youtube.search', ['main']],
   ['youtube.channel_videos', ['main']],
+  ['research.scan', ['main']],
+  ['research.get', ['main']],
   ['approval.annotate', ['main']],
   ['workflow.step_complete', ['main', 'frame', 'producer']],
   ['asset.import', ['main']],

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "channel_id": "ch_k3v9q2xa",
+  "date": "2026-10-07",
+  "generated_at": "2026-10-07T03:00:00.000Z",
+  "quota_units": 8,
+  "sources": {
+    "competitors": [
+      { "channel_id": "UCaaaaaaaaaaaaaaaaaaaaa1", "title": "Sử Kể Mẫu", "videos": 8 },
+      {
+        "channel_id": "UCbbbbbbbbbbbbbbbbbbbbb2",
+        "videos": 0,
+        "error": { "code": "E_FILE_NOT_FOUND", "message": "YouTube channel not found" }
+      }
+    ],
+    "own_videos": 1,
+    "trending": { "region": "VN", "videos": 3 },
+    "trends": { "geo": "VN", "items": 2 },
+    "news": [{ "pillar": "nhà Trần", "items": 3 }]
+  },
+  "candidates": [
+    {
+      "id": "yt:aaaaaaaaa01",
+      "kind": "competitor",
+      "title": "Trận Bạch Đằng 1288: nhà Trần đánh tan quân Nguyên",
+      "url": "https://www.youtube.com/watch?v=aaaaaaaaa01",
+      "source_channel": { "id": "UCaaaaaaaaaaaaaaaaaaaaa1", "title": "Sử Kể Mẫu" },
+      "published_at": "2026-10-05T03:00:00Z",
+      "pillar": "nhà Trần",
+      "metrics": { "views": 90000, "outlier_ratio": 15.4, "age_hours": 48, "similarity": 0 },
+      "score": 99,
+      "reasons": ["Gấp 15,4× lượt xem trung vị của kênh đối thủ \"Sử Kể Mẫu\""]
+    }
+  ]
+}

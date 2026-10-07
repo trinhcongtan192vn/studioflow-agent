@@ -132,6 +132,13 @@ const samples: {
     kind: 'publish',
     breakText: (s) => s.replace('status: draft', 'status: live'),
   },
+  {
+    // 049: quét nghiên cứu Autopilot ở gốc kênh (D3 5.17)
+    rel: 'research/2026-10-07.json',
+    abs: path.join(fixturesDir, '..', 'research', 'research-doc.json'),
+    kind: 'research',
+    breakJson: (o) => (o.candidates[0].score = 120),
+  },
 ];
 
 describe('artifact schemas (002 SC-001)', () => {

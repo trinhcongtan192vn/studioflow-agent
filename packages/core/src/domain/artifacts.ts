@@ -21,7 +21,8 @@ export type ArtifactKind =
   | 'script'
   | 'storyboard'
   | 'cast'
-  | 'publish';
+  | 'publish'
+  | 'research';
 
 interface KindSpec {
   kind: ArtifactKind;
@@ -134,6 +135,13 @@ export const ARTIFACTS: KindSpec[] = [
     pattern: new RegExp(`${V}publish\\.md$`),
     format: 'md',
     schema: 'PublishFrontMatter',
+  },
+  // 049: quét nghiên cứu Autopilot theo ngày ở gốc kênh (D3 5.17)
+  {
+    kind: 'research',
+    pattern: /^research\/\d{4}-\d{2}-\d{2}\.json$/,
+    format: 'json',
+    schema: 'ResearchDoc',
   },
 ];
 

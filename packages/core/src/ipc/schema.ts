@@ -6,6 +6,7 @@ import type {
   CaptionOverrides,
   ContextRef,
   JobInfo,
+  ResearchDoc,
   VideoStateSummary,
 } from '../contracts/types.js';
 import type { CaptionsPanelData } from '../captions/panel.js';
@@ -120,6 +121,8 @@ export interface IpcMethods {
     params: ChannelRef & { id: string; video?: string };
     result: { lines: ChatLine[] };
   };
+  /** Lần quét nghiên cứu gần nhất của kênh (049, D3 5.17); chưa quét → `null`. */
+  'research.latest': { params: ChannelRef; result: { doc: ResearchDoc | null } };
   'channel.list_recent': {
     params: Record<string, never>;
     result: { channels: { path: string; opened_at: string }[] };

@@ -30,6 +30,7 @@
   music/                            kho nhạc kênh: files/, manifest.json, .index/ (D8)
   cache/                            cache theo nội dung (D4)
   chat/<session_id>.jsonl           chat cấp kênh (khi chưa chọn video, ví dụ tạo kênh)
+  research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
@@ -426,6 +427,41 @@ Tiêu đề, mô tả, thẻ, chương cho YouTube (bước `publish-meta`, D6).
 
 
 **Nhật ký phiên con (048, FR-AP-14):** phiên agent không phải `main` (frame, producer, critic…) ghi cùng định dạng dòng vào `videos/<vd>/sessions/<session_id>.jsonl` (kênh: `sessions/`); dòng đầu `role: system` có `session: {id, kind, video_id?, frame_id?}`; dòng `tool` có thêm `tool.ok`; dòng kết thúc có `usage: {input_tokens, output_tokens}`. Chỉ ghi thêm, không qua build graph, không bị dọn đĩa (nhật ký kiểm tra).
+
+### 5.17 `research/<YYYY-MM-DD>.json` (049)
+Kết quả quét nghiên cứu mỗi ngày của một kênh (FR-AP-04): đối thủ (video mới + video nổi bật cũ), video đã làm của kênh, video trending, Google Trends, Google News theo chủ đề trụ cột; mỗi chủ đề ứng viên có điểm 0–100 và lý do. Ngày theo `publish.timezone`; quét lại trong ngày ghi đè file của ngày đó. Nguồn lỗi không làm hỏng cả lần quét: ghi vào `sources.*.error`. Hằng số chấm điểm: FN-049.
+
+```ts
+interface ResearchDoc extends Versioned {
+  channel_id: ChannelId;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // YYYY-MM-DD theo `publish.timezone`
+  generated_at: Iso8601;
+  quota_units: number;                             // đơn vị quota YouTube Data API v3 đã dùng
+  sources: {
+    competitors: { channel_id: string; title?: string; videos: number; error?: ResearchSourceError }[];
+    own_videos: number;                            // số video đã làm của kênh dùng để chấm độ mới
+    trending: { region: string; videos: number; error?: ResearchSourceError };
+    trends: { geo: string; items: number; error?: ResearchSourceError };
+    news: { pillar: string; items: number; error?: ResearchSourceError }[];
+  };
+  candidates: ResearchCandidate[];                 // điểm cao trước
+}
+interface ResearchSourceError { code: string; message: string; }
+interface ResearchCandidate {
+  id: string;                                      // `yt:<video_id>` / `trend:<từ khóa>` / `news:<sha256-12 của link>`
+  kind: 'competitor' | 'competitor_evergreen' | 'trending' | 'trend' | 'news';
+  title: string; url?: string; source_channel?: { id: string; title: string };
+  published_at?: Iso8601; pillar?: string;         // chủ đề trụ cột khớp nhất
+  metrics?: { views?: number; likes?: number; comments?: number; duration_s?: number;
+              outlier_ratio?: number; views_per_hour?: number; age_hours?: number;
+              traffic?: number; similarity?: number };
+  /** @minimum 0 @maximum 100 */
+  score: number;
+  reasons: string[];                               // tiếng Việt, mỗi tín hiệu một câu
+}
+```
+
 ## 6. `channel.json` và `settings.json`
 
 Mọi giá trị cấu hình (ở mọi tầng) lưu dưới dạng **map phẳng theo khóa cấu hình** (mục 7.2) — một biểu diễn duy nhất, không có tên trường riêng theo file.

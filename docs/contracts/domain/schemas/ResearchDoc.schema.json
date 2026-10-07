@@ -1,0 +1,268 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ResearchDoc",
+  "definitions": {
+    "ResearchDoc": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number"
+        },
+        "channel_id": {
+          "$ref": "#/definitions/ChannelId"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "generated_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "quota_units": {
+          "type": "number"
+        },
+        "sources": {
+          "type": "object",
+          "properties": {
+            "competitors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "channel_id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "videos": {
+                    "type": "number"
+                  },
+                  "error": {
+                    "$ref": "#/definitions/ResearchSourceError"
+                  }
+                },
+                "required": [
+                  "channel_id",
+                  "videos"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "own_videos": {
+              "type": "number"
+            },
+            "trending": {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "videos": {
+                  "type": "number"
+                },
+                "error": {
+                  "$ref": "#/definitions/ResearchSourceError"
+                }
+              },
+              "required": [
+                "region",
+                "videos"
+              ],
+              "additionalProperties": false
+            },
+            "trends": {
+              "type": "object",
+              "properties": {
+                "geo": {
+                  "type": "string"
+                },
+                "items": {
+                  "type": "number"
+                },
+                "error": {
+                  "$ref": "#/definitions/ResearchSourceError"
+                }
+              },
+              "required": [
+                "geo",
+                "items"
+              ],
+              "additionalProperties": false
+            },
+            "news": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pillar": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "number"
+                  },
+                  "error": {
+                    "$ref": "#/definitions/ResearchSourceError"
+                  }
+                },
+                "required": [
+                  "pillar",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "competitors",
+            "own_videos",
+            "trending",
+            "trends",
+            "news"
+          ],
+          "additionalProperties": false
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ResearchCandidate"
+          }
+        }
+      },
+      "required": [
+        "candidates",
+        "channel_id",
+        "date",
+        "generated_at",
+        "quota_units",
+        "schema_version",
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "ChannelId": {
+      "$ref": "#/definitions/Id%3C%22ch%22%3E"
+    },
+    "Id<\"ch\">": {
+      "type": "string",
+      "pattern": "^ch_[0-9a-z]{8}$"
+    },
+    "Iso8601": {
+      "type": "string"
+    },
+    "ResearchSourceError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "ResearchCandidate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "competitor",
+            "competitor_evergreen",
+            "trending",
+            "trend",
+            "news"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "source_channel": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "title"
+          ],
+          "additionalProperties": false
+        },
+        "published_at": {
+          "$ref": "#/definitions/Iso8601"
+        },
+        "pillar": {
+          "type": "string"
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "views": {
+              "type": "number"
+            },
+            "likes": {
+              "type": "number"
+            },
+            "comments": {
+              "type": "number"
+            },
+            "duration_s": {
+              "type": "number"
+            },
+            "outlier_ratio": {
+              "type": "number"
+            },
+            "views_per_hour": {
+              "type": "number"
+            },
+            "age_hours": {
+              "type": "number"
+            },
+            "traffic": {
+              "type": "number"
+            },
+            "similarity": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "score",
+        "reasons"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

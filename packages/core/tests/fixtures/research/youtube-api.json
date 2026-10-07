@@ -1,0 +1,393 @@
+{
+  "competitors": {
+    "A": "UCaaaaaaaaaaaaaaaaaaaaa1",
+    "B": "UCbbbbbbbbbbbbbbbbbbbbb2"
+  },
+  "channels": {
+    "UCaaaaaaaaaaaaaaaaaaaaa1": {
+      "kind": "youtube#channel",
+      "id": "UCaaaaaaaaaaaaaaaaaaaaa1",
+      "snippet": {
+        "title": "Sử Kể Mẫu"
+      },
+      "contentDetails": {
+        "relatedPlaylists": {
+          "uploads": "UUaaaaaaaaaaaaaaaaaaaaa1"
+        }
+      }
+    },
+    "UCbbbbbbbbbbbbbbbbbbbbb2": {
+      "kind": "youtube#channel",
+      "id": "UCbbbbbbbbbbbbbbbbbbbbb2",
+      "snippet": {
+        "title": "Chuyện Xưa Mẫu"
+      },
+      "contentDetails": {
+        "relatedPlaylists": {
+          "uploads": "UUbbbbbbbbbbbbbbbbbbbbb2"
+        }
+      }
+    }
+  },
+  "playlists": {
+    "UUaaaaaaaaaaaaaaaaaaaaa1": [
+      {
+        "items": [
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa01",
+              "videoPublishedAt": "2026-10-05T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa02",
+              "videoPublishedAt": "2026-08-20T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa03",
+              "videoPublishedAt": "2026-07-10T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa04",
+              "videoPublishedAt": "2026-06-01T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa05",
+              "videoPublishedAt": "2026-05-01T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa06",
+              "videoPublishedAt": "2026-04-15T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa07",
+              "videoPublishedAt": "2026-03-01T03:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "aaaaaaaaa08",
+              "videoPublishedAt": "2026-10-06T03:00:00Z"
+            }
+          }
+        ]
+      }
+    ],
+    "UUbbbbbbbbbbbbbbbbbbbbb2": [
+      {
+        "items": [
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "bbbbbbbbb01",
+              "videoPublishedAt": "2026-10-06T17:00:00Z"
+            }
+          },
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "bbbbbbbbb02",
+              "videoPublishedAt": "2026-09-01T03:00:00Z"
+            }
+          }
+        ],
+        "nextPageToken": "P2"
+      },
+      {
+        "items": [
+          {
+            "kind": "youtube#playlistItem",
+            "contentDetails": {
+              "videoId": "bbbbbbbbb03",
+              "videoPublishedAt": "2026-08-01T03:00:00Z"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "videos": {
+    "aaaaaaaaa01": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa01",
+      "snippet": {
+        "publishedAt": "2026-10-05T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Trận Bạch Đằng 1288: nhà Trần đánh tan quân Nguyên",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT18M20S"
+      },
+      "statistics": {
+        "viewCount": "90000",
+        "likeCount": "3600",
+        "commentCount": "300"
+      }
+    },
+    "aaaaaaaaa02": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa02",
+      "snippet": {
+        "publishedAt": "2026-08-20T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Vua Lý Thái Tổ dời đô",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "20000",
+        "likeCount": "800",
+        "commentCount": "67"
+      }
+    },
+    "aaaaaaaaa03": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa03",
+      "snippet": {
+        "publishedAt": "2026-07-10T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Hai Bà Trưng khởi nghĩa",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "18000",
+        "likeCount": "720",
+        "commentCount": "60"
+      }
+    },
+    "aaaaaaaaa04": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa04",
+      "snippet": {
+        "publishedAt": "2026-06-01T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Ngô Quyền và trận Bạch Đằng 938",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "22000",
+        "likeCount": "880",
+        "commentCount": "73"
+      }
+    },
+    "aaaaaaaaa05": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa05",
+      "snippet": {
+        "publishedAt": "2026-05-01T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Nhà Hồ và thành Tây Đô",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "19000",
+        "likeCount": "760",
+        "commentCount": "63"
+      }
+    },
+    "aaaaaaaaa06": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa06",
+      "snippet": {
+        "publishedAt": "2026-04-15T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Phố cổ Hội An xưa",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "21000",
+        "likeCount": "840",
+        "commentCount": "70"
+      }
+    },
+    "aaaaaaaaa07": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa07",
+      "snippet": {
+        "publishedAt": "2026-03-01T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Bí ẩn lăng mộ vua Quang Trung",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "200000",
+        "likeCount": "8000",
+        "commentCount": "667"
+      }
+    },
+    "aaaaaaaaa08": {
+      "kind": "youtube#video",
+      "id": "aaaaaaaaa08",
+      "snippet": {
+        "publishedAt": "2026-10-06T03:00:00Z",
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaa1",
+        "title": "Năm 1428: Lê Lợi lên ngôi hoàng đế",
+        "description": "",
+        "channelTitle": "Sử Kể Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "5000",
+        "likeCount": "200",
+        "commentCount": "17"
+      }
+    },
+    "bbbbbbbbb01": {
+      "kind": "youtube#video",
+      "id": "bbbbbbbbb01",
+      "snippet": {
+        "publishedAt": "2026-10-06T17:00:00Z",
+        "channelId": "UCbbbbbbbbbbbbbbbbbbbbb2",
+        "title": "Nhà Trần và ba lần kháng chiến chống Nguyên Mông",
+        "description": "",
+        "channelTitle": "Chuyện Xưa Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "3000",
+        "likeCount": "120",
+        "commentCount": "10"
+      }
+    },
+    "bbbbbbbbb02": {
+      "kind": "youtube#video",
+      "id": "bbbbbbbbb02",
+      "snippet": {
+        "publishedAt": "2026-09-01T03:00:00Z",
+        "channelId": "UCbbbbbbbbbbbbbbbbbbbbb2",
+        "title": "Chuyện làng quê Bắc Bộ",
+        "description": "",
+        "channelTitle": "Chuyện Xưa Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "1000",
+        "likeCount": "40",
+        "commentCount": "3"
+      }
+    },
+    "bbbbbbbbb03": {
+      "kind": "youtube#video",
+      "id": "bbbbbbbbb03",
+      "snippet": {
+        "publishedAt": "2026-08-01T03:00:00Z",
+        "channelId": "UCbbbbbbbbbbbbbbbbbbbbb2",
+        "title": "Ẩm thực cung đình Huế",
+        "description": "",
+        "channelTitle": "Chuyện Xưa Mẫu",
+        "tags": []
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "1500",
+        "likeCount": "60",
+        "commentCount": "5"
+      }
+    },
+    "ttttttttt01": {
+      "kind": "youtube#video",
+      "id": "ttttttttt01",
+      "snippet": {
+        "publishedAt": "2026-10-06T23:00:00Z",
+        "channelId": "UCcccccccccccccccccccccc",
+        "title": "Trực tiếp bóng đá: Hà Nội FC vs Hải Phòng",
+        "description": "",
+        "channelTitle": "Bóng Đá Mẫu",
+        "tags": ["bóng đá", "V-League"]
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "800000",
+        "likeCount": "32000",
+        "commentCount": "2667"
+      }
+    },
+    "ttttttttt02": {
+      "kind": "youtube#video",
+      "id": "ttttttttt02",
+      "snippet": {
+        "publishedAt": "2026-10-06T07:00:00Z",
+        "channelId": "UCdddddddddddddddddddddd",
+        "title": "Sự thật ít ai biết",
+        "description": "",
+        "channelTitle": "Kênh Tổng Hợp",
+        "tags": ["lịch sử Việt Nam"]
+      },
+      "contentDetails": {
+        "duration": "PT12M5S"
+      },
+      "statistics": {
+        "viewCount": "500000",
+        "likeCount": "20000",
+        "commentCount": "1667"
+      }
+    }
+  },
+  "trending": {
+    "VN": ["ttttttttt01", "ttttttttt02", "aaaaaaaaa01"]
+  }
+}
