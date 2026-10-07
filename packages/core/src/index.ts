@@ -296,6 +296,8 @@ export {
 export { downloadFile, sha256File, extractZip, bsdtar } from './store/download.js';
 export {
   secretGet,
+  secretGetMany,
+  clearSecretMemo,
   secretSet,
   secretDelete,
   secretHint,

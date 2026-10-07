@@ -15,6 +15,8 @@ import {
   loadCatalog,
   secretDelete,
   secretGet,
+  secretGetMany,
+  clearSecretMemo,
   secretHint,
   secretSet,
   validateArtifact,
@@ -225,5 +227,24 @@ describe.skipIf(process.platform !== 'win32')('Credential Manager (014 FR-OP-07)
       expect(secretDelete(name)).toBe(true);
     }
     expect(secretGet(name)).toBeUndefined();
+  }, 60_000);
+
+  it('reads many secrets in one PowerShell call (058: Settings / startup do not freeze the UI)', () => {
+    const a = `test-${randomBytes(4).toString('hex')}`;
+    const b = `test-${randomBytes(4).toString('hex')}`;
+    const missing = `test-${randomBytes(4).toString('hex')}`;
+    try {
+      secretSet(a, 'value-a');
+      secretSet(b, 'value-b:with=equals');
+      clearSecretMemo();
+      expect(secretGetMany([a, b, missing])).toEqual({
+        [a]: 'value-a',
+        [b]: 'value-b:with=equals',
+        [missing]: undefined,
+      });
+    } finally {
+      secretDelete(a);
+      secretDelete(b);
+    }
   }, 60_000);
 });

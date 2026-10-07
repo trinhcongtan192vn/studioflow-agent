@@ -368,6 +368,9 @@ select {
 }
 .modal .card {
   min-width: 520px;
+  /* 058: hộp cao hơn cửa sổ (Cài đặt nhiều mục) → cuộn trong hộp, nút Đóng luôn bấm được */
+  max-height: 90vh;
+  overflow: auto;
 }
 .overlay {
   position: fixed;

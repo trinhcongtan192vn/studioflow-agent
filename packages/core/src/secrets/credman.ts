@@ -69,6 +69,42 @@ export function secretGet(name: string): string | undefined {
   return v;
 }
 
+/**
+ * 058: đọc nhiều bí mật trong **một** lần gọi PowerShell (mỗi lần ~0,5–1 s, chạy đồng bộ ở `main` — gọi lẻ
+ * từng tên làm đứng giao diện khi mở Cài đặt / khởi động). Tên đã có trong bộ nhớ đệm không đọc lại.
+ */
+export function secretGetMany(names: string[]): Record<string, string | undefined> {
+  const missing = [...new Set(names)].filter((n) => !memo.has(n));
+  if (missing.length) {
+    for (const n of missing)
+      if (!/^[A-Za-z0-9_][A-Za-z0-9_.:-]*$/.test(n))
+        throw new SfError('E_SCHEMA_INVALID', `invalid secret name ${n}`);
+    const out = ps(
+      missing
+        .map(
+          (n, i) =>
+            `$v = [SfCred]::Read('${credTarget(n)}'); '${i}=' + $(if ($v) { $v } else { '' })`,
+        )
+        .join('; '),
+    );
+    const got = new Map<number, string>();
+    for (const line of out.split('\n')) {
+      const m = /^(\d+)=(.*)$/.exec(line.trim());
+      if (m) got.set(Number(m[1]), m[2]!);
+    }
+    missing.forEach((n, i) => {
+      const b64 = got.get(i);
+      memo.set(n, b64 ? Buffer.from(b64, 'base64').toString('utf8') : undefined);
+    });
+  }
+  return Object.fromEntries(names.map((n) => [n, memo.get(n)]));
+}
+
+/** Xóa bộ nhớ đệm (test). */
+export function clearSecretMemo(): void {
+  memo.clear();
+}
+
 export function secretSet(name: string, value: string): void {
   if (!value) throw new SfError('E_SCHEMA_INVALID', 'secret is empty');
   const out = ps(

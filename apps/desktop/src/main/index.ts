@@ -19,7 +19,14 @@ import {
   type NativeImage,
   type UtilityProcess,
 } from 'electron';
-import { getVersion, secretDelete, secretGet, secretHint, secretSet } from '@studioflow/core';
+import {
+  getVersion,
+  secretDelete,
+  secretGet,
+  secretGetMany,
+  secretHint,
+  secretSet,
+} from '@studioflow/core';
 import { handleSecretRequest, STATIC_SECRETS } from './secret-bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -113,16 +120,28 @@ let apState = { background: false, producing: false, paused: false, any: false }
 const startHidden = process.argv.includes('--hidden');
 
 /** Bí mật đọc ở `main` (D5 mục 5.4) rồi chuyển cho core; renderer không thấy giá trị. */
+// 058: không dùng Credential Manager (test / máy không phải Windows) → kho trong bộ nhớ của tiến trình
+const NO_CREDMAN = process.platform !== 'win32' || process.env.SF_NO_CREDMAN === '1';
+const memSecrets = new Map<string, string>();
+const secretBackend = NO_CREDMAN
+  ? {
+      get: (n: string) => memSecrets.get(n),
+      set: (n: string, v: string) => void memSecrets.set(n, v),
+      delete: (n: string) => memSecrets.delete(n),
+    }
+  : { get: secretGet, set: secretSet, delete: secretDelete };
+
+/** Bí mật tĩnh cho core — một lần gọi PowerShell cho mọi tên (058: không đứng giao diện). */
 function readSecrets(): Record<string, string> {
   const out: Record<string, string> = {};
-  if (process.platform !== 'win32' || process.env.SF_NO_CREDMAN === '1') return out;
-  for (const n of SECRET_NAMES) {
-    try {
-      const v = secretGet(n);
-      if (v) out[n] = v;
-    } catch {
-      /* Credential Manager không đọc được → bỏ qua */
-    }
+  if (NO_CREDMAN) {
+    for (const [n, v] of memSecrets) if (SECRET_NAMES.includes(n)) out[n] = v;
+    return out;
+  }
+  try {
+    for (const [n, v] of Object.entries(secretGetMany(SECRET_NAMES))) if (v) out[n] = v;
+  } catch {
+    /* Credential Manager không đọc được → bỏ qua */
   }
   return out;
 }
@@ -150,11 +169,7 @@ function startCore(): void {
   else send();
   // 055: core hỏi bí mật qua thông điệp (kho bí mật `SecretStore`); chỉ main chạm Credential Manager
   core.on('message', (m: unknown) => {
-    const reply = handleSecretRequest(m, {
-      get: secretGet,
-      set: secretSet,
-      delete: secretDelete,
-    });
+    const reply = handleSecretRequest(m, secretBackend);
     if (reply) core?.postMessage(reply);
   });
   core.on('exit', (code) => {
@@ -306,17 +321,29 @@ ipcMain.handle('app:autostart-set', (_e, on: boolean) => {
   app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
   return app.getLoginItemSettings().openAtLogin;
 });
-ipcMain.handle('secrets:status', () =>
-  SECRET_NAMES.map((n) => ({ name: n, hint: process.platform === 'win32' ? secretHint(n) : null })),
-);
+ipcMain.handle('secrets:status', () => {
+  if (NO_CREDMAN)
+    return SECRET_NAMES.map((n) => {
+      const v = memSecrets.get(n);
+      return { name: n, hint: v ? `…${v.slice(-4)}` : null };
+    });
+  // một lần đọc cho mọi tên (bộ nhớ đệm), rồi gợi ý 4 ký tự cuối
+  try {
+    secretGetMany(SECRET_NAMES);
+  } catch {
+    /* đọc lẻ bên dưới */
+  }
+  return SECRET_NAMES.map((n) => ({ name: n, hint: secretHint(n) }));
+});
 ipcMain.handle('secrets:set', (_e, name: string, value: string) => {
   if (!SECRET_NAMES.includes(name)) throw new Error(`unknown secret ${name}`);
-  secretSet(name, value);
+  secretBackend.set(name, value);
   core?.postMessage({ type: 'secrets', secrets: readSecrets() });
-  return { name, hint: secretHint(name) };
+  const v = secretBackend.get(name);
+  return { name, hint: v ? `…${v.slice(-4)}` : null };
 });
 ipcMain.handle('secrets:delete', (_e, name: string) => {
-  const ok = secretDelete(name);
+  const ok = Boolean(secretBackend.delete(name));
   core?.postMessage({ type: 'secrets', secrets: readSecrets() });
   return { name, deleted: ok };
 });

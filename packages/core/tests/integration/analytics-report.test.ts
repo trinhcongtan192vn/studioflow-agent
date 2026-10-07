@@ -112,7 +112,9 @@ function setup(o: { connected?: boolean; app?: string; settings?: Record<string,
     clock: () => clock.now,
     permissionTimeoutMs: 300,
   });
-  cleanups.push(() => host.close(), c.cleanup, t.cleanup);
+  // đóng mọi host trước khi xóa thư mục (host khởi động lại dùng chung app-data — Windows khóa file DB đang mở)
+  cleanups.unshift(() => host.close());
+  cleanups.push(c.cleanup, t.cleanup);
   return {
     host,
     g,
