@@ -432,6 +432,14 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "autopilot.daily_tokens",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
       "key": "publish.platforms",
       "pattern": false,
       "type": "string[]",

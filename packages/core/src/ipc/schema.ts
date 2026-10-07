@@ -11,6 +11,7 @@ import type {
 } from '../contracts/types.js';
 import type { CaptionsPanelData } from '../captions/panel.js';
 import type { CostReport } from '../trace/cost.js';
+import type { CapacityResult } from '../autopilot/capacity.js';
 
 export interface ChannelRef {
   channel: string;
@@ -86,6 +87,11 @@ export interface IpcMethods {
     params: ChannelRef & { key: string; value: unknown };
     result: { ok: boolean };
   };
+  /**
+   * 050 (FR-AP-05, FN-050): số video làm được hôm nay — mặc định cho các kênh quản lý đang bật Autopilot;
+   * `channels` (đường dẫn kênh) để xem trước cho kênh chưa bật.
+   */
+  'autopilot.capacity': { params: { channels?: string[] }; result: CapacityResult };
   /** Kênh YouTube (đối thủ) từ URL / @handle / ID. */
   'youtube.resolve_channel': {
     params: { input: string };

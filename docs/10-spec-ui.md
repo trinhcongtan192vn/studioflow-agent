@@ -62,6 +62,7 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `install.plan` / `install.start` / `install.pause` | |
 | `disk.usage` / `disk.clean` | |
 | `trace.list` / `trace.get` / `cost.report` | |
+| `autopilot.capacity` | Ước tính số video làm được hôm nay cho các kênh quản lý (050, FN-050): thời gian từng bước trên máy, ngân sách Claude, hạn mức đăng YouTube |
 
 | Sự kiện | Dữ liệu |
 |---|---|

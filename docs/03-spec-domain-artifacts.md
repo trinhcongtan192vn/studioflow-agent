@@ -543,6 +543,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.max_per_day` | number | channel |
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
+| `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
 | `publish.platforms` | string[] (`youtube`, `tiktok`, `facebook`) | channel |
 | `publish.slots` | string[] (`HH:MM` hoặc `<thứ> HH:MM`, thứ: mon…sun) | channel |
 | `publish.timezone` | string (IANA) | app, channel |

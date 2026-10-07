@@ -18,7 +18,7 @@
 
 | Tên span | Cha | Thuộc tính bắt buộc |
 |---|---|---|
-| `sf.workflow.step` | — (gốc theo video) | `sf.video_id`, `sf.workflow_id`, `sf.step_id`, `sf.attempt` |
+| `sf.workflow.step` | — (gốc theo video) | `sf.video_id`, `sf.workflow_id`, `sf.step_id`, `sf.attempt`, `sf.step_outcome` (trạng thái bước khi span kết thúc: `done`, `waiting_approval`, `failed`, `skipped`; 050) |
 | `sf.refine.round` | `sf.workflow.step` | `sf.round`, `sf.score`, `sf.producer_model`, `sf.critic_model`, `sf.issues.critical/major/minor` |
 | `sf.agent.session` | step hoặc gốc chat | `sf.session_kind`, `sf.session_id` |
 | (OpenInference LLM/tool) | `sf.agent.session` | theo OpenInference |

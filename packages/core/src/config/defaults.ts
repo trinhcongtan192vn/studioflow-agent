@@ -50,6 +50,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.max_per_day': 1,
   'autopilot.work_window': '08:00-23:00',
   'autopilot.budget_share': 0.7,
+  // 050: null = học từ lần chạm hạn mức Claude gần nhất (FN-050)
+  'autopilot.daily_tokens': null,
   'publish.platforms': ['youtube'],
   'publish.slots': ['19:00'],
   'publish.timezone': 'Asia/Ho_Chi_Minh',

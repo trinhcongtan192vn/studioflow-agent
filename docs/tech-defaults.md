@@ -124,6 +124,7 @@
 | `autopilot.max_per_day` | 1 |
 | `autopilot.work_window` | `08:00-23:00` |
 | `autopilot.budget_share` | 0.7 |
+| `autopilot.daily_tokens` | null (tự học từ lần chạm hạn mức gần nhất, FN-050) |
 | `publish.platforms` / `publish.slots` | `[youtube]` / `[19:00]` |
 | `publish.timezone` | `Asia/Ho_Chi_Minh` |
 | `publish.veto_hours` | 2 |

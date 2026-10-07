@@ -23,6 +23,7 @@ export const APP_AUTOPILOT_KEYS = [
   'autopilot.paused',
   'autopilot.work_window',
   'autopilot.budget_share',
+  'autopilot.daily_tokens',
   'publish.timezone',
   'publish.veto_hours',
 ] as const;
@@ -40,6 +41,8 @@ const invalid = (key: string, why: string) => new SfError('E_SCHEMA_INVALID', `$
 /** Kiểm kiểu (bảng D3) và dạng giá trị của một khóa Autopilot; sai → `E_SCHEMA_INVALID`. */
 export function checkAutopilotValue(key: string, value: unknown): void {
   const spec = requireKey(key);
+  // 050: null = tự học ngân sách Claude từ lần chạm hạn mức (FN-050)
+  if (key === 'autopilot.daily_tokens' && value === null) return;
   if (!typeMatches(spec.type, value)) throw invalid(key, `must be ${spec.type}`);
   const list = value as string[];
   const n = value as number;
@@ -75,6 +78,10 @@ export function checkAutopilotValue(key: string, value: unknown): void {
     case 'autopilot.max_per_day':
       if (!Number.isInteger(n) || n < 0 || n > 20)
         throw invalid(key, 'must be a whole number 0–20');
+      return;
+    case 'autopilot.daily_tokens':
+      if (!Number.isInteger(n) || n <= 0)
+        throw invalid(key, 'must be a positive whole number of tokens (or null = learn)');
       return;
     case 'publish.veto_hours':
       if (n < 0 || n > 72) throw invalid(key, 'must be 0–72 hours');
