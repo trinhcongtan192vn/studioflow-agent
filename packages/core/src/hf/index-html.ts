@@ -1,9 +1,11 @@
+import { GSAP_LOCAL } from './gsap.js';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { EXTENSIONS_DIR } from '../agent/options.js';
 
 /** Bản GSAP mà HyperFrames dùng trong mẫu index (assemble-index.mjs v0.8.115). */
-export const GSAP_SRC = 'https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js';
+// 059: GSAP cục bộ trong project (không phụ thuộc CDN)
+export const GSAP_SRC = GSAP_LOCAL;
 
 interface TransitionRecord {
   name: string;

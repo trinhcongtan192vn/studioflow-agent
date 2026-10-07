@@ -5,6 +5,7 @@ import { imageInfo } from '../assets/image-info.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { SfError } from '../errors.js';
 import { runHf } from '../hf/cli.js';
+import { gsapSource } from '../hf/gsap.js';
 import { GSAP_SRC } from '../hf/index-html.js';
 import { ffmpegPath } from '../models/install.js';
 import { createScratchDir, writeOutsideProject } from '../store/scratch.js';
@@ -80,6 +81,8 @@ export async function bakeLooks(
       return `<img id="i${i}" class="clip" data-start="${(i * dur).toFixed(3)}" data-duration="${dur.toFixed(3)}" data-track-index="0" src="${f}" data-color-grading="${g}" style="position:absolute;left:0;top:0;width:${t.w}px;height:${t.h}px">`;
     });
     const total = (todo.length * dur).toFixed(3);
+    // 059: GSAP cục bộ trong thư mục tạm (bake không phụ thuộc CDN)
+    writeOutsideProject(path.join(s.dir, GSAP_SRC), gsapSource());
     writeOutsideProject(
       path.join(s.dir, 'index.html'),
       `<!doctype html><html><head><meta charset="UTF-8" /><script src="${GSAP_SRC}"></script><style>html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden;background:transparent}#root{position:relative;width:${W}px;height:${H}px}</style></head><body><div id="root" data-composition-id="main" data-start="0" data-duration="${total}" data-width="${W}" data-height="${H}">${imgs.join('')}</div><script>window.__timelines=window.__timelines||{};const tl=gsap.timeline({paused:true});tl.set("#root",{opacity:1},${total});window.__timelines["main"]=tl;</script></body></html>`,

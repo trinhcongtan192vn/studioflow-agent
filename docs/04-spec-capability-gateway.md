@@ -333,6 +333,7 @@ interface JobInfo {
 - Tạo/cập nhật `hyperframes.json` của video.
 - Chuyển định dạng: `SCRIPT.md`/`STORYBOARD.md`/`audio_meta.json` ↔ định dạng script HyperFrames cần; bản tạm ở `.sf/tmp/hf/` kèm `id-map.json` (tên file `NN-…` ↔ ID) `[chờ S3]`.
 - Kiểm `data-sf-id` còn nguyên sau mọi lệnh HyperFrames ghi HTML; mất → `E_HF_ID_LOST`.
+- GSAP nạp từ bản cục bộ `public/vendor/gsap-<ver>.min.js` của project (gói npm `gsap` ghim), không từ CDN; URL CDN trong frame/overlay được đổi sang bản cục bộ (059).
 
 ### 9.2 ComfyUI provider
 - Bộ ghim cùng nhau: phiên bản ComfyUI, custom node, file model (từ kho model chung), workflow JSON. App quản lý vòng đời (khởi động, kiểm tra sức khỏe, khởi động lại), chỉ lắng nghe `127.0.0.1`.

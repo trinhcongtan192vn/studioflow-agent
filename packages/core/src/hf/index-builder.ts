@@ -1,3 +1,4 @@
+import { ensureGsap } from './gsap.js';
 import { existsSync, readFileSync } from 'node:fs';
 import type { AudioMeta, CaptionGroups, CaptionOverrides } from '../contracts/types.js';
 import type { Builder } from '../graph/graph.js';
@@ -21,6 +22,8 @@ export const HYPERFRAMES_JSON = {
 };
 
 export function ensureHfProject(store: WriteStore, videoId: string): void {
+  // 059: GSAP cục bộ cho index, phụ đề, frame
+  ensureGsap(store, videoId);
   const rel = `videos/${videoId}/hyperframes.json`;
   const want = `${JSON.stringify(HYPERFRAMES_JSON, null, 2)}\n`;
   if (!existsSync(store.abs(rel)) || readFileSync(store.abs(rel), 'utf8') !== want) {

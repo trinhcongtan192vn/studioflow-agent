@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { applyLipsync, frameLipsync, mouthDir } from '../lipsync/mouths.js';
+import { sanitizeFrameHtml } from './clip-fix.js';
 import type { FrameTiming } from '../graph/timing.js';
 import { SfError } from '../errors.js';
 import { bakeKey, bakeLooks, type BakeItem } from '../finish/bake.js';
@@ -92,6 +93,8 @@ async function finishFrame(ctx: BuilderContext, rel: string, appDataDir?: string
     mouthSrc = (st) => `${pub}/${st}.svg`;
   }
   next = applyLipsync(next, frame.id, ls && mouthSrc ? { ...ls, src: mouthSrc } : null);
+  // 058/059: autoAlpha trên clip → opacity; GSAP cục bộ (overlay/hoàn thiện có thể chèn URL CDN)
+  next = sanitizeFrameHtml(next);
   if (next !== html) ctx.store.write(`${ctx.videoRel}/${rel}`, next, { by: 'graph.build' });
 }
 
