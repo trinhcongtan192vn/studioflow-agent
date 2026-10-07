@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { percentToShare, shareToPercent } from './autopilot-format';
 import { core } from './rpc';
 
 const LABEL: Record<string, string> = {
@@ -109,6 +110,75 @@ function Storage({ channel }: { channel?: string }) {
 }
 
 /** UI-09 Cài đặt (M1): khóa API (chỉ 4 ký tự cuối, lưu Credential Manager ở `main`), model viết. */
+/** 047 (FR-AP-03): khung giờ máy làm việc, phần ngân sách Claude cho Autopilot, múi giờ, giờ chờ phản đối. */
+function AutopilotApp() {
+  const [cfg, setCfg] = useState<Record<string, unknown>>({});
+  const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
+  useEffect(() => {
+    void core
+      .call('settings.get', {})
+      .then((s) => setCfg((s as { config: Record<string, unknown> }).config));
+  }, []);
+  const save = async (key: string, value: unknown) => {
+    try {
+      await core.call('settings.set', { key, value });
+      setCfg((c) => ({ ...c, [key]: value }));
+      setMsg({ tone: 'success', text: 'Đã lưu.' });
+    } catch (e) {
+      setMsg({ tone: 'error', text: (e as Error).message });
+    }
+  };
+  const str = (k: string, d: string) => (typeof cfg[k] === 'string' ? (cfg[k] as string) : d);
+  return (
+    <div className="autopilot-app" data-testid="autopilot-app">
+      <label className="field">
+        Khung giờ máy làm việc mỗi ngày
+        <input
+          key={`w${str('autopilot.work_window', '08:00-23:00')}`}
+          defaultValue={str('autopilot.work_window', '08:00-23:00')}
+          placeholder="08:00-23:00"
+          onBlur={(e) => void save('autopilot.work_window', e.target.value.trim())}
+        />
+      </label>
+      <label className="field">
+        Phần ngân sách Claude cho Autopilot (%)
+        <input
+          key={`b${shareToPercent(cfg['autopilot.budget_share'] ?? 0.7)}`}
+          type="number"
+          min={0}
+          max={100}
+          defaultValue={shareToPercent(cfg['autopilot.budget_share'] ?? 0.7)}
+          onBlur={(e) => {
+            const v = percentToShare(e.target.value);
+            if (v !== undefined) void save('autopilot.budget_share', v);
+          }}
+        />
+        <span className="muted"> phần còn lại để bạn chat/làm tay</span>
+      </label>
+      <label className="field">
+        Múi giờ mặc định
+        <input
+          key={`t${str('publish.timezone', 'Asia/Ho_Chi_Minh')}`}
+          defaultValue={str('publish.timezone', 'Asia/Ho_Chi_Minh')}
+          onBlur={(e) => void save('publish.timezone', e.target.value.trim())}
+        />
+      </label>
+      <label className="field">
+        Giờ chờ phản đối (Telegram) trước khi công khai
+        <input
+          key={`v${String(cfg['publish.veto_hours'] ?? 2)}`}
+          type="number"
+          min={0}
+          max={72}
+          defaultValue={String(cfg['publish.veto_hours'] ?? 2)}
+          onBlur={(e) => void save('publish.veto_hours', Number(e.target.value))}
+        />
+      </label>
+      {msg && <p className={msg.tone === 'error' ? 'error' : 'success'}>{msg.text}</p>}
+    </div>
+  );
+}
+
 export function Settings({ onClose, channel }: { onClose: () => void; channel?: string }) {
   const [secrets, setSecrets] = useState<{ name: string; hint: string | null }[]>([]);
   const [value, setValue] = useState<Record<string, string>>({});
@@ -170,6 +240,8 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
             Lưu
           </button>
         </div>
+        <h3>Autopilot</h3>
+        <AutopilotApp />
         <h3>Trace</h3>
         <Phoenix />
         <h3>Dung lượng</h3>

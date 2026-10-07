@@ -450,6 +450,7 @@ interface SettingsConfig extends Versioned {
   pricing: { provider: string; model: string; unit: 'mtok_in' | 'mtok_out' | 'image' | 'second'; usd: number }[];
   trace: { capture_content: boolean; retention_days: number; phoenix_enabled: boolean };   // mặc định true / 30 / false
   recent_channels: { path: string; opened_at: Iso8601 }[];
+  managed_channels?: { path: string; added_at: Iso8601 }[];   // kênh app quản lý (047, Autopilot M6); mở kênh lần đầu → thêm
 }
 ```
 
@@ -496,6 +497,20 @@ interface SettingsConfig extends Versioned {
 | `policy.paid_api.per_call_usd` | number | app |
 | `policy.budget_warn_ratio` | number (tỉ lệ) | app |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | number | app |
+| `autopilot.enabled` | boolean | channel |
+| `autopilot.paused` | boolean | app |
+| `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
+| `autopilot.pillars` | string[] | channel |
+| `autopilot.workflows` | string[] (id workflow) | channel |
+| `autopilot.max_per_day` | number | channel |
+| `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
+| `autopilot.budget_share` | number (tỉ lệ) | app |
+| `publish.platforms` | string[] (`youtube`, `tiktok`, `facebook`) | channel |
+| `publish.slots` | string[] (`HH:MM` hoặc `<thứ> HH:MM`, thứ: mon…sun) | channel |
+| `publish.timezone` | string (IANA) | app, channel |
+| `publish.veto_hours` | number | app, channel |
+
+`workflow.autopilot` là **"Tự duyệt bước"** (034: engine tự duyệt các điểm duyệt trong một video, trừ điểm chốt `workflow.key_approvals`). `autopilot.*` là chế độ **Autopilot** theo kênh (M6, 047): kênh bật `autopilot.enabled` thì "Tự duyệt bước" luôn bật cho video của kênh.
 
 Giá trị mặc định của từng khóa: `tech-defaults.md` mục 7 (đổi mặc định không phải đổi spec hệ thống).
 

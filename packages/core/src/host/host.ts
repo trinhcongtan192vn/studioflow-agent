@@ -34,6 +34,15 @@ import { getTrace, listTraces } from '../trace/trace.js';
 import { CORE_VERSION } from '../version.js';
 import type { WorkflowEngine } from '../workflow/engine.js';
 import { noticeText, workflowNotices, type WorkflowNotice } from '../workflow/notices.js';
+import {
+  APP_AUTOPILOT_KEYS,
+  channelAutopilot,
+  checkAutopilotValue,
+  resolveYouTubeChannel,
+  setChannelAutopilot,
+} from '../autopilot/index.js';
+import { getSecretDefault } from '../secrets/credman.js';
+import { YOUTUBE_SECRET } from '../youtube/index.js';
 
 interface OpenSession {
   id: string;
@@ -128,7 +137,33 @@ export class CoreHost extends EventEmitter {
       { path: dir, opened_at: new Date().toISOString() },
       ...s.recent_channels.filter((c) => c.path !== dir),
     ].slice(0, 10);
+    // 047: mở kênh lần đầu → vào danh sách kênh quản lý (mặc định Manual)
+    if (!(s.managed_channels ?? []).some((c) => c.path === dir))
+      s.managed_channels = [
+        ...(s.managed_channels ?? []),
+        { path: dir, added_at: new Date().toISOString() },
+      ];
     this.saveSettings(s);
+  }
+
+  /** 047: kênh quản lý + chế độ Autopilot/Manual, số đối thủ (đọc `channel.json`). */
+  private managedChannels(): IpcMethods['channels.managed']['result']['channels'] {
+    return (this.settings().managed_channels ?? []).map((m) => {
+      const d = detectChannel(m.path);
+      const ch =
+        d.kind === 'channel'
+          ? ((d.config as { config?: Record<string, unknown>; name?: string } | undefined) ?? {})
+          : {};
+      const competitors = ch.config?.['autopilot.competitors'];
+      return {
+        path: m.path,
+        name: ch.name ?? path.basename(m.path),
+        exists: d.kind === 'channel',
+        autopilot: ch.config?.['autopilot.enabled'] === true,
+        competitors: Array.isArray(competitors) ? competitors.length : 0,
+        added_at: m.added_at,
+      };
+    });
   }
 
   private engine(channel: string, video: string): WorkflowEngine {
@@ -443,6 +478,37 @@ export class CoreHost extends EventEmitter {
         this.rememberChannel(path.resolve(p.channel));
         return { config };
       }
+      case 'channels.managed':
+        return { channels: this.managedChannels() };
+      case 'channels.managed.add': {
+        const dir = path.resolve(p.channel);
+        if (detectChannel(dir).kind !== 'channel')
+          throw new SfError('E_NOT_CHANNEL', `${p.channel} has no channel.json`);
+        const s = this.settings();
+        if (!(s.managed_channels ?? []).some((m) => m.path === dir))
+          s.managed_channels = [
+            ...(s.managed_channels ?? []),
+            { path: dir, added_at: new Date().toISOString() },
+          ];
+        this.saveSettings(s);
+        return { ok: true };
+      }
+      case 'channels.managed.remove': {
+        const dir = path.resolve(p.channel);
+        const s = this.settings();
+        s.managed_channels = (s.managed_channels ?? []).filter((m) => m.path !== dir);
+        this.saveSettings(s);
+        return { ok: true };
+      }
+      case 'channel.autopilot.get':
+        return { settings: channelAutopilot(path.resolve(p.channel), c.appDataDir) };
+      case 'channel.autopilot.set':
+        setChannelAutopilot(this.store(p.channel), String(p.key), p.value);
+        return { ok: true };
+      case 'youtube.resolve_channel':
+        return resolveYouTubeChannel(String(p.input), {
+          apiKey: getSecretDefault(YOUTUBE_SECRET),
+        });
       case 'channel.list_recent':
         return { channels: this.settings().recent_channels };
       case 'video.list':
@@ -644,6 +710,9 @@ export class CoreHost extends EventEmitter {
       case 'settings.get':
         return this.settings();
       case 'settings.set': {
+        // 047: khóa Autopilot tầng app được kiểm dạng giá trị (khung giờ, tỉ lệ…)
+        if ((APP_AUTOPILOT_KEYS as readonly string[]).includes(String(p.key)))
+          checkAutopilotValue(String(p.key), p.value);
         const s = this.settings();
         s.config = { ...s.config, [String(p.key)]: p.value };
         this.saveSettings(s);

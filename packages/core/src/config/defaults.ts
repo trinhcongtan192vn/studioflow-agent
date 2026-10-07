@@ -41,6 +41,19 @@ export const DEFAULTS: Record<string, unknown> = {
   'policy.paid_api.per_call_usd': 0.5,
   'policy.budget_warn_ratio': 0.8,
   'gpu.vram_total_gb': 14,
+  // 047: Autopilot theo kênh (M6)
+  'autopilot.enabled': false,
+  'autopilot.paused': false,
+  'autopilot.competitors': [],
+  'autopilot.pillars': [],
+  'autopilot.workflows': [],
+  'autopilot.max_per_day': 1,
+  'autopilot.work_window': '08:00-23:00',
+  'autopilot.budget_share': 0.7,
+  'publish.platforms': ['youtube'],
+  'publish.slots': ['19:00'],
+  'publish.timezone': 'Asia/Ho_Chi_Minh',
+  'publish.veto_hours': 2,
 };
 
 /** Khóa mẫu `<…>` → bảng con theo phần thay thế. */

@@ -366,6 +366,104 @@ export const configKeyTable = {
       "tiers": [
         "app"
       ]
+    },
+    {
+      "key": "autopilot.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "autopilot.paused",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "autopilot.competitors",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "autopilot.pillars",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "autopilot.workflows",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "autopilot.max_per_day",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "autopilot.work_window",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "autopilot.budget_share",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "publish.platforms",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "publish.slots",
+      "pattern": false,
+      "type": "string[]",
+      "tiers": [
+        "channel"
+      ]
+    },
+    {
+      "key": "publish.timezone",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
+      "key": "publish.veto_hours",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
     }
   ]
 } as const;

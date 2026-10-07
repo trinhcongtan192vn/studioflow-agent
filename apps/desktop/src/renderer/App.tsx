@@ -47,7 +47,11 @@ export function App() {
       );
     });
     void window.studioflow.boot().then((b) => {
-      if (b.open_channel) setChannel(b.open_channel);
+      if (!b.open_channel) return;
+      // mở kênh như từ trang chủ (ghi kênh gần đây + kênh quản lý, 047)
+      const dir = b.open_channel;
+      void core.call('channel.open', { channel: dir }).catch(() => {});
+      setChannel(dir);
     });
     return off;
   }, []);

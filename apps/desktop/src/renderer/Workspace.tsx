@@ -11,6 +11,7 @@ import {
   type PanelWidths,
 } from './layout';
 import { core } from './rpc';
+import { ChannelSettings } from './ChannelSettings';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
@@ -28,6 +29,7 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
   const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
   const [settings, setSettings] = useState(false);
+  const [channelSettings, setChannelSettings] = useState(false);
   // độ rộng cột kéo được (nhớ theo máy)
   const root = useRef<HTMLDivElement>(null);
   const total = () => root.current?.clientWidth ?? window.innerWidth;
@@ -117,7 +119,15 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
             ←
           </button>
           <b title={channel}>{channel.split(/[\\/]/).pop()}</b>
-          <button className="link" onClick={() => setSettings(true)} title="Cài đặt">
+          <button
+            className="link"
+            data-testid="open-channel-settings"
+            onClick={() => setChannelSettings(true)}
+            title="Cài đặt kênh (Autopilot, đối thủ, lịch đăng)"
+          >
+            Kênh
+          </button>
+          <button className="link" onClick={() => setSettings(true)} title="Cài đặt app">
             ⚙
           </button>
         </div>
@@ -230,6 +240,9 @@ export function Workspace({ channel, onClose }: { channel: string; onClose: () =
       </aside>
       {file && <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />}
       {settings && <Settings channel={channel} onClose={() => setSettings(false)} />}
+      {channelSettings && (
+        <ChannelSettings channel={channel} onClose={() => setChannelSettings(false)} />
+      )}
     </div>
   );
 }

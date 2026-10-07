@@ -65,7 +65,19 @@ export const schemas = {
               "policy.batch.images": {},
               "policy.paid_api.per_call_usd": {},
               "policy.budget_warn_ratio": {},
-              "gpu.vram_total_gb": {}
+              "gpu.vram_total_gb": {},
+              "autopilot.enabled": {},
+              "autopilot.paused": {},
+              "autopilot.competitors": {},
+              "autopilot.pillars": {},
+              "autopilot.workflows": {},
+              "autopilot.max_per_day": {},
+              "autopilot.work_window": {},
+              "autopilot.budget_share": {},
+              "publish.platforms": {},
+              "publish.slots": {},
+              "publish.timezone": {},
+              "publish.veto_hours": {}
             },
             "additionalProperties": {}
           }
@@ -150,7 +162,19 @@ export const schemas = {
               "policy.batch.images": {},
               "policy.paid_api.per_call_usd": {},
               "policy.budget_warn_ratio": {},
-              "gpu.vram_total_gb": {}
+              "gpu.vram_total_gb": {},
+              "autopilot.enabled": {},
+              "autopilot.paused": {},
+              "autopilot.competitors": {},
+              "autopilot.pillars": {},
+              "autopilot.workflows": {},
+              "autopilot.max_per_day": {},
+              "autopilot.work_window": {},
+              "autopilot.budget_share": {},
+              "publish.platforms": {},
+              "publish.slots": {},
+              "publish.timezone": {},
+              "publish.veto_hours": {}
             },
             "additionalProperties": {}
           },
@@ -297,6 +321,25 @@ export const schemas = {
               "required": [
                 "path",
                 "opened_at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "managed_channels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "added_at": {
+                  "$ref": "#/definitions/Iso8601"
+                }
+              },
+              "required": [
+                "path",
+                "added_at"
               ],
               "additionalProperties": false
             }

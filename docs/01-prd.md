@@ -28,6 +28,7 @@ Không có đa người dùng, phân quyền, hay chia sẻ dự án.
 | G3 | Giữ phong cách kênh | Tỉ lệ bản kịch bản qua `refine-loop` được duyệt không phải sửa lớn | ≥ 70% sau 10 video đầu của kênh |
 | G4 | Dễ mở rộng | Thêm một thể loại video mới | Chỉ thêm gói workflow + dự án mẫu, không sửa lõi/UI |
 | G5 | Chạy được trên máy hiện có | Một video MVP chạy trọn trên RTX 5060 Ti 16 GB / RAM 32 GB | Không lỗi hết bộ nhớ GPU |
+| G6 | Tự hành (Autopilot, M6) | Số thao tác người dùng mỗi ngày cho các kênh bật Autopilot (tìm chủ đề → kế hoạch → sản xuất → đăng → báo cáo) | 0 thao tác bắt buộc; người dùng chỉ phản đối/duyệt qua Telegram khi muốn |
 
 ## 4. Phạm vi theo giai đoạn
 
@@ -39,8 +40,9 @@ Không có đa người dùng, phân quyền, hay chia sẻ dự án.
 | **M3 Chỉnh trực quan** | Chỉnh trong Studio và lưu an toàn; bảng caption; look màu, media effect, overlay; bảng chi phí; rubric theo kênh; Phoenix |
 | **M4** | `essay-audiobook`, `shorts` (9:16); hồ sơ các kênh còn lại |
 | **M5 / M5b** | `short-film` nhiều nhân vật + người dẫn / lip-sync mức 1 |
+| **M6 Autopilot** | Bật Autopilot theo kênh: mỗi ngày app tự tìm chủ đề tiềm năng (đối thủ, video đã làm, trending, tin nóng), lên kế hoạch vừa sức máy và ngân sách Claude, tạo video, đăng YouTube/TikTok/Facebook theo lịch (có cửa sổ phản đối qua Telegram), báo cáo hiệu quả hằng ngày vào Telegram; hỏi agent về vận hành qua Telegram; quản lý nhiều kênh cùng lúc. Chuyển Autopilot ↔ Manual theo kênh |
 
-**Ngoài phạm vi:** quản lý/kiểm tra giấy phép (người dùng tự xử lý); sinh video bằng AI; lip-sync theo âm vị/AI; đăng YouTube tự động; đa người dùng; chạy trên cloud hoặc đồng bộ cloud; phát hành app cho người khác; macOS/Linux; HDR; tracking/mask.
+**Ngoài phạm vi:** quản lý/kiểm tra giấy phép (người dùng tự xử lý); sinh video bằng AI; lip-sync theo âm vị/AI; đa người dùng; chạy trên cloud hoặc đồng bộ cloud; phát hành app cho người khác; macOS/Linux; HDR; tracking/mask.
 
 ## 5. Môi trường và ràng buộc
 
@@ -217,7 +219,28 @@ Cột **GĐ** = giai đoạn phải có. Spec chi tiết ở cột **Spec**.
 | FR-OB-03 | App PHẢI báo chi phí token/API theo video và theo bước; có ngân sách theo kênh/video | M3 | D11 |
 | FR-OB-04 | Người dùng CÓ THỂ bật Arize Phoenix cục bộ để xem trace chi tiết | M3 | D11 |
 
-## 9. Yêu cầu phi chức năng
+### 8.13 Autopilot (AP, M6)
+
+Chế độ **Autopilot** theo kênh (khác "Tự duyệt bước" của 034 — duyệt tự động các bước trong một video; Autopilot luôn bật nó). Chế độ **Manual** là cách làm hiện tại.
+
+| Mã | Yêu cầu | GĐ | Spec |
+|---|---|---|---|
+| FR-AP-01 | Người dùng PHẢI quản lý được nhiều kênh trong app (danh sách kênh quản lý) và chuyển từng kênh giữa Autopilot và Manual; có nút tạm dừng Autopilot toàn app | M6 | D3, D10 |
+| FR-AP-02 | Người dùng PHẢI khai được trong cài đặt kênh: danh sách kênh đối thủ (URL / @handle / ID), chủ đề trụ cột, workflow được dùng, số video tối đa mỗi ngày, nền tảng đăng, khung giờ đăng | M6 | D3 |
+| FR-AP-03 | Người dùng PHẢI đặt được khung giờ máy làm việc mỗi ngày (mặc định 08:00–23:00) và tỉ lệ ngân sách Claude dành cho Autopilot (mặc định 70%) | M6 | D3 |
+| FR-AP-04 | Mỗi ngày app PHẢI quét đối thủ (video mới và video nổi bật cũ), video đã làm của kênh, chủ đề trending và tin nóng; chấm điểm chủ đề và ghi lý do | M6 | FN-049 |
+| FR-AP-05 | App PHẢI ước tính số video làm được trong ngày từ thời gian thật của từng bước trên máy này, ngân sách Claude và hạn mức đăng | M6 | FN-050 |
+| FR-AP-06 | App PHẢI lập kế hoạch ngày cho mọi kênh Autopilot (chủ đề, workflow, khung giờ đăng, lý do), người dùng xem/sửa được | M6 | FN-051 |
+| FR-AP-07 | App PHẢI tự tạo video và chạy workflow theo kế hoạch; điểm chốt (brief, kịch bản, bản nháp) được thay bằng gate chất lượng tự động; không đạt → dừng video đó, báo người dùng | M6 | FN-052 |
+| FR-AP-08 | App PHẢI chạy kế hoạch ngày một lần mỗi ngày khi mở app hoặc đến giờ, tiếp tục sau khi tắt/ngủ máy, không chạy trùng | M6 | FN-052 |
+| FR-AP-09 | App PHẢI đăng video lên YouTube ở chế độ riêng tư kèm giờ công khai, gửi bản xem trước vào Telegram; không bị phản đối trong số giờ đặt sẵn → công khai đúng lịch | M6 | FN-053 |
+| FR-AP-10 | App PHẢI đăng được lên TikTok và Facebook (bản dọc) theo cùng cơ chế | M6 | FN-056 |
+| FR-AP-11 | App PHẢI thu số liệu hiệu quả hằng ngày theo kênh/video và gửi báo cáo ngày vào nhóm Telegram | M6 | FN-054 |
+| FR-AP-12 | Người dùng PHẢI hỏi được agent qua Telegram về mọi hoạt động vận hành (kế hoạch, tiến độ, lỗi, đã đăng, số liệu) và ra lệnh tạm dừng/tiếp/bỏ qua/duyệt | M6 | FN-055 |
+| FR-AP-13 | Hiệu quả thật của video PHẢI được dùng lại khi chấm điểm chủ đề ngày sau | M6 | FN-057 |
+| FR-AP-14 | Người dùng PHẢI xem lại được lịch sử mọi phiên agent (chat chính, phiên `ops`/Telegram, phiên con frame/producer/critic) theo kênh/video/ngày như nhật ký kiểm tra — cả chế độ Autopilot lẫn Manual: lời nhắn, tool đã gọi và kết quả, quyết định tự động kèm lý do | M6 | D10, D11 |
+
+
 
 | Mã | Yêu cầu | Mục tiêu |
 |---|---|---|
@@ -230,6 +253,7 @@ Cột **GĐ** = giai đoạn phải có. Spec chi tiết ở cột **Spec**.
 | NFR-07 | Riêng tư | Kịch bản, giọng, asset không rời máy trừ khi gửi tới LLM/API người dùng đã cấu hình; trace lưu cục bộ |
 | NFR-08 | Khả năng thay thế | Đổi provider/model/runtime không phải sửa skill/workflow; chỉ thêm adapter + chạy hồi quy |
 | NFR-09 | Kiểm thử | Mỗi workflow có dự án mẫu 30–60 giây chạy được tự động trong hồi quy |
+| NFR-11 | Chạy không người trông | Autopilot chạy nhiều ngày không cần thao tác: tự phục hồi sau crash/khóa sót/hết hạn mức; mọi quyết định tự động có ghi lý do và tra được; lỗi lặp lại → báo Telegram thay vì thử mãi |
 | NFR-10 | Tương thích | Pin phiên bản HyperFrames, ComfyUI, custom node, model; nâng cấp chỉ khi qua hồi quy |
 
 ## 10. Tiêu chí nghiệm thu theo giai đoạn
@@ -264,6 +288,12 @@ Cột **GĐ** = giai đoạn phải có. Spec chi tiết ở cột **Spec**.
 ### M4, M5
 - **AC-M4-01:** Shorts 9:16 ≤ 60 giây từ một video dài, đúng vùng an toàn.
 - **AC-M5-01:** Phim ngắn 3–5 phút, 3 nhân vật + người dẫn, phụ đề theo người nói; miệng nhân vật khớp nhịp ở shot trung/cận (M5b).
+
+### M6
+- **AC-M6-01:** Hai kênh bật Autopilot với đối thủ khai sẵn → sáng hôm sau mở app: kế hoạch ngày có chủ đề kèm lý do, số video vừa khung giờ máy; video được tạo và render không cần thao tác.
+- **AC-M6-02:** Video đã render được đăng YouTube riêng tư kèm giờ công khai; Telegram nhận bản xem trước; không phản đối → công khai đúng giờ; bấm Hủy → giữ riêng tư.
+- **AC-M6-03:** Báo cáo ngày vào nhóm Telegram; hỏi "hôm nay làm được gì?" → agent trả lời đúng theo nhật ký vận hành.
+- **AC-M6-04:** Chuyển một kênh sang Manual → không tạo video tự động cho kênh đó từ hôm sau.
 
 ## 11. Giả định và rủi ro sản phẩm
 

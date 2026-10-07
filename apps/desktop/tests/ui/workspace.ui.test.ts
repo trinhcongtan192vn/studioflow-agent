@@ -209,11 +209,11 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     const progress = win.getByTestId('progress');
     await expect(progress).toContainText('/1 bước');
     await expect(win.getByTestId('progress-now')).toContainText(/Sẵn sàng|Chờ bạn duyệt/);
-    // 034: chế độ tự động bật mặc định; tắt được ngay trong tab
-    await expect(win.getByTestId('autopilot')).toContainText('Tự động');
+    // 034: "Tự duyệt bước" bật mặc định; tắt được ngay trong tab
+    await expect(win.getByTestId('autopilot')).toContainText('Tự duyệt bước');
     await win.getByTestId('autopilot').click();
     await expect(win.getByTestId('autopilot')).toContainText('Duyệt từng bước');
-    await expect(win.getByTestId('progress-feedback')).toContainText('Đã tắt chế độ tự động');
+    await expect(win.getByTestId('progress-feedback')).toContainText('Đã tắt Tự duyệt bước');
     const scriptRow = progress.getByTestId('step-script');
     await scriptRow.hover();
     await scriptRow.getByRole('button', { name: 'Quay lại' }).click();
@@ -223,9 +223,20 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
       timeout: 15_000,
     });
     // UI-10 Dung lượng (024) trong Cài đặt
-    await win.getByTitle('Cài đặt').click();
+    await win.getByTitle('Cài đặt app').click();
     await expect(win.getByLabel('Dung lượng')).toContainText('Ổ đĩa còn', { timeout: 30_000 });
     await expect(win.getByLabel('Dung lượng')).toContainText('Cache');
+    await expect(win.getByTestId('autopilot-app')).toContainText('Khung giờ máy làm việc');
+    await win.getByRole('button', { name: 'Đóng', exact: true }).last().click();
+    // 047 (FR-AP-01/02): cài đặt kênh → bật Autopilot → trang chủ hiện kênh quản lý ở chế độ Autopilot
+    await win.getByTestId('open-channel-settings').click();
+    const cs = win.getByTestId('channel-settings');
+    await expect(cs).toContainText('Kênh đối thủ');
+    await cs.getByTestId('mode-autopilot').check();
+    await expect(cs).toContainText('Đã bật Autopilot cho kênh.');
+    await cs.getByRole('button', { name: 'Đóng', exact: true }).click();
+    await win.getByTitle('Về trang chủ').click();
+    await expect(win.getByTestId('managed-channels')).toContainText('Autopilot');
   } finally {
     await app.close();
   }

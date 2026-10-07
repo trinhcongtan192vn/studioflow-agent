@@ -11,8 +11,9 @@ Bản hợp nhất cuối cùng sau các vòng thảo luận (v0.1–v2.7): ch�
 **Sản phẩm.** Ứng dụng desktop (dùng cá nhân) có agent chat kiểu Claude Code Desktop để sản xuất video YouTube cho nhiều kênh: kịch bản, giọng đọc, hình ảnh, dựng cảnh động, phụ đề, màu, overlay, render. Mỗi kênh là một project folder. Người dùng sửa qua **chat** hoặc **chỉnh trực quan** (HyperFrames Studio, bảng caption của app); **không sửa trực tiếp file nguồn**.
 
 - **Phạm vi đích** (đạt dần qua M1–M5b): workflow thuyết minh, tài liệu, sách nói, Shorts, phim ngắn nhiều nhân vật; caption động, look màu, hiệu ứng, overlay; lip-sync mức 1 (comic/2D phẳng); thư viện asset theo kênh.
+- **Autopilot (M6, từ 047):** chế độ tự hành theo kênh — điều phối ngày (nghiên cứu chủ đề → ước năng lực → kế hoạch → sản xuất → đăng → báo cáo), publisher theo nền tảng (YouTube/TikTok/Facebook), bot Telegram + phiên agent `ops` để hỏi về vận hành. Chạy trong `core` như các dịch vụ khác; ghi qua Gateway; mọi quyết định tự động ghi vào nhật ký vận hành.
 - **MVP = hết M2** (M1 là bản nội bộ): `narrated-explainer` + `story-documentary`, giọng OmniVoice, caption, kho nhạc local, ảnh sinh qua ComfyUI, sửa qua chat, Studio xem trước.
-- **Ngoài phạm vi:** quản lý/kiểm tra giấy phép (model, nhạc, asset — người dùng tự xử lý ngoài app); sinh video bằng AI; lip-sync theo âm vị/AI; đăng YouTube tự động; đa người dùng; chạy app/đồng bộ trên cloud; phát hành cho người khác; HDR; tracking/mask. Gọi API cloud (LLM, ảnh tùy chọn) vẫn trong phạm vi, qua adapter.
+- **Ngoài phạm vi:** quản lý/kiểm tra giấy phép (model, nhạc, asset — người dùng tự xử lý ngoài app); sinh video bằng AI; lip-sync theo âm vị/AI; đa người dùng; chạy app/đồng bộ trên cloud; phát hành cho người khác; HDR; tracking/mask. Gọi API cloud (LLM, ảnh tùy chọn) vẫn trong phạm vi, qua adapter.
 
 **Mục tiêu kiến trúc: giảm chi phí phát triển về sau.**
 

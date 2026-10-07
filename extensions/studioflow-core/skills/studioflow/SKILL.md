@@ -32,7 +32,9 @@ description: Quy tắc làm việc với dự án video StudioFlow — artifact,
   - Nhân vật: ghi `voice_id: vo_…` vào khối `sf-cast` của nhân vật đó trong `CAST.md`.
   - Bước Giọng đọc đang lỗi → `workflow.run_to {step_id: "voice"}` hoặc nhắc người dùng bấm **Chạy lại bước**.
 
-## Chế độ tự động (mặc định, 034)
+## Tự duyệt bước (mặc định, 034)
+
+(Khác **Autopilot** của kênh — chế độ tự hành M6: kênh bật Autopilot thì Tự duyệt bước luôn bật.)
 
 Kiểm bằng `mcp__sf__config_resolve {key: "workflow.autopilot"}`. Khi bật, **bạn là người điều phối**:
 - **Tự quyết** mọi lựa chọn trong bước:

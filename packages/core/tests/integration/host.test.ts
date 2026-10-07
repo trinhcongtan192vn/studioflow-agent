@@ -92,6 +92,54 @@ describe('CoreHost IPC (008)', () => {
     expect(err.error).toMatchObject({ code: 'E_NOT_CHANNEL' });
   });
 
+  it('managed channels and per-channel Autopilot settings (047 FR-AP-01..03)', async () => {
+    const { host, dir } = setup();
+    // mở kênh lần đầu → vào danh sách kênh quản lý (Manual)
+    await host.call('channel.open', { channel: dir });
+    const list = await host.call('channels.managed', {});
+    expect(list.channels).toEqual([
+      expect.objectContaining({
+        path: path.resolve(dir),
+        exists: true,
+        autopilot: false,
+        competitors: 0,
+      }),
+    ]);
+    await host.call('channel.autopilot.set', {
+      channel: dir,
+      key: 'autopilot.competitors',
+      value: ['UCuAXFkgsw1L7xaCfnd5JJOw'],
+    });
+    await host.call('channel.autopilot.set', {
+      channel: dir,
+      key: 'autopilot.enabled',
+      value: true,
+    });
+    const got = await host.call('channel.autopilot.get', { channel: dir });
+    expect(got.settings['autopilot.enabled']).toEqual({ value: true, source: 'channel' });
+    expect((await host.call('channels.managed', {})).channels[0]).toMatchObject({
+      autopilot: true,
+      competitors: 1,
+    });
+    // sai dạng → lỗi rõ; khóa tầng app qua settings.set cũng được kiểm
+    const bad = await host.handle({
+      id: 2,
+      method: 'channel.autopilot.set',
+      params: { channel: dir, key: 'publish.slots', value: ['7pm'] },
+    });
+    expect(bad.error).toMatchObject({ code: 'E_SCHEMA_INVALID' });
+    const badApp = await host.handle({
+      id: 3,
+      method: 'settings.set',
+      params: { key: 'autopilot.work_window', value: '8-23' },
+    });
+    expect(badApp.error).toMatchObject({ code: 'E_SCHEMA_INVALID' });
+    await host.call('channels.managed.remove', { channel: dir });
+    expect((await host.call('channels.managed', {})).channels).toEqual([]);
+    await host.call('channels.managed.add', { channel: dir });
+    expect((await host.call('channels.managed', {})).channels).toHaveLength(1);
+  });
+
   it('chat streams events, stores history, resumes the SDK session after reopen (FR-CH-02/07)', async () => {
     const { host, dir, app, events } = setup();
     await host.call('chat.send', { channel: dir, video: fixtureVideoId, text: 'Xin chào' });

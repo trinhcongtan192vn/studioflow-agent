@@ -109,7 +109,7 @@
 | `asr.wer_threshold.<lang>` | 0.15 `[chờ S12]` |
 | `asr.max_regen` | 1 |
 | `lipsync.enabled` | false (workflow `short-film`: true, 039) |
-| `workflow.autopilot` | true (034: chỉ dừng ở điểm chốt) |
+| `workflow.autopilot` | true (034 "Tự duyệt bước": chỉ dừng ở điểm chốt) |
 | `workflow.key_approvals` | `[story, script, finalize]` |
 | `policy.auto_approve.batch_gen` | false |
 | `policy.auto_approve.paid_api` | false |
@@ -119,4 +119,12 @@
 | `policy.batch.tts_lines` / `policy.batch.images` | 20 / 5 |
 | `policy.paid_api.per_call_usd` | 0.5 |
 | `policy.budget_warn_ratio` | 0.8 |
+| `autopilot.enabled` / `autopilot.paused` | false / false |
+| `autopilot.competitors` / `autopilot.pillars` / `autopilot.workflows` | `[]` / `[]` / `[]` (rỗng = mọi workflow cài sẵn) |
+| `autopilot.max_per_day` | 1 |
+| `autopilot.work_window` | `08:00-23:00` |
+| `autopilot.budget_share` | 0.7 |
+| `publish.platforms` / `publish.slots` | `[youtube]` / `[19:00]` |
+| `publish.timezone` | `Asia/Ho_Chi_Minh` |
+| `publish.veto_hours` | 2 |
 | `gpu.vram_budget_gb.<engine>` / `gpu.vram_total_gb` | comfyui 14 · omnivoice 6 · asr 3 · render 2 / 14 `[chờ S1, S9]` |

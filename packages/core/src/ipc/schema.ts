@@ -56,6 +56,43 @@ export interface IpcMethods {
     params: ChannelRef & { name: string; language: 'vi' | 'de' | 'en' };
     result: { config: unknown };
   };
+  /** Kênh app quản lý (047, Autopilot M6): mở kênh lần đầu → thêm; Autopilot / Manual theo kênh. */
+  'channels.managed': {
+    params: Record<string, never>;
+    result: {
+      channels: {
+        path: string;
+        name: string;
+        exists: boolean;
+        autopilot: boolean;
+        competitors: number;
+        added_at: string;
+      }[];
+    };
+  };
+  'channels.managed.add': { params: ChannelRef; result: { ok: boolean } };
+  'channels.managed.remove': { params: ChannelRef; result: { ok: boolean } };
+  /** Cài đặt Autopilot tầng kênh đã giải (giá trị + nguồn). */
+  'channel.autopilot.get': {
+    params: ChannelRef;
+    result: { settings: Record<string, { value: unknown; source: string }> };
+  };
+  'channel.autopilot.set': {
+    params: ChannelRef & { key: string; value: unknown };
+    result: { ok: boolean };
+  };
+  /** Kênh YouTube (đối thủ) từ URL / @handle / ID. */
+  'youtube.resolve_channel': {
+    params: { input: string };
+    result: {
+      id: string;
+      title: string;
+      handle: string | null;
+      thumbnail: string | null;
+      subscribers: number | null;
+      videos: number | null;
+    };
+  };
   'channel.list_recent': {
     params: Record<string, never>;
     result: { channels: { path: string; opened_at: string }[] };
