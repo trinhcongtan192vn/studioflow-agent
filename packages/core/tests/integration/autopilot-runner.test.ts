@@ -848,10 +848,12 @@ describe('giọng đọc, chi phí', () => {
     bus.on('permission.requested', (q) => requests.push(q));
     const base = rig.fx.core.workflows.executor('script')!;
     let first = true;
+    let askMs = Infinity;
     rig.fx.core.workflows.registerExecutor('script', async (ctx) => {
       if (first) {
         first = false;
         // tool có phí hỏi quyền (như image.generate qua provider có phí)
+        const t0 = Date.now();
         const ok = await bus.ask(
           {
             session_id: 'ss_workflow',
@@ -865,13 +867,13 @@ describe('giọng đọc, chi phí', () => {
             summary: 'Sinh 3 ảnh qua qwen (có phí, ước ≤ $0.5/ảnh)',
           },
         );
+        askMs = Date.now() - t0;
         if (!ok) throw new SfError('E_PERMISSION_DECLINED', 'paid call declined');
       }
       return base(ctx);
     });
-    const t0 = Date.now();
     const r = await rig.runner.tick();
-    expect(Date.now() - t0).toBeLessThan(900); // permissionTimeoutMs của fixture là 1000: không chờ
+    expect(askMs).toBeLessThan(500); // permissionTimeoutMs của fixture là 1000: từ chối ngay, không chờ
     expect(r.outcomes.map((x) => x.outcome)).toEqual(['parked', 'produced']);
     const item = itemOf(dir, 'pi_a0000001');
     expect(item.status).toBe('needs_review');
