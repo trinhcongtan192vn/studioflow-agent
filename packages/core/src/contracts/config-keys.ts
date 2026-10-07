@@ -465,6 +465,22 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "report.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "report.time",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
       "key": "telegram.enabled",
       "pattern": false,
       "type": "boolean",

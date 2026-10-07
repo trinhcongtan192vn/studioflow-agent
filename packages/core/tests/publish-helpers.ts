@@ -24,6 +24,14 @@ export interface FakeGoogle {
   inject: (call: GoogleCall, n: number) => Response | Error | undefined;
   /** Số byte máy chủ đã nhận cho phiên tải lên. */
   received: { bytes: number };
+  /** Số liệu Analytics giả (054): theo ngày của kênh / từng video và thống kê lũy kế. */
+  analytics: {
+    channel: Record<string, number>;
+    videos: Record<string, Record<string, number>>;
+    stats: Record<string, { view: number; like: number; comment: number }>;
+    /** video trả 403 (mới đăng, chưa có số liệu). */
+    failVideo?: string;
+  };
   tokens: { n: number; expires_in: number; refresh_token?: string; error?: string };
 }
 
@@ -41,6 +49,7 @@ export function fakeGoogle(): FakeGoogle {
     privacy: { value: 'private' },
     received: { bytes: 0 },
     tokens: { n: 0, expires_in: 3600 },
+    analytics: { channel: {}, videos: {}, stats: {} },
     inject: () => undefined,
     to: (re) => g.calls.filter((c) => re.test(c.url)),
     fetch: async (url, init) => {
@@ -80,6 +89,36 @@ export function fakeGoogle(): FakeGoogle {
         });
       }
       if (url.startsWith('https://oauth2.googleapis.com/revoke')) return json({});
+      if (url.startsWith('https://youtubeanalytics.googleapis.com/v2/reports')) {
+        const q = new URL(url).searchParams;
+        const vid = /^video==(.+)$/.exec(q.get('filters') ?? '')?.[1];
+        if (vid && g.analytics.failVideo === vid) return googleError(403, 'forbidden');
+        const src = vid ? (g.analytics.videos[vid] ?? {}) : g.analytics.channel;
+        const names = (q.get('metrics') ?? '').split(',');
+        const rows = Object.keys(src)
+          .filter((d) => d >= q.get('startDate')! && d <= q.get('endDate')!)
+          .sort()
+          .map((d) => [d, ...names.map((n) => (n === 'views' ? src[d]! : n === 'likes' ? 1 : 10))]);
+        return json({
+          columnHeaders: [{ name: 'day' }, ...names.map((name) => ({ name }))],
+          rows,
+        });
+      }
+      if (/\/youtube\/v3\/videos\?part=statistics&id=/.test(url)) {
+        const ids = decodeURIComponent(new URL(url).searchParams.get('id') ?? '').split(',');
+        return json({
+          items: ids
+            .filter((id) => g.analytics.stats[id])
+            .map((id) => ({
+              id,
+              statistics: {
+                viewCount: String(g.analytics.stats[id]!.view),
+                likeCount: String(g.analytics.stats[id]!.like),
+                commentCount: String(g.analytics.stats[id]!.comment),
+              },
+            })),
+        });
+      }
       if (/\/youtube\/v3\/channels\?/.test(url))
         return json({ items: [{ id: g.channel.id, snippet: { title: g.channel.title } }] });
       if (/\/youtube\/v3\/videos\?part=status&id=/.test(url))
@@ -169,5 +208,10 @@ export function fakeTelegramApi(group = -100777) {
         message: { message_id: 701, chat: { id: group, type: 'supergroup' } },
       },
     });
-  return { f, sent, answered, edited, press };
+  const say = (text: string, from = { id: 11, first_name: 'Alice' }) =>
+    queue.push({
+      update_id: ++uid,
+      message: { message_id: uid, chat: { id: group, type: 'supergroup' }, from, text },
+    });
+  return { f, sent, answered, edited, press, say };
 }

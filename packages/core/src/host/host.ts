@@ -66,6 +66,7 @@ import {
   TelegramService,
   type FetchLike,
 } from '../telegram/index.js';
+import { checkReportValue, REPORT_KEYS } from '../analytics/index.js';
 import { YOUTUBE_SECRET } from '../youtube/index.js';
 import { readResearch } from '../research/index.js';
 
@@ -138,7 +139,16 @@ export class CoreHost extends EventEmitter {
       ...(opts.telegramFetch ? { fetch: opts.telegramFetch } : {}),
       ...(opts.telegramSleep ? { sleep: opts.telegramSleep } : {}),
       log: (level, msg) => this.core.gateway.logger.write(level, 'sf.telegram', { message: msg }),
+      // 054: /report soạn báo cáo ngay cho mọi kênh (không đánh dấu đã gửi)
+      report: async () => {
+        const r = await this.core.reports.run();
+        return {
+          text: r.text || 'Chưa có kênh nào bật Autopilot.',
+          parse_mode: 'HTML' as const,
+        };
+      },
     });
+    this.core.reports.setSend((html) => this.telegram.sendText(html));
     this.core.autopilot.setNotifier(this.telegram.notifier);
     // 053: bản xem trước + nút Hủy đăng / Đăng ngay trong nhóm Telegram
     this.core.publisher.setNotifier(this.telegram.notifier);
@@ -728,6 +738,22 @@ export class CoreHost extends EventEmitter {
           date: String(p.date),
           ...(p.platform ? { platform: p.platform as 'youtube' | 'tiktok' | 'facebook' } : {}),
         });
+      case 'report.latest': {
+        const chans = p.channel ? [path.resolve(p.channel)] : c.autopilot.channelDirs();
+        return {
+          reports: chans.flatMap((d) => {
+            const r = c.reports.latest(d);
+            return r ? [r] : [];
+          }),
+        };
+      }
+      case 'report.run': {
+        const r = await c.reports.run({
+          ...(p.channel ? { channel: path.resolve(p.channel) } : {}),
+          send: p.send === true,
+        });
+        return { reports: r.reports, text: r.text };
+      }
       case 'telegram.status':
         return this.telegram.status();
       case 'telegram.test':
@@ -982,6 +1008,8 @@ export class CoreHost extends EventEmitter {
         // 047: khóa Autopilot tầng app được kiểm dạng giá trị (khung giờ, tỉ lệ…)
         if ((APP_AUTOPILOT_KEYS as readonly string[]).includes(String(p.key)))
           checkAutopilotValue(String(p.key), p.value);
+        if ((REPORT_KEYS as readonly string[]).includes(String(p.key)))
+          checkReportValue(String(p.key), p.value);
         const tg = (TELEGRAM_KEYS as readonly string[]).includes(String(p.key));
         if (tg) checkTelegramValue(String(p.key), p.value);
         const s = this.settings();

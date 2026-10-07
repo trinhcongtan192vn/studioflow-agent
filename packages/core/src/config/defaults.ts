@@ -58,6 +58,9 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.budget_share': 0.7,
   // 050: null = học từ lần chạm hạn mức Claude gần nhất (FN-050)
   'autopilot.daily_tokens': null,
+  // 054: báo cáo ngày vào nhóm Telegram
+  'report.enabled': true,
+  'report.time': '21:00',
   // 055: bot Telegram (chat_id rỗng = chưa đặt)
   'telegram.enabled': false,
   'telegram.chat_id': '',

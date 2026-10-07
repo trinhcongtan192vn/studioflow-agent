@@ -282,6 +282,38 @@ export interface AutopilotLogLine {
   data?: Record<string, unknown>;                  // chi tiết máy đọc được (điểm, ngưỡng, thời điểm hết hạn mức…)
 }
 
+export interface DailyReport extends Versioned {
+  channel_id: ChannelId;
+  channel_name: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // ngày báo cáo theo `publish.timezone` của kênh
+  generated_at: Iso8601;
+  delivered_at?: Iso8601;                          // đã gửi vào Telegram
+  youtube: {
+    connected: boolean;
+    /** Ngày dữ liệu mới nhất đã có (YouTube Analytics thường trễ 1–3 ngày). */
+    metrics_day?: string;
+    views?: number;
+    views_prev?: number;                           // ngày liền trước
+    views_avg7?: number;                           // trung bình 7 ngày trước `metrics_day`
+    views_change_pct?: number;                     // so với ngày liền trước
+    views_change_avg7_pct?: number;
+    watch_minutes?: number;
+    avg_view_duration_s?: number;
+    subs_gained?: number; subs_lost?: number;
+    likes?: number;
+    top_videos: { title: string; url?: string; views: number; item_id?: string }[];   // 7 ngày gần nhất, video do app đăng
+  };
+  production: { produced: number; in_production: number; needs_review: number; failed: number; planned: number;
+                items: { title: string; status: PlanItemStatus; note?: string }[] };
+  publishing: { uploaded: { title: string; status: PublishStatus; url?: string; publish_at?: Iso8601 }[];
+                waiting: { title: string; status: PublishStatus; note?: string }[] };   // pending / failed / private chờ công khai
+  claude: { used_tokens: number; budget_tokens: number | null; used_pct: number | null };
+  quota: { youtube_used: number; youtube_limit: number };
+  tomorrow: string;                                // một dòng tiếng Việt
+  notes: string[];                                 // tiếng Việt: thiếu dữ liệu, chưa kết nối, v.v.
+}
+
 export interface ChannelConfig extends Versioned {
   id: ChannelId; name: string; language: Lang; created_at: Iso8601;
   profile_dir: 'profile';

@@ -211,6 +211,7 @@ export class AutopilotRunner extends EventEmitter {
   private channelsFn: () => string[];
   private notifier?: Notifier;
   private publisher?: { process(now: Date): Promise<unknown> };
+  private reporter?: { process(now: Date): Promise<unknown> };
   private pauseFn: (paused: boolean) => void = (paused) => {
     const dir = this.d.appDataDir ?? defaultAppDataDir();
     const f = path.join(dir, 'settings.json');
@@ -243,6 +244,11 @@ export class AutopilotRunner extends EventEmitter {
   /** 053: bộ đăng bài — sau khi làm video, đăng các mục đã xong (trong khung giờ làm việc). */
   setPublisher(p: { process(now: Date): Promise<unknown> } | undefined): void {
     this.publisher = p;
+  }
+
+  /** 054: báo cáo ngày — chạy mỗi lượt kể cả khi tạm dừng/ngoài khung giờ (chỉ đọc số liệu và gửi tin). */
+  setReporter(r: { process(now: Date): Promise<unknown> } | undefined): void {
+    this.reporter = r;
   }
 
   /** Kênh Autopilot đang bật (có `channel.json`, `autopilot.enabled`). */
@@ -542,6 +548,18 @@ export class AutopilotRunner extends EventEmitter {
     }
     // 052 (Tan): video bị đỗ mà người dùng đã làm xong bằng tay → nhận lại (rẻ, chạy cả khi tạm dừng)
     this.reclaimFinished(this.channels(), now0);
+    if (this.reporter && !this.stopped) {
+      try {
+        await this.reporter.process(now0);
+      } catch (e) {
+        for (const c of this.channels())
+          this.log(c, this.dateOf(c, now0), {
+            level: 'error',
+            event: 'report.error',
+            message: `Lỗi báo cáo ngày: ${message(e)}`,
+          });
+      }
+    }
     const g0 = this.gate(now0, opts.force);
     if (!g0.ok) return { ...out, skipped: g0.reason };
     this.endWait(now0);

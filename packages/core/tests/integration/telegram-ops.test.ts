@@ -203,6 +203,7 @@ describe('ops session policy (D5 mục 4)', () => {
         'publish.cancel',
         'publish.now',
         'publish.status',
+        'report.get',
         'research.get',
       ].sort(),
     );
@@ -441,7 +442,7 @@ describe('Telegram end to end through the host', () => {
     await until(() => s.tg.sent.some((m) => m.text.includes('Đã tiếp tục')));
     expect((await s.host.call('autopilot.status', {})).paused).toBe(false);
     s.tg.say('/report');
-    await until(() => s.tg.sent.some((m) => m.text.includes('Báo cáo hằng ngày')));
+    await until(() => s.tg.sent.some((m) => m.text.includes('báo cáo')));
   });
 
   it('a question (mention) goes to an ops session; the answer is posted; the session is logged under ops/sessions', async () => {

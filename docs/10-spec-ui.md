@@ -68,6 +68,8 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `autopilot.status` | `{}` → `{paused, running, waiting_until?, current?: {channel, video, item_id, step_id?}, today: [{channel, name, date, items[]}]}`: Autopilot đang làm gì, trạng thái từng mục kế hoạch hôm nay (052) |
 | `autopilot.run_now` | `{}` → `{started, reason?}`: chạy một lượt ngay (lập kế hoạch nếu chưa có rồi làm lần lượt các mục), bỏ qua khung giờ làm việc; không chạy khi đang tạm dừng (052) |
 | `autopilot.pause` / `autopilot.resume` | `{}` → `{paused}`: đặt `autopilot.paused` (app) (052) |
+| `report.latest` | `{channel?}` → `{reports: DailyReport[]}`: báo cáo ngày gần nhất đã lập của kênh (mặc định mọi kênh Autopilot) (054) |
+| `report.run` | `{channel?, send?}` → `{reports: DailyReport[], text: string}`: lập báo cáo ngay (thu số liệu mới nếu cũ); `send: true` gửi vào Telegram (054) |
 | `publish.youtube.connect` | `{channel}` → `{auth_url}`: bắt đầu OAuth cho kênh (UI mở `auth_url` bằng trình duyệt; app đợi mã ở cổng loopback tối đa 5 phút) (053) |
 | `publish.youtube.status` | `{channel}` → `{connected, audited, youtube_channel_id?, channel_title?, quota{used, limit}, error?}` (053) |
 | `publish.youtube.disconnect` | `{channel}` → `{ok}`: thu hồi và xóa token (053) |

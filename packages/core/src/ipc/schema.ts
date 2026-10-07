@@ -6,6 +6,7 @@ import type {
   CaptionOverrides,
   ContextRef,
   DailyPlan,
+  DailyReport,
   JobInfo,
   PlanItem,
   ResearchDoc,
@@ -135,6 +136,12 @@ export interface IpcMethods {
       platform?: 'youtube' | 'tiktok' | 'facebook';
     };
     result: { status: string; url?: string; note?: string };
+  };
+  /** 054: báo cáo ngày — gần nhất đã lập / lập ngay (tuỳ chọn gửi vào Telegram). */
+  'report.latest': { params: { channel?: string }; result: { reports: DailyReport[] } };
+  'report.run': {
+    params: { channel?: string; send?: boolean };
+    result: { reports: DailyReport[]; text: string };
   };
   /** 055: bot Telegram đang chạy/tắt và vì sao. */
   'telegram.status': {

@@ -56,6 +56,7 @@ const D5: [string, string[]][] = [
   ['publish.status', ['main', 'ops']],
   ['publish.cancel', ['main', 'ops']],
   ['publish.now', ['main', 'ops']],
+  ['report.get', ['main', 'ops']],
   ['ops.channels', ['ops']],
   ['ops.log', ['ops']],
   ['ops.sessions', ['ops']],

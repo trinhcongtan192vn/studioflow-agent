@@ -98,6 +98,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `research.scan`, `research.get` (049) | ✓ | — | — | — | chỉ `research.get` |
 | `autopilot.plan_get`, `autopilot.plan_run`, `autopilot.plan_update` (051) | ✓ | — | — | — | chỉ `plan_get`, `plan_update` (kèm `channel`) |
 | `autopilot.status` (052) | ✓ | — | — | — | ✓ |
+| `report.get` (054) | ✓ | — | — | — | ✓ (kèm `channel`) |
 | `publish.status`, `publish.cancel`, `publish.now` (053) | ✓ | — | — | — | ✓ (kèm `channel`) |
 | `autopilot.pause`, `autopilot.resume`, `ops.channels`, `ops.log`, `ops.sessions` (055) | ✓ (`autopilot.pause/resume`) | — | — | — | ✓ |
 | `job.*` | ✓ | ✓ | — | — | chỉ `job.list` |
@@ -149,7 +150,7 @@ Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 v
 
 ### 5.3 Mạng
 - Agent không có tool mạng.
-- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, YouTube Data API (`www.googleapis.com`, 044/049), Google Trends / Google News RSS (`trends.google.com`, `news.google.com`, quét nghiên cứu 049), Telegram Bot API (`api.telegram.org`, 055), đăng YouTube (053: `accounts.google.com` — trang cấp quyền mở bằng trình duyệt của người dùng —, `oauth2.googleapis.com`, `www.googleapis.com` gồm `/upload/youtube/v3`) và cổng loopback `127.0.0.1:<ngẫu nhiên>` nhận mã OAuth trong lúc kết nối và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
+- `core` chỉ gọi ra ngoài tới: Anthropic (qua SDK), OpenAI, DeepSeek, nhà cung cấp ảnh đã cấu hình, máy chủ model trong `models.yaml`, YouTube Data API (`www.googleapis.com`, 044/049), Google Trends / Google News RSS (`trends.google.com`, `news.google.com`, quét nghiên cứu 049), Telegram Bot API (`api.telegram.org`, 055), đăng YouTube (053: `accounts.google.com` — trang cấp quyền mở bằng trình duyệt của người dùng —, `oauth2.googleapis.com`, `www.googleapis.com` gồm `/upload/youtube/v3`, và `youtubeanalytics.googleapis.com` cho số liệu 054) và cổng loopback `127.0.0.1:<ngẫu nhiên>` nhận mã OAuth trong lúc kết nối và `127.0.0.1` (ComfyUI, worker, Studio, Phoenix). Danh sách nằm trong `settings.json.network.allow`.
 - Lệnh `script.run` không có mạng trừ khi được đánh dấu cần mạng trong danh sách cho phép (cơ chế chặn: tech-defaults `[chờ S8]`).
 
 ### 5.4 Khóa bí mật (FR-OP-07)

@@ -164,6 +164,20 @@ export class TelegramService {
     else await client.sendMessage(chat, m.text, { parse_mode: 'HTML', reply_markup: kb });
   }
 
+  /** Gửi tin HTML vào nhóm (054 báo cáo ngày); false nếu chưa bật/chưa cấu hình hoặc gửi lỗi. */
+  async sendText(html: string): Promise<boolean> {
+    const client = this.client;
+    const chat = this.chatId();
+    if (!client || !chat || !this.enabled()) return false;
+    try {
+      await client.sendMessage(chat, html, { parse_mode: 'HTML' });
+      return true;
+    } catch (e) {
+      this.d.log?.('warn', `telegram: sendText failed: ${String((e as Error).message)}`);
+      return false;
+    }
+  }
+
   /** Cho tính năng sau (053 nút Hủy/Đăng ngay…) đăng ký xử lý nút inline. */
   onCallback(prefix: string, h: Parameters<TelegramBot['onCallback']>[1]): void {
     this.pendingCallbacks.push([prefix, h]);

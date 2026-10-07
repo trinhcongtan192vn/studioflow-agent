@@ -32,6 +32,7 @@
   chat/<session_id>.jsonl           chat cấp kênh (khi chưa chọn video, ví dụ tạo kênh)
   research/<YYYY-MM-DD>.json        quét nghiên cứu Autopilot theo ngày (049, mục 5.17): đối thủ, trending, tin nóng → chủ đề chấm điểm
   autopilot/plans/<YYYY-MM-DD>.json kế hoạch ngày Autopilot (051, mục 5.18): chủ đề, workflow, khung giờ đăng, lý do
+  autopilot/reports/<YYYY-MM-DD>.json báo cáo ngày của kênh (054, mục 5.20): số liệu, sản xuất, đăng bài, chi phí
   autopilot/log/<YYYY-MM-DD>.jsonl  nhật ký vận hành Autopilot (052, mục 5.19): mỗi quyết định tự động một dòng, kèm lý do (append-only)
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
@@ -540,6 +541,43 @@ interface AutopilotLogLine {
 }
 ```
 
+### 5.20 `autopilot/reports/<YYYY-MM-DD>.json` (054)
+Báo cáo ngày của một kênh Autopilot (FR-AP-11): số liệu hiệu quả (bảng `channel_metrics` / `video_metrics` trong `studioflow.db`, D11 3.1), sản xuất và đăng bài hôm nay (kế hoạch 5.18), chi phí Claude so với ngân sách, quota YouTube, tiêu đề kế hoạch ngày mai. Là nguồn cho tin nhắn Telegram và cho màn hình ứng dụng sau này. Ngày theo `publish.timezone`. Ghi một lần mỗi ngày vào giờ `report.time` (idempotent: có file `delivered_at` thì không gửi lại; có file chưa `delivered_at` → chỉ gửi lại); `/report` tạo bản mới không đánh dấu đã gửi.
+
+```ts
+interface DailyReport extends Versioned {
+  channel_id: ChannelId;
+  channel_name: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;                                    // ngày báo cáo theo `publish.timezone` của kênh
+  generated_at: Iso8601;
+  delivered_at?: Iso8601;                          // đã gửi vào Telegram
+  youtube: {
+    connected: boolean;
+    /** Ngày dữ liệu mới nhất đã có (YouTube Analytics thường trễ 1–3 ngày). */
+    metrics_day?: string;
+    views?: number;
+    views_prev?: number;                           // ngày liền trước
+    views_avg7?: number;                           // trung bình 7 ngày trước `metrics_day`
+    views_change_pct?: number;                     // so với ngày liền trước
+    views_change_avg7_pct?: number;
+    watch_minutes?: number;
+    avg_view_duration_s?: number;
+    subs_gained?: number; subs_lost?: number;
+    likes?: number;
+    top_videos: { title: string; url?: string; views: number; item_id?: string }[];   // 7 ngày gần nhất, video do app đăng
+  };
+  production: { produced: number; in_production: number; needs_review: number; failed: number; planned: number;
+                items: { title: string; status: PlanItemStatus; note?: string }[] };
+  publishing: { uploaded: { title: string; status: PublishStatus; url?: string; publish_at?: Iso8601 }[];
+                waiting: { title: string; status: PublishStatus; note?: string }[] };   // pending / failed / private chờ công khai
+  claude: { used_tokens: number; budget_tokens: number | null; used_pct: number | null };
+  quota: { youtube_used: number; youtube_limit: number };
+  tomorrow: string;                                // một dòng tiếng Việt
+  notes: string[];                                 // tiếng Việt: thiếu dữ liệu, chưa kết nối, v.v.
+}
+```
+
 ## 6. `channel.json` và `settings.json`
 
 Mọi giá trị cấu hình (ở mọi tầng) lưu dưới dạng **map phẳng theo khóa cấu hình** (mục 7.2) — một biểu diễn duy nhất, không có tên trường riêng theo file.
@@ -625,6 +663,8 @@ interface SettingsConfig extends Versioned {
 | `autopilot.work_window` | string (`HH:MM-HH:MM`) | app |
 | `autopilot.budget_share` | number (tỉ lệ) | app |
 | `autopilot.daily_tokens` | number (token Claude mỗi ngày; null = tự học, 050) | app |
+| `report.enabled` | boolean (gửi báo cáo ngày vào nhóm Telegram, 054) | app |
+| `report.time` | string (`HH:MM` theo `publish.timezone` của từng kênh; giờ gửi báo cáo ngày, 054) | app |
 | `telegram.enabled` | boolean (bật bot Telegram: thông báo vận hành và hỏi đáp với agent `ops`, 055) | app |
 | `telegram.chat_id` | string (ID nhóm/kênh Telegram nhận thông báo; rỗng = chưa đặt) | app |
 | `telegram.allowed_user_ids` | string[] (ID người dùng Telegram được ra lệnh cho bot; rỗng = mọi thành viên của `telegram.chat_id`) | app |

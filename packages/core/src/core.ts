@@ -68,6 +68,12 @@ import {
   YouTubePublisher,
   type HttpFetch,
 } from './publish/index.js';
+import {
+  MetricsCollector,
+  ReportService,
+  reportTools,
+  YouTubeAnalytics,
+} from './analytics/index.js';
 import { YouTubeMcp, youtubeServer, YOUTUBE_SECRET, youtubeTools } from './youtube/index.js';
 import { defineResearchJob, researchTools } from './research/index.js';
 import {
@@ -79,7 +85,7 @@ import {
   installedWorkflows,
   planToday,
 } from './autopilot/index.js';
-import type { CapacityChannel } from './autopilot/index.js';
+import { readClaudeUsage, type CapacityChannel } from './autopilot/index.js';
 
 export interface CoreOptions {
   appDataDir?: string;
@@ -132,6 +138,10 @@ export interface Core {
   captions: CaptionPanel;
   /** Bộ đăng bài (053): tải lên các mục đã làm xong, xem trước/hủy/đăng ngay. */
   publisher: PublishService;
+  /** Báo cáo ngày (054): thu số liệu YouTube Analytics, soạn và gửi Telegram. */
+  reports: ReportService;
+  /** Bộ thu số liệu YouTube Analytics vào SQLite (054). */
+  metrics: MetricsCollector;
   /** Kết nối YouTube theo kênh (OAuth, trạng thái, ngắt). */
   youtube: YouTubeAccounts;
   /** Kho bí mật (D5 5.4): token Telegram, OAuth… — không bao giờ ghi file/log. */
@@ -394,6 +404,35 @@ export function createCore(opts: CoreOptions = {}): Core {
     appDataDir,
   });
   for (const t of publishTools(publisher)) gateway.register(t);
+  // 054: số liệu YouTube Analytics → SQLite, báo cáo ngày (gửi qua Telegram do host nối `reports.setSend`)
+  const collector = new MetricsCollector({
+    db,
+    auth: ytAuth,
+    api: (channelId: string) =>
+      new YouTubeAnalytics({
+        ...(opts.publishFetch ? { fetch: opts.publishFetch } : {}),
+        token: (force) => ytAuth.accessToken(channelId, force),
+        quota,
+      }),
+    channels: () => autopilot.channelDirs(),
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  const reports = new ReportService({
+    db,
+    appDataDir,
+    storeFor: plan.storeFor,
+    channels: () => autopilot.channelDirs(),
+    collector,
+    quota,
+    claude: (sinceMs) => {
+      const used = readClaudeUsage(db, sinceMs).reduce((s, u) => s + u.tokens, 0);
+      const cap = plan.capacity([]);
+      return { used_tokens: used, budget_tokens: cap.daily_tokens ?? null };
+    },
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  autopilot.setReporter(reports);
+  for (const t of reportTools(reports)) gateway.register(t);
   workflows.setAutoDecide(autopilot.autoDecide);
   autopilot.attachPermissions(gateway.permissions);
   for (const t of autopilotRunnerTools(autopilot, appDataDir)) gateway.register(t);
@@ -450,6 +489,8 @@ export function createCore(opts: CoreOptions = {}): Core {
     captions: new CaptionPanel(gateway),
     autopilot,
     publisher,
+    reports,
+    metrics: collector,
     youtube: ytAccounts,
     secrets,
     phoenix,
