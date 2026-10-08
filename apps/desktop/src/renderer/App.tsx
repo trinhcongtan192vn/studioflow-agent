@@ -34,7 +34,7 @@ export function App() {
       if (!s.auth.ok || s.install.missing.length) setOnboarding(true);
     });
     // 052: trạng thái Autopilot → `main` (khay hệ thống, chống ngủ máy); lệnh từ menu khay
-    const background = { on: false };
+    const background = { on: false, paused: false };
     const syncAutopilot = async () => {
       try {
         const [status, managed, settings] = await Promise.all([
@@ -47,6 +47,7 @@ export function App() {
           background: settings.config['autopilot.background'] !== false,
         });
         background.on = st.background;
+        background.paused = st.paused;
         window.studioflow.setAutopilotState(st);
       } catch {
         /* lõi chưa sẵn sàng → lần cập nhật sau */
@@ -61,8 +62,8 @@ export function App() {
         .then(() => syncAutopilot());
     });
     window.studioflow.onCloseRequest(({ quit }) => {
-      // chạy nền (có kênh Autopilot): nút đóng chỉ ẩn xuống khay
-      if (closeAction({ quit, background: background.on }) === 'hide')
+      // chạy nền (có kênh Autopilot đang chạy): nút đóng chỉ ẩn xuống khay; tạm dừng → kiểm việc dở (090)
+      if (closeAction({ quit, background: background.on, paused: background.paused }) === 'hide')
         return void window.studioflow.closeReply('hide');
       void Promise.race([
         core.call('app.activity', {}).then(activityLines),

@@ -66,7 +66,14 @@ export function desktopState(
   };
 }
 
-/** Bấm đóng cửa sổ: chạy nền → ẩn xuống khay; thoát hẳn (menu khay, Alt+F4 khi không chạy nền) → kiểm việc dở. */
-export function closeAction(o: { quit: boolean; background: boolean }): 'hide' | 'check' {
-  return !o.quit && o.background ? 'hide' : 'check';
+/**
+ * Bấm đóng cửa sổ: chạy nền → ẩn xuống khay; thoát hẳn (menu khay, Alt+F4 khi không chạy nền) → kiểm việc dở.
+ * 090: Autopilot tạm dừng thì chạy nền vô ích → kiểm việc dở như kênh thường.
+ */
+export function closeAction(o: {
+  quit: boolean;
+  background: boolean;
+  paused: boolean;
+}): 'hide' | 'check' {
+  return !o.quit && o.background && !o.paused ? 'hide' : 'check';
 }

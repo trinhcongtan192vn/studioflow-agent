@@ -144,6 +144,8 @@ let quitRequested = false;
 let tray: Tray | undefined;
 let blocker: number | undefined;
 let apState = { background: false, producing: false, paused: false, any: false };
+// 090: báo một lần mỗi phiên khi nút đóng chỉ ẩn xuống khay
+let hiddenHintShown = false;
 const startHidden = process.argv.includes('--hidden');
 
 /** Bí mật đọc ở `main` (D5 mục 5.4) rồi chuyển cho core; renderer không thấy giá trị. */
@@ -331,6 +333,14 @@ ipcMain.handle('app:close-reply', (_e, r: 'asking' | 'close' | 'stay' | 'hide') 
     // 052: chạy nền — ẩn xuống khay, Autopilot vẫn làm
     win?.hide();
     updateTray();
+    if (!hiddenHintShown && tray) {
+      hiddenHintShown = true;
+      tray.displayBalloon({
+        title: 'StudioFlow vẫn chạy nền',
+        content:
+          'Việc đang làm vẫn tiếp tục. Mở lại: bấm biểu tượng ở khay. Thoát hẳn: chuột phải → "Thoát hẳn".',
+      });
+    }
     return;
   }
   if (r === 'stay') quitRequested = false;

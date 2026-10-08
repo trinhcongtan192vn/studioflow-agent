@@ -66,8 +66,10 @@ describe('autopilot view', () => {
     expect(
       desktopState({ ...s, paused: true }, { anyAutopilot: true, background: true }).producing,
     ).toBe(false);
-    expect(closeAction({ quit: false, background: true })).toBe('hide');
-    expect(closeAction({ quit: true, background: true })).toBe('check');
-    expect(closeAction({ quit: false, background: false })).toBe('check');
+    expect(closeAction({ quit: false, background: true, paused: false })).toBe('hide');
+    expect(closeAction({ quit: true, background: true, paused: false })).toBe('check');
+    expect(closeAction({ quit: false, background: false, paused: false })).toBe('check');
+    // 090 FR-AP-90-01: Autopilot tạm dừng → chạy nền vô ích, kiểm việc dở như thường
+    expect(closeAction({ quit: false, background: true, paused: true })).toBe('check');
   });
 });
