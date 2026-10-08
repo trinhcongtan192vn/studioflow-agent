@@ -441,6 +441,8 @@ export interface IpcEvents {
   'workflow.updated': VideoStateSummary & { channel: string };
   /** Agent báo tình trạng workflow trong chat (041); dòng đã được ghi vào lịch sử. */
   'workflow.notice': { channel: string; video: string; line: ChatLine };
+  /** 081: agent ở chat kênh tạo video mới → app mở video đó. */
+  'video.created': { channel: string; video: string; title: string };
   /** Tiến độ bước đang chạy (008 UI-04); `done`/`total` null = bước đã kết thúc. */
   'workflow.progress': {
     channel: string;

@@ -32,6 +32,16 @@ import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
 type Video = VideoCard;
+/** So khớp đường dẫn kênh (không phân biệt hoa thường, dấu gạch; tên ngắn 8.3 coi như không biết). */
+const sameDir = (a: string, b: string): boolean | undefined => {
+  const n = (x: string) =>
+    x
+      .replace(/[\\/]+/g, '/')
+      .replace(/\/$/, '')
+      .toLowerCase();
+  if (n(a) === n(b)) return true;
+  return /~\d/.test(a + b) ? undefined : false;
+};
 // 068: khung app — thanh điều hướng trái, các màn mở như trang
 type Page =
   | 'overview'
@@ -184,6 +194,18 @@ export function Workspace({
     const offs = [
       core.on('workflow.updated', (s) => {
         if (s.video_id === video) setState(s);
+      }),
+      // 081: agent ở chat kênh tạo video → mở video đó (agent của video làm tiếp yêu cầu)
+      core.on('video.created', (d) => {
+        if (!channel || sameDir(d.channel, channel) === false) return;
+        void reload().then(() => {
+          setPage('video');
+          void openVideo(d.video);
+          toast({
+            tone: 'success',
+            text: `Agent đã tạo video "${d.title}" — đang làm tiếp trong video.`,
+          });
+        });
       }),
       core.on('file.external_change', (d) => {
         if (d.video === video) setExternal((x) => [...new Set([...x, d.path])]);

@@ -50,6 +50,7 @@ import {
   updatePlanItem,
   asrFixInstruction,
   briefInstruction,
+  canonicalDir,
   RUNNER_CONSTANTS,
   type ItemOutcomeEvent,
   resolveYouTubeChannel,
@@ -59,6 +60,7 @@ import { getSecretDefault } from '../secrets/credman.js';
 import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
 import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash.js';
 import { videoCard, type VideoCard } from '../domain/video-card.js';
+import type { VideoCreated } from '../gateway/tools/video.js';
 import { exportVideo, listRenders, renderLibrary, type ExportInclude } from '../render/export.js';
 import { publishQueue } from '../publish/queue-view.js';
 import { recordSessions } from '../agent/recorder.js';
@@ -161,6 +163,12 @@ export class CoreHost extends EventEmitter {
     this.telegram.onCallback(PUBLISH_CALLBACK, (data) => this.core.publisher.handleCallback(data));
     this.core.youtube.onChange = (channel) => this.send('publish.updated', { channel });
     if (opts.autopilot) void this.telegram.reconfigure();
+    // 081: agent ở chat kênh tạo video → app mở video; yêu cầu chuyển sang phiên của video khi lượt kênh xong
+    this.core.videoEvents.on('created', (e: VideoCreated) => {
+      this.send('video.created', { channel: e.channel, video: e.video, title: e.title });
+      const k = canonicalDir(e.channel);
+      this.handoffs.set(k, [...(this.handoffs.get(k) ?? []), e]);
+    });
     // 052: Autopilot — kênh quản lý đang bật, brief qua phiên `main`, sự kiện, vòng lặp định kỳ
     const ap = this.core.autopilot;
     ap.setChannels(() => this.autopilotChannels());
@@ -237,6 +245,8 @@ export class CoreHost extends EventEmitter {
   }
 
   private watcher?: { close(): void };
+  // 081: yêu cầu chờ chuyển sang video vừa tạo, theo kênh
+  private readonly handoffs = new Map<string, VideoCreated[]>();
 
   close(): void {
     void this.telegram.close();
@@ -558,7 +568,19 @@ export class CoreHost extends EventEmitter {
       const n = (this.replying.get(busyKey) ?? 1) - 1;
       if (n > 0) this.replying.set(busyKey, n);
       else this.replying.delete(busyKey);
+      // 081: video agent vừa tạo ở lượt kênh này → chuyển yêu cầu sang phiên chat của video
+      if (!video) this.flushHandoffs(channel);
     }
+  }
+
+  /** 081: video được tạo từ chat kênh → gửi yêu cầu vào phiên chat của video (agent của video làm tiếp). */
+  private flushHandoffs(channel: string): void {
+    const k = canonicalDir(channel);
+    const list = this.handoffs.get(k);
+    if (!list?.length) return;
+    this.handoffs.delete(k);
+    for (const e of list)
+      void this.chat(channel, e.video, `[Từ chat kênh] ${e.instruction}`).catch(() => {});
   }
 
   private async chatTurn(

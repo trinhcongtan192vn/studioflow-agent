@@ -32,6 +32,16 @@ function fakeRuntime(host: () => CoreHost): AgentRuntime & { opened: SessionOpti
         sdkSessionId: 'sdk-123',
         async *send(m: { text: string }): AsyncIterable<AgentEvent> {
           yield { type: 'text_delta', text: `Đã nhận: ${m.text.slice(0, 40)}` };
+          // 081: agent ở chat kênh tạo video mới cho yêu cầu
+          if (m.text.includes('#create') && !o.context.video_id) {
+            const r = await host().core.gateway.call(o.context, 'video.create', {
+              title: 'Short AI gian lận',
+              instruction: 'Dựng short từ https://youtu.be/ujkD4SxPKOI',
+            });
+            yield { type: 'tool_result', id: 'v1', ok: r.ok, summary: JSON.stringify(r) };
+            yield { type: 'done', stop_reason: 'end_turn' };
+            return;
+          }
           yield {
             type: 'tool_call',
             id: 't1',
@@ -217,6 +227,36 @@ describe('CoreHost IPC (008)', () => {
     await host.call('video.delete', { channel: dir, video: video_id });
     expect((await host.call('trash.empty', { channel: dir })).removed).toHaveLength(1);
     expect((await host.call('trash.list', { channel: dir })).entries).toEqual([]);
+  });
+
+  it('the channel chat agent creates a video and hands the request over to it (081)', async () => {
+    const { host, dir, events } = setup();
+    await host.call('channel.open', { channel: dir });
+    const before = (await host.call('video.list', { channel: dir })).videos.map((v) => v.id);
+    await host.call('chat.send', { channel: dir, text: '#create làm short từ link' });
+    const created = events.find(([n]) => n === 'video.created')?.[1] as
+      { channel: string; video: string; title: string } | undefined;
+    expect(created).toMatchObject({ title: 'Short AI gian lận' });
+    const after = (await host.call('video.list', { channel: dir })).videos;
+    expect(after.map((v) => v.id)).not.toEqual(before);
+    expect(after.find((v) => v.id === created!.video)?.title).toBe('Short AI gian lận');
+    // yêu cầu được chuyển sang phiên chat của video mới
+    let history: { role: string; content: string }[] = [];
+    for (let i = 0; i < 100 && !history.some((l) => l.content.includes('[Từ chat kênh]')); i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      history = (await host.call('video.open', { channel: dir, video: created!.video })).history;
+    }
+    expect(history.find((l) => l.content.includes('[Từ chat kênh]'))).toMatchObject({
+      role: 'user',
+      content: expect.stringContaining('Dựng short từ https://youtu.be/ujkD4SxPKOI'),
+    });
+    // trong phiên của một video thì không tạo video khác
+    const inVideo = await host.core.gateway.call(
+      { session_id: 'ss_x', kind: 'main', channel_dir: dir, video_id: created!.video as never },
+      'video.create',
+      { title: 'x', instruction: 'y' },
+    );
+    expect(inVideo).toMatchObject({ ok: false });
   });
 
   it('lists renders and exports one outside the channel (066)', async () => {

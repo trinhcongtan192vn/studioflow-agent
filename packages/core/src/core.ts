@@ -1,7 +1,9 @@
+import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { asrLineBuilder } from './asr/builder.js';
 import { acceptLines } from './asr/regen.js';
+import { videoTools } from './gateway/tools/video.js';
 import { assetTools } from './assets/tools.js';
 import { defineImageJobs, imageTools } from './image/tools.js';
 import { defineMusicJobs, musicTools } from './music/tools.js';
@@ -153,6 +155,8 @@ export interface Core {
   pinned: PinnedDecider;
   /** Bảng caption (026). */
   captions: CaptionPanel;
+  /** 081: `created` (VideoCreated) — agent ở chat kênh tạo video mới. */
+  videoEvents: EventEmitter;
   /** Bộ đăng bài (053): tải lên các mục đã làm xong, xem trước/hủy/đăng ngay. */
   publisher: PublishService;
   /** Báo cáo ngày (054): thu số liệu YouTube Analytics, soạn và gửi Telegram. */
@@ -292,6 +296,10 @@ export function createCore(opts: CoreOptions = {}): Core {
   // HyperFrames adapter, frame build, asset (011)
   graph.registerBuilder('index', indexBuilder({ appDataDir }));
   for (const t of assetTools()) gateway.register(t);
+  // 081: agent ở chat kênh tạo video mới (host mở video + chuyển yêu cầu sang phiên của video)
+  const videoEvents = new EventEmitter();
+  for (const t of videoTools({ onCreated: (e) => videoEvents.emit('created', e) }))
+    gateway.register(t);
   // Ảnh (018): image.generate / image.edit / image.remove_bg
   for (const t of imageTools(tts)) gateway.register(t);
   defineImageJobs(tts, appDataDir);
@@ -571,6 +579,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     edits,
     pinned,
     captions: new CaptionPanel(gateway),
+    videoEvents,
     autopilot,
     publisher,
     reports,
