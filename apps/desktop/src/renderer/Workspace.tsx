@@ -11,6 +11,7 @@ import {
   saveWidths,
   type PanelWidths,
 } from './layout';
+import { ExportDialog } from './ExportDialog';
 import { Icon, type IconName } from './Icon';
 import { AsPage } from './Surface';
 import { core } from './rpc';
@@ -39,7 +40,9 @@ const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; te
   },
   { page: 'channels', label: 'Kênh', title: 'Quản lý kênh', icon: 'home', testId: 'nav-channels' },
 ];
-const TABS = ['Tiến độ', 'Xem trước', 'Job', 'Nhạc', 'Trace', 'Chi phí'] as const;
+// 072: Job / Trace / Chi phí gộp vào "Kỹ thuật"; "Tệp" = thư mục của video đang mở
+const TABS = ['Tiến độ', 'Xem trước', 'Tệp', 'Nhạc', 'Kỹ thuật'] as const;
+const TECH = ['Job', 'Trace', 'Chi phí'] as const;
 
 /**
  * UI-03 Giao diện chính (FN-008 mục 1; 048): mở app vào thẳng đây. Sidebar: bộ chọn kênh (thêm/tạo kênh),
@@ -60,6 +63,9 @@ export function Workspace({
   const [external, setExternal] = useState<string[]>([]);
   const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
+  const [tech, setTech] = useState<(typeof TECH)[number]>('Job');
+  // 072: xuất video từ đầu trang video
+  const [exporting, setExporting] = useState(false);
   // 068: màn đang mở trong vùng chính (thanh điều hướng trái); `video` = sidebar + chat + tab
   const [page, setPage] = useState<Page>('video');
   // 048: quản lý kênh, lịch sử phiên, chi tiết kênh (cây thư mục)
@@ -158,6 +164,7 @@ export function Workspace({
     };
   }, [channel, video, reload]);
 
+  const current = video ? videos.find((v) => v.id === video) : undefined;
   const openVideo = async (id: string) => {
     if (!channel) return;
     setVideo(id);
@@ -182,6 +189,13 @@ export function Workspace({
       setCreateErr((e as Error).message);
     }
   };
+  useEffect(() => {
+    if (tab === 'Tệp' && channel)
+      void core
+        .call('explorer.tree', { channel })
+        .then(setTree)
+        .catch(() => {});
+  }, [tab, video, channel]);
   const view = async (p: string) => {
     if (!channel) return;
     setFile({ path: p, ...(await core.call('explorer.read', { channel, path: p })) });
@@ -473,17 +487,54 @@ export function Workspace({
             ) : (
               <>
                 <header className="video-head">
-                  <b>
-                    {video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}
-                  </b>
-                  {state && (
-                    <span className="muted">
-                      {' '}
-                      · {state.phase} · {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
-                      {state.budget.api_cost_usd.toFixed(2)}
-                    </span>
+                  <div className="vh-title">
+                    <b>{current ? current.title : 'Chat kênh'}</b>
+                    {current && (
+                      <span className={`vh-meta st-${current.status}`}>
+                        {current.format && (
+                          <span className="badge fmt">
+                            {current.format === 'vertical' ? 'Shorts' : 'Dài'}
+                          </span>
+                        )}
+                        <span className="vc-status">{statusLabel(current)}</span>
+                        {state && (
+                          <span className="muted">
+                            {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
+                            {state.budget.api_cost_usd.toFixed(2)}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {!current && (
+                      <span className="muted vh-sub">
+                        Hỏi agent về kênh, hoặc nhờ tạo video mới.
+                      </span>
+                    )}
+                  </div>
+                  {video && (
+                    <div className="vh-actions">
+                      <button
+                        className="ghost"
+                        title="Mở thư mục video trong Windows"
+                        onClick={() =>
+                          void window.studioflow.openPath(`${channel}/videos/${video}`)
+                        }
+                      >
+                        <Icon name="folder" /> Thư mục
+                      </button>
+                      <button data-testid="head-export" onClick={() => setExporting(true)}>
+                        <Icon name="download" /> Xuất video
+                      </button>
+                    </div>
                   )}
                 </header>
+                {exporting && video && (
+                  <ExportDialog
+                    channel={channel}
+                    video={video}
+                    onClose={() => setExporting(false)}
+                  />
+                )}
                 <Chat
                   key={`${channel}|${video ?? ''}`}
                   channel={channel}
@@ -516,10 +567,34 @@ export function Workspace({
                 <ProgressTab channel={channel} video={video} state={state} onState={setState} />
               )}
               {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
-              {channel && tab === 'Job' && <JobsTab video={video} />}
+              {channel && tab === 'Tệp' && (
+                <VideoFiles
+                  node={video ? findNode(tree, `videos/${video}`) : undefined}
+                  onOpen={(p) => void view(p)}
+                  onReveal={(p) => void window.studioflow.openPath(`${channel}/${p}`)}
+                />
+              )}
               {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
-              {channel && tab === 'Trace' && <TraceTab video={video} />}
-              {channel && tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
+              {channel && tab === 'Kỹ thuật' && (
+                <>
+                  <div className="segmented tech-switch" role="tablist" aria-label="Kỹ thuật">
+                    {TECH.map((t) => (
+                      <button
+                        key={t}
+                        role="tab"
+                        aria-selected={tech === t}
+                        className={tech === t ? 'active' : ''}
+                        onClick={() => setTech(t)}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  {tech === 'Job' && <JobsTab video={video} />}
+                  {tech === 'Trace' && <TraceTab video={video} />}
+                  {tech === 'Chi phí' && <CostTab channel={channel} video={video} />}
+                </>
+              )}
             </div>
           </aside>
         </>
@@ -692,6 +767,36 @@ function Tree({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function findNode(node: ExplorerNode | undefined, p: string): ExplorerNode | undefined {
+  if (!node) return undefined;
+  if (node.path === p) return node;
+  for (const c of node.children ?? []) {
+    if (p === c.path || p.startsWith(`${c.path}/`)) return findNode(c, p);
+  }
+  return undefined;
+}
+
+/** 072: tab Tệp — cây thư mục của video đang mở (chỉ đọc; chuột phải = mở thư mục trong Windows). */
+function VideoFiles({
+  node,
+  onOpen,
+  onReveal,
+}: {
+  node: ExplorerNode | undefined;
+  onOpen: (p: string) => void;
+  onReveal: (p: string) => void;
+}) {
+  if (!node) return <p className="muted">Chọn một video để xem tệp của nó.</p>;
+  return (
+    <div className="explorer video-files" data-testid="video-files">
+      <p className="muted">Bấm để xem; chuột phải để mở thư mục chứa tệp trong Windows.</p>
+      {node.children?.map((c) => (
+        <Tree key={c.path} node={c} onOpen={onOpen} onReveal={onReveal} />
+      ))}
     </div>
   );
 }

@@ -233,13 +233,19 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
       readFileSync(path.join(channel, 'videos', 'vd_8m2pq7rt', 'caption-overrides.json'), 'utf8'),
     );
     expect(ov.groups.cg_m1x8d0rq).toEqual({ end_ms: 1300, text: 'Năm 1428 — sửa tay' });
-    // UI-12 Chi phí (028)
-    await win.getByRole('button', { name: 'Chi phí' }).click();
+    // 072: tab Tệp — thư mục của video đang mở
+    await win.getByRole('button', { name: 'Tệp', exact: true }).click();
+    await expect(win.getByTestId('video-files')).toContainText('SCRIPT.md');
+    // 072: đầu trang video có nút Xuất video
+    await expect(win.getByTestId('head-export')).toBeVisible();
+    // UI-12 Chi phí (028) — 072: trong tab Kỹ thuật cùng Job / Trace
+    await win.getByRole('button', { name: 'Kỹ thuật', exact: true }).click();
+    await win.getByRole('tab', { name: 'Chi phí' }).click();
     await expect(win.getByTestId('cost')).toContainText('Tổng');
     // tab Job / Trace
-    await win.getByRole('button', { name: 'Trace' }).click();
+    await win.getByRole('tab', { name: 'Trace' }).click();
     await expect(win.getByTestId('traces')).toContainText('sf.agent.session');
-    await win.getByRole('button', { name: 'Job' }).click();
+    await win.getByRole('tab', { name: 'Job' }).click();
     await expect(win.getByText('Mọi video')).toBeVisible();
     // 008: tab Tiến độ — trạng thái tổng; "Quay lại" hỏi xác nhận rồi báo kết quả
     await win.getByRole('button', { name: 'Tiến độ' }).click();

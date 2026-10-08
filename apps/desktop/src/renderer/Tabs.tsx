@@ -95,7 +95,7 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
     try {
       const r = await core.call('render.start', { channel, video, mode });
       setMsg(
-        `Đã xếp render ${mode === 'draft' ? 'nháp' : 'phát hành'} (${r.job_id}) — xem tab Job.`,
+        `Đã xếp render ${mode === 'draft' ? 'nháp' : 'phát hành'} (${r.job_id}) — xem tab Kỹ thuật → Job.`,
       );
     } catch (e) {
       setMsg((e as Error).message);
@@ -154,7 +154,7 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       <div className="row">
         {url ? (
           <>
-            <button onClick={() => setWide(!wide)}>{wide ? 'Thu nhỏ' : 'Mở rộng'}</button>
+            <button onClick={() => setWide(!wide)}>{wide ? 'Thu nhỏ' : 'Toàn màn hình'}</button>
             <button onClick={() => void attachTime()}>Đính kèm mốc hiện tại</button>
             <button onClick={() => void attachSelection()}>Đính kèm phần tử đang chọn</button>
             {editing && <button onClick={() => void commit()}>Lưu thay đổi Studio</button>}
@@ -177,8 +177,25 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       )}
       <p>{msg}</p>
       {wide ? (
-        <div className="modal" onClick={() => setWide(false)}>
+        // 072: Studio toàn cửa sổ; Esc hoặc "Thu nhỏ" để về khung tab
+        <div
+          className="studio-overlay"
+          role="dialog"
+          aria-label="Studio toàn màn hình"
+          onKeyDown={(e) => e.key === 'Escape' && setWide(false)}
+        >
+          <div className="studio-bar">
+            <b>Studio</b>
+            <span className="muted">{editing ? 'Đang chỉnh — nhớ Lưu thay đổi' : 'Xem trước'}</span>
+            <span className="spacer" />
+            <button onClick={() => void attachTime()}>Đính kèm mốc hiện tại</button>
+            {editing && <button onClick={() => void commit()}>Lưu thay đổi Studio</button>}
+            <button className="primary" autoFocus onClick={() => setWide(false)}>
+              Thu nhỏ (Esc)
+            </button>
+          </div>
           {studio}
+          {msg && <p className="studio-msg">{msg}</p>}
         </div>
       ) : (
         studio
