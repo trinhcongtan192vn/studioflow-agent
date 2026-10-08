@@ -437,6 +437,7 @@ export function Workspace({
             )}
             {page === 'channels' && (
               <ChannelsOverview
+                current={channel}
                 onOpen={(dir) => {
                   setPage('video');
                   onSwitch(dir);

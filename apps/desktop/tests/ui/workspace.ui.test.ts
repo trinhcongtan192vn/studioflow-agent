@@ -290,6 +290,8 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await win.getByTestId('open-channel-settings').click();
     const cs = win.getByTestId('channel-settings');
     await expect(cs).toContainText('Kênh đối thủ');
+    // 082: ngôn ngữ mặc định của kênh
+    await expect(cs.getByTestId('channel-language')).toHaveValue('vi');
     // 071: kết nối tài khoản đăng video theo kênh
     await expect(cs.getByTestId('channel-connections')).toContainText('YouTube');
     await expect(cs.getByTestId('youtube-connect')).toBeVisible();

@@ -229,6 +229,37 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('trash.list', { channel: dir })).entries).toEqual([]);
   });
 
+  it('reads and changes the channel name and default language (082)', async () => {
+    const { host, dir } = setup();
+    await host.call('channel.open', { channel: dir });
+    const info = await host.call('channel.info.get', { channel: dir });
+    expect(info).toMatchObject({
+      language: 'vi',
+      name: expect.any(String),
+      videos: expect.any(Number),
+    });
+    await host.call('channel.info.set', { channel: dir, name: 'Kênh mới', language: 'en' });
+    expect(await host.call('channel.info.get', { channel: dir })).toMatchObject({
+      name: 'Kênh mới',
+      language: 'en',
+    });
+    const m = (await host.call('channels.managed', {})).channels.find((c) => c.name === 'Kênh mới');
+    expect(m).toMatchObject({ language: 'en' });
+    // video mới theo ngôn ngữ mặc định của kênh
+    const { video_id } = await host.call('video.create', { channel: dir, title: 'EN' });
+    expect(readFileSync(path.join(dir, 'videos', video_id, 'BRIEF.md'), 'utf8')).toMatch(
+      /language: en/,
+    );
+    for (const bad of [{ language: 'fr' }, { name: '  ' }]) {
+      const r = await host.handle({
+        id: 3,
+        method: 'channel.info.set',
+        params: { channel: dir, ...bad },
+      });
+      expect(r.error).toMatchObject({ code: 'E_SCHEMA_INVALID' });
+    }
+  });
+
   it('the channel chat agent creates a video and hands the request over to it (081)', async () => {
     const { host, dir, events } = setup();
     await host.call('channel.open', { channel: dir });
