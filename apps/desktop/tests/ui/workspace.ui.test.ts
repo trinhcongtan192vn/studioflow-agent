@@ -118,6 +118,13 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await trashDlg.getByRole('button', { name: 'Khôi phục' }).click();
     await expect(win.getByTestId('video-list')).toContainText('Lốc xoáy vòi rồng');
     await trashDlg.getByRole('button', { name: 'Đóng' }).click();
+    // 066: xuất video từ tab Xem trước — video chưa render thì hộp thoại nói rõ
+    await item.getByRole('button', { name: /Lốc xoáy vòi rồng/ }).click();
+    await win.getByRole('button', { name: 'Xem trước', exact: true }).click();
+    await win.getByTestId('open-export').click();
+    await expect(win.getByTestId('export-empty')).toBeVisible();
+    await win.getByTestId('export-dialog').getByRole('button', { name: 'Đóng' }).click();
+    await win.getByRole('button', { name: 'Tiến độ', exact: true }).click();
     // 048: mở thẳng giao diện chính; bộ chọn kênh hiện kênh đang mở (Manual)
     await expect(win.getByTestId('channel-switcher')).toContainText('Manual');
     // explorer chỉ đọc (048: trong "Chi tiết kênh"): xem nội dung tệp

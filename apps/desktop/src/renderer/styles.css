@@ -1232,3 +1232,31 @@ body.resizing iframe {
 .video-item .icon-btn:focus {
   visibility: visible;
 }
+
+/* 066: hộp thoại xuất video */
+.export-dialog {
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.export-dialog .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.export-dialog .field .row input {
+  flex: 1;
+}
+.export-dialog fieldset {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.export-dialog .check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

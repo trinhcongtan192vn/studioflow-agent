@@ -240,6 +240,34 @@ export interface IpcMethods {
   'trash.restore': { params: ChannelRef & { trash_id: string }; result: { video_id: string } };
   /** Dọn thùng rác (người dùng bấm) — xóa hẳn mọi mục. */
   'trash.empty': { params: ChannelRef; result: { removed: string[] } };
+  /** 066: bản render đã xong của video (mới nhất trước). */
+  'render.list': {
+    params: VideoRef;
+    result: {
+      renders: {
+        render_id: string;
+        mode: 'draft' | 'release';
+        output_profile: string;
+        finished_at: string;
+        duration_ms?: number;
+        file: string;
+      }[];
+    };
+  };
+  /** 066: sao chép bản render (+ thumbnail / .srt / .txt) ra thư mục người dùng chọn; không ghi đè. */
+  'video.export': {
+    params: VideoRef & {
+      dest_dir: string;
+      render_id?: string;
+      include?: { thumbnail?: boolean; captions?: boolean; description?: boolean };
+      name?: string;
+    };
+    result: {
+      dir: string;
+      files: string[];
+      skipped: ('thumbnail' | 'captions' | 'description')[];
+    };
+  };
   'channel.list_recent': {
     params: Record<string, never>;
     result: { channels: { path: string; opened_at: string }[] };

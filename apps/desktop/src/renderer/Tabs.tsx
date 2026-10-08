@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JobInfo } from '@studioflow/core';
+import { ExportDialog } from './ExportDialog';
 import { core } from './rpc';
 import { CaptionPanel } from './CaptionPanel';
 import { addContextRef } from './context-refs';
@@ -60,6 +61,8 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
   const [url, setUrl] = useState<string>();
   const [wide, setWide] = useState(false);
   const [editing, setEditing] = useState(false);
+  // 066: lưu video ra thư mục bất kỳ
+  const [exporting, setExporting] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const bridge = useRef<StudioBridge>();
   useEffect(() => {
@@ -165,7 +168,13 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
         )}
         <button onClick={() => void render('draft')}>Render nháp</button>
         <button onClick={() => void render('release')}>Render phát hành</button>
+        <button data-testid="open-export" onClick={() => setExporting(true)}>
+          Xuất video…
+        </button>
       </div>
+      {exporting && (
+        <ExportDialog channel={channel} video={video} onClose={() => setExporting(false)} />
+      )}
       <p>{msg}</p>
       {wide ? (
         <div className="modal" onClick={() => setWide(false)}>
