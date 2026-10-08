@@ -2587,10 +2587,21 @@ kbd {
 .advanced {
   margin: 6px 0 8px;
 }
-details.advanced > summary {
-  cursor: pointer;
+/* 088: nút mở bảng nâng cao ở đầu tab Tiến độ */
+.adv-toggle {
+  margin-left: auto;
   font-size: 12px;
-  color: var(--muted);
+  padding: 4px 10px;
+}
+.adv-toggle.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.card-adv {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 .adv-row {
   display: flex;

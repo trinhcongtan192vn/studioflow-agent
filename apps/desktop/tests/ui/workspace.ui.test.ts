@@ -257,6 +257,14 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await win.getByTestId('autopilot').click();
     await expect(win.getByTestId('autopilot')).toContainText('Duyệt từng bước');
     await expect(win.getByTestId('progress-feedback')).toContainText('Đã tắt Tự duyệt bước');
+    // 088: nút "Nâng cao" thấy ngay ở đầu tab; mở bảng, đặt riêng cho video
+    await expect(win.getByTestId('advanced-toggle')).toContainText('Nâng cao: tắt hết');
+    await win.getByTestId('advanced-toggle').click();
+    await expect(win.getByTestId('advanced')).toContainText('Frame tùy biến bằng AI');
+    await win.getByTestId('adv-music').getByRole('combobox').selectOption('on');
+    await expect(win.getByTestId('advanced-toggle')).toContainText('Nâng cao: Nhạc nền');
+    await win.getByTestId('advanced-toggle').click();
+    await expect(win.getByTestId('advanced')).toHaveCount(0);
     const scriptRow = progress.getByTestId('step-script');
     await scriptRow.hover();
     await scriptRow.getByRole('button', { name: 'Quay lại' }).click();

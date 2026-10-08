@@ -19,7 +19,7 @@ import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
 import { loadOutputProfile } from './outputs.js';
 import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
-import { parseDesignTokens, templateFrame } from './templates.js';
+import { parseDesignTokens, TEMPLATE_VERSION, templateFrame } from './templates.js';
 
 export interface FrameBuildDeps {
   builders: BuilderRegistry;
@@ -173,7 +173,14 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       });
       packets.set(f.id, {
         packet,
-        hash: sha256(canonicalJson({ packet, frameMd: sha256(frameMd) })),
+        // 088: frame từ mẫu dựng lại khi đổi phiên bản mẫu (agent frame giữ khóa cũ)
+        hash: sha256(
+          canonicalJson(
+            custom
+              ? { packet, frameMd: sha256(frameMd) }
+              : { packet, frameMd: sha256(frameMd), template: TEMPLATE_VERSION },
+          ),
+        ),
       });
     }
     const todo = [...packets].filter(([id, p]) => {

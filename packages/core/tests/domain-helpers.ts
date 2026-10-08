@@ -19,5 +19,9 @@ export function copyChannel(): { dir: string; cleanup: () => void } {
 
 export function tempDir(prefix = 'sf-'): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(path.join(os.tmpdir(), prefix));
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  // Windows: tiến trình con vừa thoát còn giữ thư mục một lúc (EBUSY) → thử lại
+  return {
+    dir,
+    cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }),
+  };
 }

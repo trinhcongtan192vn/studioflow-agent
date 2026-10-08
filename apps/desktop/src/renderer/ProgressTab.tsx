@@ -60,6 +60,23 @@ export function ProgressTab({
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
   // 034: "Tự duyệt bước" (agent tự quyết, chỉ dừng ở điểm chốt; tên mới từ 047)
   const [autopilot, setAutopilot] = useState<boolean>();
+  // 088: nút "Nâng cao" mở bảng tính năng nâng cao của video
+  const [advOpen, setAdvOpen] = useState(false);
+  const [advSummary, setAdvSummary] = useState('Nâng cao');
+  const advButton = video && (
+    <button
+      className={`adv-toggle${advOpen ? ' on' : ''}`}
+      data-testid="advanced-toggle"
+      aria-expanded={advOpen}
+      title={advSummary}
+      onClick={() => setAdvOpen((x) => !x)}
+    >
+      ⚙ {advSummary}
+    </button>
+  );
+  const advPanel = video && (
+    <AdvancedPanel channel={channel} video={video} open={advOpen} onSummary={setAdvSummary} />
+  );
   useEffect(() => {
     if (!video) return;
     void core
@@ -305,7 +322,8 @@ export function ProgressTab({
       <div data-testid="progress" className="progress">
         <p>Pha briefing: chọn workflow (agent cũng làm việc này qua chat).</p>
         {banner}
-        {video && <AdvancedPanel channel={channel} video={video} />}
+        {advButton}
+        {advPanel}
         <div className="wf-choices">
           {workflows.map((w) => (
             <button
@@ -360,6 +378,7 @@ export function ProgressTab({
           <span className="muted">
             {ov.done}/{ov.total} bước
           </span>
+          {advButton}
         </div>
         {autopilot !== undefined && (
           <label
@@ -399,7 +418,7 @@ export function ProgressTab({
           ) : null}
         </div>
       </div>
-      {video && <AdvancedPanel channel={channel} video={video} />}
+      {advPanel}
       {banner}
       {confirm && (
         <div className="progress-fb confirm" role="alertdialog" data-testid="progress-confirm">
