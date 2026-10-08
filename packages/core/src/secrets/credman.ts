@@ -4,7 +4,7 @@ import { assertSecretName } from './store.js';
 
 /**
  * Kho bí mật Windows (Credential Manager, D5 mục 5.4, FR-OP-07): credential kiểu generic tên
- * `StudioFlow/<provider>`. Gọi CredRead/CredWrite/CredDelete qua PowerShell (P/Invoke) — bí mật đi qua
+ * `StudioFlow Agent/<provider>` (069; trước đó `StudioFlow/<provider>`, đọc rồi chép sang). Gọi CredRead/CredWrite/CredDelete qua PowerShell (P/Invoke) — bí mật đi qua
  * stdin, không nằm trên dòng lệnh; giá trị trả về mã base64.
  */
 const TYPE = String.raw`
@@ -34,13 +34,26 @@ public static class SfCred {
 export const credTarget = (name: string) => {
   // tên đi vào script PowerShell → chỉ nhận ký tự an toàn (055)
   assertSecretName(name);
+  return `StudioFlow Agent/${name}`;
+};
+
+/** Tên của bản trước 069 (`StudioFlow/<tên>`): chỉ đọc một lần rồi chép sang tên mới, không xóa. */
+export const legacyCredTarget = (name: string) => {
+  assertSecretName(name);
   return `StudioFlow/${name}`;
 };
+
+/** Đọc `credTarget`; chưa có → đọc tên cũ và chép sang tên mới (069). Trả base64 hoặc rỗng. */
+const READ_FN = String.raw`
+function SfRead($t, $old, $u) { $v = [SfCred]::Read($t); if (-not $v) { $v = [SfCred]::Read($old); if ($v) { [void][SfCred]::Write($t, $u, [Convert]::FromBase64String($v)) } }; $v }
+`;
+const readExpr = (name: string) =>
+  `SfRead '${credTarget(name)}' '${legacyCredTarget(name)}' '${name}'`;
 
 function ps(script: string, stdin = ''): string {
   if (process.platform !== 'win32')
     throw new SfError('E_PROVIDER_UNAVAILABLE', 'Credential Manager is only available on Windows');
-  const encoded = Buffer.from(TYPE + script, 'utf16le').toString('base64');
+  const encoded = Buffer.from(TYPE + READ_FN + script, 'utf16le').toString('base64');
   const r = spawnSync(
     'powershell.exe',
     ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
@@ -63,7 +76,7 @@ const memo = new Map<string, string | undefined>();
 
 export function secretGet(name: string): string | undefined {
   if (memo.has(name)) return memo.get(name);
-  const b64 = ps(`$v = [SfCred]::Read('${credTarget(name)}'); if ($v) { $v }`);
+  const b64 = ps(`$v = ${readExpr(name)}; if ($v) { $v }`);
   const v = b64 ? Buffer.from(b64, 'base64').toString('utf8') : undefined;
   memo.set(name, v);
   return v;
@@ -81,10 +94,7 @@ export function secretGetMany(names: string[]): Record<string, string | undefine
         throw new SfError('E_SCHEMA_INVALID', `invalid secret name ${n}`);
     const out = ps(
       missing
-        .map(
-          (n, i) =>
-            `$v = [SfCred]::Read('${credTarget(n)}'); '${i}=' + $(if ($v) { $v } else { '' })`,
-        )
+        .map((n, i) => `$v = ${readExpr(n)}; '${i}=' + $(if ($v) { $v } else { '' })`)
         .join('; '),
     );
     const got = new Map<number, string>();
@@ -117,7 +127,12 @@ export function secretSet(name: string, value: string): void {
 
 export function secretDelete(name: string): boolean {
   memo.delete(name);
-  return ps(`if ([SfCred]::Delete('${credTarget(name)}')) { 'ok' } else { 'none' }`) === 'ok';
+  // xóa cả tên cũ, không thì lần đọc sau chép nó sang lại (069)
+  return (
+    ps(
+      `$a = [SfCred]::Delete('${credTarget(name)}'); $b = [SfCred]::Delete('${legacyCredTarget(name)}'); if ($a -or $b) { 'ok' } else { 'none' }`,
+    ) === 'ok'
+  );
 }
 
 /** Chỉ 4 ký tự cuối (D10: UI không hiện khóa). */

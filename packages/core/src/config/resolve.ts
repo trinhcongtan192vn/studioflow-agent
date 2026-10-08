@@ -72,7 +72,7 @@ export interface ConfigScope {
 }
 
 export interface ResolveOptions {
-  /** `%APPDATA%\StudioFlow` (D3 mục 1); mặc định theo biến môi trường APPDATA. */
+  /** `%APPDATA%\StudioFlow Agent` (D3 mục 1, 069); mặc định theo biến môi trường APPDATA. */
   appDataDir?: string;
 }
 
@@ -80,7 +80,8 @@ export function defaultAppDataDir(): string {
   if (process.env.SF_APP_DATA) return process.env.SF_APP_DATA;
   return path.join(
     process.env.APPDATA ?? path.join(process.env.USERPROFILE ?? '.', 'AppData', 'Roaming'),
-    'StudioFlow',
+    // 069: riêng app này — không trùng thư mục của app StudioFlow cũ
+    'StudioFlow Agent',
   );
 }
 

@@ -12,7 +12,7 @@
 
 ```
 <install>/resources/extensions/     gói đi kèm bản cài (chỉ đọc): studioflow-core, workflow, provider, blueprint, style, output
-<app-data>/                         %APPDATA%\StudioFlow\
+<app-data>/                         %APPDATA%\StudioFlow Agent\ (069; bản trước %APPDATA%\StudioFlow\, đổi tên một lần)
   settings.json                     cài đặt app (mục 6.2)
   studioflow.db                     SQLite: job, cache toàn cục, trace, chi phí (D4, D11)
   models/                           kho model dùng chung (D4)

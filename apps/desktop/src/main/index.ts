@@ -27,6 +27,7 @@ import {
   secretHint,
   secretSet,
 } from '@studioflow/core';
+import { resolveAppDataDir } from './app-data.js';
 import { handleSecretRequest, STATIC_SECRETS } from './secret-bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -159,7 +160,7 @@ function startCore(): void {
   core.postMessage(
     {
       type: 'init',
-      ...(process.env.SF_APP_DATA ? { appDataDir: process.env.SF_APP_DATA } : {}),
+      appDataDir: appData.dir,
       secrets: {},
     },
     [port1],
@@ -350,7 +351,11 @@ ipcMain.handle('secrets:delete', (_e, name: string) => {
 
 // 008: một bản app cho mỗi thư mục dữ liệu — hai core cùng DB thì core sau `recover()` đánh dấu job
 // đang chạy của core trước là lỗi và có thể chạy chồng job của nó. Khóa theo userData = app-data.
-if (process.env.SF_APP_DATA) app.setPath('userData', process.env.SF_APP_DATA);
+// 069: thư mục dữ liệu riêng `%APPDATA%\StudioFlow Agent` (chuyển một lần từ `%APPDATA%\StudioFlow`)
+const appData = resolveAppDataDir(process.env);
+if (appData.migrated) console.log(`[app-data] moved to ${appData.dir}`);
+if (appData.error) console.warn(`[app-data] could not move the old folder: ${appData.error}`);
+app.setPath('userData', appData.dir);
 const primary = app.requestSingleInstanceLock();
 if (!primary) app.quit();
 app.on('second-instance', () => {

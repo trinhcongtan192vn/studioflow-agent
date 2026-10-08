@@ -7,7 +7,7 @@ import {
   type SecretRequest,
   type SecretResult,
 } from '../../src/secrets/store.js';
-import { credTarget } from '../../src/secrets/credman.js';
+import { credTarget, legacyCredTarget } from '../../src/secrets/credman.js';
 
 describe('secret names', () => {
   it('accepts provider keys and dynamic oauth names; rejects shell-ish ones', () => {
@@ -20,7 +20,9 @@ describe('secret names', () => {
       expect(() => assertSecretName(n)).not.toThrow();
     for (const n of ['', ' x', "a'b", 'a b', '$(calc)', 'a;b', '..\\x', 'x'.repeat(200)])
       expect(() => assertSecretName(n)).toThrow(/invalid secret name/);
-    expect(credTarget('oauth:youtube:UC1')).toBe('StudioFlow/oauth:youtube:UC1');
+    // 069: tên riêng của app này; tên cũ chỉ còn để đọc một lần rồi chép sang
+    expect(credTarget('oauth:youtube:UC1')).toBe('StudioFlow Agent/oauth:youtube:UC1');
+    expect(legacyCredTarget('openai')).toBe('StudioFlow/openai');
     expect(() => credTarget("x'; calc")).toThrow();
   });
 });

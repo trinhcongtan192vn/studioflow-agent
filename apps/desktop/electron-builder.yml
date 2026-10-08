@@ -1,6 +1,6 @@
 # 001 FR-016/017 — bản cài NSIS x64: chỉ vỏ app + core (core bundle trong out/main).
 appId: app.studioflow.agent
-productName: StudioFlow
+productName: StudioFlow Agent
 directories:
   output: ../../release
   buildResources: build
@@ -22,4 +22,4 @@ nsis:
   allowToChangeInstallationDirectory: true
   # Không xóa ngầm dữ liệu người dùng khi gỡ (FR-017).
   deleteAppDataOnUninstall: false
-  artifactName: StudioFlow-Setup-${version}.exe
+  artifactName: StudioFlow-Agent-Setup-${version}.exe
