@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { core } from './rpc';
 import { addContextRef } from './context-refs';
+import { mediaUrl } from './media-url';
 import {
   canSplit,
   dragEdge,
@@ -29,7 +30,6 @@ interface Loaded {
 
 const PX_PER_MS = 0.12;
 const SAVE_DELAY_MS = 1000;
-const mediaUrl = (abs: string) => `sf-media:///${encodeURI(abs.replace(/\\/g, '/'))}`;
 
 /**
  * UI-11 Bảng caption (D9 mục 6, FN-026): trình phát audio lời đọc, dạng sóng, cụm caption kéo mép,

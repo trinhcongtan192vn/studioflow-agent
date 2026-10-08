@@ -1,4 +1,5 @@
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { open } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { Readable } from 'node:stream';
 import path from 'node:path';
@@ -28,6 +29,7 @@ import {
   secretSet,
 } from '@studioflow/core';
 import { resolveAppDataDir } from './app-data.js';
+import { MEDIA_CHUNK, mediaSlice } from './media-range.js';
 import { handleSecretRequest, STATIC_SECRETS } from './secret-bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +37,12 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // 026: renderer phát audio xem trước (`.sf/preview/*.wav`) của bảng caption qua `sf-media:` — chỉ đọc,
 // chỉ file dẫn xuất trong `.sf/preview/`; 008: thêm video render (`renders/*/*.mp4`) và ảnh để xem trong chat/explorer.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'sf-media', privileges: { stream: true, supportFetchAPI: true, standard: false } },
+  // 089: scheme chuẩn (như http) — scheme không chuẩn làm Chromium lỗi khi nối lại yêu cầu Range sau lúc tải
+  // trước siêu dữ liệu (`preload=metadata`): video dừng sau 1–2 giây với PIPELINE_ERROR_READ
+  {
+    scheme: 'sf-media',
+    privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true },
+  },
 ]);
 const MEDIA_OK = [
   /[\\/]\.sf[\\/]preview[\\/][^\\/]+\.wav$/i,
@@ -79,27 +86,46 @@ ipcMain.handle('media:audio', (_e, p: string) => {
   };
 });
 
+/** Đọc đoạn [start, end] của file vào bộ nhớ (089). */
+async function readSlice(abs: string, start: number, end: number): Promise<Buffer> {
+  const fh = await open(abs, 'r');
+  try {
+    const buf = Buffer.alloc(end - start + 1);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, start);
+    return bytesRead === buf.length ? buf : buf.subarray(0, bytesRead);
+  } finally {
+    await fh.close();
+  }
+}
+
 function registerMedia(): void {
   protocol.handle('sf-media', (req) => {
-    const abs = path.normalize(decodeURI(new URL(req.url).pathname).replace(/^\/+/, ''));
+    // `sf-media://f/E:/kênh/…` (089); đường dẫn trong pathname
+    const abs = path.normalize(decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, ''));
     if (!MEDIA_OK.some((r) => r.test(abs)) || abs.includes('..') || !existsSync(abs))
       return new Response(null, { status: 404 });
-    // hỗ trợ Range để <audio> biết thời lượng và tua được
+    // hỗ trợ Range để <audio>/<video> biết thời lượng và tua được; 089: đoạn có giới hạn, đọc sẵn vào bộ nhớ
     const size = statSync(abs).size;
-    const m = /bytes=(\d*)-(\d*)/.exec(req.headers.get('range') ?? '');
-    const start = m?.[1] ? Number(m[1]) : 0;
-    const end = m?.[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
-    const body = Readable.toWeb(createReadStream(abs, { start, end })) as ReadableStream;
-    return new Response(body, {
-      status: m ? 206 : 200,
-      headers: {
-        'Content-Type':
-          MEDIA_TYPES[path.extname(abs).slice(1).toLowerCase()] ?? 'application/octet-stream',
-        'Content-Length': String(end - start + 1),
-        'Accept-Ranges': 'bytes',
-        ...(m ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
-      },
-    });
+    const type =
+      MEDIA_TYPES[path.extname(abs).slice(1).toLowerCase()] ?? 'application/octet-stream';
+    const slice = mediaSlice(req.headers.get('range'), size);
+    if (slice.status === 416)
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+    const { start, end } = slice;
+    const head = {
+      'Content-Type': type,
+      'Content-Length': String(end - start + 1),
+      'Accept-Ranges': 'bytes',
+      ...(slice.status === 206 ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
+    };
+    if (slice.status === 200 && size > MEDIA_CHUNK * 16)
+      return new Response(Readable.toWeb(createReadStream(abs)) as ReadableStream, {
+        status: 200,
+        headers: head,
+      });
+    return readSlice(abs, start, end).then(
+      (buf) => new Response(new Uint8Array(buf), { status: slice.status, headers: head }),
+    );
   });
 }
 // 055: thêm token Telegram và OAuth client YouTube; tên động `oauth:…` chỉ đi qua cầu thông điệp (secret-bridge)
