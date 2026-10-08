@@ -3,8 +3,9 @@ import { AudioPlayer } from './AudioPlayer';
 import { Markdown } from './ChatParts';
 import { labelOf, parseDoc, showValue, type DocBlock } from './doc-format';
 
-/** URL đọc-only qua giao thức `sf-media:` (main chỉ cho video render, ảnh, audio xem trước). */
-export const mediaUrl = (abs: string) => `sf-media:///${encodeURI(abs.replace(/\\/g, '/'))}`;
+import { mediaUrl } from './media-url';
+
+export { mediaUrl };
 
 const TAG_TITLE: Record<string, string> = {
   'sf-scene': 'Cảnh',
