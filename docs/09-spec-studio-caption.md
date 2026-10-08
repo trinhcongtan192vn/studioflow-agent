@@ -94,6 +94,7 @@ Hợp đồng (chi tiết tương tác: FN-026):
 | Mã | Khi |
 |---|---|
 | `E_STUDIO_BUSY` | Có job đang ghi file cảnh |
+| `E_VIDEO_BUSY` | Xóa video đang chạy bước / mở Studio / agent đang trả lời / Autopilot đang làm (064) |
 | `E_STUDIO_DISALLOWED_CHANGE` | Commit có thay đổi ngoài danh sách cho phép |
 | `E_BASE_HASH_MISMATCH` | File gốc đổi trong lúc chỉnh |
 | `E_STUDIO_PROCESS` | `hf-studio` không khởi động/đã thoát |

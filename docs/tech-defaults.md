@@ -123,6 +123,7 @@
 | `autopilot.enabled` / `autopilot.paused` | false / false |
 | `autopilot.competitors` / `autopilot.pillars` / `autopilot.workflows` | `[]` / `[]` / `[]` (rỗng = mọi workflow cài sẵn) |
 | `autopilot.max_per_day` | 1 |
+| `trash.retention_days` | 30 (064: thùng rác video của kênh tự dọn sau số ngày này) |
 | `autopilot.asr_accept_ratio` | 1.5 (061: Autopilot tự chấp nhận dòng đọc sai có tỉ lệ lỗi ≤ ngưỡng ASR × hệ số) |
 | `autopilot.background` | true (052: có kênh Autopilot → đóng cửa sổ thì chạy nền ở khay hệ thống) |
 | `autopilot.min_score` | 40 (051: chủ đề điểm thấp hơn không được lập vào kế hoạch ngày) |

@@ -229,6 +229,17 @@ export interface IpcMethods {
   };
   /** Lần quét nghiên cứu gần nhất của kênh (049, D3 5.17); chưa quét → `null`. */
   'research.latest': { params: ChannelRef; result: { doc: ResearchDoc | null } };
+  /** 064: xóa video vào thùng rác của kênh (constitution 1.1); video đang chạy/đang sửa → E_VIDEO_BUSY. */
+  'video.delete': { params: VideoRef; result: { trash_id: string } };
+  'trash.list': {
+    params: ChannelRef;
+    result: {
+      entries: { trash_id: string; video_id: string; title: string; deleted_at: string }[];
+    };
+  };
+  'trash.restore': { params: ChannelRef & { trash_id: string }; result: { video_id: string } };
+  /** Dọn thùng rác (người dùng bấm) — xóa hẳn mọi mục. */
+  'trash.empty': { params: ChannelRef; result: { removed: string[] } };
   'channel.list_recent': {
     params: Record<string, never>;
     result: { channels: { path: string; opened_at: string }[] };

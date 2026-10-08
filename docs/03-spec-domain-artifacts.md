@@ -35,6 +35,7 @@
   autopilot/reports/<YYYY-MM-DD>.json báo cáo ngày của kênh (054, mục 5.20): số liệu, sản xuất, đăng bài, chi phí
   autopilot/learning.json           điều chỉnh điểm chủ đề học từ hiệu quả thật (057, mục 5.21)
   autopilot/log/<YYYY-MM-DD>.jsonl  nhật ký vận hành Autopilot (052, mục 5.19): mỗi quyết định tự động một dòng, kèm lý do (append-only)
+  .trash/<vd>-<YYYYMMDDHHmmss>/     (064) video đã xóa (thùng rác, khôi phục được; tự dọn sau trash.retention_days ngày) + trash.json
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
     BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
@@ -686,6 +687,7 @@ interface SettingsConfig extends Versioned {
 | `autopilot.enabled` | boolean | channel |
 | `autopilot.paused` | boolean | app |
 | `autopilot.background` | boolean | app |
+| `trash.retention_days` | number | app, channel |
 | `autopilot.asr_accept_ratio` | number | app, channel |
 | `autopilot.competitors` | string[] (ID kênh YouTube `UC…`) | channel |
 | `autopilot.pillars` | string[] | channel |

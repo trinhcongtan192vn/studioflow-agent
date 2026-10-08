@@ -410,6 +410,15 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "trash.retention_days",
+      "pattern": false,
+      "type": "number",
+      "tiers": [
+        "app",
+        "channel"
+      ]
+    },
+    {
       "key": "autopilot.asr_accept_ratio",
       "pattern": false,
       "type": "number",

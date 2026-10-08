@@ -103,6 +103,21 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('video-list')).toContainText('Lốc xoáy vòi rồng', {
       timeout: 30_000,
     });
+    // 064: xóa video vào thùng rác rồi khôi phục
+    const item = win.getByTestId('video-list').locator('li', { hasText: 'Lốc xoáy vòi rồng' });
+    await item.hover();
+    await item.getByTestId('delete-video').click();
+    await win
+      .getByTestId('delete-confirm')
+      .getByRole('button', { name: 'Xóa', exact: true })
+      .click();
+    await expect(win.getByTestId('video-list')).not.toContainText('Lốc xoáy vòi rồng');
+    await win.getByTestId('open-trash').click();
+    const trashDlg = win.getByTestId('trash-dialog');
+    await expect(trashDlg).toContainText('Lốc xoáy vòi rồng');
+    await trashDlg.getByRole('button', { name: 'Khôi phục' }).click();
+    await expect(win.getByTestId('video-list')).toContainText('Lốc xoáy vòi rồng');
+    await trashDlg.getByRole('button', { name: 'Đóng' }).click();
     // 048: mở thẳng giao diện chính; bộ chọn kênh hiện kênh đang mở (Manual)
     await expect(win.getByTestId('channel-switcher')).toContainText('Manual');
     // explorer chỉ đọc (048: trong "Chi tiết kênh"): xem nội dung tệp

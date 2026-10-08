@@ -426,7 +426,28 @@ describe('tool autopilot.status (D4 2.4)', () => {
     const dir = rig.dirs[0]!;
     writePlan(dir, [{ id: 'pi_a0000001' }]);
     await rig.runner.tick();
-    // tool của core dùng bộ chạy của core: gắn kênh rồi gọi qua Gateway
+    // tool của core dùng bộ chạy của core (đồng hồ thật): chép kế hoạch + nhật ký của ngày rig sang
+    // "hôm nay" theo giờ kênh — không phụ thuộc ngày chạy test
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    if (today !== DATE) {
+      const store = new WriteStore(dir);
+      const plan = planOf(dir, DATE);
+      store.write(
+        `autopilot/plans/${today}.json`,
+        `${JSON.stringify({ ...plan, date: today }, null, 2)}
+`,
+        { by: 'test' },
+      );
+      store.write(`autopilot/log/${today}.jsonl`, readFileSync(logFile(dir, DATE), 'utf8'), {
+        by: 'test',
+        validate: false,
+      });
+    }
     rig.fx.core.autopilot.setChannels(() => [dir]);
     const r = (await rig.fx.core.gateway.call(rig.fx.session, 'autopilot.status', {})) as {
       ok: boolean;
