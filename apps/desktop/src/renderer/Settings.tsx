@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { percentToShare, shareToPercent } from './autopilot-format';
+import { Icon, type IconName } from './Icon';
 import { core } from './rpc';
+import { applyTheme, loadTheme, type Theme } from './theme';
 
 const LABEL: Record<string, string> = {
   openai: 'OpenAI',
@@ -201,6 +203,35 @@ function AutopilotApp() {
   );
 }
 
+const THEMES: { id: Theme; label: string; icon: IconName }[] = [
+  { id: 'dark', label: 'Tối', icon: 'moon' },
+  { id: 'light', label: 'Sáng', icon: 'sun' },
+  { id: 'system', label: 'Theo Windows', icon: 'monitor' },
+];
+
+/** 067: Tối (mặc định) / Sáng / Theo Windows — đổi ngay, nhớ theo máy. */
+function ThemePicker() {
+  const [t, setT] = useState<Theme>(loadTheme);
+  return (
+    <div className="segmented" role="radiogroup" aria-label="Giao diện">
+      {THEMES.map((x) => (
+        <button
+          key={x.id}
+          role="radio"
+          aria-checked={t === x.id}
+          className={t === x.id ? 'active' : ''}
+          onClick={() => {
+            applyTheme(x.id);
+            setT(x.id);
+          }}
+        >
+          <Icon name={x.icon} /> {x.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Settings({ onClose, channel }: { onClose: () => void; channel?: string }) {
   const [secrets, setSecrets] = useState<{ name: string; hint: string | null }[]>([]);
   const [value, setValue] = useState<Record<string, string>>({});
@@ -226,6 +257,8 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
     <div className="modal" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <h2>Cài đặt</h2>
+        <h3>Giao diện</h3>
+        <ThemePicker />
         <h3>Khóa API</h3>
         {secrets.map((s) => (
           <div key={s.name} className="row">

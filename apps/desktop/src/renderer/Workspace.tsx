@@ -10,6 +10,7 @@ import {
   saveWidths,
   type PanelWidths,
 } from './layout';
+import { Icon } from './Icon';
 import { core } from './rpc';
 import { AutopilotPanel } from './AutopilotPanel';
 import { ChannelSettings } from './ChannelSettings';
@@ -176,8 +177,13 @@ export function Workspace({
             onManage={() => setManage(true)}
             onChannelSettings={() => setChannelSettings(true)}
           />
-          <button className="link" onClick={() => setSettings(true)} title="Cài đặt app">
-            ⚙
+          <button
+            className="ghost icon-only"
+            onClick={() => setSettings(true)}
+            title="Cài đặt app"
+            aria-label="Cài đặt app"
+          >
+            <Icon name="settings" />
           </button>
         </div>
         <button
@@ -186,7 +192,7 @@ export function Workspace({
           onClick={() => setAutopilot(true)}
           title="Kế hoạch, tiến độ và lý do chọn chủ đề của Autopilot hôm nay"
         >
-          ▶ Autopilot hôm nay
+          <Icon name="sparkles" /> Autopilot hôm nay
         </button>
         {external.length > 0 && (
           <p className="error" role="alert">
@@ -215,7 +221,7 @@ export function Workspace({
                     setDeleting({ id: v.id, title: v.title });
                   }}
                 >
-                  🗑
+                  <Icon name="trash" size={14} />
                 </button>
               </li>
             ))}
@@ -223,7 +229,7 @@ export function Workspace({
         )}
         {!channel ? null : creating === null ? (
           <button data-testid="new-video" onClick={() => setCreating('')}>
-            + Video mới
+            <Icon name="plus" /> Video mới
           </button>
         ) : (
           <div className="new-video" data-testid="new-video-form">
