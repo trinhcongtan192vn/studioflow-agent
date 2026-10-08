@@ -639,6 +639,8 @@ export class CoreHost extends EventEmitter {
         const plan = installPlan(c.appDataDir, 'standard');
         return {
           core_version: CORE_VERSION,
+          // 071: trang Giới thiệu mở được thư mục dữ liệu app
+          app_data_dir: c.appDataDir,
           auth: await this.runtime
             .authStatus()
             .catch((e: Error) => ({ ok: false, method: 'none', detail: e.message })),

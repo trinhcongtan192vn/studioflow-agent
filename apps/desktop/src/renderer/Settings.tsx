@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { percentToShare, shareToPercent } from './autopilot-format';
+import { TelegramSettings } from './Connections';
 import { Icon, type IconName } from './Icon';
 import { core } from './rpc';
 import { Surface } from './Surface';
@@ -11,6 +12,8 @@ const LABEL: Record<string, string> = {
   anthropic: 'Anthropic (dự phòng)',
   dashscope_api_key: 'Qwen-Image API (DashScope)',
   youtube_api_key: 'YouTube Data API v3 (video tham khảo)',
+  youtube_oauth_client_id: 'OAuth Client ID (đăng video)',
+  youtube_oauth_client_secret: 'OAuth Client Secret (đăng video)',
 };
 
 type Usage = {
@@ -233,13 +236,97 @@ function ThemePicker() {
   );
 }
 
-export function Settings({ onClose, channel }: { onClose: () => void; channel?: string }) {
+/** 071: nhóm khóa API theo việc dùng (token Telegram ở mục Kết nối). */
+const KEY_GROUPS: { label: string; names: string[] }[] = [
+  { label: 'AI viết / dự phòng', names: ['openai', 'deepseek', 'anthropic'] },
+  { label: 'Ảnh', names: ['dashscope_api_key'] },
+  {
+    label: 'YouTube',
+    names: ['youtube_api_key', 'youtube_oauth_client_id', 'youtube_oauth_client_secret'],
+  },
+];
+const HIDDEN_KEYS = new Set(['telegram_bot_token']);
+const MODELS = [
+  'claude/claude-sonnet-5-5',
+  'claude/claude-opus-5-5',
+  'claude/claude-haiku-4-5-20251001',
+  'openai/gpt-5',
+  'deepseek/deepseek-chat',
+];
+
+const SECTIONS = [
+  { id: 'look', label: 'Giao diện' },
+  { id: 'connect', label: 'Kết nối' },
+  { id: 'keys', label: 'Khóa API' },
+  { id: 'models', label: 'Model AI' },
+  { id: 'autopilot', label: 'Autopilot' },
+  { id: 'storage', label: 'Lưu trữ' },
+  { id: 'advanced', label: 'Nâng cao' },
+  { id: 'about', label: 'Giới thiệu' },
+] as const;
+
+function Keys() {
   const [secrets, setSecrets] = useState<{ name: string; hint: string | null }[]>([]);
   const [value, setValue] = useState<Record<string, string>>({});
-  const [producer, setProducer] = useState('');
   const load = () => void window.studioflow.secretsStatus().then(setSecrets);
-  useEffect(() => {
+  useEffect(load, []);
+  const save = async (name: string) => {
+    if (!value[name]) return;
+    await window.studioflow.secretsSet(name, value[name]);
+    setValue((v) => ({ ...v, [name]: '' }));
     load();
+  };
+  const shown = secrets.filter((s) => !HIDDEN_KEYS.has(s.name));
+  const grouped = new Set(KEY_GROUPS.flatMap((g) => g.names));
+  const groups = [
+    ...KEY_GROUPS.map((g) => ({ ...g, items: shown.filter((s) => g.names.includes(s.name)) })),
+    { label: 'Khác', names: [], items: shown.filter((s) => !grouped.has(s.name)) },
+  ].filter((g) => g.items.length);
+  return (
+    <div className="keys">
+      <p className="muted">
+        Khóa lưu trong Windows Credential Manager, chỉ hiện 4 ký tự cuối. Claude dùng tài khoản đã
+        đăng nhập, không cần khóa.
+      </p>
+      {groups.map((g) => (
+        <div key={g.label} className="key-group">
+          <div className="section-label">{g.label}</div>
+          {g.items.map((s) => (
+            <div key={s.name} className="key-row">
+              <span className="key-name">{LABEL[s.name] ?? s.name}</span>
+              <span className={`key-hint ${s.hint ? 'on' : ''}`}>
+                {s.hint ? `••••${s.hint.slice(-4)}` : 'chưa có'}
+              </span>
+              <input
+                type="password"
+                placeholder={s.hint ? 'Dán để thay' : 'Dán khóa'}
+                aria-label={`Khóa ${LABEL[s.name] ?? s.name}`}
+                value={value[s.name] ?? ''}
+                onChange={(e) => setValue((v) => ({ ...v, [s.name]: e.target.value }))}
+              />
+              <button disabled={!value[s.name]} onClick={() => void save(s.name)}>
+                Lưu
+              </button>
+              {s.hint && (
+                <button
+                  className="ghost"
+                  onClick={() => void window.studioflow.secretsDelete(s.name).then(load)}
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Models() {
+  const [producer, setProducer] = useState('');
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
     void core
       .call('settings.get', {})
       .then((s) =>
@@ -248,60 +335,115 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
         ),
       );
   }, []);
-  const save = async (name: string) => {
-    if (!value[name]) return;
-    await window.studioflow.secretsSet(name, value[name]);
-    setValue((v) => ({ ...v, [name]: '' }));
-    load();
-  };
   return (
-    <Surface label="Cài đặt" className="settings" testId="settings" onClose={onClose}>
-      <h2>Cài đặt</h2>
-      <h3>Giao diện</h3>
-      <ThemePicker />
-      <h3>Khóa API</h3>
-      {secrets.map((s) => (
-        <div key={s.name} className="row">
-          <span style={{ width: 160 }}>{LABEL[s.name] ?? s.name}</span>
-          <span className="muted" style={{ width: 80 }}>
-            {s.hint ?? 'chưa có'}
-          </span>
-          <input
-            type="password"
-            placeholder="Dán khóa"
-            value={value[s.name] ?? ''}
-            onChange={(e) => setValue((v) => ({ ...v, [s.name]: e.target.value }))}
-          />
-          <button onClick={() => void save(s.name)}>Lưu</button>
-          {s.hint && (
-            <button onClick={() => void window.studioflow.secretsDelete(s.name).then(load)}>
-              Xóa
-            </button>
-          )}
-        </div>
-      ))}
-      <h3>Model viết mặc định</h3>
-      <div className="row">
+    <label className="field">
+      Model viết kịch bản mặc định (nhà cung cấp/model)
+      <span className="row">
         <input
+          list="sf-models"
           placeholder="claude/claude-sonnet-5-5"
           value={producer}
           onChange={(e) => setProducer(e.target.value)}
         />
+        <datalist id="sf-models">
+          {MODELS.map((m) => (
+            <option key={m} value={m} />
+          ))}
+        </datalist>
         <button
           onClick={() =>
-            void core.call('settings.set', { key: 'text.producer', value: producer || null })
+            void core.call('settings.set', { key: 'text.producer', value: producer || null }).then(
+              () => setMsg('Đã lưu.'),
+              (e: Error) => setMsg(e.message),
+            )
           }
         >
           Lưu
         </button>
+        <span className="muted">{msg}</span>
+      </span>
+    </label>
+  );
+}
+
+function About() {
+  const [st, setSt] = useState<Awaited<ReturnType<typeof core.call<'app.status'>>>>();
+  useEffect(() => {
+    void core.call('app.status', {}).then(setSt);
+  }, []);
+  if (!st) return <p className="muted">Đang tải…</p>;
+  return (
+    <dl className="kv about">
+      <div>
+        <dt>Phiên bản lõi</dt>
+        <dd>{st.core_version}</dd>
       </div>
-      <h3>Autopilot</h3>
-      <AutopilotApp />
-      <h3>Trace</h3>
-      <Phoenix />
-      <h3>Dung lượng</h3>
-      <Storage {...(channel ? { channel } : {})} />
-      <button onClick={onClose}>Đóng</button>
+      <div>
+        <dt>Claude</dt>
+        <dd>{st.auth.ok ? `Đã đăng nhập (${st.auth.method})` : 'Chưa đăng nhập'}</dd>
+      </div>
+      <div>
+        <dt>Thành phần còn thiếu</dt>
+        <dd>{st.install.missing.length ? st.install.missing.join(', ') : 'Không'}</dd>
+      </div>
+      <div>
+        <dt>Dữ liệu app</dt>
+        <dd>
+          <button className="link" onClick={() => void window.studioflow.openPath(st.app_data_dir)}>
+            {st.app_data_dir}
+          </button>
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+/** UI-09 Cài đặt app (071): mục lục bên trái, mỗi mục một khối; bấm mục lục → cuộn tới. */
+export function Settings({ onClose, channel }: { onClose: () => void; channel?: string }) {
+  const [active, setActive] = useState<string>('look');
+  const body = useRef<HTMLDivElement>(null);
+  const go = (id: string) => {
+    setActive(id);
+    body.current
+      ?.querySelector(`#set-${id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const section = (id: (typeof SECTIONS)[number]['id'], children: ReactNode, hint?: string) => (
+    <section id={`set-${id}`} className="set-section">
+      <h3>{SECTIONS.find((x) => x.id === id)!.label}</h3>
+      {hint && <p className="muted">{hint}</p>}
+      {children}
+    </section>
+  );
+  return (
+    <Surface label="Cài đặt" className="settings" testId="settings" onClose={onClose}>
+      <div className="set-top">
+        <h2>Cài đặt</h2>
+        <button onClick={onClose}>Đóng</button>
+      </div>
+      <div className="set-layout">
+        <nav className="set-nav" aria-label="Mục cài đặt">
+          {SECTIONS.map((x) => (
+            <button key={x.id} className={active === x.id ? 'active' : ''} onClick={() => go(x.id)}>
+              {x.label}
+            </button>
+          ))}
+        </nav>
+        <div className="set-body" ref={body}>
+          {section('look', <ThemePicker />)}
+          {section(
+            'connect',
+            <TelegramSettings />,
+            'Kết nối YouTube / TikTok / Facebook theo từng kênh: Cài đặt kênh → Đăng video.',
+          )}
+          {section('keys', <Keys />)}
+          {section('models', <Models />)}
+          {section('autopilot', <AutopilotApp />)}
+          {section('storage', <Storage {...(channel ? { channel } : {})} />)}
+          {section('advanced', <Phoenix />, 'Trace chi tiết của agent và workflow để gỡ lỗi.')}
+          {section('about', <About />)}
+        </div>
+      </div>
     </Surface>
   );
 }

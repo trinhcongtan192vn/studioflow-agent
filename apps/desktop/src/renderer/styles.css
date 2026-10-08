@@ -1804,3 +1804,126 @@ label.field:has(> input[type='checkbox']) {
   padding: var(--s2);
   font-size: var(--fs-sm);
 }
+
+/* 071: trang Cài đặt — mục lục + khối */
+.success {
+  color: var(--ok-ink);
+}
+.set-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.set-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+.modal .set-layout {
+  grid-template-columns: 1fr;
+}
+.modal .set-nav {
+  display: none;
+}
+.set-nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.set-nav button {
+  justify-content: flex-start;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+.set-nav button:hover:not(:disabled) {
+  background: var(--tool);
+  color: var(--ink);
+}
+.set-nav button.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.set-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s4) var(--s5);
+  margin-bottom: var(--s4);
+  scroll-margin-top: var(--s4);
+}
+.set-section > h3 {
+  margin-top: 0;
+  font-size: var(--fs-lg);
+}
+.key-group {
+  margin-top: var(--s3);
+}
+.key-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) 80px minmax(160px, 1.5fr) auto auto;
+  gap: var(--s2);
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.key-row:last-child {
+  border-bottom: 0;
+}
+.key-hint {
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.key-hint.on {
+  color: var(--ok-ink);
+}
+.connections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.connection {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+  background: var(--panel-2);
+}
+.conn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+.conn-state {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.conn-state::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--muted);
+}
+.conn-state.on {
+  color: var(--ok-ink);
+}
+.conn-state.on::before {
+  background: var(--ok);
+}
+.about dd .link {
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  word-break: break-all;
+}
+label.field .row input:not([type='checkbox']) {
+  min-width: 280px;
+  color: var(--ink);
+}

@@ -269,6 +269,12 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('autopilot-app')).toContainText('Khung giờ máy làm việc');
     // 052: chạy nền khi đóng cửa sổ — bật mặc định
     await expect(win.getByTestId('autopilot-background')).toBeChecked();
+    // 071: Cài đặt chia mục; Telegram ở mục Kết nối
+    await win
+      .getByRole('navigation', { name: 'Mục cài đặt' })
+      .getByRole('button', { name: 'Kết nối' })
+      .click();
+    await expect(win.getByTestId('telegram-settings')).toContainText('Bot token');
     await win.getByRole('button', { name: 'Đóng', exact: true }).last().click();
     await expect(win.getByTestId('video-list')).toBeVisible();
     // 047 (FR-AP-01/02): cài đặt kênh → bật Autopilot → trang chủ hiện kênh quản lý ở chế độ Autopilot
@@ -276,6 +282,9 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await win.getByTestId('open-channel-settings').click();
     const cs = win.getByTestId('channel-settings');
     await expect(cs).toContainText('Kênh đối thủ');
+    // 071: kết nối tài khoản đăng video theo kênh
+    await expect(cs.getByTestId('channel-connections')).toContainText('YouTube');
+    await expect(cs.getByTestId('youtube-connect')).toBeVisible();
     await cs.getByTestId('mode-autopilot').check();
     await expect(cs).toContainText('Đã bật Autopilot cho kênh.');
     await cs.getByRole('button', { name: 'Đóng', exact: true }).click();

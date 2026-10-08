@@ -54,6 +54,7 @@ export interface IpcMethods {
     params: Record<string, never>;
     result: {
       core_version: string;
+      app_data_dir: string;
       auth: { ok: boolean; method: string; detail?: string };
       install: { profile: string; total_bytes: number; missing: string[] };
     };

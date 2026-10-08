@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChannelConnections } from './Connections';
 import { core } from './rpc';
 import { Surface } from './Surface';
 import {
@@ -213,9 +214,11 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
       </label>
 
       <h3>Đăng video</h3>
+      {/* 071: kết nối tài khoản đăng video của kênh */}
+      <ChannelConnections channel={channel} />
       <div className="field">
         Nền tảng{src('publish.platforms')}
-        <span className="muted"> — kết nối tài khoản ở bước sau</span>
+        <span className="muted"> — nền tảng nào sẽ được đăng tự động</span>
         <div className="chips">
           {Object.entries(PLATFORM_LABEL).map(([id, label]) => (
             <label key={id} className="chip">
