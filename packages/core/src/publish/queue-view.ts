@@ -38,7 +38,8 @@ function stageOf(item: PlanItem, now: number): PublishStage {
     s && (s.status === 'public' || s.status === 'private');
   const open = (s: PlatformPublish | undefined) =>
     !s ||
-    s.status === 'pending' ||
+    // 078: nền tảng chưa kết nối (`pending` kèm lỗi) không giữ video ở "Chờ đăng" mãi
+    (s.status === 'pending' && !s.error) ||
     s.status === 'uploading' ||
     (s.status === 'scheduled' && Boolean(s.veto_until) && Date.parse(s.veto_until!) > now) ||
     (s.status === 'failed' && (s.attempts ?? 0) < 3);

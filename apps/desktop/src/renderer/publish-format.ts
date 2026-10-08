@@ -39,6 +39,8 @@ export function platformState(
   now = Date.now(),
   tz?: string,
 ): { tone: 'idle' | 'warn' | 'ok' | 'error'; text: string } {
+  // 078: chưa kết nối nền tảng → nói rõ thay vì "chờ tải lên"
+  if (st?.status === 'pending' && st.error) return { tone: 'warn', text: st.error };
   if (!st || st.status === 'pending')
     return { tone: 'idle', text: `Chờ tải lên${plannedAt ? ` · đăng ${at(plannedAt, tz)}` : ''}` };
   switch (st.status) {

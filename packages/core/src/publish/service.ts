@@ -58,7 +58,6 @@ export class PublishService {
   private readonly publishers = new Map<Platform, PlatformPublisher>();
   private preview?: PreviewPort;
   private running = false;
-  private readonly warned = new Set<string>();
 
   constructor(private readonly d: PublishServiceDeps) {}
 
@@ -311,10 +310,9 @@ export class PublishService {
     }
     if (!(await p.connected({ channel: ref.channel, channel_id: m.id }))) {
       const error = `Kênh ${m.name} chưa kết nối ${p.label} — kết nối trong Cài đặt kênh rồi video sẽ tự được đăng`;
-      if (st?.error !== error) this.set(ref, p.platform, { status: 'pending', error });
-      const key = `${ref.item.id}:${p.platform}`;
-      if (!this.warned.has(key)) {
-        this.warned.add(key);
+      // 078: báo một lần khi trạng thái đổi (lưu trong kế hoạch) — không báo lại mỗi lần mở app
+      if (st?.error !== error) {
+        this.set(ref, p.platform, { status: 'pending', error });
         log('warn', 'publish.pending', error);
       }
       return false;

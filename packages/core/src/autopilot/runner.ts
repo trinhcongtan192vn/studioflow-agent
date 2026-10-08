@@ -51,6 +51,8 @@ export const RUNNER_CONSTANTS = {
   STEP_RETRIES: 1,
   /** Số lần chạy lại liên tiếp sau hạn mức đã qua giờ mà vẫn chạm hạn mức → chờ thêm 1 giờ. */
   LIMIT_RERUNS: 2,
+  /** 078: số lần tạm dừng vì lỗi chung tạm thời (mạng, quá tải, đăng nhập) cho một bước trước khi xử lý như lỗi thường. */
+  OUTAGE_WAITS: 8,
   /** 076: kế hoạch hôm nay hết mục chờ làm → thử lập bổ sung, cách nhau ít nhất (ms). */
   TOP_UP_MS: 60 * 60_000,
 } as const;
@@ -88,6 +90,37 @@ export function orderItems(entries: QueueEntry[]): QueueEntry[] {
 }
 
 export type GateReason = 'paused' | 'outside_window' | 'limit_wait';
+
+/** 078: lỗi chung tạm thời — không phải lỗi của bước: tạm dừng cả Autopilot rồi chạy lại đúng bước. */
+export interface Outage {
+  kind: 'network' | 'overloaded' | 'auth';
+  wait_ms: number;
+}
+
+const NETWORK =
+  /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|socket hang up|network error|Connection error|getaddrinfo/i;
+const OVERLOADED = /overloaded|\b529\b|\b503\b|Service Unavailable/i;
+const AUTH =
+  /not logged in|please run \/login|invalid api key|OAuth token has expired|authentication_error|unauthorized/i;
+
+/**
+ * Lỗi chung, tạm thời (mạng, Claude quá tải, Claude cần đăng nhập lại) → `Outage`; lỗi riêng của bước →
+ * `undefined`. Kết nối bị từ chối tới máy này (ComfyUI cục bộ chưa chạy) không tính là mất mạng.
+ */
+export function outageOf(errCode: string, msg: string): Outage | undefined {
+  if (errCode === 'E_AUTH_REQUIRED' || AUTH.test(msg))
+    return { kind: 'auth', wait_ms: 60 * 60_000 };
+  if (OVERLOADED.test(msg)) return { kind: 'overloaded', wait_ms: 10 * 60_000 };
+  if (NETWORK.test(msg) && !/127\.0\.0\.1|localhost/.test(msg))
+    return { kind: 'network', wait_ms: 15 * 60_000 };
+  return undefined;
+}
+
+const OUTAGE_TEXT: Record<Outage['kind'], string> = {
+  network: 'Mất kết nối mạng',
+  overloaded: 'Claude đang quá tải',
+  auth: 'Claude cần đăng nhập lại trên máy này',
+};
 
 /**
  * Được bắt đầu việc mới không (FR-AP-08): `autopilot.paused` và chờ hạn mức Claude luôn chặn; ngoài khung
@@ -155,6 +188,8 @@ export interface AutopilotStatus {
   paused: boolean;
   running: boolean;
   waiting_until?: string;
+  /** 078: vì sao đang chờ (hết hạn mức Claude / mất mạng / Claude quá tải / cần đăng nhập lại). */
+  waiting_reason?: string;
   current?: { channel: string; video?: string; item_id: string; title: string; step_id?: string };
   today: {
     channel: string;
@@ -207,11 +242,20 @@ export class AutopilotRunner extends EventEmitter {
   private stopped = false;
   private restored = false;
   private waitUntil?: Date;
-  private waitCtx?: { channel: string; date: string; item_id: string; video_id?: string };
+  private waitCtx?: {
+    channel: string;
+    date: string;
+    item_id: string;
+    video_id?: string;
+    /** 078: lý do chờ khác hạn mức Claude. */
+    reason?: string;
+  };
   private current?: AutopilotStatus['current'];
   // 076: lần lập bổ sung kế hoạch gần nhất theo kênh (ms)
   private readonly toppedUp = new Map<string, number>();
   private readonly retries = new Map<string, number>();
+  // 078: số lần đã tạm dừng vì lỗi chung theo bước
+  private readonly outageWaits = new Map<string, number>();
   private readonly limitReruns = new Map<string, number>();
   private readonly voiceLogged = new Set<string>();
   private readonly blocked = new Map<string, { summary: string; ts: number }>();
@@ -508,7 +552,10 @@ export class AutopilotRunner extends EventEmitter {
       paused: this.app<boolean>('autopilot.paused') === true,
       running: Boolean(this.inflight),
       ...(this.waitUntil && this.waitUntil > now
-        ? { waiting_until: this.waitUntil.toISOString() }
+        ? {
+            waiting_until: this.waitUntil.toISOString(),
+            waiting_reason: this.waitCtx?.reason ?? 'Hết hạn mức Claude',
+          }
         : {}),
       ...(this.current ? { current: this.current } : {}),
       today: chans
@@ -758,7 +805,15 @@ export class AutopilotRunner extends EventEmitter {
     const w = this.waitCtx;
     this.waitUntil = undefined;
     this.waitCtx = undefined;
-    if (w)
+    if (w?.reason)
+      this.log(w.channel, w.date, {
+        level: 'info',
+        event: 'outage.resume',
+        ...(w.item_id ? { item_id: w.item_id as AutopilotLogLine['item_id'] } : {}),
+        ...(w.video_id ? { video_id: w.video_id as AutopilotLogLine['video_id'] } : {}),
+        message: `Hết thời gian chờ (${w.reason}) — làm tiếp.`,
+      });
+    else if (w)
       this.log(w.channel, w.date, {
         level: 'info',
         event: 'limit.resume',
@@ -767,6 +822,49 @@ export class AutopilotRunner extends EventEmitter {
         message: 'Đã qua giờ hết hạn mức Claude — làm tiếp.',
       });
     this.changed();
+  }
+
+  /** 078: lỗi chung tạm thời → chờ cố định rồi làm tiếp đúng bước (không tính lần chạy lại của bước). */
+  private enterOutage(c: Ctx, step_id: string, o: Outage, msg: string): Outcome {
+    const now = this.now();
+    const reason = OUTAGE_TEXT[o.kind];
+    this.waitUntil = new Date(now.getTime() + o.wait_ms);
+    this.waitCtx = {
+      channel: c.channel,
+      date: c.date,
+      item_id: c.item.id,
+      video_id: c.video,
+      reason,
+    };
+    const mins = Math.round(o.wait_ms / 60_000);
+    this.logItem(
+      c,
+      'warn',
+      'outage.wait',
+      `${reason} (${msg.slice(0, 160)}) — tạm dừng ${mins >= 60 ? `${mins / 60} giờ` : `${mins} phút`} rồi chạy lại bước ${step_id}${o.kind === 'auth' ? '. Hãy đăng nhập lại Claude trên máy này' : ''}.`,
+      { step_id, data: { kind: o.kind, resume_at: this.waitUntil.toISOString() } },
+    );
+    this.changed();
+    return { kind: 'wait' };
+  }
+
+  /** Lỗi chung tạm thời ở `step`: còn lượt chờ → chờ (lỗi mới) hoặc chạy lại (lỗi cũ, đã chờ xong). */
+  private async onOutage(
+    c: Ctx,
+    step: string,
+    errCode: string,
+    msg: string,
+    fresh: boolean,
+    rerun: () => Promise<Outcome | undefined>,
+  ): Promise<Outcome | undefined | 'normal'> {
+    const o = outageOf(errCode, msg);
+    if (!o) return 'normal';
+    const key = `${c.channel}|${c.video}|${step}`;
+    const waits = this.outageWaits.get(key) ?? 0;
+    if (waits >= C.OUTAGE_WAITS) return 'normal';
+    if (!fresh) return rerun();
+    this.outageWaits.set(key, waits + 1);
+    return this.enterOutage(c, step, o, msg);
   }
 
   private enterWait(c: Ctx, step_id: string | undefined, msg: string): Outcome {
@@ -984,6 +1082,9 @@ export class AutopilotRunner extends EventEmitter {
       } catch (err) {
         const msg = message(err);
         if (parseLimit(msg, this.now(), 'UTC')) return this.enterWait(c, 'brief', msg);
+        // 078: mất mạng / Claude quá tải / cần đăng nhập → chờ rồi giao brief lại
+        const out = await this.onOutage(c, 'brief', code(err), msg, true, async () => undefined);
+        if (out !== 'normal') return out;
         const blocked = this.takeBlocked(c, 0);
         if (blocked)
           return { kind: 'parked', reason: `cần xác nhận chi phí: ${blocked}`, step_id: 'brief' };
@@ -1226,6 +1327,9 @@ export class AutopilotRunner extends EventEmitter {
       this.limitReruns.set(key, reruns + 1);
       return this.rerun(e, stepId);
     }
+    // 1b. lỗi chung tạm thời (078): chờ rồi chạy lại đúng bước, không đánh hỏng mục / lan sang mục sau
+    const out = await this.onOutage(c, stepId, errCode, msg, fresh, () => this.rerun(e, stepId));
+    if (out !== 'normal') return out;
     // 2. yêu cầu quyền có phí không có người trả lời
     const started = s.started_at ? Date.parse(s.started_at) : 0;
     const blocked = this.takeBlocked(c, started);
