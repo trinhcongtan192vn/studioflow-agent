@@ -31,6 +31,7 @@ export {
 export { parseBlocksDoc, serializeBlocksDoc, type BlocksDoc } from './domain/markdown/blocks.js';
 export { detectChannel, initChannel, type ChannelDetection } from './domain/channel.js';
 export { createVideo, listVideoIds } from './domain/video.js';
+export { videoCard, videoStatus, type VideoCard, type VideoStatus } from './domain/video-card.js';
 export {
   MigrationRegistry,
   migrateVideo,

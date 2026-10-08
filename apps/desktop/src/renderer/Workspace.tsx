@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { ExplorerNode, VideoStateSummary } from '@studioflow/core';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import type { ExplorerNode, VideoCard, VideoStateSummary } from '@studioflow/core';
 import { Chat } from './Chat';
-import { FileViewer, type ViewedFile } from './FileViewer';
+import { FileViewer, mediaUrl, type ViewedFile } from './FileViewer';
+import { groupVideos, relativeTime, statusLabel } from './video-list-format';
 import {
   clampWidths,
   DEFAULT_WIDTHS,
@@ -23,7 +24,7 @@ import type { SessionRow } from './session-format';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
-type Video = { id: string; title: string; phase: string; updated_at: string };
+type Video = VideoCard;
 // 068: khung app — thanh điều hướng trái, các màn mở như trang
 type Page = 'video' | 'autopilot' | 'channels' | 'settings' | 'channel-settings' | 'history';
 const RAIL = 64;
@@ -65,6 +66,8 @@ export function Workspace({
   const [history, setHistory] = useState<{ initial?: SessionRow }>({});
   const [details, setDetails] = useState(false);
   const [tick, setTick] = useState(0);
+  // 070: tìm video trong danh sách
+  const [query, setQuery] = useState('');
   // 064: xóa video vào thùng rác của kênh
   const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null);
   const [deleteErr, setDeleteErr] = useState('');
@@ -97,6 +100,19 @@ export function Workspace({
       .catch(() => setTrashCount(0));
     setTree(await core.call('explorer.tree', { channel }));
   }, [channel]);
+  // 070: bước đổi trạng thái / agent trả lời xong → cập nhật thẻ video (trạng thái, tiến độ)
+  useEffect(() => {
+    if (!channel || !tick) return;
+    const t = window.setTimeout(
+      () =>
+        void core
+          .call('video.list', { channel })
+          .then((r) => setVideos(r.videos))
+          .catch(() => {}),
+      400,
+    );
+    return () => window.clearTimeout(t);
+  }, [tick, channel]);
   // đổi kênh → bỏ video đang mở (052: hoặc mở video được chọn từ màn Autopilot)
   useEffect(() => {
     setVideo(undefined);
@@ -289,35 +305,32 @@ export function Workspace({
                 </button>
               </p>
             )}
-            {channel && <h3>Video</h3>}
             {channel && (
-              <ul className="list" data-testid="video-list">
-                {videos.map((v) => (
-                  <li key={v.id} className={`video-item${v.id === video ? ' active' : ''}`}>
-                    <button className="link" onClick={() => void openVideo(v.id)}>
-                      {v.title} <span className="muted">({v.phase})</span>
-                    </button>
-                    <button
-                      className="link icon-btn"
-                      title="Xóa video (vào thùng rác, khôi phục được trong 30 ngày)"
-                      aria-label={`Xóa video ${v.title}`}
-                      data-testid="delete-video"
-                      onClick={() => {
-                        setDeleteErr('');
-                        setDeleting({ id: v.id, title: v.title });
-                      }}
-                    >
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="vl-head">
+                <h3>Video</h3>
+                <button
+                  className="ghost icon-only"
+                  data-testid="new-video"
+                  title="Video mới"
+                  aria-label="Video mới"
+                  onClick={() => setCreating('')}
+                >
+                  <Icon name="plus" />
+                </button>
+              </div>
             )}
-            {!channel ? null : creating === null ? (
-              <button data-testid="new-video" onClick={() => setCreating('')}>
-                <Icon name="plus" /> Video mới
-              </button>
-            ) : (
+            {channel && videos.length > 4 && (
+              <label className="vl-search">
+                <Icon name="search" size={14} />
+                <input
+                  placeholder="Tìm video"
+                  aria-label="Tìm video"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </label>
+            )}
+            {!channel || creating === null ? null : (
               <div className="new-video" data-testid="new-video-form">
                 <input
                   autoFocus
@@ -337,6 +350,80 @@ export function Workspace({
                 </div>
                 {createErr && <div className="error">{createErr}</div>}
               </div>
+            )}
+            {channel && (
+              <ul className="list video-cards" data-testid="video-list">
+                {groupVideos(videos, query).map((g) => (
+                  <Fragment key={g.label}>
+                    <li className="vc-group" aria-hidden>
+                      {g.label} <span>{g.items.length}</span>
+                    </li>
+                    {g.items.map((v) => (
+                      <li
+                        key={v.id}
+                        className={`video-item video-card st-${v.status}${v.id === video ? ' active' : ''}`}
+                      >
+                        <button
+                          className="vc-main"
+                          aria-current={v.id === video ? 'true' : undefined}
+                          onClick={() => void openVideo(v.id)}
+                        >
+                          <span className={`vc-thumb${v.format === 'vertical' ? ' vertical' : ''}`}>
+                            {v.thumbnail ? (
+                              <img src={mediaUrl(v.thumbnail)} alt="" loading="lazy" />
+                            ) : (
+                              <Icon name="film" size={18} />
+                            )}
+                          </span>
+                          <span className="vc-body">
+                            <span className="vc-title">{v.title}</span>
+                            <span className="vc-meta">
+                              {v.format && (
+                                <span className="badge fmt">
+                                  {v.format === 'vertical' ? 'Shorts' : 'Dài'}
+                                </span>
+                              )}
+                              <span className="vc-status">{statusLabel(v)}</span>
+                            </span>
+                            {v.steps.total > 0 && (
+                              <span
+                                className="vc-progress"
+                                title={`${v.steps.done}/${v.steps.total} bước`}
+                              >
+                                <span
+                                  style={{ width: `${(100 * v.steps.done) / v.steps.total}%` }}
+                                />
+                              </span>
+                            )}
+                            <span className="vc-time">
+                              {v.steps.total > 0 ? `${v.steps.done}/${v.steps.total} bước · ` : ''}
+                              {relativeTime(v.updated_at)}
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          className="ghost icon-only icon-btn"
+                          title="Xóa video (vào thùng rác, khôi phục được trong 30 ngày)"
+                          aria-label={`Xóa video ${v.title}`}
+                          data-testid="delete-video"
+                          onClick={() => {
+                            setDeleteErr('');
+                            setDeleting({ id: v.id, title: v.title });
+                          }}
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </Fragment>
+                ))}
+                {!videos.length && (
+                  <li className="muted vc-empty">Chưa có video. Bấm + để tạo video đầu tiên.</li>
+                )}
+                {videos.length > 0 && query && !groupVideos(videos, query).length && (
+                  <li className="muted vc-empty">Không có video khớp “{query}”.</li>
+                )}
+              </ul>
             )}
             {channel && (
               <>

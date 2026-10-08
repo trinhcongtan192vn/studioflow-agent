@@ -1,5 +1,6 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
+import type { VideoCard } from '../domain/video-card.js';
 import type { WorkflowNotice } from '../workflow/notices.js';
 import type {
   AgentEvent,
@@ -272,10 +273,8 @@ export interface IpcMethods {
     params: Record<string, never>;
     result: { channels: { path: string; opened_at: string }[] };
   };
-  'video.list': {
-    params: ChannelRef;
-    result: { videos: { id: string; title: string; phase: string; updated_at: string }[] };
-  };
+  /** 070: thẻ video — trạng thái, tiến độ bước, bước cần chú ý, loại dọc/ngang, ảnh đại diện. */
+  'video.list': { params: ChannelRef; result: { videos: VideoCard[] } };
   'video.create': { params: ChannelRef & { title?: string }; result: { video_id: string } };
   'video.open': { params: VideoRef; result: { state: VideoStateSummary; history: ChatLine[] } };
   'chat.send': {
