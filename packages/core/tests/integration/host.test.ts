@@ -189,6 +189,36 @@ describe('CoreHost IPC (008)', () => {
     ).toHaveLength(3);
   });
 
+  it('delete a video to the channel trash, restore it, empty the trash (064)', async () => {
+    const { host, dir } = setup();
+    await host.call('channel.open', { channel: dir });
+    const { video_id } = await host.call('video.create', { channel: dir, title: 'Rác' });
+    await host.call('video.open', { channel: dir, video: video_id });
+    // agent đang trả lời trong video → không xóa
+    const sent = host.call('chat.send', { channel: dir, video: video_id, text: 'x' });
+    const busy = await host.handle({
+      id: 7,
+      method: 'video.delete',
+      params: { channel: dir, video: video_id },
+    });
+    expect(busy.error).toMatchObject({ code: 'E_VIDEO_BUSY' });
+    await sent;
+    const del = await host.call('video.delete', { channel: dir, video: video_id });
+    expect(del.trash_id).toMatch(new RegExp(`^${video_id}-\\d{14}$`));
+    expect((await host.call('video.list', { channel: dir })).videos.map((v) => v.id)).not.toContain(
+      video_id,
+    );
+    const { entries } = await host.call('trash.list', { channel: dir });
+    expect(entries).toEqual([expect.objectContaining({ video_id, title: 'Rác' })]);
+    await host.call('trash.restore', { channel: dir, trash_id: del.trash_id });
+    expect((await host.call('video.list', { channel: dir })).videos.map((v) => v.id)).toContain(
+      video_id,
+    );
+    await host.call('video.delete', { channel: dir, video: video_id });
+    expect((await host.call('trash.empty', { channel: dir })).removed).toHaveLength(1);
+    expect((await host.call('trash.list', { channel: dir })).entries).toEqual([]);
+  });
+
   it('managed channels and per-channel Autopilot settings (047 FR-AP-01..03)', async () => {
     const { host, dir } = setup();
     // mở kênh lần đầu → vào danh sách kênh quản lý (Manual)

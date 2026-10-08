@@ -188,6 +188,48 @@ export class WriteStore {
   }
 
   /**
+   * 064 (constitution 1.1, Điều VI ngoại lệ): chuyển cả thư mục trong project (video ↔ thùng rác `.trash/`).
+   * Chỉ cho `videos/<vd>` → `.trash/<vd>-<thời điểm>` và ngược lại; đích phải chưa tồn tại.
+   */
+  moveDir(srcRel: string, dstRel: string, opts: { by: string }): void {
+    const src = resolveInside(this.root, srcRel);
+    const dst = resolveInside(this.root, dstRel);
+    const VIDEO = /^videos\/vd_[0-9a-z]{8}$/;
+    const TRASH = /^\.trash\/vd_[0-9a-z]{8}-\d{14}$/;
+    if (!(
+      (VIDEO.test(src.rel) && TRASH.test(dst.rel)) ||
+      (TRASH.test(src.rel) && VIDEO.test(dst.rel))
+    ))
+      throw new SfError('E_PATH_OUTSIDE', `moving ${src.rel} → ${dst.rel} is not allowed`);
+    if (!existsSync(src.abs)) throw new SfError('E_FILE_NOT_FOUND', `${src.rel} does not exist`);
+    if (existsSync(dst.abs)) throw new SfError('E_ID_DUPLICATE', `${dst.rel} already exists`);
+    mkdirSync(path.dirname(dst.abs), { recursive: true });
+    // Windows: tiến trình vừa đóng có thể còn giữ file vài trăm ms → thử lại
+    for (let attempt = 0; ; attempt++) {
+      try {
+        renameSync(src.abs, dst.abs);
+        break;
+      } catch (e) {
+        if (
+          attempt >= 15 ||
+          !['EBUSY', 'EPERM', 'EACCES'].includes((e as NodeJS.ErrnoException).code ?? '')
+        )
+          throw e;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+      }
+    }
+    this.record(dst.rel, '', opts.by);
+  }
+
+  /** 064: xóa hẳn một mục trong thùng rác của kênh (`.trash/<id>`) — chỉ ở đây, không nơi nào khác. */
+  purgeTrash(rel: string): void {
+    const t = resolveInside(this.root, rel);
+    if (!/^\.trash\/vd_[0-9a-z]{8}-\d{14}$/.test(t.rel))
+      throw new SfError('E_PATH_OUTSIDE', `${t.rel} is not a trash entry; it cannot be removed`);
+    rmSync(t.abs, { recursive: true, force: true, maxRetries: 15, retryDelay: 200 });
+  }
+
+  /**
    * Xóa dữ liệu dẫn xuất (D4 mục 11): `cache/`, `.sf/` (sao lưu `.sf/backups` chỉ khi người dùng chọn),
    * render nháp `videos/<vd>/renders/<rd>` (không bao giờ render phát hành) (024).
    */

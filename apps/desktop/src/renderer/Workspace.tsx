@@ -16,6 +16,7 @@ import { ChannelSettings } from './ChannelSettings';
 import { ChannelsOverview } from './ChannelsOverview';
 import { ChannelSwitcher } from './ChannelSwitcher';
 import { RecentSessions, SessionHistory } from './SessionHistory';
+import { TrashDialog } from './TrashDialog';
 import type { SessionRow } from './session-format';
 import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
@@ -49,6 +50,11 @@ export function Workspace({
   const [history, setHistory] = useState<{ initial?: SessionRow } | null>(null);
   const [details, setDetails] = useState(false);
   const [tick, setTick] = useState(0);
+  // 064: xóa video vào thùng rác của kênh
+  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null);
+  const [deleteErr, setDeleteErr] = useState('');
+  const [trash, setTrash] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
   // 052: màn Autopilot hôm nay
   const [autopilot, setAutopilot] = useState(false);
   const [pendingVideo, setPendingVideo] = useState<string | null>(null);
@@ -71,6 +77,10 @@ export function Workspace({
   const reload = useCallback(async () => {
     if (!channel) return;
     setVideos((await core.call('video.list', { channel })).videos);
+    void core
+      .call('trash.list', { channel })
+      .then((r) => setTrashCount(r.entries.length))
+      .catch(() => setTrashCount(0));
     setTree(await core.call('explorer.tree', { channel }));
   }, [channel]);
   // đổi kênh → bỏ video đang mở (052: hoặc mở video được chọn từ màn Autopilot)
@@ -191,9 +201,21 @@ export function Workspace({
         {channel && (
           <ul className="list" data-testid="video-list">
             {videos.map((v) => (
-              <li key={v.id} className={v.id === video ? 'active' : ''}>
+              <li key={v.id} className={`video-item${v.id === video ? ' active' : ''}`}>
                 <button className="link" onClick={() => void openVideo(v.id)}>
                   {v.title} <span className="muted">({v.phase})</span>
+                </button>
+                <button
+                  className="link icon-btn"
+                  title="Xóa video (vào thùng rác, khôi phục được trong 30 ngày)"
+                  aria-label={`Xóa video ${v.title}`}
+                  data-testid="delete-video"
+                  onClick={() => {
+                    setDeleteErr('');
+                    setDeleting({ id: v.id, title: v.title });
+                  }}
+                >
+                  🗑
                 </button>
               </li>
             ))}
@@ -234,6 +256,9 @@ export function Workspace({
               onOpen={(s) => setHistory(s ? { initial: s } : {})}
             />
             <div className="sidebar-foot">
+              <button className="link" data-testid="open-trash" onClick={() => setTrash(true)}>
+                Thùng rác{trashCount ? ` (${trashCount})` : ''}
+              </button>
               <button
                 className="link"
                 data-testid="open-channel-details"
@@ -377,6 +402,52 @@ export function Workspace({
               onSwitch(dir);
             }
           }}
+        />
+      )}
+      {deleting && channel && (
+        <div className="modal" onClick={() => setDeleting(null)}>
+          <div
+            className="card"
+            role="alertdialog"
+            aria-label="Xóa video"
+            data-testid="delete-confirm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Xóa video "{deleting.title}"?</h3>
+            <p className="muted">
+              Video chuyển vào Thùng rác của kênh và tự xóa hẳn sau 30 ngày. Khôi phục được trước
+              đó.
+            </p>
+            {deleteErr && <p className="error">{deleteErr}</p>}
+            <div className="row">
+              <button
+                className="primary"
+                onClick={async () => {
+                  try {
+                    await core.call('video.delete', { channel, video: deleting.id });
+                    if (video === deleting.id) {
+                      setVideo(undefined);
+                      setState(undefined);
+                    }
+                    setDeleting(null);
+                    await reload();
+                  } catch (e) {
+                    setDeleteErr((e as Error).message);
+                  }
+                }}
+              >
+                Xóa
+              </button>
+              <button onClick={() => setDeleting(null)}>Hủy</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {trash && channel && (
+        <TrashDialog
+          channel={channel}
+          onChanged={() => void reload()}
+          onClose={() => setTrash(false)}
         />
       )}
       {history && channel && (

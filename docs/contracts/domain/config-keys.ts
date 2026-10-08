@@ -45,6 +45,7 @@ export type ConfigKey =
   | 'autopilot.enabled'
   | 'autopilot.paused'
   | 'autopilot.background'
+  | 'trash.retention_days'
   | 'autopilot.asr_accept_ratio'
   | 'autopilot.competitors'
   | 'autopilot.pillars'

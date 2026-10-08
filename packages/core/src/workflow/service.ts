@@ -112,6 +112,11 @@ export class WorkflowService {
     });
   }
 
+  /** 064: bỏ engine đã nạp của video (video bị xóa vào thùng rác). */
+  forget(channelDir: string, videoId: string): void {
+    this.engines.delete(`${this.d.storeFor(channelDir).root}|${videoId}`);
+  }
+
   engine(channelDir: string, videoId: string): WorkflowEngine {
     const store = this.d.storeFor(channelDir);
     const key = `${store.root}|${videoId}`;

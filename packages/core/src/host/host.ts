@@ -56,6 +56,7 @@ import {
 } from '../autopilot/index.js';
 import { getSecretDefault } from '../secrets/credman.js';
 import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
+import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
 import { PUBLISH_CALLBACK } from '../publish/index.js';
@@ -649,6 +650,20 @@ export class CoreHost extends EventEmitter {
         const d = detectChannel(path.resolve(p.channel));
         if (d.kind !== 'channel')
           throw new SfError('E_NOT_CHANNEL', `${p.channel} has no channel.json`);
+        // 064: thùng rác quá hạn (trash.retention_days) được dọn khi mở kênh
+        try {
+          emptyTrash(this.store(p.channel), {
+            retentionDays: Number(
+              resolveConfig(
+                'trash.retention_days',
+                { channelDir: path.resolve(p.channel) },
+                { appDataDir: c.appDataDir },
+              ).value,
+            ),
+          });
+        } catch {
+          /* dọn là cố gắng tối đa */
+        }
         this.rememberChannel(path.resolve(p.channel));
         return {
           config: d.config,
@@ -827,6 +842,35 @@ export class CoreHost extends EventEmitter {
         };
       case 'research.latest':
         return { doc: readResearch(path.resolve(p.channel)) ?? null };
+      case 'video.delete': {
+        const dir = path.resolve(p.channel);
+        const act = this.activity();
+        const same = (x: { channel: string; video?: string }) =>
+          path.resolve(x.channel) === dir && x.video === p.video;
+        const why = [
+          ...act.steps.filter(same).map((x) => `bước "${x.title}" đang chạy`),
+          ...act.studio.filter(same).map(() => 'Studio đang mở để sửa'),
+          ...act.chats.filter(same).map(() => 'agent đang trả lời'),
+          ...(act.autopilot ?? []).filter(same).map(() => 'Autopilot đang làm video này'),
+        ];
+        if (why.length)
+          throw new SfError(
+            'E_VIDEO_BUSY',
+            `video ${p.video} is busy (${why.join('; ')}); try again later`,
+          );
+        const title = this.videos(dir).find((v) => v.id === p.video)?.title ?? String(p.video);
+        this.watcher?.close();
+        this.watcher = undefined;
+        c.workflows.forget(dir, String(p.video));
+        this.watched.delete(`${dir}|${p.video}`);
+        return trashVideo(this.store(p.channel), String(p.video), { title });
+      }
+      case 'trash.list':
+        return { entries: listTrash(this.store(p.channel)) };
+      case 'trash.restore':
+        return restoreVideo(this.store(p.channel), String(p.trash_id));
+      case 'trash.empty':
+        return emptyTrash(this.store(p.channel), { all: true });
       case 'channel.list_recent':
         return { channels: this.settings().recent_channels };
       case 'video.list':

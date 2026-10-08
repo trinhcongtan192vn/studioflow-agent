@@ -621,6 +621,16 @@ export const errorRegistry = {
       ]
     },
     {
+      "code": "E_VIDEO_BUSY",
+      "retryable": false,
+      "sources": [
+        {
+          "doc": "docs/09-spec-studio-caption.md",
+          "when": "Xóa video đang chạy bước / mở Studio / agent đang trả lời / Autopilot đang làm (064)"
+        }
+      ]
+    },
+    {
       "code": "E_WORKFLOW_INCOMPATIBLE",
       "retryable": false,
       "sources": [

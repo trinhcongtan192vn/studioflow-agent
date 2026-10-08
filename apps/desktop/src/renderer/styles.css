@@ -1213,3 +1213,22 @@ body.resizing iframe {
 .badge.st-skipped {
   opacity: 0.6;
 }
+
+/* 064: xóa video (hiện khi rê chuột) */
+.video-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.video-item > .link:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.video-item .icon-btn {
+  visibility: hidden;
+}
+.video-item:hover .icon-btn,
+.video-item .icon-btn:focus {
+  visibility: visible;
+}

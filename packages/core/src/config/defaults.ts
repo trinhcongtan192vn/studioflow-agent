@@ -49,6 +49,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'autopilot.paused': false,
   // 052: đóng cửa sổ khi có kênh Autopilot → ẩn xuống khay hệ thống, vẫn sản xuất
   'autopilot.background': true,
+  // 064: thùng rác video của kênh tự dọn sau số ngày này
+  'trash.retention_days': 30,
   // 061: Autopilot tự chấp nhận dòng đọc sai nhẹ (≤ asr.wer_threshold × hệ số)
   'autopilot.asr_accept_ratio': 1.5,
   'autopilot.competitors': [],

@@ -1,6 +1,6 @@
 # StudioFlow Agent — Constitution
 
-**Phiên bản:** 1.0 · **Ngày:** 03/10/2026
+**Phiên bản:** 1.1 · **Ngày:** 07/10/2026
 **Vị trí khi triển khai:** chép nguyên văn vào `.specify/memory/constitution.md` của repo.
 
 Các nguyên tắc bất biến cho mọi tính năng. `plan.md` của mỗi tính năng PHẢI qua các gate ở cuối file; vi phạm chỉ được chấp nhận khi ghi lý do trong mục *Complexity Tracking* của `plan.md`.
@@ -24,6 +24,8 @@ Schema artifact, tool MCP, capability, manifest được định nghĩa một l�
 
 ## Điều VI — An toàn file
 Mọi lần ghi vào kênh/video/kho dữ liệu app đi qua **module ghi của Gateway** (lối vào: `artifact.write`, `studio.commit`, đầu ra capability, `upload.ingest`, ghi nội bộ kho nhạc app — D3 mục 8); ghi nguyên tử (file tạm → đổi tên); không xóa hay ghi ra ngoài project; sao lưu trước migration và trước ghi đè phần đã duyệt/đã chỉnh tay.
+
+**Ngoại lệ — xóa video theo yêu cầu người dùng (1.1, 07/10/2026):** người dùng xóa video → module ghi **chuyển** thư mục video vào thùng rác của kênh `<kênh>/.trash/` (vẫn trong project, khôi phục được); chỉ nội dung `.trash/` mới được xóa hẳn — sau `trash.retention_days` ngày (mặc định 30) hoặc khi người dùng bấm "Dọn thùng rác". *Lý do:* video thử/hỏng tích tụ làm rác kênh và tốn đĩa (Tan, 064); thùng rác giữ an toàn "không mất dữ liệu ngoài ý muốn" của Điều này.
 
 ## Điều VII — Quan sát được
 Mọi thao tác sinh nội dung ghi provenance (provider, model, tham số, seed, nguồn). Mọi bước workflow, tool call, job, vòng `refine-loop` có span trace. Log có cấu trúc (JSON), có mã yêu cầu/tính năng liên quan khi có thể.
