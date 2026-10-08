@@ -100,3 +100,15 @@ describe('083: step waiting for the user', () => {
     ]);
   });
 });
+
+describe('086: Claude limit', () => {
+  it('says the step reruns by itself at the reset time', () => {
+    expect(
+      friendlyStepError(
+        "Claude Code returned an error result: You've hit your session limit · resets 5pm (Asia/Bangkok) — tự chạy lại lúc 17:01 08/10",
+      ),
+    ).toBe(
+      'Đã hết hạn mức Claude. App tự chạy lại bước này lúc 17:01 08/10 — không cần làm gì; cứ để app mở.',
+    );
+  });
+});

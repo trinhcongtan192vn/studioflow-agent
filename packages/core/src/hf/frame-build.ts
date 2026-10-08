@@ -17,7 +17,9 @@ import { fixVideoFrames } from './clip-fix.js';
 import { frameModel } from './frame-model.js';
 import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
+import { loadOutputProfile } from './outputs.js';
 import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
+import { parseDesignTokens, templateFrame } from './templates.js';
 
 export interface FrameBuildDeps {
   builders: BuilderRegistry;
@@ -89,13 +91,20 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
   return async (
     ctx: StepRunContext & { only?: string[]; inGraph?: boolean },
   ): Promise<FrameBuildResult> => {
+    // 086: frame dựng bằng agent là tính năng nâng cao; mặc định dựng từ mẫu (không phiên, 0 token)
+    const custom =
+      resolveConfig(
+        'advanced.custom_frames',
+        { channelDir: ctx.channelDir, videoId: ctx.videoId },
+        { appDataDir: ctx.appDataDir },
+      ).value === true;
     const runtime = d.runtime();
-    if (!runtime)
+    if (custom && !runtime)
       throw new SfError(
         'E_STEP_INCOMPLETE',
         `step ${ctx.step.id} needs an agent runtime for frame sessions`,
       );
-    if (!ctx.waitFrame)
+    if (custom && !ctx.waitFrame)
       throw new SfError('E_INTERNAL', 'frame-build needs waitFrame from the workflow engine');
     const v = `videos/${ctx.videoId}`;
     ensureHfProject(ctx.store, ctx.videoId);
@@ -187,6 +196,20 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         ).value,
       ) || 2;
     const failures: string[] = [];
+    // 086: hết lượt Claude → không mở phiên mới, không thử lại bằng model khác
+    let limited: string | undefined;
+    /** 086: frame từ mẫu — HTML tất định từ packet + frame.md. */
+    const profile = loadOutputProfile(model.config('output.profile') as string | null);
+    const tokens = parseDesignTokens(frameMd);
+    const karaoke = model.config('caption.style') === 'caption-pill-karaoke';
+    const buildFromTemplate = (id: string, p: { packet: FramePacket; hash: string }) => {
+      ctx.store.write(
+        `${v}/${p.packet.output_path}`,
+        templateFrame(p.packet, profile, tokens, { karaoke }),
+        { by: 'frame-template', validate: false },
+      );
+      state.frames[id] = { packet_hash: p.hash, built_at: new Date().toISOString() };
+    };
     /** Một phiên `frame` (tối đa 2 lần); trả lỗi hoặc undefined. */
     const buildOne = async (
       id: string,
@@ -203,6 +226,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           frame_id: id as SessionContext['frame_id'],
           allowed_paths: [p.packet.output_path],
         };
+        if (limited) return limited;
         const waiter = ctx.waitFrame!(id);
         // 060: frame đơn giản → model rẻ ở lần đầu; phức tạp / thử lại → model chính
         const scope = { channelDir: ctx.channelDir, videoId: ctx.videoId };
@@ -213,7 +237,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           simple: resolveConfig('frame_build.model_simple', scope, { appDataDir: ctx.appDataDir })
             .value as string | null,
         });
-        const session = await runtime.openSession(
+        const session = await runtime!.openSession(
           sessionOptionsFor('frame', context, d.gateway, { model }),
         );
         let reported: { outputs: string[]; new_element_ids?: string[] } | undefined;
@@ -229,6 +253,10 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           await session.close();
         }
         await Promise.race([waiter, new Promise((r) => setTimeout(r, 50))]);
+        if (error?.startsWith('E_RUNTIME_RATE_LIMIT')) {
+          limited = error.replace(/^E_RUNTIME_RATE_LIMIT:\s*/, '');
+          return limited;
+        }
         const file = ctx.store.abs(`${v}/${p.packet.output_path}`);
         const problems = [
           ...(error ? [{ code: 'agent_error', message: error }] : []),
@@ -278,13 +306,18 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         validate: false,
       });
     frameProgress(todo.length);
-    await pool(todo, parallel, async ([id, p]) => {
-      const err = await buildOne(id, p);
-      if (err) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
+    await pool(todo, custom ? parallel : 1, async ([id, p]) => {
+      if (limited) return;
+      if (!custom) buildFromTemplate(id, p);
+      else {
+        const err = await buildOne(id, p);
+        if (err && !limited) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
+      }
       builtCount++;
       frameProgress(todo.length);
     });
     saveState();
+    if (limited) throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
     if (failures.length)
       throw new SfError('E_GATE_FAILED', `frames failed: ${failures.join('; ')}`);
     const built = todo.map(([id]) => id);
@@ -365,7 +398,8 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       return { byFrame, general, warnings: lint.warningCount };
     };
     let res = await verify();
-    if (res.byFrame.size) {
+    // 086: frame từ mẫu lỗi lint/check → báo lỗi bên dưới (không tự gọi agent sửa)
+    if (res.byFrame.size && custom) {
       // một vòng sửa: gửi lại frame kèm phát hiện của lint/check (như orchestrator HyperFrames)
       const redo = [...res.byFrame].filter(([id]) => packets.has(id));
       await pool(redo, parallel, async ([id, msgs]) => {
@@ -377,6 +411,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         if (err) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
       });
       saveState();
+      if (limited) throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
       if (failures.length)
         throw new SfError('E_GATE_FAILED', `frames failed: ${failures.join('; ')}`);
       for (const [id] of redo) if (!built.includes(id)) built.push(id);
@@ -395,7 +430,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       outputs: [...model.frames.map((f) => `compositions/frames/${f.id}.html`), 'index.html'],
       built,
       skipped: [...packets.keys()].filter((id) => !built.includes(id)),
-      summary: `Dựng ${built.length} frame (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.`,
+      summary: `${custom ? 'Dựng' : 'Dựng từ mẫu'} ${built.length} frame (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.`,
     };
   };
 }

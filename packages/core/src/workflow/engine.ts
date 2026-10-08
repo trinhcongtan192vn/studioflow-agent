@@ -18,6 +18,8 @@ import type { WriteStore } from '../store/writer.js';
 import { evaluateGate, isWarning, WAIVABLE_CHECKS, type GateResult } from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
 import { resolveConfig } from '../config/resolve.js';
+import { limitResumeAt } from '../autopilot/limit.js';
+import { zoneParts } from '../autopilot/plan.js';
 import {
   AUTO_APPROVAL_NOTE,
   AUTOPILOT_APPROVAL_NOTE,
@@ -107,6 +109,16 @@ export interface EngineDeps {
 }
 
 const now = () => new Date().toISOString();
+
+/** 086: hậu tố thông báo lỗi hết lượt (UI nhận ra để hiện giờ tự chạy lại). */
+export const LIMIT_RETRY_NOTE = 'tự chạy lại lúc';
+
+/** "17:01 08/10" theo múi giờ kênh. */
+function timeLabel(d: Date, timeZone: string): string {
+  const p = zoneParts(d.getTime(), timeZone);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(p.h)}:${pad(p.mi)} ${pad(p.d)}/${pad(p.mo)}`;
+}
 const RUNNABLE = new Set<StepState['status']>(['pending', 'stale']);
 
 /** 083: đuôi lỗi của bước mà agent dừng lượt để hỏi người dùng (giao diện hiện "đang chờ bạn trả lời"). */
@@ -616,6 +628,15 @@ export class WorkflowEngine extends EventEmitter {
       changed = true;
     }
     if (changed) this.writeState(st);
+    // 086: bước lỗi hết lượt Claude → hẹn chạy lại (đã quá giờ → chạy ngay)
+    if (!this.limitTimer)
+      for (const [id, s] of Object.entries(st.steps)) {
+        const at = this.limitRetryAt(st, s);
+        if (at) {
+          this.scheduleLimitRetry(id, at);
+          break;
+        }
+      }
   }
 
   /** Điều phối: chạy liên tiếp tới điểm duyệt, lỗi, tạm dừng hoặc bước đích. */
@@ -1043,7 +1064,61 @@ export class WorkflowEngine extends EventEmitter {
       s.status = 'failed';
       s.finished_at = now();
       s.error = { code, message: message.split('\n')[0]! };
+      // 086: hết lượt Claude (video thường; Autopilot có cơ chế riêng 052) → tự chạy lại lúc hết hạn mức
+      const at = this.limitRetryAt(st, s);
+      if (at) {
+        s.error.message += ` — ${LIMIT_RETRY_NOTE} ${timeLabel(at, this.timeZone())}`;
+        this.scheduleLimitRetry(stepId, at);
+      }
       this.writeState(st);
+    });
+  }
+
+  /** 086: thời điểm tự chạy lại bước lỗi hết lượt; không phải lỗi đó / video Autopilot → undefined. */
+  private limitRetryAt(st: VideoState, s: StepState): Date | undefined {
+    if (s.status !== 'failed' || s.error?.code !== 'E_RUNTIME_RATE_LIMIT' || st.autopilot)
+      return undefined;
+    const anchor = s.finished_at ? new Date(s.finished_at) : new Date();
+    return limitResumeAt(s.error.message, anchor, this.timeZone());
+  }
+
+  private timeZone(): string {
+    return String(
+      resolveConfig(
+        'publish.timezone',
+        { channelDir: this.d.store.root },
+        { appDataDir: this.d.appDataDir },
+      ).value ?? 'Asia/Ho_Chi_Minh',
+    );
+  }
+
+  private limitTimer?: ReturnType<typeof setTimeout>;
+
+  /** Hẹn chạy lại (mất khi tắt app — `open()` hẹn lại theo thông báo lỗi). */
+  private scheduleLimitRetry(stepId: string, at: Date): void {
+    if (this.limitTimer) clearTimeout(this.limitTimer);
+    const ms = Math.min(Math.max(0, at.getTime() - Date.now()), 2 ** 31 - 1);
+    this.limitTimer = setTimeout(() => {
+      this.limitTimer = undefined;
+      void this.retryAfterLimit(stepId).catch(() => {});
+    }, ms);
+    this.limitTimer.unref?.();
+  }
+
+  /** 086: bước vẫn đang lỗi hết lượt → về `pending` và chạy tiếp. */
+  retryAfterLimit(stepId: string): Promise<void> {
+    return this.exclusive(() => {
+      const st = this.readState();
+      const s = st.steps[stepId];
+      if (s?.status !== 'failed' || s.error?.code !== 'E_RUNTIME_RATE_LIMIT') return false;
+      delete s.error;
+      s.status = 'pending';
+      this.writeState(st);
+      return true;
+    }).then((ok) => {
+      if (!ok) return;
+      this.paused = false;
+      return this.advance();
     });
   }
 }

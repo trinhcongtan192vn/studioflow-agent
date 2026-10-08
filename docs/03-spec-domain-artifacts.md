@@ -664,6 +664,7 @@ interface SettingsConfig extends Versioned {
 | `advanced.refine` | boolean (vòng viết–chấm–sửa cho bước có `refine`; false = một bản nháp + kiểm khách quan, 085) | app, channel, video |
 | `advanced.music` | boolean (bước nhạc nền; false = bỏ qua bước `music`, 085) | app, channel, video |
 | `advanced.reasoning` | boolean (model mạnh mặc định cho `text.*` chưa đặt; false = model rẻ, 085) | app, channel, video |
+| `advanced.custom_frames` | boolean (frame dựng bằng phiên agent; false = dựng từ mẫu, không token, 086) | app, channel, video |
 | `frame.min_duration_ms` | Ms | channel, video, scene, frame |
 | `frame_build.parallel` | number | app |
 | `frame_build.model` | string (model Claude) | app, channel |

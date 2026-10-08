@@ -469,6 +469,7 @@ export type ConfigKey =
   | 'advanced.refine'
   | 'advanced.music'
   | 'advanced.reasoning'
+  | 'advanced.custom_frames'
   | 'frame.min_duration_ms'
   | 'frame_build.parallel'
   | 'frame_build.model'
