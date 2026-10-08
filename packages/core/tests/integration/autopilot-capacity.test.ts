@@ -104,7 +104,7 @@ describe('capacity from the app DB (050)', () => {
 
     expect(readStepSpans(d)).toHaveLength(7);
     expect(readVideoTokens(d)).toEqual({ vd_1: 100_000, vd_2: 200_000, vd_3: 300_000 });
-    expect(readLimitHits(d, 0)).toEqual([NOW - DAY]);
+    expect(readLimitHits(d, 0)).toEqual([{ ts_ms: NOW - DAY, weekly: true }]);
 
     const r = capacityFromDb(d, {
       now: NOW,

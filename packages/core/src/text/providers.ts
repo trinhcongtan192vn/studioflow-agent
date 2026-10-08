@@ -29,6 +29,7 @@ export function claudeTextProvider(
         .filter((m) => m.role !== 'system')
         .map((m) => (m.role === 'assistant' ? `[Trợ lý trước đó]\n${m.content}` : m.content))
         .join('\n\n');
+      const key = opts.getApiKey?.();
       const q = (opts.query ?? sdkQuery)({
         prompt: convo,
         options: {
@@ -40,7 +41,7 @@ export function claudeTextProvider(
           allowedTools: [],
           maxTurns: 1,
           ...(system ? { systemPrompt: system } : {}),
-          env: cleanEnv(process.env, opts.getApiKey?.()),
+          env: cleanEnv(process.env, key),
         },
       });
       for await (const m of q) {
@@ -56,7 +57,9 @@ export function claudeTextProvider(
         return {
           text: m.result,
           usage: { input: m.usage.input_tokens ?? 0, output: m.usage.output_tokens ?? 0 },
-          cost_usd: m.total_cost_usd ?? 0,
+          // 076: gói Claude (đăng nhập) không tốn tiền theo lượt — `total_cost_usd` chỉ là giá quy đổi; tính
+          // vào ngân sách $ của video thì video dài bị coi là vượt `budget.api_cost_usd_per_video` và đỗ giữa chừng
+          cost_usd: key ? (m.total_cost_usd ?? 0) : 0,
           model,
         };
       }
