@@ -1521,3 +1521,78 @@ label.field > select {
 .modal .card {
   max-width: min(880px, 94vw);
 }
+
+/* 068: khung app — thanh điều hướng trái + trang */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s1);
+  padding: var(--s2) 6px;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  min-height: 0;
+}
+.rail button {
+  flex-direction: column;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  border-radius: var(--r-md);
+  position: relative;
+}
+.rail button:hover:not(:disabled) {
+  background: var(--tool);
+  color: var(--ink);
+}
+.rail button.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.rail button.active::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+.rail-spacer {
+  flex: 1;
+}
+.page-host {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+}
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s5) var(--s6) var(--s6);
+}
+.page-body > h2:first-child,
+.page-body > .row:first-child h2 {
+  font-size: 24px;
+}
+/* trang rộng hơn khi cần chia cột (lịch sử phiên) */
+.page.session-history {
+  max-width: 1400px;
+}
+.page .session-split {
+  height: calc(100vh - 180px);
+}
+/* ô tích có nhãn: cùng một dòng */
+label.field:has(> input[type='checkbox']) {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ink);
+  font-size: var(--fs-md);
+}

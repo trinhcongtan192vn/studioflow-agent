@@ -10,7 +10,8 @@ import {
   saveWidths,
   type PanelWidths,
 } from './layout';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
+import { AsPage } from './Surface';
 import { core } from './rpc';
 import { AutopilotPanel } from './AutopilotPanel';
 import { ChannelSettings } from './ChannelSettings';
@@ -23,6 +24,20 @@ import { Settings } from './Settings';
 import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from './Tabs';
 
 type Video = { id: string; title: string; phase: string; updated_at: string };
+// 068: khung app — thanh điều hướng trái, các màn mở như trang
+type Page = 'video' | 'autopilot' | 'channels' | 'settings' | 'channel-settings' | 'history';
+const RAIL = 64;
+const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; testId: string }[] = [
+  { page: 'video', label: 'Video', title: 'Video của kênh', icon: 'film', testId: 'nav-video' },
+  {
+    page: 'autopilot',
+    label: 'Autopilot',
+    title: 'Kế hoạch, tiến độ và lý do chọn chủ đề của Autopilot hôm nay',
+    icon: 'sparkles',
+    testId: 'open-autopilot',
+  },
+  { page: 'channels', label: 'Kênh', title: 'Quản lý kênh', icon: 'home', testId: 'nav-channels' },
+];
 const TABS = ['Tiến độ', 'Xem trước', 'Job', 'Nhạc', 'Trace', 'Chi phí'] as const;
 
 /**
@@ -44,11 +59,10 @@ export function Workspace({
   const [external, setExternal] = useState<string[]>([]);
   const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
-  const [settings, setSettings] = useState(false);
-  const [channelSettings, setChannelSettings] = useState(false);
+  // 068: màn đang mở trong vùng chính (thanh điều hướng trái); `video` = sidebar + chat + tab
+  const [page, setPage] = useState<Page>('video');
   // 048: quản lý kênh, lịch sử phiên, chi tiết kênh (cây thư mục)
-  const [manage, setManage] = useState(false);
-  const [history, setHistory] = useState<{ initial?: SessionRow } | null>(null);
+  const [history, setHistory] = useState<{ initial?: SessionRow }>({});
   const [details, setDetails] = useState(false);
   const [tick, setTick] = useState(0);
   // 064: xóa video vào thùng rác của kênh
@@ -57,11 +71,10 @@ export function Workspace({
   const [trash, setTrash] = useState(false);
   const [trashCount, setTrashCount] = useState(0);
   // 052: màn Autopilot hôm nay
-  const [autopilot, setAutopilot] = useState(false);
   const [pendingVideo, setPendingVideo] = useState<string | null>(null);
   // độ rộng cột kéo được (nhớ theo máy)
   const root = useRef<HTMLDivElement>(null);
-  const total = () => root.current?.clientWidth ?? window.innerWidth;
+  const total = () => (root.current?.clientWidth ?? window.innerWidth) - RAIL;
   const [widths, setWidthsState] = useState<PanelWidths>(() =>
     clampWidths(loadWidths(), window.innerWidth),
   );
@@ -164,182 +177,266 @@ export function Workspace({
       ref={root}
       style={
         {
-          gridTemplateColumns: `${widths.left}px 6px minmax(0, 1fr) 6px ${widths.right}px`,
+          gridTemplateColumns:
+            page === 'video'
+              ? `${RAIL}px ${widths.left}px 6px minmax(0, 1fr) 6px ${widths.right}px`
+              : `${RAIL}px minmax(0, 1fr)`,
         } as CSSProperties
       }
     >
-      <aside className="left">
-        <div className="row sidebar-head">
-          <ChannelSwitcher
-            channel={channel}
-            refreshKey={tick}
-            onSwitch={onSwitch}
-            onManage={() => setManage(true)}
-            onChannelSettings={() => setChannelSettings(true)}
-          />
+      <nav className="rail" aria-label="Điều hướng">
+        {RAIL_ITEMS.map((x) => (
           <button
-            className="ghost icon-only"
-            onClick={() => setSettings(true)}
-            title="Cài đặt app"
-            aria-label="Cài đặt app"
+            key={x.page}
+            className={
+              page === x.page || (x.page === 'channels' && page === 'channel-settings')
+                ? 'active'
+                : ''
+            }
+            title={x.title}
+            aria-label={x.label}
+            aria-current={page === x.page ? 'page' : undefined}
+            data-testid={x.testId}
+            onClick={() => setPage(x.page)}
           >
-            <Icon name="settings" />
+            <Icon name={x.icon} size={20} />
+            <span>{x.label}</span>
           </button>
-        </div>
+        ))}
+        <span className="rail-spacer" />
         <button
-          className="autopilot-entry"
-          data-testid="open-autopilot"
-          onClick={() => setAutopilot(true)}
-          title="Kế hoạch, tiến độ và lý do chọn chủ đề của Autopilot hôm nay"
+          className={page === 'settings' ? 'active' : ''}
+          title="Cài đặt app"
+          aria-label="Cài đặt app"
+          aria-current={page === 'settings' ? 'page' : undefined}
+          onClick={() => setPage('settings')}
         >
-          <Icon name="sparkles" /> Autopilot hôm nay
+          <Icon name="settings" size={20} />
+          <span>Cài đặt</span>
         </button>
-        {external.length > 0 && (
-          <p className="error" role="alert">
-            File bị sửa ngoài app: {external.join(', ')} — app sẽ không tự ghi đè; nhờ agent kiểm
-            tra hoặc dựng lại.{' '}
-            <button className="link" onClick={() => setExternal([])}>
-              Ẩn
-            </button>
-          </p>
-        )}
-        {channel && <h3>Video</h3>}
-        {channel && (
-          <ul className="list" data-testid="video-list">
-            {videos.map((v) => (
-              <li key={v.id} className={`video-item${v.id === video ? ' active' : ''}`}>
-                <button className="link" onClick={() => void openVideo(v.id)}>
-                  {v.title} <span className="muted">({v.phase})</span>
+      </nav>
+      {page !== 'video' && (
+        <AsPage.Provider value>
+          <main className="page-host">
+            {page === 'settings' && (
+              <Settings {...(channel ? { channel } : {})} onClose={() => setPage('video')} />
+            )}
+            {page === 'channel-settings' && channel && (
+              <ChannelSettings
+                channel={channel}
+                onClose={() => {
+                  setPage('video');
+                  // bộ chọn kênh hiện đúng chế độ Autopilot/Manual mới
+                  setTick((t) => t + 1);
+                }}
+              />
+            )}
+            {page === 'channels' && (
+              <ChannelsOverview
+                onOpen={(dir) => {
+                  setPage('video');
+                  onSwitch(dir);
+                }}
+                onClose={() => {
+                  setPage('video');
+                  setTick((t) => t + 1);
+                }}
+              />
+            )}
+            {page === 'autopilot' && (
+              <AutopilotPanel
+                onClose={() => setPage('video')}
+                onOpenVideo={(dir, id) => {
+                  setPage('video');
+                  if (dir === channel) void openVideo(id);
+                  else {
+                    // mở video của kênh khác: đổi kênh rồi mở video khi danh sách đã tải
+                    setPendingVideo(id);
+                    onSwitch(dir);
+                  }
+                }}
+              />
+            )}
+            {page === 'history' && channel && (
+              <SessionHistory
+                channel={channel}
+                videos={videos}
+                {...(history.initial ? { initial: history.initial } : {})}
+                onClose={() => setPage('video')}
+              />
+            )}
+          </main>
+        </AsPage.Provider>
+      )}
+      {page === 'video' && (
+        <>
+          <aside className="left">
+            <div className="row sidebar-head">
+              <ChannelSwitcher
+                channel={channel}
+                refreshKey={tick}
+                onSwitch={onSwitch}
+                onManage={() => setPage('channels')}
+                onChannelSettings={() => setPage('channel-settings')}
+              />
+            </div>
+            {external.length > 0 && (
+              <p className="error" role="alert">
+                File bị sửa ngoài app: {external.join(', ')} — app sẽ không tự ghi đè; nhờ agent
+                kiểm tra hoặc dựng lại.{' '}
+                <button className="link" onClick={() => setExternal([])}>
+                  Ẩn
                 </button>
-                <button
-                  className="link icon-btn"
-                  title="Xóa video (vào thùng rác, khôi phục được trong 30 ngày)"
-                  aria-label={`Xóa video ${v.title}`}
-                  data-testid="delete-video"
-                  onClick={() => {
-                    setDeleteErr('');
-                    setDeleting({ id: v.id, title: v.title });
+              </p>
+            )}
+            {channel && <h3>Video</h3>}
+            {channel && (
+              <ul className="list" data-testid="video-list">
+                {videos.map((v) => (
+                  <li key={v.id} className={`video-item${v.id === video ? ' active' : ''}`}>
+                    <button className="link" onClick={() => void openVideo(v.id)}>
+                      {v.title} <span className="muted">({v.phase})</span>
+                    </button>
+                    <button
+                      className="link icon-btn"
+                      title="Xóa video (vào thùng rác, khôi phục được trong 30 ngày)"
+                      aria-label={`Xóa video ${v.title}`}
+                      data-testid="delete-video"
+                      onClick={() => {
+                        setDeleteErr('');
+                        setDeleting({ id: v.id, title: v.title });
+                      }}
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!channel ? null : creating === null ? (
+              <button data-testid="new-video" onClick={() => setCreating('')}>
+                <Icon name="plus" /> Video mới
+              </button>
+            ) : (
+              <div className="new-video" data-testid="new-video-form">
+                <input
+                  autoFocus
+                  placeholder="Tên video tạm (có thể đổi sau)"
+                  value={creating}
+                  onChange={(e) => setCreating(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void newVideo();
+                    if (e.key === 'Escape') setCreating(null);
                   }}
-                >
-                  <Icon name="trash" size={14} />
+                />
+                <div className="row">
+                  <button onClick={() => void newVideo()}>Tạo</button>
+                  <button className="link" onClick={() => setCreating(null)}>
+                    Hủy
+                  </button>
+                </div>
+                {createErr && <div className="error">{createErr}</div>}
+              </div>
+            )}
+            {channel && (
+              <>
+                <h3>Lịch sử phiên</h3>
+                <RecentSessions
+                  channel={channel}
+                  videos={videos}
+                  refreshKey={tick}
+                  onOpen={(s) => {
+                    setHistory(s ? { initial: s } : {});
+                    setPage('history');
+                  }}
+                />
+                <div className="sidebar-foot">
+                  <button className="link" data-testid="open-trash" onClick={() => setTrash(true)}>
+                    Thùng rác{trashCount ? ` (${trashCount})` : ''}
+                  </button>
+                  <button
+                    className="link"
+                    data-testid="open-channel-details"
+                    onClick={() => setDetails(true)}
+                  >
+                    Chi tiết kênh (thư mục, tệp)…
+                  </button>
+                </div>
+              </>
+            )}
+          </aside>
+          <Splitter
+            side="left"
+            label="Đổi độ rộng sidebar"
+            onDrag={(dx, start) => setWidths(dragWidths(start, 'left', dx, total()))}
+            widths={widths}
+            onReset={() =>
+              setWidths(clampWidths({ ...widths, left: DEFAULT_WIDTHS.left }, total()))
+            }
+          />
+          <section className="center">
+            {!channel ? (
+              <div className="empty-state" data-testid="no-channel">
+                <h2>Chào mừng đến StudioFlow</h2>
+                <p>Thêm thư mục kênh có sẵn hoặc tạo kênh mới để bắt đầu.</p>
+                <button className="primary" onClick={() => setPage('channels')}>
+                  Thêm hoặc tạo kênh…
                 </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {!channel ? null : creating === null ? (
-          <button data-testid="new-video" onClick={() => setCreating('')}>
-            <Icon name="plus" /> Video mới
-          </button>
-        ) : (
-          <div className="new-video" data-testid="new-video-form">
-            <input
-              autoFocus
-              placeholder="Tên video tạm (có thể đổi sau)"
-              value={creating}
-              onChange={(e) => setCreating(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void newVideo();
-                if (e.key === 'Escape') setCreating(null);
-              }}
-            />
-            <div className="row">
-              <button onClick={() => void newVideo()}>Tạo</button>
-              <button className="link" onClick={() => setCreating(null)}>
-                Hủy
-              </button>
-            </div>
-            {createErr && <div className="error">{createErr}</div>}
-          </div>
-        )}
-        {channel && (
-          <>
-            <h3>Lịch sử phiên</h3>
-            <RecentSessions
-              channel={channel}
-              videos={videos}
-              refreshKey={tick}
-              onOpen={(s) => setHistory(s ? { initial: s } : {})}
-            />
-            <div className="sidebar-foot">
-              <button className="link" data-testid="open-trash" onClick={() => setTrash(true)}>
-                Thùng rác{trashCount ? ` (${trashCount})` : ''}
-              </button>
-              <button
-                className="link"
-                data-testid="open-channel-details"
-                onClick={() => setDetails(true)}
-              >
-                Chi tiết kênh (thư mục, tệp)…
-              </button>
-            </div>
-          </>
-        )}
-      </aside>
-      <Splitter
-        side="left"
-        label="Đổi độ rộng sidebar"
-        onDrag={(dx, start) => setWidths(dragWidths(start, 'left', dx, total()))}
-        widths={widths}
-        onReset={() => setWidths(clampWidths({ ...widths, left: DEFAULT_WIDTHS.left }, total()))}
-      />
-      <section className="center">
-        {!channel ? (
-          <div className="empty-state" data-testid="no-channel">
-            <h2>Chào mừng đến StudioFlow</h2>
-            <p>Thêm thư mục kênh có sẵn hoặc tạo kênh mới để bắt đầu.</p>
-            <button className="primary" onClick={() => setManage(true)}>
-              Thêm hoặc tạo kênh…
-            </button>
-          </div>
-        ) : (
-          <>
-            <header className="video-head">
-              <b>{video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}</b>
-              {state && (
-                <span className="muted">
-                  {' '}
-                  · {state.phase} · {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
-                  {state.budget.api_cost_usd.toFixed(2)}
-                </span>
+              </div>
+            ) : (
+              <>
+                <header className="video-head">
+                  <b>
+                    {video ? (videos.find((v) => v.id === video)?.title ?? video) : 'Chat kênh'}
+                  </b>
+                  {state && (
+                    <span className="muted">
+                      {' '}
+                      · {state.phase} · {state.budget.tokens_used.toLocaleString('vi-VN')} token · $
+                      {state.budget.api_cost_usd.toFixed(2)}
+                    </span>
+                  )}
+                </header>
+                <Chat
+                  key={`${channel}|${video ?? ''}`}
+                  channel={channel}
+                  video={video}
+                  onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
+                  onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
+                />
+              </>
+            )}
+          </section>
+          <Splitter
+            side="right"
+            label="Đổi độ rộng khung tab"
+            onDrag={(dx, start) => setWidths(dragWidths(start, 'right', dx, total()))}
+            widths={widths}
+            onReset={() =>
+              setWidths(clampWidths({ ...widths, right: DEFAULT_WIDTHS.right }, total()))
+            }
+          />
+          <aside className="right">
+            <nav className="tabs">
+              {TABS.map((t) => (
+                <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
+                  {t}
+                </button>
+              ))}
+            </nav>
+            <div className="tab-body">
+              {channel && tab === 'Tiến độ' && (
+                <ProgressTab channel={channel} video={video} state={state} onState={setState} />
               )}
-            </header>
-            <Chat
-              key={`${channel}|${video ?? ''}`}
-              channel={channel}
-              video={video}
-              onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
-              onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
-            />
-          </>
-        )}
-      </section>
-      <Splitter
-        side="right"
-        label="Đổi độ rộng khung tab"
-        onDrag={(dx, start) => setWidths(dragWidths(start, 'right', dx, total()))}
-        widths={widths}
-        onReset={() => setWidths(clampWidths({ ...widths, right: DEFAULT_WIDTHS.right }, total()))}
-      />
-      <aside className="right">
-        <nav className="tabs">
-          {TABS.map((t) => (
-            <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
-              {t}
-            </button>
-          ))}
-        </nav>
-        <div className="tab-body">
-          {channel && tab === 'Tiến độ' && (
-            <ProgressTab channel={channel} video={video} state={state} onState={setState} />
-          )}
-          {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
-          {channel && tab === 'Job' && <JobsTab video={video} />}
-          {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
-          {channel && tab === 'Trace' && <TraceTab video={video} />}
-          {channel && tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
-        </div>
-      </aside>
+              {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
+              {channel && tab === 'Job' && <JobsTab video={video} />}
+              {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
+              {channel && tab === 'Trace' && <TraceTab video={video} />}
+              {channel && tab === 'Chi phí' && <CostTab channel={channel} video={video} />}
+            </div>
+          </aside>
+        </>
+      )}
       {details && channel && (
         <div className="modal" onClick={() => setDetails(false)}>
           <div
@@ -370,45 +467,6 @@ export function Workspace({
       )}
       {file && channel && (
         <FileViewer channel={channel} file={file} onClose={() => setFile(undefined)} />
-      )}
-      {settings && (
-        <Settings {...(channel ? { channel } : {})} onClose={() => setSettings(false)} />
-      )}
-      {channelSettings && channel && (
-        <ChannelSettings
-          channel={channel}
-          onClose={() => {
-            setChannelSettings(false);
-            // bộ chọn kênh hiện đúng chế độ Autopilot/Manual mới
-            setTick((t) => t + 1);
-          }}
-        />
-      )}
-      {manage && (
-        <ChannelsOverview
-          onOpen={(dir) => {
-            setManage(false);
-            onSwitch(dir);
-          }}
-          onClose={() => {
-            setManage(false);
-            setTick((t) => t + 1);
-          }}
-        />
-      )}
-      {autopilot && (
-        <AutopilotPanel
-          onClose={() => setAutopilot(false)}
-          onOpenVideo={(dir, id) => {
-            setAutopilot(false);
-            if (dir === channel) void openVideo(id);
-            else {
-              // mở video của kênh khác: đổi kênh rồi mở video khi danh sách đã tải
-              setPendingVideo(id);
-              onSwitch(dir);
-            }
-          }}
-        />
       )}
       {deleting && channel && (
         <div className="modal" onClick={() => setDeleting(null)}>
@@ -454,14 +512,6 @@ export function Workspace({
           channel={channel}
           onChanged={() => void reload()}
           onClose={() => setTrash(false)}
-        />
-      )}
-      {history && channel && (
-        <SessionHistory
-          channel={channel}
-          videos={videos}
-          {...(history.initial ? { initial: history.initial } : {})}
-          onClose={() => setHistory(null)}
         />
       )}
     </div>

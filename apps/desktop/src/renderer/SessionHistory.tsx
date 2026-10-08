@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ChatLine } from '@studioflow/core';
 import { core } from './rpc';
+import { Surface } from './Surface';
 import { groupRuns } from './chat-format';
 import { Markdown, ToolGroup } from './ChatParts';
 import {
@@ -88,103 +89,97 @@ export function SessionHistory({
   const shown = filterSessions(rows, { ...(video ? { video } : {}), ...(kind ? { kind } : {}) });
   const kinds = [...new Set(rows.map((r) => r.kind))];
   return (
-    <div className="modal" onClick={onClose}>
-      <div
-        className="card session-history"
-        role="dialog"
-        aria-label="Lịch sử phiên"
-        data-testid="session-history"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="row">
-          <h2>Lịch sử phiên agent</h2>
-          <select
-            aria-label="Lọc theo video"
-            value={video}
-            onChange={(e) => setVideo(e.target.value)}
-          >
-            <option value="">Mọi video</option>
-            {videos.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.title}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Lọc theo loại phiên"
-            value={kind}
-            onChange={(e) => setKind(e.target.value)}
-          >
-            <option value="">Mọi loại</option>
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {kindLabel(k)}
-              </option>
-            ))}
-          </select>
-          <button onClick={onClose}>Đóng</button>
-        </div>
-        <div className="session-split">
-          <div className="session-list" data-testid="session-list">
-            {groupByDay(shown).map((g) => (
-              <section key={g.day}>
-                <h4>{g.day}</h4>
-                <ul className="list">
-                  {g.items.map((s) => (
-                    <li
-                      key={`${s.video ?? ''}|${s.id}`}
-                      className={sel?.id === s.id ? 'active' : ''}
-                    >
-                      <button className="link" onClick={() => setSel(s)}>
-                        <span className={`badge kind-${s.kind}`}>{kindLabel(s.kind)}</span>{' '}
-                        {timeOf(s.started_at)}
-                        {s.frame_id ? ` · ${s.frame_id}` : ''}
-                        <div className="muted">
-                          {title(s.video)} — {s.title}
-                        </div>
-                        {s.error && <div className="error">{s.error}</div>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-            {!shown.length && <p className="muted">Không có phiên.</p>}
-          </div>
-          <div className="session-view" data-testid="session-view">
-            {sel ? (
-              <>
-                <div className="muted">
-                  {kindLabel(sel.kind)} · {title(sel.video)} · {timeOf(sel.started_at)}
-                  {durationLabel(sel.started_at, sel.ended_at)
-                    ? ` · ${durationLabel(sel.started_at, sel.ended_at)}`
-                    : ''}
-                  {sel.tokens ? ` · ${sel.tokens.toLocaleString('vi-VN')} token` : ''}
-                  {sel.source === 'trace' && ' · phiên cũ, chỉ còn danh sách tool từ trace'}
-                </div>
-                <div className="messages readonly">
-                  {groupRuns(lines, (l) => l.role === 'tool').map((g) =>
-                    g.kind === 'tools' ? (
-                      <ToolGroup key={g.items[0]!.index} lines={g.items.map((x) => x.item)} />
-                    ) : (
-                      <div key={g.index} className={`msg ${g.item.role}`}>
-                        {g.item.role === 'assistant' ? (
-                          <Markdown text={g.item.content} />
-                        ) : (
-                          <span className="text">{g.item.content}</span>
-                        )}
+    <Surface
+      label="Lịch sử phiên"
+      className="session-history"
+      testId="session-history"
+      onClose={onClose}
+    >
+      <div className="row">
+        <h2>Lịch sử phiên agent</h2>
+        <select
+          aria-label="Lọc theo video"
+          value={video}
+          onChange={(e) => setVideo(e.target.value)}
+        >
+          <option value="">Mọi video</option>
+          {videos.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.title}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Lọc theo loại phiên"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+        >
+          <option value="">Mọi loại</option>
+          {kinds.map((k) => (
+            <option key={k} value={k}>
+              {kindLabel(k)}
+            </option>
+          ))}
+        </select>
+        <button onClick={onClose}>Đóng</button>
+      </div>
+      <div className="session-split">
+        <div className="session-list" data-testid="session-list">
+          {groupByDay(shown).map((g) => (
+            <section key={g.day}>
+              <h4>{g.day}</h4>
+              <ul className="list">
+                {g.items.map((s) => (
+                  <li key={`${s.video ?? ''}|${s.id}`} className={sel?.id === s.id ? 'active' : ''}>
+                    <button className="link" onClick={() => setSel(s)}>
+                      <span className={`badge kind-${s.kind}`}>{kindLabel(s.kind)}</span>{' '}
+                      {timeOf(s.started_at)}
+                      {s.frame_id ? ` · ${s.frame_id}` : ''}
+                      <div className="muted">
+                        {title(s.video)} — {s.title}
                       </div>
-                    ),
-                  )}
-                  {!lines.length && <p className="muted">Phiên không có nội dung.</p>}
-                </div>
-              </>
-            ) : (
-              <p className="muted">Chọn một phiên để xem lại.</p>
-            )}
-          </div>
+                      {s.error && <div className="error">{s.error}</div>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+          {!shown.length && <p className="muted">Không có phiên.</p>}
+        </div>
+        <div className="session-view" data-testid="session-view">
+          {sel ? (
+            <>
+              <div className="muted">
+                {kindLabel(sel.kind)} · {title(sel.video)} · {timeOf(sel.started_at)}
+                {durationLabel(sel.started_at, sel.ended_at)
+                  ? ` · ${durationLabel(sel.started_at, sel.ended_at)}`
+                  : ''}
+                {sel.tokens ? ` · ${sel.tokens.toLocaleString('vi-VN')} token` : ''}
+                {sel.source === 'trace' && ' · phiên cũ, chỉ còn danh sách tool từ trace'}
+              </div>
+              <div className="messages readonly">
+                {groupRuns(lines, (l) => l.role === 'tool').map((g) =>
+                  g.kind === 'tools' ? (
+                    <ToolGroup key={g.items[0]!.index} lines={g.items.map((x) => x.item)} />
+                  ) : (
+                    <div key={g.index} className={`msg ${g.item.role}`}>
+                      {g.item.role === 'assistant' ? (
+                        <Markdown text={g.item.content} />
+                      ) : (
+                        <span className="text">{g.item.content}</span>
+                      )}
+                    </div>
+                  ),
+                )}
+                {!lines.length && <p className="muted">Phiên không có nội dung.</p>}
+              </div>
+            </>
+          ) : (
+            <p className="muted">Chọn một phiên để xem lại.</p>
+          )}
         </div>
       </div>
-    </div>
+    </Surface>
   );
 }

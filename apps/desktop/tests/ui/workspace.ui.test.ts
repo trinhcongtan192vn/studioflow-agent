@@ -261,12 +261,16 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     });
     // UI-10 Dung lượng (024) trong Cài đặt
     await win.getByTitle('Cài đặt app').click();
+    // 068: Cài đặt là trang — vùng video tạm ẩn, thanh điều hướng đánh dấu mục đang mở
+    await expect(win.getByRole('region', { name: 'Cài đặt' })).toBeVisible();
+    await expect(win.getByTestId('video-list')).toBeHidden();
     await expect(win.getByLabel('Dung lượng')).toContainText('Ổ đĩa còn', { timeout: 30_000 });
     await expect(win.getByLabel('Dung lượng')).toContainText('Cache');
     await expect(win.getByTestId('autopilot-app')).toContainText('Khung giờ máy làm việc');
     // 052: chạy nền khi đóng cửa sổ — bật mặc định
     await expect(win.getByTestId('autopilot-background')).toBeChecked();
     await win.getByRole('button', { name: 'Đóng', exact: true }).last().click();
+    await expect(win.getByTestId('video-list')).toBeVisible();
     // 047 (FR-AP-01/02): cài đặt kênh → bật Autopilot → trang chủ hiện kênh quản lý ở chế độ Autopilot
     await win.getByTestId('channel-switcher-toggle').click();
     await win.getByTestId('open-channel-settings').click();
@@ -280,10 +284,9 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await win.getByTestId('channel-switcher-toggle').click();
     await win.getByRole('menuitem', { name: 'Quản lý tất cả kênh…' }).click();
     await expect(win.getByTestId('managed-channels')).toContainText('Autopilot');
-    await win
-      .getByRole('dialog', { name: 'Quản lý kênh' })
-      .getByRole('button', { name: 'Đóng' })
-      .click();
+    // 068: các màn mở như trang của khung app (không chồng hộp thoại)
+    await expect(win.getByRole('region', { name: 'Quản lý kênh' })).toBeVisible();
+    await win.getByTestId('channels-overview').getByRole('button', { name: 'Đóng' }).last().click();
     // 052: màn Autopilot hôm nay — trạng thái + kênh Autopilot (chưa lập kế hoạch)
     await win.getByTestId('open-autopilot').click();
     const ap = win.getByTestId('autopilot-panel');

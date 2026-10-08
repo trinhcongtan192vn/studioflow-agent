@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { percentToShare, shareToPercent } from './autopilot-format';
 import { Icon, type IconName } from './Icon';
 import { core } from './rpc';
+import { Surface } from './Surface';
 import { applyTheme, loadTheme, type Theme } from './theme';
 
 const LABEL: Record<string, string> = {
@@ -254,55 +255,53 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
     load();
   };
   return (
-    <div className="modal" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <h2>Cài đặt</h2>
-        <h3>Giao diện</h3>
-        <ThemePicker />
-        <h3>Khóa API</h3>
-        {secrets.map((s) => (
-          <div key={s.name} className="row">
-            <span style={{ width: 160 }}>{LABEL[s.name] ?? s.name}</span>
-            <span className="muted" style={{ width: 80 }}>
-              {s.hint ?? 'chưa có'}
-            </span>
-            <input
-              type="password"
-              placeholder="Dán khóa"
-              value={value[s.name] ?? ''}
-              onChange={(e) => setValue((v) => ({ ...v, [s.name]: e.target.value }))}
-            />
-            <button onClick={() => void save(s.name)}>Lưu</button>
-            {s.hint && (
-              <button onClick={() => void window.studioflow.secretsDelete(s.name).then(load)}>
-                Xóa
-              </button>
-            )}
-          </div>
-        ))}
-        <h3>Model viết mặc định</h3>
-        <div className="row">
+    <Surface label="Cài đặt" className="settings" testId="settings" onClose={onClose}>
+      <h2>Cài đặt</h2>
+      <h3>Giao diện</h3>
+      <ThemePicker />
+      <h3>Khóa API</h3>
+      {secrets.map((s) => (
+        <div key={s.name} className="row">
+          <span style={{ width: 160 }}>{LABEL[s.name] ?? s.name}</span>
+          <span className="muted" style={{ width: 80 }}>
+            {s.hint ?? 'chưa có'}
+          </span>
           <input
-            placeholder="claude/claude-sonnet-5-5"
-            value={producer}
-            onChange={(e) => setProducer(e.target.value)}
+            type="password"
+            placeholder="Dán khóa"
+            value={value[s.name] ?? ''}
+            onChange={(e) => setValue((v) => ({ ...v, [s.name]: e.target.value }))}
           />
-          <button
-            onClick={() =>
-              void core.call('settings.set', { key: 'text.producer', value: producer || null })
-            }
-          >
-            Lưu
-          </button>
+          <button onClick={() => void save(s.name)}>Lưu</button>
+          {s.hint && (
+            <button onClick={() => void window.studioflow.secretsDelete(s.name).then(load)}>
+              Xóa
+            </button>
+          )}
         </div>
-        <h3>Autopilot</h3>
-        <AutopilotApp />
-        <h3>Trace</h3>
-        <Phoenix />
-        <h3>Dung lượng</h3>
-        <Storage {...(channel ? { channel } : {})} />
-        <button onClick={onClose}>Đóng</button>
+      ))}
+      <h3>Model viết mặc định</h3>
+      <div className="row">
+        <input
+          placeholder="claude/claude-sonnet-5-5"
+          value={producer}
+          onChange={(e) => setProducer(e.target.value)}
+        />
+        <button
+          onClick={() =>
+            void core.call('settings.set', { key: 'text.producer', value: producer || null })
+          }
+        >
+          Lưu
+        </button>
       </div>
-    </div>
+      <h3>Autopilot</h3>
+      <AutopilotApp />
+      <h3>Trace</h3>
+      <Phoenix />
+      <h3>Dung lượng</h3>
+      <Storage {...(channel ? { channel } : {})} />
+      <button onClick={onClose}>Đóng</button>
+    </Surface>
   );
 }
