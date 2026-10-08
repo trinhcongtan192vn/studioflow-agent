@@ -244,6 +244,7 @@ export type StepCta =
   | { kind: 'waive'; label: string; step: string; check: string }
   /** Mở thư mục chứa tệp (video đã render) trong File Explorer, chọn sẵn tệp (058). */
   | { kind: 'reveal'; label: string; path: string }
+  | { kind: 'export'; label: string; render_id?: string }
   /** Duyệt ngay điểm duyệt đang chờ (041). */
   | { kind: 'approve'; label: string; approval_id: string };
 
@@ -390,12 +391,20 @@ export function stepCtas(
     if (/\.mp4$/i.test(p) && !seen.has('reveal')) {
       seen.add('reveal');
       out.push({ kind: 'reveal', label: 'Mở thư mục', path: p });
+      // 066: lưu video ra thư mục bất kỳ
+      out.push(exportCta(p));
     }
   }
   if (PREVIEW_STEPS.has(step.id))
     out.push({ kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' });
   if (step.id === 'music') out.push({ kind: 'tab', label: 'Xem nhạc', tab: 'Nhạc' });
   return out;
+}
+
+/** 066: nút "Xuất video…" cho một file `renders/<rd>/video.mp4`. */
+function exportCta(mp4: string): StepCta {
+  const rd = /renders\/(rd_[0-9a-z]+)\//.exec(mp4)?.[1];
+  return { kind: 'export', label: 'Xuất video…', ...(rd ? { render_id: rd } : {}) };
 }
 
 /** CTA cho thông báo workflow của agent (041): xem kết quả, duyệt, kiểm tra lại/chạy lại, xem video. */
@@ -418,6 +427,7 @@ export function noticeCtas(n: WorkflowNotice): StepCta[] {
         ? [
             { kind: 'file', label: 'Xem video', path: mp4 },
             { kind: 'reveal', label: 'Mở thư mục', path: mp4 },
+            exportCta(mp4),
           ]
         : [];
       return [...out, { kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' }];

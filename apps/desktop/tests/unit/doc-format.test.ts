@@ -197,7 +197,16 @@ describe('step CTAs', () => {
     ).toEqual({ kind: 'reveal', label: 'Mở thư mục', path: 'renders/rd_1/video.mp4' });
     expect(
       stepCtas({ id: 'render', status: 'done' }, ['renders/rd_2/video.mp4']).map((c) => c.kind),
-    ).toEqual(['file', 'reveal']);
+    ).toEqual(['file', 'reveal', 'export']);
+    // 066: xuất đúng bản render vừa xong ra thư mục người dùng chọn
+    expect(
+      noticeCtas({
+        event: 'finished',
+        ...base,
+        step_id: 'render',
+        outputs: ['renders/rd_1/video.mp4'],
+      })[2],
+    ).toEqual({ kind: 'export', label: 'Xuất video…', render_id: 'rd_1' });
   });
 });
 

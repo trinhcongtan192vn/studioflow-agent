@@ -1,4 +1,6 @@
 import {
+  constants,
+  copyFileSync,
   createWriteStream,
   mkdirSync,
   mkdtempSync,
@@ -27,6 +29,11 @@ export function createScratchDir(prefix = 'sf-run-'): { dir: string; cleanup: ()
 export function writeOutsideProject(file: string, content: string | Buffer): void {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, content);
+}
+
+/** 066: sao chép file của project ra thư mục người dùng chọn — không bao giờ ghi đè (constitution 1.2). */
+export function copyOutsideProject(src: string, dest: string): void {
+  copyFileSync(src, dest, constants.COPYFILE_EXCL);
 }
 
 /**

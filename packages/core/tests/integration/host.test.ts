@@ -219,6 +219,24 @@ describe('CoreHost IPC (008)', () => {
     expect((await host.call('trash.list', { channel: dir })).entries).toEqual([]);
   });
 
+  it('lists renders and exports one outside the channel (066)', async () => {
+    const { host, dir } = setup();
+    await host.call('channel.open', { channel: dir });
+    const { video_id } = await host.call('video.create', { channel: dir, title: 'Xuất' });
+    expect((await host.call('render.list', { channel: dir, video: video_id })).renders).toEqual([]);
+    const out = tempDir('sf-export-');
+    try {
+      const r = await host.handle({
+        id: 9,
+        method: 'video.export',
+        params: { channel: dir, video: video_id, dest_dir: out.dir },
+      });
+      expect(r.error).toMatchObject({ code: 'E_FILE_NOT_FOUND' });
+    } finally {
+      out.cleanup();
+    }
+  });
+
   it('managed channels and per-channel Autopilot settings (047 FR-AP-01..03)', async () => {
     const { host, dir } = setup();
     // mở kênh lần đầu → vào danh sách kênh quản lý (Manual)

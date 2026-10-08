@@ -14,6 +14,7 @@ import {
   type VoiceSuggestion,
 } from './chat-format';
 import { AudioPlayer } from './AudioPlayer';
+import { ExportDialog } from './ExportDialog';
 import { Markdown, ToolGroup } from './ChatParts';
 import {
   clearContextRefs,
@@ -70,6 +71,8 @@ export function Chat({
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState('');
   const [busy, setBusy] = useState(false);
+  // 066: hộp thoại xuất video (từ thẻ render xong)
+  const [exporting, setExporting] = useState<{ render_id?: string } | null>(null);
   // agent đang làm gì (chỉ báo "…" cuối khung chat); null = không xử lý
   const [activity, setActivity] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ path: string; mime: string }[]>([]);
@@ -253,6 +256,7 @@ export function Chat({
     else if (c.kind === 'reveal')
       void window.studioflow.revealFile(`${channel}/${video ? `videos/${video}/` : ''}${c.path}`);
     else if (c.kind === 'tab') onOpenTab?.(c.tab);
+    else if (c.kind === 'export') setExporting(c.render_id ? { render_id: c.render_id } : {});
     else if (c.kind === 'say') void send(c.text);
     else if (c.kind === 'approve') {
       const card = pending.find((x) => x.approval_id === c.approval_id);
@@ -415,6 +419,14 @@ export function Chat({
 
   return (
     <div className="chat">
+      {exporting && video && (
+        <ExportDialog
+          channel={channel}
+          video={video}
+          {...(exporting.render_id ? { renderId: exporting.render_id } : {})}
+          onClose={() => setExporting(null)}
+        />
+      )}
       <div className="messages" data-testid="messages">
         {groupRuns(items, (x) => x.type === 'line' && x.line.role === 'tool').map((g) => {
           if (g.kind === 'tools')
