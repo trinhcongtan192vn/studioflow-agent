@@ -59,6 +59,7 @@ import { getOpsSession, getSession, listOpsSessions, listSessions } from '../age
 import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash.js';
 import { videoCard, type VideoCard } from '../domain/video-card.js';
 import { exportVideo, listRenders, renderLibrary, type ExportInclude } from '../render/export.js';
+import { publishQueue } from '../publish/queue-view.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
 import { PUBLISH_CALLBACK } from '../publish/index.js';
@@ -738,6 +739,9 @@ export class CoreHost extends EventEmitter {
             ...(p.video ? { video: String(p.video) } : {}),
           }),
         };
+      // 074: màn Duyệt trước khi đăng
+      case 'publish.queue':
+        return { items: publishQueue(path.resolve(p.channel)) };
       case 'publish.youtube.connect':
         return c.youtube.connect(path.resolve(p.channel));
       case 'publish.youtube.status':

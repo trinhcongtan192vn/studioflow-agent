@@ -311,6 +311,14 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     // 073: Thư viện (kênh mẫu chưa render) và bảng lệnh Ctrl+K
     await win.getByTestId('nav-library').click();
     await expect(win.getByTestId('library')).toContainText('Chưa có bản render nào');
+    // 074: Duyệt trước khi đăng (kênh mẫu chưa có video Autopilot)
+    await win.getByTestId('nav-publish').click();
+    await expect(win.getByTestId('publish-review')).toContainText('Chưa có video nào chờ đăng');
+    // 075: Tổng quan kênh — số video theo trạng thái, lối tắt
+    await win.getByTestId('nav-overview').click();
+    const overview = win.getByTestId('channel-overview');
+    await expect(overview.getByTestId('overview-stat')).toHaveCount(4);
+    await expect(overview).toContainText('Chưa kết nối');
     await win.keyboard.press('Control+K');
     await win.getByTestId('palette').getByRole('textbox').fill('le loi');
     await win.keyboard.press('Enter');
