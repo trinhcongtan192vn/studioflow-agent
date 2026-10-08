@@ -56,6 +56,11 @@ export function stripWrapping(text: string): string {
     const end = t.indexOf('\n---', 4);
     if (end > 0) t = t.slice(end + 4).trim();
   }
+  // 080: model chép lại khung prompt sửa (`# Brief` … `# Bản nháp` … `# Vấn đề cần sửa`) → chỉ giữ bản nháp
+  const draft = /^#[ \t]+Bản nháp[ \t]*$/m.exec(t);
+  if (draft) t = t.slice(draft.index + draft[0].length).trim();
+  const issues = /^#[ \t]+Vấn đề cần sửa[ \t]*$/m.exec(t);
+  if (issues) t = t.slice(0, issues.index).trim();
   // tiêu đề beat sai cấp (`#`, `###`…) → `##` theo D3 (lỗi định dạng thường gặp của producer)
   // 036: marker beat viết trên dòng riêng (trước hoặc ngay sau tiêu đề) → gắn vào cuối tiêu đề
   t = t.replace(

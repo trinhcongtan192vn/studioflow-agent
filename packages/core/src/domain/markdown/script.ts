@@ -189,6 +189,20 @@ export function assignScriptIds(
   opts: { seed?: string } = {},
 ): { text: string; assigned: string[] } {
   const p = parseScript(text);
+  // 080: ID model tự đặt sai mẫu (ví dụ `ln_j5u9imcg_b` khi tách dòng lúc sửa) → coi như chưa có, gán ID mới
+  let fixed = false;
+  const checks = [
+    ...p.beats.map((o) => ({ o, want: /^bt_[0-9a-z]{8}$/ })),
+    ...p.lines.map((o) => ({ o, want: /^ln_[0-9a-z]{8}$/ })),
+  ];
+  for (const { o, want } of checks) {
+    if (o.attrs.id && !want.test(o.attrs.id)) {
+      const { id: _bad, ...rest } = o.attrs;
+      void _bad;
+      o.attrs = rest;
+      fixed = true;
+    }
+  }
   const used = new Set<string>(taken);
   for (const b of p.beats) if (b.attrs.id) used.add(b.attrs.id);
   for (const l of p.lines) if (l.attrs.id) used.add(l.attrs.id);
@@ -206,7 +220,7 @@ export function assignScriptIds(
     it.obj.attrs = withIdFirst(it.obj.attrs, id);
     assigned.push(id);
   }
-  return { text: assigned.length ? serializeScript(p) : text, assigned };
+  return { text: assigned.length || fixed ? serializeScript(p) : text, assigned };
 }
 
 const NUMERIC = /^-?\d+(\.\d+)?$/;
