@@ -16,6 +16,11 @@ export const ADVANCED = [
     label: 'Model mạnh (reasoning)',
     hint: 'Kịch bản viết bằng Claude Opus. Tắt: DeepSeek nếu có khóa, không thì Claude Sonnet. Model đặt riêng ở Cài đặt → Model luôn được ưu tiên.',
   },
+  {
+    key: 'advanced.custom_frames',
+    label: 'Frame tùy biến bằng AI',
+    hint: 'Agent vẽ từng frame theo ý đồ storyboard (hình vẽ bằng code, chuyển động riêng) — tốn nhiều token nhất. Tắt: frame dựng từ mẫu có sẵn (chữ lớn, con số, hai vế, ảnh), không tốn token.',
+  },
 ] as const;
 
 export type AdvancedKey = (typeof ADVANCED)[number]['key'];

@@ -486,6 +486,10 @@ export function isAwaitingReply(error: string): boolean {
 export function friendlyStepError(e: string): string {
   if (isAwaitingReply(e))
     return 'Agent đang chờ bạn trả lời trong chat (ví dụ chọn giọng). Trả lời agent để bước làm tiếp, hoặc bấm "Chạy lại bước".';
+  // 086: hết lượt Claude → engine tự chạy lại lúc hết hạn mức
+  const retry = /hit your .*limit.*— tự chạy lại lúc (\d\d:\d\d \d\d\/\d\d)$/i.exec(e);
+  if (retry)
+    return `Đã hết hạn mức Claude. App tự chạy lại bước này lúc ${retry[1]} — không cần làm gì; cứ để app mở.`;
   const gates = gateParts(e);
   // 046: nhiều gate trượt → nêu đủ từng cái (không để cảnh báo che lỗi khác)
   if (

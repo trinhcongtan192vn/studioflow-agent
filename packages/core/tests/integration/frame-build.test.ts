@@ -5,8 +5,10 @@ import path from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   createCore,
+  checkFrameFile,
   designSystemExecutor,
   hfLint,
+  setAdvanced,
   sfIdsOf,
   type AgentEvent,
   type AgentRuntime,
@@ -24,7 +26,10 @@ const cleanups: (() => void)[] = [];
 afterEach(() => cleanups.splice(0).forEach((c) => c()));
 
 /** Runtime giả: đọc packet trong chỉ dẫn, ghi frame bằng artifact.write, báo step_complete. */
-function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = {}) {
+function fakeRuntime(
+  core: Core,
+  opts: { badFirst?: string; silent?: string; limit?: boolean } = {},
+) {
   const calls: string[] = [];
   /** 060: model của từng phiên frame (`<frame>:<model>`). */
   const models: string[] = [];
@@ -40,6 +45,15 @@ function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = 
           const fid = packet.frame.id;
           calls.push(fid);
           models.push(`${fid}:${o.model}`);
+          if (opts.limit) {
+            // 086: hết lượt Claude
+            yield {
+              type: 'error',
+              code: 'E_RUNTIME_RATE_LIMIT',
+              message: "You've hit your session limit · resets 5pm (Asia/Bangkok)",
+            } as AgentEvent;
+            return;
+          }
           const drop =
             opts.badFirst === fid && calls.filter((c) => c === fid).length === 1
               ? packet.frame.layers[0]!.id
@@ -72,7 +86,8 @@ function fakeRuntime(core: Core, opts: { badFirst?: string; silent?: string } = 
   return { rt, calls, models };
 }
 
-function setup() {
+/** `custom` = frame dựng bằng phiên agent (086: tính năng nâng cao); tắt = dựng từ mẫu. */
+function setup(custom = true) {
   const c = copyChannel();
   const t = tempDir('app-');
   writeFileSync(
@@ -82,6 +97,7 @@ function setup() {
   const core = createCore({ appDataDir: t.dir, permissionTimeoutMs: 1000, backoffMs: [10, 20] });
   cleanups.push(() => core.close(), c.cleanup, t.cleanup);
   const store = core.gateway.storeFor(c.dir);
+  if (custom) setAdvanced(store, 'advanced.custom_frames', true);
   const engine = core.workflows.engine(c.dir, fixtureVideoId);
   const v = path.join(c.dir, 'videos', fixtureVideoId);
   const base = {
@@ -169,4 +185,42 @@ describe('frame-build (011 US1, US2)', () => {
     core.workflows.setAgentRuntime(fakeRuntime(core).rt);
     await expect(run()).rejects.toMatchObject({ code: 'E_FILE_NOT_FOUND' });
   });
+});
+
+describe('template frames (086)', () => {
+  it('builds every frame from templates without an agent; index + lint + check pass', async () => {
+    const { base, v, run } = setup(false);
+    const step = { id: 'ds', uses: 'design-system', title: 'DS' };
+    await designSystemExecutor()({ ...base, step, manifest: { id: 't', steps: [step] } } as never);
+    // không gắn runtime: không cần phiên agent
+    const r = await run();
+    expect(r.built.sort()).toEqual(['fr_3m8k1w7d', 'fr_9x2b7cqe']);
+    for (const id of r.built) {
+      const html = readFileSync(path.join(v, `compositions/frames/${id}.html`), 'utf8');
+      expect(
+        checkFrameFile(
+          html,
+          id,
+          [...sfIdsOf(html)].filter((x) => !x.startsWith('el_x')),
+        ),
+      ).toEqual([]);
+    }
+    expect(existsSync(path.join(v, 'index.html'))).toBe(true);
+    expect((await hfLint(v)).ok).toBe(true);
+  }, 180_000);
+
+  it('a rate limit stops new frame sessions at once and fails with E_RUNTIME_RATE_LIMIT', async () => {
+    const { core, base, run } = setup(true);
+    const step = { id: 'ds', uses: 'design-system', title: 'DS' };
+    await designSystemExecutor()({ ...base, step, manifest: { id: 't', steps: [step] } } as never);
+    const { rt, calls } = fakeRuntime(core, { limit: true });
+    core.workflows.setAgentRuntime(rt);
+    await expect(run()).rejects.toMatchObject({
+      code: 'E_RUNTIME_RATE_LIMIT',
+      message: expect.stringContaining('resets 5pm'),
+    });
+    // song song 2: mỗi frame tối đa một phiên, không thử lại bằng model khác
+    expect(calls.length).toBeLessThanOrEqual(2);
+    expect(new Set(calls).size).toBe(calls.length);
+  }, 120_000);
 });

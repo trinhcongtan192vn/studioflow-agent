@@ -22,6 +22,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'advanced.refine': false,
   'advanced.music': false,
   'advanced.reasoning': false,
+  // 086: frame dựng bằng agent là tính năng nâng cao; mặc định dựng từ mẫu
+  'advanced.custom_frames': false,
   'refine.threshold': 8.0,
   'frame.min_duration_ms': 2000,
   'frame_build.parallel': 2,

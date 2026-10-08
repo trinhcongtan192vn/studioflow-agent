@@ -456,7 +456,7 @@ export interface IpcMethods {
     params: ChannelRef & { video?: string };
     result: {
       flags: Record<
-        'advanced.refine' | 'advanced.music' | 'advanced.reasoning',
+        'advanced.refine' | 'advanced.music' | 'advanced.reasoning' | 'advanced.custom_frames',
         { value: boolean; source: string; inherited: boolean }
       >;
     };

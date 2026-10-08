@@ -4,7 +4,12 @@ import { SfError } from '../errors.js';
 import { resolveConfig, setConfig } from './resolve.js';
 
 /** 085: tính năng nâng cao — mặc định tắt; đặt ở app, kênh hoặc từng video (D3 7.2). */
-export const ADVANCED_KEYS = ['advanced.refine', 'advanced.music', 'advanced.reasoning'] as const;
+export const ADVANCED_KEYS = [
+  'advanced.refine',
+  'advanced.music',
+  'advanced.reasoning',
+  'advanced.custom_frames',
+] as const;
 export type AdvancedKey = (typeof ADVANCED_KEYS)[number];
 
 export interface AdvancedFlag {

@@ -20,6 +20,7 @@ import {
   type FramePacket,
   type SessionContext,
   type VideoState,
+  setAdvanced,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { frameRuntime, stubText } from '../workflow-e2e-helpers.js';
@@ -180,6 +181,8 @@ beforeAll(async () => {
   );
   // short cắt từ video dài
   shortId = createVideo(store, { title: 'Bạn có tự quyết định?' }).video_id;
+  // 086: test kiểm frame packet gửi phiên frame → bật frame tùy biến bằng AI cho short
+  setAdvanced(store, 'advanced.custom_frames', true, shortId);
   brief(shortId, 'Cắt từ video dài: beat "Lối tắt của não". Một ý: não chọn mặc định khi mệt.', {
     source_video_id: longId,
     target_duration_ms: 9_000,
