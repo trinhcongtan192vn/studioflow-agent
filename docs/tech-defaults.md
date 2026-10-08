@@ -125,7 +125,7 @@
 | `autopilot.max_per_day` | 1 |
 | `trash.retention_days` | 30 (064: thùng rác video của kênh tự dọn sau số ngày này) |
 | `autopilot.asr_accept_ratio` | 1.5 (061: Autopilot tự chấp nhận dòng đọc sai có tỉ lệ lỗi ≤ ngưỡng ASR × hệ số) |
-| `autopilot.background` | true (052: có kênh Autopilot → đóng cửa sổ thì chạy nền ở khay hệ thống) |
+| `autopilot.background` | true (052: có kênh Autopilot → đóng cửa sổ thì chạy nền ở khay hệ thống; 090: Autopilot tạm dừng → hỏi việc dở như thường) |
 | `autopilot.min_score` | 40 (051: chủ đề điểm thấp hơn không được lập vào kế hoạch ngày) |
 | `autopilot.duration_waive_ratio` | 0.25 (052: lệch thời lượng tối đa mà Autopilot tự bỏ qua cảnh báo `audio_duration`) |
 | `autopilot.work_window` | `08:00-23:00` |
