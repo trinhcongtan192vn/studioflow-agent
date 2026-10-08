@@ -54,6 +54,8 @@ Với mỗi layer cần ảnh thật (`image`): tìm trong thư viện kênh b�
 
 ## Bước `music`
 
+> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
+
 Với mỗi scene có `music.query`: gọi `music.find` (query từ scene, `min_duration_ms` ≈ thời lượng video nếu biết). Có kết quả → đặt `music: { track_id: mt_…, volume_db: -18 }` trong khối `sf-scene` (giữ `query`). Không có kết quả (`E_MUSIC_NOT_FOUND`, kể cả khi kho nhạc trống) là **trường hợp bình thường**: thử lại một lần với ít bộ lọc hơn; vẫn không có → **bắt buộc** đặt `music: none` cho scene đó, vẫn ghi `STORYBOARD.md` và gọi `workflow.step_complete` — không dừng chờ người dùng, không bịa `track_id`; trong câu trả lời nhắc người dùng có thể nạp nhạc rồi quay lại bước này. Một bài cho cả video trừ khi storyboard có nhiều scene. Ghi `STORYBOARD.md` bằng `artifact.write`, rồi `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
 
 ## Bước `finish` (M3, 062)

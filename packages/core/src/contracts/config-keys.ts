@@ -154,6 +154,36 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "advanced.refine",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "advanced.music",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
+      "key": "advanced.reasoning",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
       "key": "frame.min_duration_ms",
       "pattern": false,
       "type": "number",

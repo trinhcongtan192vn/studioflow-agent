@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { AdvancedPanel } from './AdvancedPanel';
 import { ChannelConnections } from './Connections';
 import { Icon } from './Icon';
 import { core } from './rpc';
@@ -27,6 +28,7 @@ const SECTIONS = [
   { id: 'info', label: 'Thông tin kênh' },
   { id: 'mode', label: 'Chế độ' },
   { id: 'content', label: 'Nội dung' },
+  { id: 'advanced', label: 'Nâng cao' },
   { id: 'competitors', label: 'Kênh đối thủ' },
   { id: 'publish', label: 'Đăng video' },
 ] as const;
@@ -324,6 +326,12 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
               </label>
             </>,
             'Autopilot chọn chủ đề trong các trụ cột này và chỉ dùng các workflow được chọn.',
+          )}
+
+          {section(
+            'advanced',
+            <AdvancedPanel channel={channel} />,
+            'Mặc định tắt hết để video rẻ và ít lỗi. Bật ở đây áp dụng cho mọi video của kênh; từng video có thể đặt riêng trong tab Tiến độ.',
           )}
 
           {section(

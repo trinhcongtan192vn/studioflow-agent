@@ -451,6 +451,21 @@ export interface IpcMethods {
     params: VideoRef;
     result: { steps: Record<string, { done: number; total: number; message?: string }> };
   };
+  /** 085: tính năng nâng cao (`advanced.*`) đã giải cho kênh hoặc video; `inherited` = giá trị tầng kênh. */
+  'advanced.get': {
+    params: ChannelRef & { video?: string };
+    result: {
+      flags: Record<
+        'advanced.refine' | 'advanced.music' | 'advanced.reasoning',
+        { value: boolean; source: string; inherited: boolean }
+      >;
+    };
+  };
+  /** 085: bật/tắt ở tầng kênh (không `video`) hoặc video; `null` = bỏ ghi đè (theo tầng trên). */
+  'advanced.set': {
+    params: ChannelRef & { video?: string; key: string; value: boolean | null };
+    result: { ok: boolean };
+  };
   /** Bật/tắt chế độ tự động cho video (034, ghi `state.json.config_overrides` qua module ghi). */
   'workflow.set_autopilot': { params: VideoRef & { on: boolean }; result: { on: boolean } };
 }

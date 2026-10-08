@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
+import { AdvancedPanel } from './AdvancedPanel';
 import { activityLabel, friendlyStepError, toolLabel } from './chat-format';
 import {
   feedbackFor,
@@ -304,6 +305,7 @@ export function ProgressTab({
       <div data-testid="progress" className="progress">
         <p>Pha briefing: chọn workflow (agent cũng làm việc này qua chat).</p>
         {banner}
+        {video && <AdvancedPanel channel={channel} video={video} />}
         <div className="wf-choices">
           {workflows.map((w) => (
             <button
@@ -397,6 +399,7 @@ export function ProgressTab({
           ) : null}
         </div>
       </div>
+      {video && <AdvancedPanel channel={channel} video={video} />}
       {banner}
       {confirm && (
         <div className="progress-fb confirm" role="alertdialog" data-testid="progress-confirm">

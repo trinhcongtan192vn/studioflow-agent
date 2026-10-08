@@ -54,7 +54,8 @@ steps:
       skip_if: { phase_before: M3 },
     }
   - { id: captions, uses: captions, title: Phụ đề theo người nói }
-  - { id: music, uses: music, title: Nhạc nền }
+  # 085: nhạc nền là tính năng nâng cao (advanced.music), mặc định bỏ qua
+  - { id: music, uses: music, title: Nhạc nền, skip_if: { config: advanced.music, equals: false } }
   - { id: finalize, uses: finalize, title: Hoàn thiện, approval: { required: true } }
   - id: meta
     uses: publish-meta

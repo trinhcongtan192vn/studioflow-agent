@@ -31,6 +31,8 @@ Quy tắc riêng:
 
 ## Bước `music`
 
+> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
+
 Nhạc nền nhẹ, không lời, nhịp chậm (piano, ambient, đàn dây). Với mỗi scene: `music.find` với query tiếng Anh từ không khí bài. Có kết quả → `music: { track_id: mt_… }` (không đặt `volume_db`: workflow dùng mức nền thấp của nó). Không có kết quả (`E_MUSIC_NOT_FOUND`, kể cả kho trống) là bình thường: thử lại một lần ít bộ lọc hơn; vẫn không có → `music: none`, vẫn ghi `STORYBOARD.md` và gọi `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}` — không bịa `track_id`.
 ## Bước `finish` (M3, 062)
 

@@ -51,6 +51,14 @@ export {
   type ConfigScope,
 } from './config/resolve.js';
 export { configKeySpec, checkConfigTier, type ConfigTier } from './config/keys.js';
+export {
+  ADVANCED_KEYS,
+  advancedFlags,
+  isAdvancedKey,
+  setAdvanced,
+  type AdvancedFlag,
+  type AdvancedKey,
+} from './config/advanced.js';
 
 // Module ghi (Điều VI)
 export {

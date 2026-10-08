@@ -20,6 +20,8 @@ import {
   type SessionContext,
   type TextService,
   type VideoState,
+  setAdvanced,
+  setConfig,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { sampleFrame } from '../frame-helpers.js';
@@ -240,6 +242,9 @@ beforeAll(() => {
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Khởi nghĩa Lam Sơn' }).video_id;
+  // 085: test đường refine — bật tính năng nâng cao, giữ 2 vòng như trước
+  setAdvanced(store, 'advanced.refine', true);
+  setConfig(store, 'refine.min_rounds', 2, { tier: 'channel' });
   const briefRel = `videos/${videoId}/BRIEF.md`;
   const brief = parseBlocksDoc(readFileSync(store.abs(briefRel), 'utf8'));
   brief.body = [
@@ -279,8 +284,9 @@ describeStudio('story-documentary end to end (023 FR-WF-06)', () => {
     }
     // effects sửa STORYBOARD.md đã duyệt → duyệt lại storyboard (D6 3.1)
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
-    // assets do engine (nút asset); look/effects/overlays (027) + music giao phiên main
-    expect(agentSteps).toEqual(['finish', 'music']);
+    // assets do engine (nút asset); look/effects/overlays (027) giao phiên main; 085: nhạc tắt mặc định
+    expect(agentSteps).toEqual(['finish']);
+    expect(state().steps.music!.status).toBe('skipped');
     expect(treatments.map((t) => [t.mode, t.within_budget, t.applied.length])).toEqual([
       ['dry_run', true, 0],
       ['apply', true, 1],

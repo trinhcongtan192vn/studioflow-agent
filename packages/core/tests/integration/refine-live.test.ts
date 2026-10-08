@@ -8,6 +8,8 @@ import {
   parseBlocksDoc,
   serializeBlocksDoc,
   validateArtifact,
+  setAdvanced,
+  setConfig,
 } from '../../src/index.js';
 import { coreDir } from '../helpers.js';
 import { copyChannel, tempDir } from '../domain-helpers.js';
@@ -33,6 +35,10 @@ describe('script step with refine-loop (009 AC-M1-02)', () => {
     const store = core.gateway.storeFor(c.dir);
     // video cố định để khóa ghi/phát lại ổn định
     const videoId = createVideo(store, { title: 'Bầu trời', id: 'vd_sky00001' }).video_id;
+    // 085: refine là tính năng nâng cao; giữ model/số vòng như bản ghi (critic Opus, tối thiểu 2 vòng)
+    setAdvanced(store, 'advanced.refine', true);
+    setConfig(store, 'refine.min_rounds', 2, { tier: 'channel' });
+    setConfig(store, 'text.critic', 'claude/claude-opus-5-5', { tier: 'channel' });
     const briefRel = `videos/${videoId}/BRIEF.md`;
     const brief = parseBlocksDoc(readFileSync(store.abs(briefRel), 'utf8'));
     brief.front = { ...brief.front, target_duration_ms: 45000 };

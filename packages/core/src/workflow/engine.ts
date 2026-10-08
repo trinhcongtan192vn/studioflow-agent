@@ -49,6 +49,11 @@ export interface StepRunContext {
   instruction?: (extra?: string) => string;
   /** Báo tiến độ bước (008 UI-04): engine phát `workflow.progress`; `total` 0 = không xác định. */
   progress?: (done: number, total: number, message?: string) => void;
+  /**
+   * 085: engine tự ghi bổ sung vào artifact đã duyệt (ví dụ bước nhạc đặt `track_id`) mà không bắt duyệt
+   * lại: ghi file và cập nhật hash của approval đã duyệt khớp nội dung cũ trong cùng một lượt khóa.
+   */
+  writeKeepingApproval?: (rel: string, content: string) => Promise<void>;
 }
 
 export interface StepProgress {
@@ -732,6 +737,21 @@ export class WorkflowEngine extends EventEmitter {
       waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
       progress: (done, total, message) =>
         this.setProgress(decl.id, { done, total, ...(message ? { message } : {}) }),
+      writeKeepingApproval: (rel, content) =>
+        this.exclusive(() => {
+          // hash mới ghi vào state TRƯỚC khi ghi file: người nghe sự kiện ghi file thấy approval còn hiệu lực
+          const before = this.hashOf(rel);
+          const after = sha256(Buffer.from(content, 'utf8'));
+          const st = this.readState();
+          let changed = false;
+          for (const a of st.approvals)
+            if (a.status === 'approved' && before && a.artifact_hashes[rel] === before) {
+              a.artifact_hashes[rel] = after;
+              changed = true;
+            }
+          if (changed) this.writeState(st);
+          this.d.store.write(`${this.v}/${rel}`, content, { by: `step.${decl.id}` });
+        }),
     };
     ctx.agent = (more) => this.runAgent(decl, ctx, manifest, more);
     ctx.instruction = (more) => this.instructionFor(decl, ctx, manifest, more);

@@ -28,6 +28,8 @@ Các bước engine tự làm: design-system, script (refine-loop, rubric shorts
 
 ## Bước `music`
 
+> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
+
 Nhạc có nhịp rõ, năng lượng cao, ngắn. `music.find` với query tiếng Anh (`min_duration_ms` ≈ thời lượng short). Có kết quả → `music: { track_id: mt_… }`. Không có (`E_MUSIC_NOT_FOUND`) là bình thường: thử lại một lần; vẫn không có → `music: none`, vẫn ghi `STORYBOARD.md` và `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
 ## Bước `finish` (M3, 062)
 

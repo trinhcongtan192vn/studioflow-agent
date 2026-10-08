@@ -253,7 +253,7 @@ interface RunContext {
 | `lipsync.cues` | `lipsync.amplitude` | node | M5b |
 | `grade.compare`, `media.treatment` | `hf.cli` | node | M3 |
 
-Mặc định `text.*`: `text.producer` = `openai/<model>` nếu có khóa, không thì `claude/<model>`; `text.critic` = `claude/<model khác tầng với producer nếu producer là Claude>`; `text.aux` = model rẻ nhất có khóa. Tên model cụ thể trong `settings.json` `[chờ S14]`.
+Mặc định `text.*` (085, khi khóa chưa đặt ở tầng nào): `advanced.reasoning` tắt → `text.producer` = `deepseek/deepseek-chat` nếu có khóa DeepSeek, không thì `claude/claude-sonnet-5-5`; `text.critic` = `claude/claude-sonnet-5-5` (producer là Sonnet → `claude/claude-haiku-4-5`); `advanced.reasoning` bật → producer `claude/claude-opus-5-5`, critic `claude/claude-sonnet-5-5`. `text.aux` = `deepseek/deepseek-chat` nếu có khóa, không thì `claude/claude-haiku-4-5`.
 | `render.video` | `render.hf-producer` | node | M1 |
 
 ### 4.4 Định tuyến
