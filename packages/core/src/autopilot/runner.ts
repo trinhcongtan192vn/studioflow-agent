@@ -158,6 +158,17 @@ export interface RunnerDeps {
   logger?: (line: AutopilotLogLine & { channel: string }) => void;
   /** 061: chấp nhận line ASR đọc sai (asr.accept); không có → đỗ mục khi gặp dòng đọc sai. */
   acceptAsr?: (channel: string, video: string, lineIds: string[]) => Promise<void>;
+  /**
+   * 079: nhờ agent sửa cách đọc (`tts_text`) của các line đọc sai nhiều rồi sinh lại (`asr.align`) — một lần
+   * trước khi đỗ mục. Host đặt bằng `setFixAsr` (phiên `main` của video).
+   */
+  fixAsr?: (channel: string, video: string, lines: AsrFixLine[]) => Promise<void>;
+}
+
+/** 079: line đọc sai giao agent sửa. */
+export interface AsrFixLine {
+  line_id: string;
+  wer: number;
 }
 
 export type ItemOutcome = 'produced' | 'parked' | 'failed' | 'wait' | 'stopped';
@@ -254,6 +265,9 @@ export class AutopilotRunner extends EventEmitter {
   // 076: lần lập bổ sung kế hoạch gần nhất theo kênh (ms)
   private readonly toppedUp = new Map<string, number>();
   private readonly retries = new Map<string, number>();
+  // 079: bước đã nhờ agent sửa cách đọc (một lần mỗi bước của video)
+  private readonly asrFixed = new Set<string>();
+  private fixFn?: RunnerDeps['fixAsr'];
   // 078: số lần đã tạm dừng vì lỗi chung theo bước
   private readonly outageWaits = new Map<string, number>();
   private readonly limitReruns = new Map<string, number>();
@@ -333,6 +347,11 @@ export class AutopilotRunner extends EventEmitter {
     this.pauseFn(paused);
     this.changed();
     return { paused };
+  }
+
+  /** 079: host đặt cách nhờ agent sửa cách đọc (phiên `main` của video). */
+  setFixAsr(fn: RunnerDeps['fixAsr']): void {
+    this.fixFn = fn;
   }
 
   setBrief(fn: BriefFn | undefined): void {
@@ -1348,9 +1367,53 @@ export class AutopilotRunner extends EventEmitter {
         const limit = base * ratio;
         const heavy = r.lines.filter((l) => l.wer > limit);
         const pct = (x: number) => `${Math.round(x * 100)}%`;
+        // 079: dòng đọc sai nhiều → nhờ agent sửa cách đọc rồi sinh lại, một lần, trước khi đỗ
+        const fix = this.fixFn ?? this.d.fixAsr;
+        const fixKey = `${c.channel}|${c.video}|${stepId}`;
+        if (heavy.length && fix && !this.asrFixed.has(fixKey)) {
+          this.asrFixed.add(fixKey);
+          this.logItem(
+            c,
+            'info',
+            'asr.fix',
+            `Bước ${stepId}: ${heavy.length} dòng đọc sai nhiều (${heavy.map((l) => `${l.line_id} lệch ${pct(l.wer)}`).join(', ')}) — nhờ agent sửa cách đọc (tts_text) rồi sinh lại.`,
+            { step_id: stepId, data: { lines: heavy } },
+          );
+          try {
+            await fix(
+              c.channel,
+              c.video,
+              heavy.map((l) => ({ line_id: l.line_id, wer: l.wer })),
+            );
+          } catch (err) {
+            const m = message(err);
+            if (parseLimit(m, this.now(), 'UTC')) {
+              this.asrFixed.delete(fixKey);
+              return this.enterWait(c, stepId, m);
+            }
+            const o = outageOf(code(err), m);
+            if (o) {
+              this.asrFixed.delete(fixKey);
+              return this.enterOutage(c, stepId, o, m);
+            }
+            this.logItem(c, 'warn', 'asr.fix', `Agent chưa sửa được cách đọc: ${m}`, {
+              step_id: stepId,
+            });
+          }
+          try {
+            await e.recheck(stepId);
+            await e.idle();
+          } catch {
+            /* agent sửa SCRIPT.md có thể đã đổi trạng thái bước — vòng điều phối xử lý tiếp */
+          }
+          return undefined;
+        }
         if (heavy.length || !this.d.acceptAsr) {
+          const tried = this.asrFixed.has(fixKey)
+            ? ' — đã nhờ agent sửa cách đọc nhưng vẫn lệch'
+            : '';
           const why = heavy.length
-            ? `${heavy.length} dòng đọc sai nhiều (ngưỡng tự chấp nhận ${pct(limit)}): ${heavy.map((l) => `${l.line_id} lệch ${pct(l.wer)}`).join(', ')} — cần bạn nghe lại / sửa chữ`
+            ? `${heavy.length} dòng đọc sai nhiều (ngưỡng tự chấp nhận ${pct(limit)}): ${heavy.map((l) => `${l.line_id} lệch ${pct(l.wer)}`).join(', ')}${tried} — cần bạn nghe lại / sửa chữ`
             : `${r.lines.length} dòng đọc sai cần nghe lại: ${r.lines.map((l) => l.line_id).join(', ')}`;
           this.logItem(c, 'warn', 'gate.decision', `Bước ${stepId}: ${why}.`, { step_id: stepId });
           return { kind: 'parked', step_id: stepId, reason: why };

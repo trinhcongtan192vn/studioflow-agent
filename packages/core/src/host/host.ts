@@ -48,6 +48,7 @@ import {
   readPlan,
   type PlanPatch,
   updatePlanItem,
+  asrFixInstruction,
   briefInstruction,
   RUNNER_CONSTANTS,
   type ItemOutcomeEvent,
@@ -173,6 +174,13 @@ export class CoreHost extends EventEmitter {
         'system',
       );
       this.throwLimit(channel, video);
+    });
+    // 079: dòng đọc sai nhiều → nhờ agent của video sửa cách đọc rồi sinh lại (trước khi đỗ)
+    ap.setFixAsr(async (channel, video, lines) => {
+      await this.chat(channel, video, asrFixInstruction(lines), [], 'system');
+      this.throwLimit(channel, video);
+      // job sinh lại/nghe lại có thể còn chạy khi agent dừng → chờ xong rồi bộ chạy mới kiểm tra lại
+      await this.core.queue.idle(15 * 60_000).catch(() => {});
     });
     ap.on('updated', () => this.send('autopilot.updated', ap.status()));
     ap.on('item.outcome', (e: ItemOutcomeEvent) => {

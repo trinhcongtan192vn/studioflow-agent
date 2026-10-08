@@ -134,6 +134,8 @@ interface RigOpts {
   briefError?: (item: PlanItem, n: number) => Error | undefined;
   /** 061: line bị ASR báo đọc sai (line_id → tỉ lệ lỗi); cần `audio_total_ms`. */
   mismatch?: Record<string, number>;
+  /** 079: agent sửa cách đọc (giả): true → line hết lệch. Không đặt = không có agent sửa. */
+  fixAsr?: boolean;
 }
 
 interface Rig {
@@ -146,6 +148,8 @@ interface Rig {
   scripts: string[];
   /** 061: line Autopilot đã chấp nhận (asr.accept). */
   accepted: string[];
+  /** 079: các lần nhờ agent sửa cách đọc (line_id). */
+  fixed: string[][];
   planCalls: number;
   make(): AutopilotRunner;
 }
@@ -172,6 +176,7 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
     clock: { now: NOW },
     briefs: [],
     accepted: [],
+    fixed: [],
     scripts: [],
     planCalls: 0,
     runner: undefined as never,
@@ -263,6 +268,24 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
         for (const l of meta.lines) if (ids.includes(l.line_id)) l.asr_flag = 'accepted';
         store.write(rel, JSON.stringify(meta), { by: 'test', validate: false });
       },
+      // 079: agent sửa `tts_text` rồi `asr.align` — giả: hết lệch (fixAsr: true) hoặc vẫn lệch
+      ...(o.fixAsr === undefined
+        ? {}
+        : {
+            fixAsr: async (channel: string, video: string, lines: { line_id: string }[]) => {
+              rig.fixed.push(lines.map((l) => l.line_id));
+              if (!o.fixAsr) return;
+              const store = core.gateway.storeFor(channel);
+              const rel = `videos/${video}/audio_meta.json`;
+              const meta = JSON.parse(readFileSync(store.abs(rel), 'utf8'));
+              for (const l of meta.lines)
+                if (lines.some((x) => x.line_id === l.line_id)) {
+                  l.asr_flag = 'ok';
+                  l.asr_wer = 0.02;
+                }
+              store.write(rel, JSON.stringify(meta), { by: 'test', validate: false });
+            },
+          }),
       plan: async ({ channels, now }) => {
         rig.planCalls += 1;
         return planToday({
@@ -1068,6 +1091,36 @@ describe('061: dòng đọc sai được báo ở Hoàn thiện; Autopilot chấ
     expect(r.outcomes.map((x) => x.outcome)).toEqual(['produced']);
     expect(rig.accepted).toEqual(['ln_9w3b6tqa']);
     expect(logOf(dir).some((l) => l.event === 'asr.accept')).toBe(true);
+  });
+
+  it('a badly misread line is handed to the agent to fix how it is read; fixed → produced (079)', async () => {
+    const rig = makeRig({
+      audio_total_ms: 60_000,
+      target_ms: 60_000,
+      mismatch: { ln_9w3b6tqa: 0.4 },
+      fixAsr: true,
+    });
+    const dir = rig.dirs[0]!;
+    writePlan(dir, [{ id: 'pi_d0000003', workflow_id: 'duration-demo' }]);
+    const r = await rig.runner.tick();
+    expect(r.outcomes.map((x) => x.outcome)).toEqual(['produced']);
+    expect(rig.fixed).toEqual([['ln_9w3b6tqa']]);
+    expect(logOf(dir).find((l) => l.event === 'asr.fix')!.message).toMatch(/ln_9w3b6tqa.*40%/);
+  });
+
+  it('when the agent cannot fix it, the item is parked after one try (079)', async () => {
+    const rig = makeRig({
+      audio_total_ms: 60_000,
+      target_ms: 60_000,
+      mismatch: { ln_9w3b6tqa: 0.4 },
+      fixAsr: false,
+    });
+    const dir = rig.dirs[0]!;
+    writePlan(dir, [{ id: 'pi_d0000004', workflow_id: 'duration-demo' }]);
+    const r = await rig.runner.tick();
+    expect(r.outcomes.map((x) => x.outcome)).toEqual(['parked']);
+    expect(rig.fixed).toHaveLength(1);
+    expect(itemOf(dir, 'pi_d0000004').note).toMatch(/đã nhờ agent sửa cách đọc/);
   });
 
   it('a badly misread line parks the item with the line and error rate', async () => {

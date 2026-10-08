@@ -81,7 +81,7 @@ export {
 } from './plan-tools.js';
 export { capacityRun, installedWorkflows } from './capacity-run.js';
 export { autopilotRunnerTools } from './runner-tools.js';
-export { briefInstruction, type BriefFn } from './brief.js';
+export { asrFixInstruction, briefInstruction, type BriefFn } from './brief.js';
 export {
   decideBrief,
   decideDuration,
