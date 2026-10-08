@@ -41,3 +41,19 @@ export function briefInstruction(item: PlanItem, date: string): string {
     '4. Báo ngắn gọn trong chat khi xong (một hai dòng).',
   ].join('\n');
 }
+
+/**
+ * 079: chỉ dẫn "sửa cách đọc" gửi phiên `main` của video Autopilot: các line ASR nghe lệch nhiều → sửa
+ * `tts_text` (dòng `<!-- sf:tts text="…" -->` dưới line trong SCRIPT.md, giữ chữ hiển thị) rồi `asr.align` đúng
+ * các line đó để sinh lại và nghe lại.
+ */
+export function asrFixInstruction(lines: { line_id: string; wer: number }[]): string {
+  const list = lines.map((l) => `${l.line_id} (lệch ${Math.round(l.wer * 100)}%)`).join(', ');
+  const ids = lines.map((l) => `"${l.line_id}"`).join(', ');
+  return [
+    `[Autopilot] Giọng đọc của các dòng sau bị nhận dạng (ASR) nghe lệch nhiều so với lời thoại: ${list}. Không có người xem lúc này: tự sửa, không hỏi lại người dùng.`,
+    'Với mỗi dòng: đọc lời thoại trong SCRIPT.md và chữ ASR nghe được trong audio_meta.json để thấy chỗ đọc sai. Thường là số, đơn vị, năm, viết tắt, ký hiệu, tên riêng hoặc từ nước ngoài.',
+    'Sửa cách đọc bằng dòng `<!-- sf:tts text="…" -->` ngay dưới dòng đó (thêm mới hoặc sửa dòng đã có), viết đúng như cần đọc bằng tiếng Việt (ví dụ "300 km/h" → "ba trăm ki-lô-mét một giờ", "EF5" → "e ép năm"). Giữ nguyên chữ hiển thị và nội dung; không sửa dòng khác.',
+    `Xong thì gọi asr.align với line_ids [${ids}] để sinh lại và nghe lại các dòng đó, chờ job xong (job.wait), rồi dừng.`,
+  ].join('\n\n');
+}
