@@ -15,14 +15,31 @@ import { core } from './rpc';
  * 085: tính năng nâng cao (refine, nhạc nền, model mạnh). Không có `video` → công tắc tầng kênh; có `video`
  * → ô chọn Theo kênh / Bật / Tắt cho riêng video đó.
  */
-export function AdvancedPanel({ channel, video }: { channel: string; video?: string }) {
+export function AdvancedPanel({
+  channel,
+  video,
+  open = true,
+  onSummary,
+}: {
+  channel: string;
+  video?: string;
+  /** Tầng video: bảng đang mở (đóng vẫn tải để báo tóm tắt cho nút). */
+  open?: boolean;
+  onSummary?: (s: string) => void;
+}) {
   const [flags, setFlags] = useState<Record<AdvancedKey, Flag>>();
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
   const load = () =>
     core
       .call('advanced.get', { channel, ...(video ? { video } : {}) })
-      .then((r) => setFlags(r.flags))
-      .catch(() => setFlags(undefined));
+      .then((r) => {
+        setFlags(r.flags);
+        onSummary?.(advancedSummary(r.flags));
+      })
+      .catch((e: Error) => {
+        setFlags(undefined);
+        setMsg({ tone: 'error', text: `Không đọc được cài đặt nâng cao: ${e.message}` });
+      });
   useEffect(() => {
     setMsg(undefined);
     void load();
@@ -41,7 +58,13 @@ export function AdvancedPanel({ channel, video }: { channel: string; video?: str
       setMsg({ tone: 'error', text: (e as Error).message });
     }
   };
-  if (!flags) return null;
+  if (!open) return null;
+  if (!flags)
+    return msg ? (
+      <p className="error" role="status">
+        {msg.text}
+      </p>
+    ) : null;
   const rows = ADVANCED.map((a) => {
     const f = flags[a.key];
     return (
@@ -86,9 +109,11 @@ export function AdvancedPanel({ channel, video }: { channel: string; video?: str
   );
   if (!video) return <div className="advanced">{body}</div>;
   return (
-    <details className="advanced" data-testid="advanced">
-      <summary>{advancedSummary(flags)}</summary>
+    <div className="advanced card-adv" data-testid="advanced">
+      <p className="muted">
+        Tính năng nâng cao cho riêng video này (mặc định theo kênh). Áp dụng cho các bước chưa chạy.
+      </p>
       {body}
-    </details>
+    </div>
   );
 }

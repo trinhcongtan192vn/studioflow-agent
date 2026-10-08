@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { checkFrameFile, type FramePacket } from '../../src/index.js';
 import { loadOutputProfile } from '../../src/hf/outputs.js';
 import {
+  contentBox,
   contrast,
+  fitFontSize,
   parseDesignTokens,
   pickTemplate,
   readable,
   templateFrame,
+  wrapLines,
 } from '../../src/hf/templates.js';
 
 const packet = (intent: string, layers: FramePacket['frame']['layers']): FramePacket =>
@@ -103,5 +106,18 @@ describe('template frames (086)', () => {
     // vàng nhạt trên nền kem không đủ tương phản → dùng màu chữ chính
     expect(readable(t.accent, t.canvas, t.ink)).toBe('#222222');
     expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 0);
+  });
+
+  it('088: Vietnamese capitals wrap by word and fit with room for diacritics', () => {
+    // vd_rbxtpyp5: "NHIỀU ĐIỂM HƠN" 211 px tràn mép trên vùng an toàn của Short
+    const box = contentBox(loadOutputProfile('yt-shorts-1080x1920'), true);
+    expect(box.y).toBe(Math.round(1920 * 0.08) + 24);
+    const size = fitFontSize('NHIỀU ĐIỂM HƠN', box, 270);
+    expect(size).toBeLessThan(211);
+    expect(wrapLines('NHIỀU ĐIỂM HƠN', size, box.w * 0.88) * size * 1.35).toBeLessThanOrEqual(
+      box.h * 0.85,
+    );
+    // một từ dài hơn dòng → không vừa
+    expect(wrapLines('Supercalifragilistic', 200, 500)).toBe(Infinity);
   });
 });

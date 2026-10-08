@@ -7,6 +7,9 @@ import type { FramePacket, OutputProfile } from '../contracts/types.js';
  * `data-sf-id`, không hiệu ứng thoát, không animate visibility trên clip.
  */
 
+/** Phiên bản mẫu: tăng khi đổi cách dựng → frame mẫu đã dựng được dựng lại (088). */
+export const TEMPLATE_VERSION = 2;
+
 export interface DesignTokens {
   canvas: string;
   surface: string;
@@ -110,12 +113,41 @@ interface Box {
 }
 
 /** Cỡ chữ vừa hộp: ước lượng ký tự ≈ 0,56 em, dòng 1,15 em. */
+/** Bề rộng ước lượng của một ký tự theo em (đậm 800): hoa/số rộng hơn thường; khoảng trắng hẹp. */
+function charEm(c: string): number {
+  if (c === ' ') return 0.3;
+  if (/[\p{Lu}\p{N}%]/u.test(c)) return 0.74;
+  if (/[iljtfrI.,:;!'’|]/.test(c)) return 0.36;
+  return 0.6;
+}
+
+/** Số dòng khi xuống dòng theo từ (tham lam); `Infinity` nếu một từ dài hơn dòng. */
+export function wrapLines(text: string, size: number, width: number): number {
+  const wordW = (w: string) => [...w].reduce((a, c) => a + charEm(c), 0) * size;
+  const space = 0.3 * size;
+  let lines = 1;
+  let cur = 0;
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    const ww = wordW(w);
+    if (ww > width) return Infinity;
+    if (cur === 0) cur = ww;
+    else if (cur + space + ww <= width) cur += space + ww;
+    else {
+      lines++;
+      cur = ww;
+    }
+  }
+  return lines;
+}
+
+/**
+ * Cỡ chữ vừa hộp (088): mô phỏng xuống dòng theo từ; mỗi dòng tính 1,35 em (chữ Việt có dấu chồng cao
+ * hơn dòng 1,15); chừa 12% bề rộng và 15% bề cao cho hiệu ứng phóng to và sai số font.
+ */
 export function fitFontSize(text: string, box: { w: number; h: number }, max: number): number {
-  const n = Math.max(4, [...text].length);
   for (let size = max; size > 28; size -= 4) {
-    const perLine = Math.max(1, Math.floor(box.w / (size * 0.56)));
-    const lines = Math.ceil(n / perLine);
-    if (lines * size * 1.15 <= box.h) return size;
+    const lines = wrapLines(text, size, box.w * 0.88);
+    if (lines * size * 1.35 <= box.h * 0.85) return size;
   }
   return 28;
 }
@@ -125,7 +157,8 @@ export function contentBox(profile: OutputProfile, karaoke: boolean): Box {
   const { width: W, height: H, safe_area: s } = profile;
   const x = Math.round(W * s.left);
   const w = Math.round(W * (1 - s.left - s.right));
-  const top = Math.round(H * s.top);
+  // 088: lùi 24 px vào trong vùng an toàn (gate `text_safe_area` đo hộp chữ thật, dung sai 2 px)
+  const top = Math.round(H * s.top) + 24;
   const bottom = karaoke ? Math.round(H * 0.5) - 24 : Math.round(H * 0.83) - 24;
   return { x, y: top, w, h: bottom - top };
 }
@@ -147,7 +180,7 @@ export function templateFrame(
     `.${P}bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; background: ${tokens.canvas}; }`,
     `.${P}glow { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; background: radial-gradient(ellipse at 50% 35%, ${tokens.accent}22, ${tokens.canvas}00 65%); }`,
     `.${P}t > span { display: inline-block; }`,
-    `.${P}t { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; color: ${tokens.ink}; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; }`,
+    `.${P}t { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; color: ${tokens.ink}; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; overflow: hidden; }`,
   ];
   const els: string[] = [];
   const anim: string[] = [];
