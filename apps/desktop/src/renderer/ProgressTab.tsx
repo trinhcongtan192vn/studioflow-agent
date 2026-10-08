@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
 import { AdvancedPanel } from './AdvancedPanel';
+import { changedHint, type AdvancedKey } from './advanced-format';
 import { activityLabel, friendlyStepError, isPublishWaiting, toolLabel } from './chat-format';
 import { PublishPicker } from './PublishPicker';
 import {
@@ -63,6 +64,9 @@ export function ProgressTab({
   const [autopilot, setAutopilot] = useState<boolean>();
   // 088: nút "Nâng cao" mở bảng tính năng nâng cao của video
   const [advOpen, setAdvOpen] = useState(false);
+  // 092: tùy chọn Nâng cao đã đổi trong lần mở này (giá trị gốc) → gợi ý chạy lại
+  const [advBase, setAdvBase] = useState<Partial<Record<AdvancedKey, boolean>>>({});
+  useEffect(() => setAdvBase({}), [channel, video]);
   const [advSummary, setAdvSummary] = useState('Nâng cao');
   const advButton = video && (
     <button
@@ -76,7 +80,22 @@ export function ProgressTab({
     </button>
   );
   const advPanel = video && (
-    <AdvancedPanel channel={channel} video={video} open={advOpen} onSummary={setAdvSummary} />
+    <AdvancedPanel
+      channel={channel}
+      video={video}
+      open={advOpen}
+      onSummary={setAdvSummary}
+      onChange={(key, before, after) =>
+        setAdvBase((cur) => {
+          // 092: nhớ giá trị lúc trước lần đổi đầu; đổi về đúng giá trị đó → bỏ gợi ý
+          const base = key in cur ? cur[key]! : before;
+          const next = { ...cur };
+          if (after === base) delete next[key];
+          else next[key] = base;
+          return next;
+        })
+      }
+    />
   );
   useEffect(() => {
     if (!video) return;
@@ -422,6 +441,34 @@ export function ProgressTab({
         </div>
       </div>
       {advPanel}
+      {(() => {
+        // 092: đổi tùy chọn Nâng cao → nên chạy lại từ bước nào
+        const h = changedHint(Object.keys(advBase) as AdvancedKey[], state.steps);
+        if (!h) return null;
+        const go = (b: { step: string; label: string }) =>
+          setConfirm({
+            action: { kind: 'rewind', step: b.step },
+            title: h.text,
+            label: b.label,
+            confirm: `${b.label.replace(/^↻ /, '')}? ${h.text}`,
+          });
+        return (
+          <div className="progress-fb info adv-rerun" data-testid="adv-rerun">
+            <span className="fb-text">
+              <b>{h.title}.</b> {h.text}
+            </span>
+            {h.primary && (
+              <button className="primary" onClick={() => go(h.primary!)}>
+                {h.primary.label}
+              </button>
+            )}
+            {h.secondary && <button onClick={() => go(h.secondary!)}>{h.secondary.label}</button>}
+            <button className="link" onClick={() => setAdvBase({})}>
+              Để sau
+            </button>
+          </div>
+        );
+      })()}
       {banner}
       {confirm && (
         <div className="progress-fb confirm" role="alertdialog" data-testid="progress-confirm">

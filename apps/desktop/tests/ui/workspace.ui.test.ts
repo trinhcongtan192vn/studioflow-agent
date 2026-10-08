@@ -263,6 +263,13 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('advanced')).toContainText('Frame tùy biến bằng AI');
     await win.getByTestId('adv-music').getByRole('combobox').selectOption('on');
     await expect(win.getByTestId('advanced-toggle')).toContainText('Nâng cao: Nhạc nền');
+    // 092: đổi model mạnh khi Kịch bản đã xong → gợi ý chạy lại từ Kịch bản; đổi về như cũ → hết gợi ý
+    await win.getByTestId('adv-reasoning').getByRole('combobox').selectOption('on');
+    await expect(win.getByTestId('adv-rerun')).toContainText('Chạy lại từ "Kịch bản"');
+    // Nhạc nền đổi ở trên cũng được nêu (video mẫu chưa có bước nhạc nên không quyết định bước)
+    await expect(win.getByTestId('adv-rerun')).toContainText('Đã đổi: Nhạc nền, Model mạnh');
+    await win.getByTestId('adv-reasoning').getByRole('combobox').selectOption('inherit');
+    await expect(win.getByTestId('adv-rerun')).toHaveCount(0);
     await win.getByTestId('advanced-toggle').click();
     await expect(win.getByTestId('advanced')).toHaveCount(0);
     const scriptRow = progress.getByTestId('step-script');

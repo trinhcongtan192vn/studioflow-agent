@@ -20,12 +20,15 @@ export function AdvancedPanel({
   video,
   open = true,
   onSummary,
+  onChange,
 }: {
   channel: string;
   video?: string;
   /** Tầng video: bảng đang mở (đóng vẫn tải để báo tóm tắt cho nút). */
   open?: boolean;
   onSummary?: (s: string) => void;
+  /** 092: giá trị hiệu lực của một tùy chọn vừa đổi (trước → sau) — tab Tiến độ gợi ý chạy lại. */
+  onChange?: (key: AdvancedKey, before: boolean, after: boolean) => void;
 }) {
   const [flags, setFlags] = useState<Record<AdvancedKey, Flag>>();
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
@@ -35,6 +38,7 @@ export function AdvancedPanel({
       .then((r) => {
         setFlags(r.flags);
         onSummary?.(advancedSummary(r.flags));
+        return r.flags as Record<AdvancedKey, Flag>;
       })
       .catch((e: Error) => {
         setFlags(undefined);
@@ -46,13 +50,15 @@ export function AdvancedPanel({
   }, [channel, video]);
   const set = async (key: AdvancedKey, value: boolean | null) => {
     try {
+      const before = flags?.[key].value;
       await core.call('advanced.set', { channel, ...(video ? { video } : {}), key, value });
-      await load();
+      const now = await load();
+      if (now && before !== undefined) onChange?.(key, before, now[key].value);
       setMsg({
         tone: 'success',
         text: video
           ? 'Đã lưu cho video này. Áp dụng cho các bước chưa chạy.'
-          : 'Đã lưu cho kênh. Video mới và các bước chưa chạy sẽ dùng giá trị này.',
+          : 'Đã lưu cho kênh. Video mới và các bước chưa chạy sẽ dùng giá trị này. Video đã làm xong giữ kết quả cũ — muốn áp dụng: mở video → tab Tiến độ → Nâng cao, chọn Bật/Tắt cho video đó rồi bấm nút chạy lại được gợi ý.',
       });
     } catch (e) {
       setMsg({ tone: 'error', text: (e as Error).message });

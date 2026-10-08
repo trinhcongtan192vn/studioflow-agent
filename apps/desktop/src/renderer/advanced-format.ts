@@ -44,3 +44,68 @@ export function advancedSummary(flags: Partial<Record<AdvancedKey, Flag>>): stri
   const on = ADVANCED.filter((a) => flags[a.key]?.value).map((a) => a.label);
   return on.length ? `Nâng cao: ${on.join(', ')}` : 'Nâng cao: tắt hết (chế độ gọn)';
 }
+
+/** 092: bước (theo loại trong thư viện D6) chịu ảnh hưởng của từng tùy chọn. */
+const AFFECTS: Record<AdvancedKey, string[]> = {
+  'advanced.refine': ['script', 'storyboard', 'publish-meta'],
+  'advanced.reasoning': ['script', 'storyboard', 'publish-meta'],
+  'advanced.music': ['music'],
+  'advanced.custom_frames': ['frame-build'],
+};
+
+export interface RerunStep {
+  id: string;
+  uses?: string;
+  title: string;
+  status: string;
+}
+
+export interface RerunHint {
+  text: string;
+  primary?: { step: string; label: string };
+  /** Lựa chọn rẻ hơn (refine/reasoning: chỉ làm lại tiêu đề, mô tả). */
+  secondary?: { step: string; label: string };
+}
+
+/**
+ * 092 (FR-UI-92-03): đổi tùy chọn Nâng cao → chạy lại từ bước sớm nhất chịu ảnh hưởng đã chạy (bỏ qua cũng tính là
+ * đã chạy). Chưa bước nào chạy → tự áp dụng khi tới bước đó. Workflow không có bước chịu ảnh hưởng → `null`.
+ */
+export function rerunHint(key: AdvancedKey, steps: readonly RerunStep[]): RerunHint | null {
+  const hit = steps.filter((s) => s.uses && AFFECTS[key].includes(s.uses));
+  if (!hit.length) return null;
+  const ran = hit.find((s) => s.status !== 'pending');
+  if (!ran) return { text: `Sẽ áp dụng khi chạy tới bước "${hit[0]!.title}".` };
+  const later = steps.slice(steps.indexOf(ran) + 1).filter((s) => s.status !== 'pending').length;
+  const meta = hit.find((s) => s.uses === 'publish-meta' && s.status !== 'pending');
+  return {
+    text: `Video này đã chạy qua bước "${ran.title}" với tùy chọn cũ. Để áp dụng, chạy lại từ bước đó${later ? ` — ${later} bước sau sẽ phải làm lại (kể cả các điểm duyệt)` : ''}.`,
+    primary: { step: ran.id, label: `↻ Chạy lại từ "${ran.title}"` },
+    ...(meta && meta !== ran
+      ? { secondary: { step: meta.id, label: `Chỉ làm lại "${meta.title}"` } }
+      : {}),
+  };
+}
+
+/**
+ * 092: gộp gợi ý khi đổi nhiều tùy chọn — bước sớm nhất thắng; nút phụ (chỉ tiêu đề) chỉ khi mọi tùy chọn đã đổi đều
+ * dùng được nó.
+ */
+export function changedHint(
+  changed: readonly AdvancedKey[],
+  steps: readonly RerunStep[],
+): (RerunHint & { title: string }) | null {
+  const hints = changed.map((k) => rerunHint(k, steps)).filter((h): h is RerunHint => h !== null);
+  if (!hints.length) return null;
+  const pos = (h: RerunHint) =>
+    h.primary ? steps.findIndex((s) => s.id === h.primary!.step) : Number.MAX_SAFE_INTEGER;
+  const best = [...hints].sort((a, b) => pos(a) - pos(b))[0]!;
+  const labels = ADVANCED.filter((a) => changed.includes(a.key)).map((a) => a.label);
+  const secondary = hints.every((h) => h.secondary) ? best.secondary : undefined;
+  return {
+    title: `Đã đổi: ${labels.join(', ')}`,
+    text: best.text,
+    ...(best.primary ? { primary: best.primary } : {}),
+    ...(secondary ? { secondary } : {}),
+  };
+}

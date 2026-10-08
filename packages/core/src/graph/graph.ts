@@ -567,9 +567,15 @@ export class BuildGraph {
       profile: model.config('output.profile'),
       transitions: model.frames.map((f) => f.transition_in ?? null),
       // 012: nhạc theo scene + mức trộn
+      // 092: `advanced.music` tắt → scene có bài coi như `none` (video không có nhạc chỉ đổi băm khi có bài)
       music: model.scenes.map((s) => [
         s.id,
-        s.music ?? null,
+        model.config('advanced.music') === false &&
+        s.music &&
+        s.music !== 'none' &&
+        s.music.track_id
+          ? 'none'
+          : (s.music ?? null),
         model.config('music.volume_db', { sceneId: s.id }),
       ]),
       duck_db: model.config('music.duck_db'),

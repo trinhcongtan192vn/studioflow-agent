@@ -160,6 +160,8 @@ async function musicBed(
   { file: string; copies: string[]; element: NonNullable<IndexInput['music']> } | undefined
 > {
   if (!appDataDir) return undefined;
+  // 092: nhạc nền tắt (advanced.music) → không dựng nhạc, giữ track_id trong storyboard để bật lại
+  if (ctx.model.config('advanced.music') === false) return undefined;
   const v = ctx.videoRel;
   const segs: (MusicSegment & { ext: string; hash: string })[] = [];
   for (const sc of ctx.model.scenes) {
