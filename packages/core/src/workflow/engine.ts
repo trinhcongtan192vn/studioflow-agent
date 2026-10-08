@@ -260,6 +260,8 @@ export class WorkflowEngine extends EventEmitter {
   private summaryOf(st: VideoState): VideoStateSummary {
     const manifest = this.pack(st)?.manifest;
     const titles = new Map((manifest?.steps ?? []).map((s) => [s.id, s.title]));
+    // 092: loại bước (giao diện biết bước nào chịu ảnh hưởng của tùy chọn nào)
+    const uses = new Map((manifest?.steps ?? []).map((s) => [s.id, s.uses]));
     const ids = manifest ? manifest.steps.map((s) => s.id) : Object.keys(st.steps);
     const steps = ids
       .filter((id) => st.steps[id])
@@ -268,6 +270,7 @@ export class WorkflowEngine extends EventEmitter {
         title: titles.get(id) ?? id,
         status: st.steps[id]!.status,
         ...(st.steps[id]!.refine ? { refine: st.steps[id]!.refine } : {}),
+        ...(uses.get(id) ? { uses: uses.get(id)! } : {}),
       }));
     const current = steps.find((s) => s.status !== 'done' && s.status !== 'skipped')?.id;
     return {

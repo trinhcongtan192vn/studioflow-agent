@@ -638,7 +638,7 @@ export interface LipsyncInput { audio: RelPath; fps: number; thresholds?: { half
 export interface RenderInput { mode: 'draft' | 'release'; output_profile: string; }
 
 export interface VideoStateSummary { video_id: VideoId; phase: VideoState['phase']; workflow: VideoState['workflow'];
-  current_step?: string; steps: { id: string; title: string; status: StepState['status']; refine?: StepState['refine'] }[];
+  current_step?: string; steps: { id: string; title: string; status: StepState['status']; refine?: StepState['refine']; uses?: string }[];  // uses (092): loại bước trong thư viện D6
   pending_approvals: ApprovalId[]; owner: VideoState['owner']; budget: VideoState['budget']; }
 export interface NodeStatus { key: string; type: string; status: 'fresh' | 'stale' | 'missing' | 'pinned' | 'pinned_stale' | 'failed' | 'external_change' | 'orphan';
   reason?: string; decision_required?: boolean; }

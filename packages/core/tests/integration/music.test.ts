@@ -15,6 +15,7 @@ import {
   type Core,
   type SessionContext,
 } from '../../src/index.js';
+import { setAdvanced } from '../../src/config/advanced.js';
 import { runSf } from '../helpers.js';
 import { clickWav } from '../music-helpers.js';
 import { writeValidFrames } from '../graph-helpers.js';
@@ -219,6 +220,8 @@ describe('music bed and ducking (012 US3, SC-002)', () => {
       `music: { track_id: ${ids.mid120} }`,
     );
     store.write(`${v}/STORYBOARD.md`, sb, { by: 'test' });
+    // 085/092: nhạc nền là tính năng nâng cao — bật cho video này
+    setAdvanced(store, 'advanced.music', true, fixtureVideoId);
     // frame giả hợp lệ (nút frame_html nhận vào graph, 020)
     writeValidFrames(store, fixtureVideoId);
     const r = await new BuildGraph({ store, appDataDir: t.dir, builders: core.graph }).build(
@@ -238,5 +241,19 @@ describe('music bed and ducking (012 US3, SC-002)', () => {
       (x) => x.id === ids.mid120,
     )!.used_in;
     expect(used).toContain(fixtureVideoId);
+
+    // 092 FR-WF-92-02: tắt nhạc nền → index dựng lại không có nhạc dù storyboard còn track_id; bật lại → nhạc cũ
+    setAdvanced(store, 'advanced.music', false, fixtureVideoId);
+    const g = new BuildGraph({ store, appDataDir: t.dir, builders: core.graph });
+    expect((await g.build(fixtureVideoId, { targets: ['index'] })).status).toBe('succeeded');
+    expect(readFileSync(store.abs(`${v}/index.html`), 'utf8')).not.toMatch(/id="el-music"/);
+    expect(readFileSync(store.abs(`${v}/STORYBOARD.md`), 'utf8')).toMatch(
+      new RegExp(`track_id: ${ids.mid120}`),
+    );
+    setAdvanced(store, 'advanced.music', true, fixtureVideoId);
+    expect((await g.build(fixtureVideoId, { targets: ['index'] })).status).toBe('succeeded');
+    expect(readFileSync(store.abs(`${v}/index.html`), 'utf8')).toMatch(
+      new RegExp(`data-sf-track="${ids.mid120}"`),
+    );
   }, 120_000);
 });
