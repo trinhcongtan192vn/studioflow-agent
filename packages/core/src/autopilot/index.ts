@@ -92,6 +92,7 @@ export {
 export { limitResumeAt, parseLimit, type ParsedLimit } from './limit.js';
 export {
   AutopilotRunner,
+  canonicalDir,
   RUNNER_CONSTANTS,
   orderItems,
   startGate,

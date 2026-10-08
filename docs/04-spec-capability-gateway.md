@@ -77,6 +77,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `approval.annotate` | `step_id, summary` | `{}` | Agent gắn tóm tắt cho thẻ duyệt do engine tạo (D6 mục 3.1) |
 | `studio.open` / `studio.commit` / `studio.close` | `mode: 'preview'\|'edit'` / `message?` / — | D9 | |
 | `job.status` / `job.wait` / `job.cancel` / `job.list` | `job_id`, `timeout_ms` | `JobInfo` | |
+| `video.create` | `title, instruction` | `{video_id, note}` | Chỉ ở chat kênh (chưa ở video nào; trong video → `E_SCHEMA_INVALID`): tạo video, app mở video đó và chuyển `instruction` sang phiên chat của video khi lượt kênh xong (081) |
 | `asset.import` | `path` (trong `uploads/`), `tags, description` | `{asset_id}` | Đưa file đính kèm vào thư viện kênh + `public/` |
 | `asset.search` | `query, tags?` | `{assets[]}` | Thư viện kênh |
 | `music.library.add` | D8 | D8 | |
