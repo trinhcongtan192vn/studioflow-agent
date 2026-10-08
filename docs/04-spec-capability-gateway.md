@@ -70,7 +70,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `workflow.select` | `workflow_id, output_profile` | `{}` | Chỉ khi `phase = briefing`; ghi đề xuất vào `BRIEF.md` |
 | `workflow.state` | — | `VideoStateSummary` (mục 3.1) | |
 | `workflow.run_to` / `workflow.pause` / `workflow.rewind` | `step_id` / — / `step_id` | `{}` | Điều khiển engine theo lệnh chat (D6 mục 3.2) |
-| `workflow.step_complete` | `step_id, frame_id?, outputs[], new_element_ids?` | `{next_step?}` | Agent báo xong bước agent-thực-hiện; bước `frame-build` xong khi mọi frame đã báo (D6) |
+| `workflow.step_complete` | `step_id, frame_id?, outputs[], new_element_ids?` | `{next_step?}` | Agent báo xong bước agent-thực-hiện; bước `frame-build` xong khi mọi frame đã báo (D6); bước đang chờ người dùng trả lời (agent dừng lượt để hỏi, lỗi kết thúc `waiting for your reply in chat`) → nhận, bước chạy tiếp khi lượt chat kết thúc (083) |
 | `workflow.gate_check` | `step_id` | `{pass, results[]}` | |
 | `workflow.recheck` | `step_id` | `{pass, results[]}` | Bước lỗi đã được sửa file: kiểm gate lại trên file hiện có, không sinh lại; qua → điểm duyệt/xong, chạy tiếp (036) |
 | `workflow.waive` | `step_id`, `check` | `{pass, results[]}` | Bước lỗi chỉ vì kiểm mềm (`audio_duration`, `E_GATE_WARNING`) và người dùng đồng ý giữ nguyên: ghi miễn trừ vào bước (`waived`) rồi kiểm lại như `workflow.recheck`; chạy lại bước thì miễn trừ mất (043) |

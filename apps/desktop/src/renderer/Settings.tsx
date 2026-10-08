@@ -362,46 +362,92 @@ function Keys() {
   );
 }
 
+/** 083: ba vai model text (D4 mục 4.3): viết, chấm (phải khác model viết), phụ. Trống = mặc định của app. */
+const MODEL_ROLES = [
+  {
+    key: 'text.producer',
+    label: 'Model viết',
+    hint: 'Viết kịch bản, storyboard, mô tả. Mặc định: OpenAI nếu có khóa, không thì Claude Sonnet.',
+    placeholder: 'claude/claude-sonnet-5-5',
+  },
+  {
+    key: 'text.critic',
+    label: 'Model chấm',
+    hint: 'Chấm điểm và góp ý bản nháp; phải khác model viết. Mặc định: Claude Opus.',
+    placeholder: 'claude/claude-opus-5-5',
+  },
+  {
+    key: 'text.aux',
+    label: 'Model phụ',
+    hint: 'Việc nhỏ (tóm tắt, đặt tên…). Mặc định: Claude Haiku.',
+    placeholder: 'claude/claude-haiku-4-5',
+  },
+] as const;
+type ModelKey = (typeof MODEL_ROLES)[number]['key'];
+
 function Models() {
-  const [producer, setProducer] = useState('');
-  const [msg, setMsg] = useState('');
+  const [vals, setVals] = useState<Record<ModelKey, string>>({
+    'text.producer': '',
+    'text.critic': '',
+    'text.aux': '',
+  });
+  const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
   useEffect(() => {
-    void core
-      .call('settings.get', {})
-      .then((s) =>
-        setProducer(
-          String((s as { config: Record<string, unknown> }).config['text.producer'] ?? ''),
-        ),
-      );
+    void core.call('settings.get', {}).then((s) => {
+      const c = (s as { config: Record<string, unknown> }).config;
+      setVals({
+        'text.producer': String(c['text.producer'] ?? ''),
+        'text.critic': String(c['text.critic'] ?? ''),
+        'text.aux': String(c['text.aux'] ?? ''),
+      });
+    });
   }, []);
+  const save = async () => {
+    const p = vals['text.producer'].trim() || 'claude/claude-sonnet-5-5';
+    const c = vals['text.critic'].trim() || 'claude/claude-opus-5-5';
+    if (p === c) {
+      setMsg({ tone: 'error', text: 'Model chấm phải khác model viết.' });
+      return;
+    }
+    try {
+      for (const r of MODEL_ROLES)
+        await core.call('settings.set', { key: r.key, value: vals[r.key].trim() || null });
+      setMsg({ tone: 'success', text: 'Đã lưu.' });
+    } catch (e) {
+      setMsg({ tone: 'error', text: (e as Error).message });
+    }
+  };
   return (
-    <label className="field">
-      Model viết kịch bản mặc định (nhà cung cấp/model)
-      <span className="row">
-        <input
-          list="sf-models"
-          placeholder="claude/claude-sonnet-5-5"
-          value={producer}
-          onChange={(e) => setProducer(e.target.value)}
-        />
-        <datalist id="sf-models">
-          {MODELS.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <button
-          onClick={() =>
-            void core.call('settings.set', { key: 'text.producer', value: producer || null }).then(
-              () => setMsg('Đã lưu.'),
-              (e: Error) => setMsg(e.message),
-            )
-          }
-        >
+    <div className="models" data-testid="model-settings">
+      <datalist id="sf-models">
+        {MODELS.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+      {MODEL_ROLES.map((r) => (
+        <label className="field" key={r.key}>
+          {r.label} (nhà cung cấp/model)
+          <input
+            list="sf-models"
+            data-testid={`model-${r.key.slice(5)}`}
+            placeholder={`Mặc định — ${r.placeholder}`}
+            value={vals[r.key]}
+            onChange={(e) => setVals((v) => ({ ...v, [r.key]: e.target.value }))}
+          />
+          <span className="muted">{r.hint}</span>
+        </label>
+      ))}
+      <p className="muted">
+        OpenAI và DeepSeek cần khóa API ở mục Khóa API và tính tiền theo token. Agent trong chat và
+        Autopilot luôn chạy bằng Claude.
+      </p>
+      <div className="row">
+        <button className="primary" onClick={() => void save()}>
           Lưu
         </button>
-        <span className="muted">{msg}</span>
-      </span>
-    </label>
+        {msg && <span className={msg.tone}>{msg.text}</span>}
+      </div>
+    </div>
   );
 }
 

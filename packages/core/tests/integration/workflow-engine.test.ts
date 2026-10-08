@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { wireDemo, workflowFixture, type WorkflowFixture } from '../workflow-helpers.js';
+import { AWAITING_REPLY } from '../../src/workflow/engine.js';
 
 let fx: WorkflowFixture;
 afterEach(() => fx?.cleanup());
@@ -172,6 +173,32 @@ describe('steps, gates, approvals (007 US2, FR-WF-03/04)', () => {
     expect(state(fx).steps.storyboard).toMatchObject({
       status: 'failed',
       error: { code: 'E_STEP_INCOMPLETE' },
+    });
+  });
+
+  it('083: an agent that ends its turn to ask the user can complete the step on a later turn', async () => {
+    fx = workflowFixture();
+    wireDemo(fx);
+    fx.core.workflows.setAgentRunner(async () => {}); // lượt 1: agent hỏi người dùng rồi dừng
+    const e = await startWorkflow(fx);
+    await e.advance();
+    await e.approve(pending(fx)[0]!);
+    expect(state(fx).steps.storyboard).toMatchObject({
+      status: 'failed',
+      error: { code: 'E_STEP_INCOMPLETE', message: expect.stringMatching(AWAITING_REPLY) },
+    });
+    // lượt 2 (người dùng trả lời): agent viết file và báo xong → bước chạy tiếp sau lượt
+    fx.store.write(fx.v('STORYBOARD.md'), fx.sample('STORYBOARD.md'), { by: 'test' });
+    await e.stepComplete('storyboard', ['STORYBOARD.md']);
+    expect(stepStatus(fx).storyboard).toBe('failed'); // chưa chạy trong lượt của agent
+    await e.resumeAfterTurn();
+    await e.idle();
+    expect(stepStatus(fx).storyboard).not.toBe('failed');
+    expect(state(fx).steps.storyboard.error).toBeUndefined();
+    // không chờ gì thì resumeAfterTurn không làm gì; bước không chờ thì step_complete vẫn lỗi
+    await e.resumeAfterTurn();
+    await expect(e.stepComplete('script', [])).rejects.toMatchObject({
+      code: 'E_STEP_INCOMPLETE',
     });
   });
 

@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { wireDemo, workflowFixture, type WorkflowFixture } from '../workflow-helpers.js';
+import { AWAITING_REPLY } from '../../src/workflow/engine.js';
 
 let fx: WorkflowFixture;
 afterEach(() => fx?.cleanup());
@@ -150,6 +151,35 @@ describe('autopilot (034)', () => {
     const voiceAsk = instructions.find((i) => /bước voice/.test(i));
     expect(voiceAsk).toContain('voice.design');
     expect(voiceAsk).toContain('narrator');
+    expect(status(fx)).toMatchObject({ voice: 'done', finalize: 'waiting_approval' });
+  });
+
+  it('083: the agent proposes voices and stops; the user picks on the next turn and audio builds', async () => {
+    fx = workflowFixture();
+    const ch = path.join(fx.dir, 'channel.json');
+    const c = JSON.parse(readFileSync(ch, 'utf8'));
+    delete c.config['voice.id'];
+    writeFileSync(ch, JSON.stringify(c, null, 2));
+    wireDemo(fx);
+    fx.core.workflows.setAgentRunner(async (instruction, ctx) => {
+      if (/bước storyboard/.test(instruction)) {
+        fx.store.write(fx.v('STORYBOARD.md'), fx.sample('STORYBOARD.md'), { by: 'test' });
+        await ctx.stepComplete(['STORYBOARD.md']);
+      }
+      // bước voice: agent tạo giọng mẫu, hỏi "A, B hay C?" rồi dừng lượt
+    });
+    const e = await start(fx, true);
+    await e.approve(e.summary().pending_approvals[0]!); // script
+    expect(state(fx).steps.voice).toMatchObject({
+      status: 'failed',
+      error: { message: expect.stringMatching(AWAITING_REPLY) },
+    });
+    // lượt sau: người dùng chọn → agent đặt voice.id rồi báo xong bước
+    c.config['voice.id'] = 'vo_c3z8p1mn';
+    writeFileSync(ch, JSON.stringify(c, null, 2));
+    await e.stepComplete('voice', []);
+    await e.resumeAfterTurn();
+    await e.idle();
     expect(status(fx)).toMatchObject({ voice: 'done', finalize: 'waiting_approval' });
   });
 });

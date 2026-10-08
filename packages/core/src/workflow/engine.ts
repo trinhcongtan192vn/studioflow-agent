@@ -104,6 +104,13 @@ export interface EngineDeps {
 const now = () => new Date().toISOString();
 const RUNNABLE = new Set<StepState['status']>(['pending', 'stale']);
 
+/** 083: đuôi lỗi của bước mà agent dừng lượt để hỏi người dùng (giao diện hiện "đang chờ bạn trả lời"). */
+export const AWAITING_REPLY = 'waiting for your reply in chat';
+const isAwaitingReply = (s: StepState): boolean =>
+  s.status === 'failed' &&
+  s.error?.code === 'E_STEP_INCOMPLETE' &&
+  s.error.message.endsWith(AWAITING_REPLY);
+
 /**
  * Workflow Engine của một video (D6 mục 3): briefing, vòng đời bước, gate, approval, rewind,
  * điều phối tự động, khôi phục. Trạng thái nguồn là `state.json` (ghi qua module ghi).
@@ -528,6 +535,34 @@ export class WorkflowEngine extends EventEmitter {
     });
   }
 
+  /**
+   * 083: gọi khi một lượt chat của video kết thúc. Bước chờ người dùng trả lời mà agent đã báo xong trong
+   * lượt đó → chạy tiếp: bước có executor (voice…) chạy lại (giờ đã đủ dữ liệu), bước agent kiểm gate với
+   * file agent báo. Không có gì chờ → không làm gì.
+   */
+  resumeAfterTurn(): Promise<void> {
+    const r = this.resume;
+    if (!r) return Promise.resolve();
+    this.resume = undefined;
+    return this.exclusive(() => {
+      const st = this.readState();
+      const s = st.steps[r.stepId];
+      if (!s || !isAwaitingReply(s)) return false;
+      delete s.error;
+      s.status = 'pending';
+      this.writeState(st);
+      this.answered = r;
+      return true;
+    }).then((ok) => {
+      if (!ok) return;
+      this.paused = false;
+      return this.advance();
+    });
+  }
+  private resume?: { stepId: string; outputs: string[] };
+  /** 083: lần giao agent đầu tiên của bước khi chạy lại = phần agent đã báo xong ở lượt trước. */
+  private answered?: { stepId: string; outputs: string[] };
+
   /** Chờ vòng điều phối đang chạy (nếu có) kết thúc. */
   async idle(): Promise<void> {
     while (this.running) await this.running;
@@ -723,6 +758,9 @@ export class WorkflowEngine extends EventEmitter {
     } catch (e) {
       await this.fail(decl.id, isSfError(e) ? e.code : 'E_INTERNAL', String((e as Error).message));
       return false;
+    } finally {
+      // 083: bước không cần giao agent lần nữa (voice đã đủ giọng) → bỏ phần trả lời chưa dùng
+      if (this.answered?.stepId === decl.id) this.answered = undefined;
     }
     const results = await this.gates(decl, this.readState(), manifest);
     return this.finishStep(decl, outputs, extra, results);
@@ -841,6 +879,11 @@ export class WorkflowEngine extends EventEmitter {
         'E_STEP_INCOMPLETE',
         `step ${decl.id} needs an agent session (no agent session attached)`,
       );
+    if (this.answered?.stepId === decl.id) {
+      const done = this.answered.outputs;
+      this.answered = undefined;
+      return done.length ? done : undefined;
+    }
     const instruction = this.instructionFor(decl, ctx, manifest, extra);
     let outputs: string[] | undefined;
     let finished = false;
@@ -853,8 +896,13 @@ export class WorkflowEngine extends EventEmitter {
         ...ctx,
         stepComplete: async (o) => void (await this.stepComplete(decl.id, o)),
       });
+      // 083: agent dừng lượt để hỏi người dùng (chọn giọng…) → bước dừng ở trạng thái chờ trả lời; lượt
+      // sau agent gọi step_complete thì bước chạy tiếp (resumeAfterTurn)
       if (!finished)
-        throw new SfError('E_STEP_INCOMPLETE', `agent stopped without completing step ${decl.id}`);
+        throw new SfError(
+          'E_STEP_INCOMPLETE',
+          `agent stopped without completing step ${decl.id} — ${AWAITING_REPLY}`,
+        );
       return outputs?.length ? outputs : undefined;
     } finally {
       this.completions.delete(decl.id);
@@ -912,6 +960,11 @@ export class WorkflowEngine extends EventEmitter {
           'E_STEP_INCOMPLETE',
           `step ${stepId} is already complete and waiting for user approval: tell the user to press "Duyệt" on the approval card pinned at the bottom of the chat (do not cite approval ids); do not redo the step`,
         );
+      // 083: bước đang chờ người dùng trả lời → nhận; bước chạy tiếp khi lượt của agent kết thúc
+      if (isAwaitingReply(st.steps[stepId]!)) {
+        this.resume = { stepId, outputs };
+        return {};
+      }
       throw new SfError('E_STEP_INCOMPLETE', `step ${stepId} is not waiting for an agent`);
     }
     resolve(outputs);

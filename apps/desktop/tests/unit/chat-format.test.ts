@@ -1,7 +1,9 @@
 // Định dạng chat (FN-008 mục 2): tên tool, đối tượng, kết quả/lỗi đọc được, gộp tool, markdown.
 import { describe, expect, it } from 'vitest';
 import {
+  friendlyStepError,
   groupRuns,
+  isAwaitingReply,
   isQuietTool,
   parseInline,
   parseMarkdown,
@@ -84,5 +86,17 @@ describe('step CTAs when there is nothing to recheck (065 FR-UI-65-02)', () => {
     expect(
       stepCtas(step, [], 'artifact_valid(SCRIPT.md): line 3: bad id').map((c) => c.kind),
     ).toEqual(['recheck', 'retry']);
+  });
+});
+
+describe('083: step waiting for the user', () => {
+  const err = 'agent stopped without completing step voice — waiting for your reply in chat';
+  it('is not shown as an error and offers only a rerun', () => {
+    expect(isAwaitingReply(err)).toBe(true);
+    expect(isAwaitingReply('agent stopped without completing step voice')).toBe(false);
+    expect(friendlyStepError(err)).toMatch(/chờ bạn trả lời/);
+    expect(stepCtas({ id: 'voice', status: 'failed' }, [], err).map((c) => c.kind)).toEqual([
+      'retry',
+    ]);
   });
 });

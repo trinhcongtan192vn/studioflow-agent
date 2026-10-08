@@ -474,6 +474,8 @@ export interface IpcEvents {
   'autopilot.updated': AutopilotStatus;
   /** 053: kết nối YouTube của một kênh đổi (đã kết nối / đã ngắt). */
   'publish.updated': { channel: string };
+  /** 083: trạng thái bot Telegram đổi (đang kết nối → đang chạy / lỗi token…). */
+  'telegram.updated': Record<string, never>;
   'approval.requested': {
     channel: string;
     video: string;

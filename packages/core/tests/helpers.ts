@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -11,6 +13,9 @@ export interface SfResult {
   stderr: string;
 }
 
+/** 083: thư mục dữ liệu app trống cho CLI trong test — không đọc cấu hình thật của máy (model, khóa…). */
+const isolatedAppData = mkdtempSync(path.join(tmpdir(), 'sf-appdata-'));
+
 /** Chạy CLI `sf` thật trong tiến trình con (constitution Điều X). */
 export function runSf(
   args: string[],
@@ -20,7 +25,7 @@ export function runSf(
     cwd: opts.cwd ?? coreDir,
     input: opts.input ?? '',
     encoding: 'utf8',
-    env: { ...process.env, SF_LOG: '', ...opts.env },
+    env: { ...process.env, SF_LOG: '', SF_APP_DATA: isolatedAppData, ...opts.env },
   });
   return { code: r.status ?? -1, stdout: r.stdout, stderr: r.stderr };
 }

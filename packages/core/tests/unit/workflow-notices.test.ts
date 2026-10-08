@@ -1,6 +1,6 @@
 // 041 — thông báo workflow trong chat: bắt đầu / xong → tiếp theo / cần duyệt / lỗi / render xong.
 import { describe, expect, it } from 'vitest';
-import { workflowNotices } from '../../src/workflow/notices.js';
+import { noticeText, workflowNotices } from '../../src/workflow/notices.js';
 
 const steps = (...st: [string, string][]) =>
   st.map(([id, status]) => ({ id, title: id.toUpperCase(), status }));
@@ -54,5 +54,23 @@ describe('workflowNotices', () => {
     });
     expect(r.map((x) => x.event)).toEqual(['done', 'finished']);
     expect(r[1]).toMatchObject({ outputs: ['renders/rd_1/video.mp4'] });
+  });
+});
+
+describe('noticeText (083)', () => {
+  it('a step waiting for the user reads as a question, not an error', () => {
+    const base = {
+      step_id: 'voice',
+      step_title: 'Giọng đọc',
+      position: [4, 12] as [number, number],
+    };
+    expect(
+      noticeText({
+        event: 'failed',
+        ...base,
+        error: 'agent stopped without completing step voice — waiting for your reply in chat',
+      }),
+    ).toMatch(/^💬 Bước \*\*Giọng đọc\*\* \(4\/12\) đang chờ bạn trả lời/);
+    expect(noticeText({ event: 'failed', ...base, error: 'boom' })).toMatch(/^✕/);
   });
 });

@@ -478,7 +478,14 @@ export function isSoftWarning(e: string): boolean {
 /** Tách lỗi gate gộp "a(x): …; b(y): …" thành từng gate (giữ "; " bên trong chi tiết). */
 const gateParts = (e: string) => e.split(/; (?=[a-z_]+\()/);
 
+/** 083: agent dừng lượt để hỏi người dùng (bước chạy tiếp khi agent báo xong ở lượt sau). */
+export function isAwaitingReply(error: string): boolean {
+  return /waiting for your reply in chat$/.test(error);
+}
+
 export function friendlyStepError(e: string): string {
+  if (isAwaitingReply(e))
+    return 'Agent đang chờ bạn trả lời trong chat (ví dụ chọn giọng). Trả lời agent để bước làm tiếp, hoặc bấm "Chạy lại bước".';
   const gates = gateParts(e);
   // 046: nhiều gate trượt → nêu đủ từng cái (không để cảnh báo che lỗi khác)
   if (
