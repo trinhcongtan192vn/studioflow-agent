@@ -57,6 +57,7 @@ import {
 import { getSecretDefault } from '../secrets/credman.js';
 import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
 import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash.js';
+import { videoCard, type VideoCard } from '../domain/video-card.js';
 import { exportVideo, listRenders, type ExportInclude } from '../render/export.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
@@ -244,21 +245,22 @@ export class CoreHost extends EventEmitter {
     return this.core.gateway.storeFor(path.resolve(channel));
   }
 
-  private videos(channel: string) {
+  /** 070: thẻ video (trạng thái, tiến độ bước, loại, ảnh đại diện) — mới sửa trước. */
+  private videos(channel: string): VideoCard[] {
+    const titles = new Map<string, Record<string, string> | undefined>();
+    const stepTitles = (wf: string) => {
+      if (!titles.has(wf)) {
+        const m = this.core.workflows.packs().find((p) => p.manifest.id === wf)?.manifest;
+        titles.set(
+          wf,
+          m ? Object.fromEntries(m.steps.map((s) => [s.id, s.title ?? s.id])) : undefined,
+        );
+      }
+      return titles.get(wf);
+    };
     return listVideoIds(channel)
-      .map((id) => {
-        const f = path.join(channel, 'videos', id, 'state.json');
-        if (!existsSync(f)) return undefined;
-        const st = JSON.parse(readFileSync(f, 'utf8')) as VideoState;
-        const brief = path.join(channel, 'videos', id, 'BRIEF.md');
-        const title = existsSync(brief)
-          ? (/title_working:\s*(.*)/
-              .exec(readFileSync(brief, 'utf8'))?.[1]
-              ?.replace(/^['"]|['"]$/g, '') ?? '')
-          : '';
-        return { id, title: title || id, phase: st.phase, updated_at: st.updated_at };
-      })
-      .filter((x): x is NonNullable<typeof x> => Boolean(x))
+      .map((id) => videoCard(channel, id, stepTitles))
+      .filter((x): x is VideoCard => Boolean(x))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }
 
