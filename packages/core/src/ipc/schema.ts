@@ -2,6 +2,7 @@
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
 import type { VideoCard } from '../domain/video-card.js';
 import type { LibraryEntry } from '../render/export.js';
+import type { PublishQueueItem } from '../publish/queue-view.js';
 import type { WorkflowNotice } from '../workflow/notices.js';
 import type {
   AgentEvent,
@@ -108,6 +109,8 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 074: video Autopilot đã làm xong — trạng thái đăng từng nền tảng, bản phát hành, thông tin đăng. */
+  'publish.queue': { params: { channel: string }; result: { items: PublishQueueItem[] } };
   /** 053: kết nối YouTube theo kênh (OAuth loopback + PKCE). */
   'publish.youtube.connect': { params: { channel: string }; result: { auth_url: string } };
   'publish.youtube.status': {

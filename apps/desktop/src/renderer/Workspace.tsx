@@ -12,7 +12,9 @@ import {
   type PanelWidths,
 } from './layout';
 import { ExportDialog } from './ExportDialog';
+import { ChannelOverview } from './ChannelOverview';
 import { LibraryPage } from './LibraryPage';
+import { PublishReview } from './PublishReview';
 import { Palette, type Command } from './Palette';
 import { noticeToast } from './palette-format';
 import { toast, Toasts } from './Toasts';
@@ -32,9 +34,25 @@ import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from '.
 type Video = VideoCard;
 // 068: khung app — thanh điều hướng trái, các màn mở như trang
 type Page =
-  'video' | 'library' | 'autopilot' | 'channels' | 'settings' | 'channel-settings' | 'history';
+  | 'overview'
+  | 'publish'
+  | 'video'
+  | 'library'
+  | 'autopilot'
+  | 'channels'
+  | 'settings'
+  | 'channel-settings'
+  | 'history';
 const RAIL = 64;
 const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; testId: string }[] = [
+  // 075: tổng quan kênh
+  {
+    page: 'overview',
+    label: 'Tổng quan',
+    title: 'Tổng quan kênh',
+    icon: 'home',
+    testId: 'nav-overview',
+  },
   { page: 'video', label: 'Video', title: 'Video của kênh', icon: 'film', testId: 'nav-video' },
   // 073: thư viện video đã render
   {
@@ -44,6 +62,14 @@ const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; te
     icon: 'library',
     testId: 'nav-library',
   },
+  // 074: duyệt trước khi đăng
+  {
+    page: 'publish',
+    label: 'Đăng',
+    title: 'Duyệt trước khi đăng',
+    icon: 'send',
+    testId: 'nav-publish',
+  },
   {
     page: 'autopilot',
     label: 'Autopilot',
@@ -51,7 +77,13 @@ const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; te
     icon: 'sparkles',
     testId: 'open-autopilot',
   },
-  { page: 'channels', label: 'Kênh', title: 'Quản lý kênh', icon: 'home', testId: 'nav-channels' },
+  {
+    page: 'channels',
+    label: 'Kênh',
+    title: 'Quản lý kênh',
+    icon: 'folder',
+    testId: 'nav-channels',
+  },
 ];
 // 072: Job / Trace / Chi phí gộp vào "Kỹ thuật"; "Tệp" = thư mục của video đang mở
 const TABS = ['Tiến độ', 'Xem trước', 'Tệp', 'Nhạc', 'Kỹ thuật'] as const;
@@ -407,6 +439,38 @@ export function Workspace({
                 }}
               />
             )}
+            {page === 'overview' &&
+              (channel ? (
+                <ChannelOverview
+                  channel={channel}
+                  videos={videos}
+                  onOpenVideo={(id) => {
+                    setPage('video');
+                    void openVideo(id);
+                  }}
+                  onNewVideo={() => {
+                    setPage('video');
+                    setCreating('');
+                  }}
+                  onGo={(p) => setPage(p)}
+                  onClose={() => setPage('video')}
+                />
+              ) : (
+                <p className="muted page">Mở một kênh để xem tổng quan.</p>
+              ))}
+            {page === 'publish' &&
+              (channel ? (
+                <PublishReview
+                  channel={channel}
+                  onOpenVideo={(id) => {
+                    setPage('video');
+                    void openVideo(id);
+                  }}
+                  onClose={() => setPage('video')}
+                />
+              ) : (
+                <p className="muted page">Mở một kênh để xem video chờ đăng.</p>
+              ))}
             {page === 'library' &&
               (channel ? (
                 <LibraryPage

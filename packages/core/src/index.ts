@@ -33,6 +33,7 @@ export { detectChannel, initChannel, type ChannelDetection } from './domain/chan
 export { createVideo, listVideoIds } from './domain/video.js';
 export { videoCard, videoStatus, type VideoCard, type VideoStatus } from './domain/video-card.js';
 export type { LibraryEntry } from './render/export.js';
+export type { PublishQueueItem, PublishStage } from './publish/queue-view.js';
 export {
   MigrationRegistry,
   migrateVideo,
