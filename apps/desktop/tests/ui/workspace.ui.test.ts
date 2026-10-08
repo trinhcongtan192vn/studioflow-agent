@@ -308,6 +308,14 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(ap.getByTestId('autopilot-status')).toBeVisible();
     await expect(ap.getByTestId('autopilot-channel')).toContainText('chưa lập kế hoạch');
     await ap.getByRole('button', { name: 'Đóng' }).click();
+    // 073: Thư viện (kênh mẫu chưa render) và bảng lệnh Ctrl+K
+    await win.getByTestId('nav-library').click();
+    await expect(win.getByTestId('library')).toContainText('Chưa có bản render nào');
+    await win.keyboard.press('Control+K');
+    await win.getByTestId('palette').getByRole('textbox').fill('le loi');
+    await win.keyboard.press('Enter');
+    await expect(win.getByTestId('video-list')).toBeVisible();
+    await expect(win.locator('.video-head')).toContainText('Lê Lợi');
   } finally {
     await app.close();
   }

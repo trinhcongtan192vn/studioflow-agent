@@ -2,6 +2,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { CaptionGroups, CaptionOverrides } from '../contracts/types.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
+import { listVideoIds } from '../domain/video.js';
+import { videoCard, type VideoCard } from '../domain/video-card.js';
 import { SfError } from '../errors.js';
 import { captionsToSrt } from '../publish/youtube-meta.js';
 import { copyOutsideProject, writeOutsideProject } from '../store/scratch.js';
@@ -193,4 +195,31 @@ export function exportVideo(o: {
     return f;
   });
   return { dir: dest, files, skipped };
+}
+
+/** 073: một bản render trong thư viện của kênh. */
+export interface LibraryEntry extends RenderEntry {
+  video_id: string;
+  title: string;
+  format: VideoCard['format'];
+  thumbnail?: string;
+}
+
+/** 073: thư viện — mọi bản render đã xong của các video trong kênh, mới nhất trước. */
+export function renderLibrary(channel: string): LibraryEntry[] {
+  return listVideoIds(channel)
+    .flatMap((video) => {
+      const renders = listRenders(channel, video);
+      if (!renders.length) return [];
+      const card = videoCard(channel, video, () => undefined);
+      const title = readMeta(path.join(channel, 'videos', video)).title || card?.title || video;
+      return renders.map((r) => ({
+        ...r,
+        video_id: video,
+        title,
+        format: card?.format ?? null,
+        ...(card?.thumbnail ? { thumbnail: card.thumbnail } : {}),
+      }));
+    })
+    .sort((a, b) => b.finished_at.localeCompare(a.finished_at));
 }

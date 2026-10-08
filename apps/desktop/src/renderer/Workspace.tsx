@@ -12,6 +12,10 @@ import {
   type PanelWidths,
 } from './layout';
 import { ExportDialog } from './ExportDialog';
+import { LibraryPage } from './LibraryPage';
+import { Palette, type Command } from './Palette';
+import { noticeToast } from './palette-format';
+import { toast, Toasts } from './Toasts';
 import { Icon, type IconName } from './Icon';
 import { AsPage } from './Surface';
 import { core } from './rpc';
@@ -27,10 +31,19 @@ import { CostTab, JobsTab, MusicTab, PreviewTab, ProgressTab, TraceTab } from '.
 
 type Video = VideoCard;
 // 068: khung app — thanh điều hướng trái, các màn mở như trang
-type Page = 'video' | 'autopilot' | 'channels' | 'settings' | 'channel-settings' | 'history';
+type Page =
+  'video' | 'library' | 'autopilot' | 'channels' | 'settings' | 'channel-settings' | 'history';
 const RAIL = 64;
 const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; testId: string }[] = [
   { page: 'video', label: 'Video', title: 'Video của kênh', icon: 'film', testId: 'nav-video' },
+  // 073: thư viện video đã render
+  {
+    page: 'library',
+    label: 'Thư viện',
+    title: 'Video đã render của kênh',
+    icon: 'library',
+    testId: 'nav-library',
+  },
   {
     page: 'autopilot',
     label: 'Autopilot',
@@ -63,6 +76,8 @@ export function Workspace({
   const [external, setExternal] = useState<string[]>([]);
   const [file, setFile] = useState<ViewedFile>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tiến độ');
+  // 073: bảng lệnh Ctrl+K
+  const [palette, setPalette] = useState(false);
   const [tech, setTech] = useState<(typeof TECH)[number]>('Job');
   // 072: xuất video từ đầu trang video
   const [exporting, setExporting] = useState(false);
@@ -145,11 +160,35 @@ export function Workspace({
       core.on('chat.event', (e) => {
         if (e.type === 'done') setTick((t) => t + 1);
       }),
-      core.on('workflow.notice', () => setTick((t) => t + 1)),
+      core.on('workflow.notice', (d) => {
+        setTick((t) => t + 1);
+        // 073: video khác video đang xem (hoặc đang ở trang khác) → thông báo nổi
+        const n = d.line.notice;
+        if (!n || d.channel !== channel || (d.video === video && pageRef.current === 'video'))
+          return;
+        const t = noticeToast(n, titleRef.current(d.video));
+        if (t)
+          toast({
+            ...t,
+            action: {
+              label: 'Mở video',
+              run: () => {
+                setPage('video');
+                void openVideo(d.video);
+              },
+            },
+          });
+      }),
     ];
     // Phím tắt: Ctrl+1..5 chuyển tab, Ctrl+R render nháp (FN-008 mục 5)
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey) return;
+      // 073: Ctrl+K — bảng lệnh
+      if (e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPalette(true);
+        return;
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= TABS.length) setTab(TABS[n - 1]!);
       if (e.key.toLowerCase() === 'r' && video && channel) {
@@ -165,6 +204,85 @@ export function Workspace({
   }, [channel, video, reload]);
 
   const current = video ? videos.find((v) => v.id === video) : undefined;
+  // 073: giá trị mới nhất cho trình nghe sự kiện (đăng ký theo kênh/video)
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const titleRef = useRef((id: string) => id);
+  titleRef.current = (id: string) => videos.find((v) => v.id === id)?.title ?? id;
+  const commands: Command[] = [
+    ...RAIL_ITEMS.map((x) => ({
+      id: `page:${x.page}`,
+      label: x.label,
+      group: 'Trang',
+      run: () => setPage(x.page),
+    })),
+    { id: 'page:settings', label: 'Cài đặt', group: 'Trang', run: () => setPage('settings') },
+    ...(channel
+      ? [
+          {
+            id: 'page:channel-settings',
+            label: 'Cài đặt kênh',
+            group: 'Trang',
+            run: () => setPage('channel-settings'),
+          },
+          {
+            id: 'page:history',
+            label: 'Lịch sử phiên agent',
+            group: 'Trang',
+            run: () => setPage('history'),
+          },
+          {
+            id: 'act:new',
+            label: 'Tạo video mới',
+            group: 'Thao tác',
+            run: () => {
+              setPage('video');
+              setCreating('');
+            },
+          },
+        ]
+      : []),
+    ...(video && channel
+      ? [
+          {
+            id: 'act:draft',
+            label: 'Render nháp video đang mở',
+            group: 'Thao tác',
+            hint: 'Ctrl+R',
+            run: () => void core.call('render.start', { channel, video, mode: 'draft' }),
+          },
+          {
+            id: 'act:export',
+            label: 'Xuất video đang mở…',
+            group: 'Thao tác',
+            run: () => {
+              setPage('video');
+              setExporting(true);
+            },
+          },
+        ]
+      : []),
+    ...TABS.map((t, i) => ({
+      id: `tab:${t}`,
+      label: `Tab ${t}`,
+      group: 'Tab',
+      hint: `Ctrl+${i + 1}`,
+      run: () => {
+        setPage('video');
+        setTab(t);
+      },
+    })),
+    ...videos.map((v) => ({
+      id: `video:${v.id}`,
+      label: v.title,
+      group: 'Video',
+      hint: statusLabel(v),
+      run: () => {
+        setPage('video');
+        void openVideo(v.id);
+      },
+    })),
+  ];
   const openVideo = async (id: string) => {
     if (!channel) return;
     setVideo(id);
@@ -245,6 +363,8 @@ export function Workspace({
           <span>Cài đặt</span>
         </button>
       </nav>
+      <Toasts />
+      {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}
       {page !== 'video' && (
         <AsPage.Provider value>
           <main className="page-host">
@@ -287,6 +407,19 @@ export function Workspace({
                 }}
               />
             )}
+            {page === 'library' &&
+              (channel ? (
+                <LibraryPage
+                  channel={channel}
+                  onOpenVideo={(id) => {
+                    setPage('video');
+                    void openVideo(id);
+                  }}
+                  onClose={() => setPage('video')}
+                />
+              ) : (
+                <p className="muted page">Mở một kênh để xem thư viện.</p>
+              ))}
             {page === 'history' && channel && (
               <SessionHistory
                 channel={channel}

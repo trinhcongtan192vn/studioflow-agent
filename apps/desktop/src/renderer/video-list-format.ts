@@ -32,7 +32,7 @@ const GROUPS: { label: string; of: VideoStatus[] }[] = [
 ];
 
 /** Bỏ dấu tiếng Việt để tìm "loc xoay" ra "Lốc xoáy". */
-const fold = (s: string) =>
+export const fold = (s: string) =>
   s.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
 export function groupVideos<T extends CardLike>(
