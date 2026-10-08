@@ -5,6 +5,7 @@ import {
   isQuietTool,
   parseInline,
   parseMarkdown,
+  stepCtas,
   toolLabel,
   toolOutcome,
   toolTarget,
@@ -70,5 +71,18 @@ describe('chat formatting', () => {
       { kind: 'text', text: ' ' },
       { kind: 'i', text: 'nghiêng' },
     ]);
+  });
+});
+
+describe('step CTAs when there is nothing to recheck (065 FR-UI-65-02)', () => {
+  const step = { id: 'script', status: 'failed', title: 'Kịch bản' };
+  it('a provider error or a missing output only offers Chạy lại bước', () => {
+    for (const err of ['claude: error_max_turns', 'artifact_valid(SCRIPT.md): SCRIPT.md missing'])
+      expect(stepCtas(step, [], err).map((c) => c.kind)).toEqual(['retry']);
+  });
+  it('a gate failure on an existing file keeps Kiểm tra lại first', () => {
+    expect(
+      stepCtas(step, [], 'artifact_valid(SCRIPT.md): line 3: bad id').map((c) => c.kind),
+    ).toEqual(['recheck', 'retry']);
   });
 });

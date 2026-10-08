@@ -34,6 +34,9 @@ export function claudeTextProvider(
         options: {
           model,
           settingSources: [],
+          // 065: `allowedTools` chỉ là danh sách tự cho phép — tắt hẳn công cụ dựng sẵn, nếu không model
+          // gọi WebFetch/Write (vd. brief có link) → cần lượt 2 → `error_max_turns`
+          tools: [],
           allowedTools: [],
           maxTurns: 1,
           ...(system ? { systemPrompt: system } : {}),
