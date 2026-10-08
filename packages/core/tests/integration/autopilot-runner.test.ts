@@ -291,6 +291,10 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
         return planToday({
           channels,
           now,
+          // 084: test không gọi mạng thật (Google Trends/News trả gì tùy lúc → số mục bổ sung đổi theo giờ)
+          fetch: async () => {
+            throw new Error('offline (test)');
+          },
           storeFor,
           installed,
           appDataDir: app,

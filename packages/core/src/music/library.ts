@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { ProviderRegistry } from '../capability/registry.js';
 import { runCapability } from '../capability/run.js';
@@ -45,6 +45,58 @@ export interface AddInput {
   attribution?: string;
   tags?: string[];
   description?: string;
+  /**
+   * 084: file người dùng chọn trên ổ đĩa (chỉ giao diện đặt qua host — tool của agent không có trường này): đọc
+   * thẳng, không chép vào `uploads/`; giữ tên file làm tên bài; `tags` riêng từng file (tên thư mục con).
+   */
+  disk_files?: { path: string; tags?: string[] }[];
+}
+
+/** 084: tối đa file một lần quét. */
+export const MAX_SCAN_FILES = 5000;
+
+/**
+ * 084: gom file nhạc từ các file/thư mục người dùng chọn (đệ quy, bỏ thư mục ẩn). Bài trong thư mục con lấy
+ * tên các thư mục con (tính từ thư mục đã chọn) làm thẻ: chọn `Nhạc`, file `Nhạc/Hồi hộp/a.mp3` → `hồi hộp`.
+ */
+export function scanAudio(paths: string[]): { path: string; tags: string[] }[] {
+  const out: { path: string; tags: string[] }[] = [];
+  const seen = new Set<string>();
+  const statOf = (p: string) => {
+    try {
+      return statSync(p);
+    } catch {
+      return undefined;
+    }
+  };
+  const add = (file: string, tags: string[]) => {
+    const abs = path.resolve(file);
+    if (seen.has(abs.toLowerCase()) || out.length >= MAX_SCAN_FILES) return;
+    seen.add(abs.toLowerCase());
+    out.push({ path: abs, tags });
+  };
+  const isAudio = (p: string) => AUDIO_EXT.has(path.extname(p).toLowerCase());
+  const walk = (dir: string, tags: string[]) => {
+    let names: string[];
+    try {
+      names = readdirSync(dir).sort((a, b) => a.localeCompare(b));
+    } catch {
+      return;
+    }
+    for (const n of names) {
+      if (n.startsWith('.')) continue;
+      const full = path.join(dir, n);
+      const st = statOf(full);
+      if (st?.isDirectory()) walk(full, [...tags, n.trim().toLowerCase()]);
+      else if (st?.isFile() && isAudio(n)) add(full, tags);
+    }
+  };
+  for (const p of paths) {
+    const st = statOf(p);
+    if (st?.isDirectory()) walk(p, []);
+    else if (st?.isFile() && isAudio(p)) add(p, []);
+  }
+  return out;
 }
 
 /**
@@ -65,15 +117,22 @@ export async function addTracks(
   });
   const track_ids: string[] = [];
   const skipped: { file: string; reason: string }[] = [];
-  for (const [n, rel] of input.files.entries()) {
-    opts.progress?.(n, input.files.length);
+  // file trong `uploads/` của kênh (tool agent) + file trên ổ đĩa (giao diện, 084)
+  const items = [
+    ...input.files.map((rel) => ({ rel, disk: false, own: [] as string[] })),
+    ...(input.disk_files ?? []).map((f) => ({ rel: f.path, disk: true, own: f.tags ?? [] })),
+  ];
+  for (const [n, { rel, disk, own }] of items.entries()) {
+    opts.progress?.(n, items.length);
+    if (opts.signal?.aborted) break;
     const norm = rel.replaceAll('\\', '/');
     const ext = path.extname(norm).toLowerCase();
-    if (!/(^|\/)uploads\//.test(norm)) {
+    if (!disk && !/(^|\/)uploads\//.test(norm)) {
       skipped.push({ file: rel, reason: 'E_PATH_OUTSIDE: only files under uploads/' });
       continue;
     }
-    if (!existsSync(d.channel.abs(norm))) {
+    const abs = disk ? rel : d.channel.abs(norm);
+    if (!existsSync(abs)) {
       skipped.push({ file: rel, reason: 'E_FILE_NOT_FOUND' });
       continue;
     }
@@ -81,7 +140,7 @@ export async function addTracks(
       skipped.push({ file: rel, reason: `E_AUDIO_UNSUPPORTED: ${ext || 'no extension'}` });
       continue;
     }
-    const buf = readFileSync(d.channel.abs(norm));
+    const buf = readFileSync(abs);
     const hash = sha256(buf);
     const dup = m.tracks.find((t) => t.hash === hash);
     if (dup) {
@@ -95,7 +154,7 @@ export async function addTracks(
         db: d.db,
         adapter,
         capability: 'music.analyze',
-        input: { file: d.channel.abs(norm), hash },
+        input: { file: abs, hash },
         outputs: {},
         ...(opts.signal ? { signal: opts.signal } : {}),
       });
@@ -116,7 +175,9 @@ export async function addTracks(
       ...(input.source ? { source: input.source } : {}),
       ...(input.url ? { url: input.url } : {}),
       ...(input.attribution ? { attribution: input.attribution } : {}),
-      tags: (input.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean),
+      tags: [...new Set([...(input.tags ?? []), ...own].map((t) => t.trim().toLowerCase()))].filter(
+        Boolean,
+      ),
       ...(input.description ? { description: input.description } : {}),
       title: path.basename(norm, ext).replace(/^[0-9a-f-]{36}$/i, '') || undefined,
       analysis,
@@ -131,7 +192,7 @@ export async function addTracks(
     writeMusicManifest(lib, m);
     track_ids.push(id);
   }
-  opts.progress?.(input.files.length, input.files.length);
+  opts.progress?.(items.length, items.length);
   return { track_ids, skipped };
 }
 

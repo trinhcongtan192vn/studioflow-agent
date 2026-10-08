@@ -389,12 +389,15 @@ export interface IpcMethods {
   };
   'music.add': {
     params: ChannelRef & {
+      /** File hoặc thư mục (quét đệ quy, 084). */
       paths_on_disk: string[];
       scope: 'channel' | 'app';
       tags?: string[];
       attribution?: string;
+      /** 084: tên thư mục con làm thẻ (mặc định có). */
+      folder_tags?: boolean;
     };
-    result: { job_id: string };
+    result: { job_id: string; files: number; capped: boolean };
   };
   'settings.get': { params: Record<string, never>; result: unknown };
   'settings.set': { params: { key: string; value: unknown }; result: { ok: boolean } };

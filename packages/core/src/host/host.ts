@@ -30,7 +30,7 @@ import { costCsv, costReport } from '../trace/cost.js';
 import { diskUsage } from '../disk/usage.js';
 import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
-import { appLibrary, readMusicManifest } from '../music/library.js';
+import { appLibrary, MAX_SCAN_FILES, readMusicManifest, scanAudio } from '../music/library.js';
 import { WriteStore } from '../store/writer.js';
 import { getTrace, listTraces } from '../trace/trace.js';
 import { CORE_VERSION } from '../version.js';
@@ -1136,22 +1136,25 @@ export class CoreHost extends EventEmitter {
         );
       }
       case 'music.add': {
+        // 084: đọc thẳng file/thư mục người dùng chọn (không chép vào uploads/), thư mục con → thẻ
         const store = this.store(p.channel);
-        const files = (p.paths_on_disk as string[]).map((src) => {
-          const inner = `uploads/${crypto.randomUUID()}${path.extname(src).toLowerCase()}`;
-          store.importFile(src, inner, { by: 'upload.ingest' });
-          return inner;
-        });
+        const found = scanAudio(p.paths_on_disk as string[]);
+        if (!found.length)
+          throw new SfError(
+            'E_AUDIO_UNSUPPORTED',
+            'no mp3/wav/flac/m4a/ogg files in the selection',
+          );
         const job = c.queue.enqueue('music.library.add', {
           channel_dir: store.root,
           payload: {
-            files,
+            files: [],
+            disk_files: found.map((f) => (p.folder_tags === false ? { path: f.path } : f)),
             scope: p.scope,
             ...(p.tags ? { tags: p.tags } : {}),
             ...(p.attribution ? { attribution: p.attribution } : {}),
           },
         });
-        return { job_id: job.id };
+        return { job_id: job.id, files: found.length, capped: found.length >= MAX_SCAN_FILES };
       }
       case 'settings.get':
         return this.settings();
