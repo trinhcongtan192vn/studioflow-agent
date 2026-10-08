@@ -155,7 +155,7 @@ Người dùng có thể chọn "luôn cho phép trong video này" cho hàng 1 v
 - Lệnh `script.run` không có mạng trừ khi được đánh dấu cần mạng trong danh sách cho phép (cơ chế chặn: tech-defaults `[chờ S8]`).
 
 ### 5.4 Khóa bí mật (FR-OP-07)
-- Lưu trong kho bí mật của Windows (Credential Manager), tên `StudioFlow/<provider>`; chỉ `main` đọc/ghi, chuyển cho `core` qua IPC khi cần.
+- Lưu trong kho bí mật của Windows (Credential Manager), tên `StudioFlow Agent/<provider>` (069; tên cũ `StudioFlow/<provider>` được đọc một lần rồi chép sang, xóa thì xóa cả hai); chỉ `main` đọc/ghi, chuyển cho `core` qua IPC khi cần.
 - `core` đọc/ghi bí mật qua cổng `SecretStore` ({get, set, delete}; 055). Trong app: `core` gửi thông điệp `{type:'secret.get'|'secret.set'|'secret.delete', id, name, value?}` cho `main`, `main` trả `{type:'secret.result', id, ok, value?, error?}` sau khi dùng Credential Manager; `main` chỉ nhận tên hợp lệ (tên tĩnh như `telegram_bot_token`, `youtube_oauth_client_id`, hoặc tiền tố `oauth:` như `oauth:youtube:<channel_id>`). Trong test dùng kho bộ nhớ.
 - Token bot Telegram: bí mật `telegram_bot_token`. OAuth YouTube (053): `youtube_oauth_client_id`, `youtube_oauth_client_secret`, và refresh token mỗi kênh `oauth:youtube:<channel_id>` — chỉ trong kho bí mật, không bao giờ trong file kênh/kế hoạch/log/trace (kế hoạch chỉ ghi ID và URL video công khai). TikTok/Facebook (056): token người dùng dán, `oauth:tiktok:<channel_id>` và `oauth:facebook:<channel_id>` (cùng quy tắc: chỉ trong kho bí mật; ID Trang Facebook `publish.facebook.page_id` không phải bí mật). Không ghi khóa vào file, log, trace, provenance; logger che chuỗi khớp mẫu khóa (kể cả token bot `<số>:<chuỗi>` trong URL).
 

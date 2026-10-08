@@ -1,6 +1,6 @@
 {
   "name": "@studioflow/desktop",
-  "productName": "StudioFlow",
+  "productName": "StudioFlow Agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
