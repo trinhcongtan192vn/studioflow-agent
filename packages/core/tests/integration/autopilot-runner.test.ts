@@ -396,6 +396,14 @@ describe('một ngày làm theo kế hoạch (FR-AP-07, FR-AP-08)', () => {
     expect(rig.briefs).toHaveLength(1);
     expect(listVideoIds(dir)).toHaveLength(videos);
     expect([sha(planFile(dir)), sha(logFile(dir))]).toEqual(hashes); // idempotent
+
+    // 076: hết mục chờ làm → sau 1 giờ thử lập bổ sung (năng lực có thể tăng trong ngày); trần 1/ngày → không thêm
+    rig.clock.now = new Date(rig.clock.now.getTime() + 61 * 60_000);
+    await rig.runner.tick();
+    expect(rig.planCalls).toBe(2);
+    expect(planOf(dir).items).toHaveLength(1);
+    await rig.runner.tick();
+    expect(rig.planCalls).toBe(2); // chưa đủ 1 giờ từ lần bổ sung trước
   });
 
   it('manual videos in an Autopilot channel are untouched and keep waiting at key approvals', async () => {

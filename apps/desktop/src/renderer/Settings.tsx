@@ -121,7 +121,17 @@ function AutopilotApp() {
   const [cfg, setCfg] = useState<Record<string, unknown>>({});
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
   const [autostart, setAutostart] = useState(false);
+  // 076: ngân sách Claude/ngày — đặt tay hoặc để app tự học (hiện số đang dùng)
+  const [cap, setCap] = useState<{ daily: number | null; source: string; videos: number }>();
+  const loadCap = () =>
+    void core
+      .call('autopilot.capacity', {})
+      .then((c) =>
+        setCap({ daily: c.daily_tokens, source: c.daily_tokens_source, videos: c.videos }),
+      )
+      .catch(() => setCap(undefined));
   useEffect(() => {
+    loadCap();
     void window.studioflow.getAutostart().then(setAutostart);
     void core
       .call('settings.get', {})
@@ -162,6 +172,35 @@ function AutopilotApp() {
           }}
         />
         <span className="muted"> phần còn lại để bạn chat/làm tay</span>
+      </label>
+      <label className="field">
+        Ngân sách Claude mỗi ngày (token) — để trống cho app tự học từ lần chạm hạn mức
+        <input
+          key={`d${String(cfg['autopilot.daily_tokens'] ?? '')}`}
+          type="number"
+          min={0}
+          step={10000}
+          data-testid="daily-tokens"
+          placeholder="tự học"
+          defaultValue={
+            cfg['autopilot.daily_tokens'] == null ? '' : String(cfg['autopilot.daily_tokens'])
+          }
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            void save(
+              'autopilot.daily_tokens',
+              v === '' ? null : Math.max(0, Math.round(Number(v))),
+            ).then(loadCap);
+          }}
+        />
+        {cap && (
+          <span className="muted">
+            {cap.daily
+              ? `Đang dùng ≈ ${cap.daily.toLocaleString('vi-VN')} token/ngày (${cap.source === 'override' ? 'đặt tay' : 'tự học'})`
+              : 'Chưa biết ngân sách (chưa chạm hạn mức lần nào) — không giới hạn theo token'}
+            {` · hôm nay làm được ${cap.videos} video`}
+          </span>
+        )}
       </label>
       <label className="field">
         Múi giờ mặc định

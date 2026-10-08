@@ -170,7 +170,7 @@ describe('Claude budget learning', () => {
     expect(isLimitHit(null)).toBe(false);
   });
 
-  it('daily budget = 7-day consumption before the latest limit hit ÷ 7', () => {
+  it('weekly limit: daily budget = 7-day consumption before the hit ÷ 7', () => {
     const hit = 20 * DAY;
     const usage = [
       { ts_ms: hit - 8 * DAY, tokens: 9_999_999 }, // ngoài 7 ngày
@@ -178,10 +178,27 @@ describe('Claude budget learning', () => {
       { ts_ms: hit - DAY, tokens: 3_000_000 },
       { ts_ms: hit + H, tokens: 5_000_000 }, // sau mốc
     ];
-    expect(learnDailyTokens(usage, [hit - 10 * DAY, hit], hit + DAY)).toBe(1_000_000);
-    expect(learnDailyTokens(usage, [], hit + DAY)).toBeNull();
+    const weekly = (ts_ms: number) => ({ ts_ms, weekly: true });
+    expect(learnDailyTokens(usage, [weekly(hit - 10 * DAY), weekly(hit)], hit + DAY, 15 * H)).toBe(
+      1_000_000,
+    );
+    expect(learnDailyTokens(usage, [], hit + DAY, 15 * H)).toBeNull();
     // mốc trong tương lai (đồng hồ lệch) bị bỏ
-    expect(learnDailyTokens(usage, [hit + 5 * DAY], hit + DAY)).toBeNull();
+    expect(learnDailyTokens(usage, [weekly(hit + 5 * DAY)], hit + DAY, 15 * H)).toBeNull();
+  });
+
+  it('5-hour session limit (076): session consumption × sessions that fit the work window', () => {
+    const hit = 20 * DAY;
+    const usage = [
+      { ts_ms: hit - DAY, tokens: 900_000 }, // phiên khác, không tính
+      { ts_ms: hit - 4 * H, tokens: 300_000 },
+      { ts_ms: hit - H, tokens: 200_000 },
+    ];
+    const s = [{ ts_ms: hit, weekly: false }];
+    // phiên 5 giờ dùng 500k; khung 15 giờ = 3 phiên
+    expect(learnDailyTokens(usage, s, hit + H, 15 * H)).toBe(1_500_000);
+    // khung ngắn hơn một phiên vẫn tính một phiên
+    expect(learnDailyTokens(usage, s, hit + H, 2 * H)).toBe(500_000);
   });
 });
 

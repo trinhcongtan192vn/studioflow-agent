@@ -149,22 +149,40 @@ export function remainingWork(
   };
 }
 
+/** Phiên của gói Claude (hạn mức phiên tính trên 5 giờ). */
+const SESSION_MS = 5 * 60 * MIN;
+
+export interface LimitHit {
+  ts_ms: number;
+  /** Hạn mức theo tuần; không → hạn mức phiên 5 giờ / chung. */
+  weekly: boolean;
+}
+
 /**
- * Ngân sách Claude mỗi ngày học từ lần chạm hạn mức gần nhất T (≤ now): tổng token trong `[T − 7 ngày, T]` ÷ 7.
- * Chưa chạm lần nào → null (chưa biết).
+ * Ngân sách Claude mỗi ngày học từ lần chạm hạn mức gần nhất T (≤ now). Chưa chạm lần nào → null (chưa biết).
+ * - Hạn mức tuần: tổng token trong `[T − 7 ngày, T]` ÷ 7.
+ * - Hạn mức phiên 5 giờ (076): token trong `(T − 5 giờ, T]` = sức chứa một phiên × số phiên vừa khung giờ làm
+ *   việc (`windowMs` ÷ 5 giờ, tối thiểu 1). Trước đây chia đều 7 ngày → app mới dùng vài ngày ra ngân sách quá
+ *   thấp, kế hoạch ngày luôn 0 video.
  */
 export function learnDailyTokens(
   usage: { ts_ms: number; tokens: number }[],
-  limitHits: number[],
+  limitHits: LimitHit[],
   now: number,
+  windowMs: number,
 ): number | null {
-  const hits = limitHits.filter((t) => t <= now);
+  const hits = limitHits.filter((h) => h.ts_ms <= now);
   if (!hits.length) return null;
-  const t = Math.max(...hits);
+  const last = hits.reduce((a, b) => (b.ts_ms > a.ts_ms ? b : a));
+  const t = last.ts_ms;
+  const span = last.weekly ? 7 * DAY_MS : SESSION_MS;
   const total = usage
-    .filter((u) => u.ts_ms > t - 7 * DAY_MS && u.ts_ms <= t)
+    .filter((u) => u.ts_ms > t - span && u.ts_ms <= t)
     .reduce((s, u) => s + u.tokens, 0);
-  return total > 0 ? Math.round(total / 7) : null;
+  if (total <= 0) return null;
+  return last.weekly
+    ? Math.round(total / 7)
+    : Math.round(total * Math.max(1, windowMs / SESSION_MS));
 }
 
 /** Ms trong ngày theo giờ địa phương của `timeZone`. */
@@ -209,6 +227,12 @@ export function workWindow(
   if (t >= S) return { inside: true, left_ms: DAY_MS - t + E, day_start_ms: now - (t - S) };
   if (t < E) return { inside: true, left_ms: E - t, day_start_ms: now - (t + DAY_MS - S) };
   return { inside: false, left_ms: length, day_start_ms: midnight };
+}
+
+/** Độ dài khung giờ làm việc `HH:MM-HH:MM` (có thể qua đêm). */
+export function windowLengthMs(window: string): number {
+  const [a, b] = window.split('-');
+  return (hhmm(b ?? '23:00') - hhmm(a ?? '08:00') + DAY_MS) % DAY_MS || DAY_MS;
 }
 
 export type LimitingFactor = 'time' | 'tokens' | 'uploads' | 'cap';
@@ -473,15 +497,16 @@ export function readClaudeUsage(db: Db, sinceMs: number): { ts_ms: number; token
 }
 
 /** Thời điểm các lần chạm hạn mức Claude (thông báo trong `status_message` hoặc `sf.error` của span). */
-export function readLimitHits(db: Db, sinceMs: number): number[] {
+export function readLimitHits(db: Db, sinceMs: number): LimitHit[] {
   const rows = db
     .prepare(
       "SELECT end_ms, status_message, attrs FROM spans WHERE end_ms >= ? AND (status_message IS NOT NULL OR attrs LIKE '%sf.error%')",
     )
     .all(sinceMs) as { end_ms: number; status_message: string | null; attrs: string }[];
-  return rows
-    .filter((r) => isLimitHit(r.status_message) || isLimitHit(parse(r.attrs)['sf.error']))
-    .map((r) => r.end_ms);
+  return rows.flatMap((r) => {
+    const text = [r.status_message, parse(r.attrs)['sf.error']].find((x) => isLimitHit(x));
+    return text ? [{ ts_ms: r.end_ms, weekly: /weekly/i.test(String(text)) }] : [];
+  });
 }
 
 export interface CapacityFromDbInput extends Omit<
@@ -507,7 +532,12 @@ export function capacityFromDb(db: Db, i: CapacityFromDbInput): CapacityResult {
   return capacityToday({
     ...rest,
     costs,
-    learned_daily_tokens: learnDailyTokens(usage, readLimitHits(db, i.now - 30 * DAY_MS), i.now),
+    learned_daily_tokens: learnDailyTokens(
+      usage,
+      readLimitHits(db, i.now - 30 * DAY_MS),
+      i.now,
+      windowLengthMs(i.work_window),
+    ),
     tokens_used_today: usage
       .filter((u) => u.ts_ms >= win.day_start_ms && u.ts_ms <= i.now)
       .reduce((s, u) => s + u.tokens, 0),

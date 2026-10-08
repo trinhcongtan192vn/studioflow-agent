@@ -275,6 +275,8 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('autopilot-app')).toContainText('Khung giờ máy làm việc');
     // 052: chạy nền khi đóng cửa sổ — bật mặc định
     await expect(win.getByTestId('autopilot-background')).toBeChecked();
+    // 076: ngân sách Claude/ngày đặt tay được
+    await expect(win.getByTestId('daily-tokens')).toBeVisible();
     // 071: Cài đặt chia mục; Telegram ở mục Kết nối
     await win
       .getByRole('navigation', { name: 'Mục cài đặt' })

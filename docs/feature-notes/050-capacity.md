@@ -36,7 +36,7 @@
 - Token mỗi video = tổng `input_tokens + output_tokens` các dòng `usage` Claude của video; trung vị trên K video **đã xong bước cuối** gần nhất của workflow; không có → mặc định bảng trên.
 - Ngân sách ngày:
   1. `autopilot.daily_tokens` nếu đặt (số dương).
-  2. Không đặt → **học**: lần chạm hạn mức gần nhất tại thời điểm T → tổng token Claude trong `[T − 7 ngày, T]` ÷ 7.
+  2. Không đặt → **học** từ lần chạm hạn mức gần nhất T: hạn mức **tuần** → tổng token Claude trong `[T − 7 ngày, T]` ÷ 7; hạn mức **phiên 5 giờ** (076) → token trong `(T − 5 giờ, T]` × (độ dài khung giờ làm việc ÷ 5 giờ, tối thiểu 1).
   3. Chưa chạm hạn mức lần nào → **chưa biết**: token không giới hạn số video, lý do ghi rõ.
 - Token còn cho Autopilot hôm nay = ngân sách ngày × `autopilot.budget_share` − token Claude đã dùng từ đầu ngày làm việc − token còn cần của video đang làm dở. Phần còn lại (mặc định 30%) để dành cho làm tay qua chat.
 

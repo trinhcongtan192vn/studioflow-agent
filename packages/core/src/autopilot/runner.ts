@@ -51,6 +51,8 @@ export const RUNNER_CONSTANTS = {
   STEP_RETRIES: 1,
   /** Số lần chạy lại liên tiếp sau hạn mức đã qua giờ mà vẫn chạm hạn mức → chờ thêm 1 giờ. */
   LIMIT_RERUNS: 2,
+  /** 076: kế hoạch hôm nay hết mục chờ làm → thử lập bổ sung, cách nhau ít nhất (ms). */
+  TOP_UP_MS: 60 * 60_000,
 } as const;
 
 const C = RUNNER_CONSTANTS;
@@ -207,6 +209,8 @@ export class AutopilotRunner extends EventEmitter {
   private waitUntil?: Date;
   private waitCtx?: { channel: string; date: string; item_id: string; video_id?: string };
   private current?: AutopilotStatus['current'];
+  // 076: lần lập bổ sung kế hoạch gần nhất theo kênh (ms)
+  private readonly toppedUp = new Map<string, number>();
   private readonly retries = new Map<string, number>();
   private readonly limitReruns = new Map<string, number>();
   private readonly voiceLogged = new Set<string>();
@@ -652,8 +656,17 @@ export class AutopilotRunner extends EventEmitter {
   }
 
   private async ensurePlans(chans: string[], now: Date): Promise<void> {
-    const missing = chans.filter((c) => !readPlan(c, this.dateOf(c, now)));
+    // 076: kế hoạch hôm nay chưa có, hoặc đã hết mục chờ làm → lập bổ sung (tối đa mỗi giờ một lần): năng lực
+    // có thể tăng trong ngày (qua giờ reset hạn mức, học được ngân sách, người dùng đặt `autopilot.daily_tokens`)
+    const missing = chans.filter((c) => {
+      const p = readPlan(c, this.dateOf(c, now));
+      if (!p) return true;
+      if (p.items.some((i) => QUEUED.has(i.status))) return false;
+      const last = this.toppedUp.get(c) ?? 0;
+      return now.getTime() - last >= C.TOP_UP_MS;
+    });
     if (!missing.length) return;
+    for (const c of missing) this.toppedUp.set(c, now.getTime());
     try {
       const r = await this.d.plan({ channels: missing, now });
       for (const p of r.plans)

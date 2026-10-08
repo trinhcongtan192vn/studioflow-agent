@@ -37,6 +37,29 @@ describe('text.claude plan limit (009 FR-001)', () => {
     ).resolves.toMatchObject({ text: 'Xin chào' });
   });
 
+  it('counts money only with an Anthropic API key; the subscription cost is notional (076)', async () => {
+    const q = (() =>
+      (async function* () {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          result: 'ok',
+          usage: { input_tokens: 10, output_tokens: 5 },
+          total_cost_usd: 0.42,
+        };
+      })()) as never;
+    const input = {
+      role: 'aux' as const,
+      messages: [{ role: 'user' as const, content: 'x' }],
+      max_tokens: 10,
+    };
+    expect((await claudeTextProvider({ query: q }).chat('m', input)).cost_usd).toBe(0);
+    expect(
+      (await claudeTextProvider({ query: q, getApiKey: () => 'sk-ant-x' }).chat('m', input))
+        .cost_usd,
+    ).toBe(0.42);
+  });
+
   it('turns off the built-in Claude Code tools: plain text, one turn (065 FR-TX-65-01)', async () => {
     let opts: Record<string, unknown> = {};
     const fake = fakeQuery('ok', 1) as unknown as () => AsyncGenerator;
