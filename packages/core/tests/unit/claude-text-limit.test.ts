@@ -36,4 +36,19 @@ describe('text.claude plan limit (009 FR-001)', () => {
       p.chat('m', { role: 'aux', messages: [{ role: 'user', content: 'x' }], max_tokens: 10 }),
     ).resolves.toMatchObject({ text: 'Xin chào' });
   });
+
+  it('turns off the built-in Claude Code tools: plain text, one turn (065 FR-TX-65-01)', async () => {
+    let opts: Record<string, unknown> = {};
+    const fake = fakeQuery('ok', 1) as unknown as () => AsyncGenerator;
+    const q = ((a: { options: Record<string, unknown> }) => {
+      opts = a.options;
+      return fake();
+    }) as never;
+    await claudeTextProvider({ query: q }).chat('m', {
+      role: 'aux',
+      messages: [{ role: 'user', content: 'https://www.youtube.com/watch?v=x' }],
+      max_tokens: 10,
+    });
+    expect(opts).toMatchObject({ tools: [], allowedTools: [], maxTurns: 1 });
+  });
 });

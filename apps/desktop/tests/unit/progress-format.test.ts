@@ -177,3 +177,15 @@ describe('recheck (036)', () => {
     });
   });
 });
+
+describe('nothing to recheck (065 FR-UI-65-02)', () => {
+  it('a provider error or a missing output makes Chạy lại primary without the overwrite prompt', () => {
+    const st = S('done', 'failed');
+    for (const err of ['claude: error_max_turns', 'artifact_valid(SCRIPT.md): SCRIPT.md missing']) {
+      const b = stepButtons(st[1]!, st, err);
+      expect(b.map((x) => x.action.kind)).toEqual(['run_step', 'rewind']);
+      expect(b[0]).toMatchObject({ primary: true });
+      expect(b[0]!.confirm).toBeUndefined();
+    }
+  });
+});

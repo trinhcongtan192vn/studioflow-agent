@@ -2,7 +2,7 @@
  * Tab Tiến độ (UI-04, FN-008 mục 3): trạng thái tổng, phản hồi sau mỗi thao tác (chạy tới / chạy lại /
  * quay lại / tạm dừng), nút theo ngữ cảnh từng bước. Hàm thuần.
  */
-import { asrWarningLines, hasDurationWarning, isDurationWarning } from './chat-format';
+import { asrWarningLines, canRecheck, hasDurationWarning, isDurationWarning } from './chat-format';
 export interface StepView {
   id: string;
   title: string;
@@ -199,6 +199,17 @@ export function stepButtons(
         },
       ];
     case 'failed': {
+      // 065: lỗi provider/agent hoặc chưa có file đầu ra → không có gì để kiểm tra lại, Chạy lại là chính
+      if (error !== undefined && !canRecheck(error))
+        return [
+          {
+            action: { kind: 'run_step', step: s.id },
+            label: 'Chạy lại',
+            title: 'Sinh lại bước từ đầu',
+            primary: true,
+          },
+          rewind,
+        ];
       const warn = error !== undefined && isDurationWarning(error);
       // 061: dòng đọc sai → nút chấp nhận lên đầu
       const asr = error !== undefined ? asrWarningLines(error) : [];

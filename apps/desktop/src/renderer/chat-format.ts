@@ -282,6 +282,20 @@ export function fileCtaLabel(rel: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Lỗi có file để "Kiểm tra lại" (sửa tay rồi kiểm gate) — không phải lỗi provider/agent, và không chỉ là
+ * file đầu ra bị thiếu (065: bước chưa từng viết ra file thì chỉ còn Chạy lại).
+ */
+export function canRecheck(error: string): boolean {
+  if (
+    !/E_GATE_FAILED|gate|objective|artifact_valid|speakers_voiced|app closed while this step/i.test(
+      error,
+    )
+  )
+    return false;
+  return !error.split('; ').every((p) => /:\s*\S+ missing$/.test(p.trim()));
+}
+
 /** CTA cho một bước vừa xong/lỗi, dựa trên tệp kết quả của bước. */
 export function stepCtas(
   step: { id: string; status: string; title?: string },
@@ -360,12 +374,7 @@ export function stepCtas(
         { kind: 'recheck', label: 'Kiểm tra lại', step: step.id },
       ];
     // lỗi gate (file sai) → có thể sửa file rồi kiểm tra lại thay vì sinh lại
-    if (
-      error &&
-      /E_GATE_FAILED|gate|objective|artifact_valid|speakers_voiced|app closed while this step/i.test(
-        error,
-      )
-    )
+    if (error && canRecheck(error))
       return [{ kind: 'recheck', label: 'Kiểm tra lại', step: step.id }, retry];
     return [retry];
   }
