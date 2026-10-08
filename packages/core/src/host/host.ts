@@ -15,12 +15,12 @@ import type {
 } from '../contracts/types.js';
 import { defaultAppDataDir, resolveConfig, setConfig } from '../config/resolve.js';
 import { createCore, type Core, type CoreOptions } from '../core.js';
-import { detectChannel, initChannel } from '../domain/channel.js';
+import { detectChannel, initChannel, updateChannelInfo } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
 import { createVideo, listVideoIds } from '../domain/video.js';
 import { isSfError, SfError } from '../errors.js';
 import { isLimitHit } from '../autopilot/capacity.js';
-import type { PlanItem } from '../contracts/types.js';
+import type { ChannelConfig, PlanItem } from '../contracts/types.js';
 import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '../ipc/schema.js';
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
@@ -317,7 +317,9 @@ export class CoreHost extends EventEmitter {
       const d = detectChannel(m.path);
       const ch =
         d.kind === 'channel'
-          ? ((d.config as { config?: Record<string, unknown>; name?: string } | undefined) ?? {})
+          ? ((d.config as
+              { config?: Record<string, unknown>; name?: string; language?: string } | undefined) ??
+            {})
           : {};
       const competitors = ch.config?.['autopilot.competitors'];
       return {
@@ -325,6 +327,7 @@ export class CoreHost extends EventEmitter {
         name: ch.name ?? path.basename(m.path),
         exists: d.kind === 'channel',
         autopilot: ch.config?.['autopilot.enabled'] === true,
+        language: ch.language ?? 'vi',
         competitors: Array.isArray(competitors) ? competitors.length : 0,
         added_at: m.added_at,
       };
@@ -718,6 +721,26 @@ export class CoreHost extends EventEmitter {
       }
       case 'channels.managed':
         return { channels: this.managedChannels() };
+      // 082: thông tin kênh — tên, ngôn ngữ mặc định
+      case 'channel.info.get': {
+        const store = this.store(p.channel);
+        const c = JSON.parse(readFileSync(store.abs('channel.json'), 'utf8')) as ChannelConfig;
+        return {
+          id: c.id,
+          name: c.name,
+          language: c.language,
+          created_at: c.created_at,
+          path: store.root,
+          videos: listVideoIds(store.root).length,
+        };
+      }
+      case 'channel.info.set': {
+        const c = updateChannelInfo(this.store(p.channel), {
+          ...(p.name !== undefined ? { name: String(p.name) } : {}),
+          ...(p.language !== undefined ? { language: String(p.language) } : {}),
+        });
+        return { name: c.name, language: c.language };
+      }
       case 'channels.managed.add': {
         const dir = path.resolve(p.channel);
         if (detectChannel(dir).kind !== 'channel')

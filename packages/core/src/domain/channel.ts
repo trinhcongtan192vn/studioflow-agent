@@ -84,6 +84,35 @@ function defaultPromptPack(): Record<string, string> {
   return out;
 }
 
+/** 082: đổi tên / ngôn ngữ mặc định của kênh (`channel.json`) — video tạo sau dùng ngôn ngữ mới. */
+export function updateChannelInfo(
+  store: WriteStore,
+  patch: { name?: string; language?: string },
+): ChannelConfig {
+  const c = JSON.parse(readFileSync(store.abs('channel.json'), 'utf8')) as ChannelConfig;
+  if (patch.name !== undefined) {
+    const name = patch.name.trim();
+    if (!name || name.length > 100)
+      throw new SfError('E_SCHEMA_INVALID', 'channel name must be 1–100 characters');
+    c.name = name;
+  }
+  if (patch.language !== undefined) {
+    if (!LANGS.includes(patch.language as Lang))
+      throw new SfError('E_SCHEMA_INVALID', `language must be one of ${LANGS.join(', ')}`);
+    c.language = patch.language as Lang;
+  }
+  store.write(
+    'channel.json',
+    `${JSON.stringify(c, null, 2)}
+`,
+    { by: 'channel.info' },
+  );
+  return c;
+}
+
+/** Ngôn ngữ kênh hỗ trợ (D3 `Lang`). */
+export const LANGS: readonly Lang[] = ['vi', 'en', 'de'];
+
 /** Khởi tạo kênh theo yêu cầu: `channel.json`, `profile/` mẫu, thư mục con; giữ file đang có. */
 export function initChannel(dir: string, input: { name: string; language: Lang }): ChannelConfig {
   if (existsSync(path.join(dir, 'channel.json'))) {

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChannelConnections } from './Connections';
+import { Icon } from './Icon';
 import { core } from './rpc';
 import { Surface } from './Surface';
 import {
@@ -12,14 +13,38 @@ import {
 
 type Settings = Record<string, { value: unknown; source: string }>;
 type Card = Awaited<ReturnType<typeof core.call<'youtube.resolve_channel'>>>;
+type Info = Awaited<ReturnType<typeof core.call<'channel.info.get'>>>;
+type Lang = Info['language'];
 
-/** Cài đặt kênh (047, FR-AP-01/02): Autopilot ↔ Manual, đối thủ, chủ đề, workflow, lịch đăng. */
+/** 082: ngôn ngữ kênh hỗ trợ (D3 `Lang`). */
+export const LANG_LABEL: Record<Lang, string> = {
+  vi: 'Tiếng Việt',
+  en: 'English',
+  de: 'Deutsch',
+};
+
+const SECTIONS = [
+  { id: 'info', label: 'Thông tin kênh' },
+  { id: 'mode', label: 'Chế độ' },
+  { id: 'content', label: 'Nội dung' },
+  { id: 'competitors', label: 'Kênh đối thủ' },
+  { id: 'publish', label: 'Đăng video' },
+] as const;
+
+/**
+ * Cài đặt kênh (047, FR-AP-01/02; 082 bố cục mục lục): thông tin kênh (tên, ngôn ngữ mặc định), Autopilot ↔
+ * Manual, nội dung, đối thủ, đăng video.
+ */
 export function ChannelSettings({ channel, onClose }: { channel: string; onClose: () => void }) {
   const [s, setS] = useState<Settings>();
+  const [info, setInfo] = useState<Info>();
+  const [name, setName] = useState('');
   const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
   const [cards, setCards] = useState<Record<string, Card | null>>({});
   const [adding, setAdding] = useState('');
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
+  const [active, setActive] = useState<string>('info');
+  const body = useRef<HTMLDivElement>(null);
   // ô nhập dạng chữ (lưu khi bấm Lưu)
   const [pillars, setPillars] = useState('');
   const [slots, setSlots] = useState('');
@@ -31,7 +56,16 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
     setSlots(formatList(r.settings['publish.slots']?.value));
     return r.settings;
   };
+  const loadInfo = () =>
+    void core
+      .call('channel.info.get', { channel })
+      .then((i) => {
+        setInfo(i);
+        setName(i.name);
+      })
+      .catch(() => setInfo(undefined));
   useEffect(() => {
+    loadInfo();
     void load().then((st) => {
       // thẻ đối thủ đã lưu (1 đơn vị quota mỗi kênh)
       for (const id of (st['autopilot.competitors']?.value as string[]) ?? [])
@@ -58,6 +92,15 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
       return false;
     }
   };
+  const setInfoField = async (patch: { name?: string; language?: Lang }, ok: string) => {
+    try {
+      await core.call('channel.info.set', { channel, ...patch });
+      loadInfo();
+      setMsg({ tone: 'success', text: ok });
+    } catch (e) {
+      setMsg({ tone: 'error', text: (e as Error).message });
+    }
+  };
   const v = <T,>(k: string) => s?.[k]?.value as T;
   const competitors = v<string[]>('autopilot.competitors') ?? [];
 
@@ -82,7 +125,22 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
   const allowed = v<string[]>('autopilot.workflows') ?? [];
   const platforms = v<string[]>('publish.platforms') ?? [];
   const src = (k: string) => (
-    <span className="muted"> ({sourceLabel(s[k]?.source ?? 'default')})</span>
+    <span className="src-tag" title="Giá trị lấy từ">
+      {sourceLabel(s[k]?.source ?? 'default')}
+    </span>
+  );
+  const go = (id: string) => {
+    setActive(id);
+    body.current
+      ?.querySelector(`#chs-${id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const section = (id: (typeof SECTIONS)[number]['id'], children: ReactNode, hint?: string) => (
+    <section id={`chs-${id}`} className="set-section">
+      <h3>{SECTIONS.find((x) => x.id === id)!.label}</h3>
+      {hint && <p className="muted">{hint}</p>}
+      {children}
+    </section>
   );
 
   return (
@@ -92,185 +150,306 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
       testId="channel-settings"
       onClose={onClose}
     >
-      <h2>Cài đặt kênh</h2>
-      <p className="muted" title={channel}>
-        {channel.split(/[\\/]/).pop()}
-      </p>
-
-      <h3>Chế độ</h3>
-      <div className="row mode-switch" role="radiogroup" aria-label="Chế độ kênh">
-        <label>
-          <input
-            type="radio"
-            name="mode"
-            checked={!on}
-            onChange={() => void set('autopilot.enabled', false, 'Đã chuyển sang Manual.')}
-          />
-          <b>Manual</b> — bạn ra lệnh, agent làm từng video như hiện tại
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="mode"
-            data-testid="mode-autopilot"
-            checked={on}
-            onChange={() => void set('autopilot.enabled', true, 'Đã bật Autopilot cho kênh.')}
-          />
-          <b>Autopilot</b> — mỗi ngày tự tìm chủ đề, lên kế hoạch, làm video và đăng theo lịch
-        </label>
-      </div>
-
-      <h3>Kênh đối thủ</h3>
-      <ul className="list competitors" data-testid="competitors">
-        {competitors.map((id) => {
-          const c = cards[id];
-          return (
-            <li key={id} className="row">
-              {c?.thumbnail && <img src={c.thumbnail} alt="" width={24} height={24} />}
-              <span>
-                <b>{c?.title ?? id}</b>
-                {c && (
-                  <span className="muted">
-                    {' '}
-                    {c.handle ?? ''} · {compactCount(c.subscribers)} người đăng ký
-                  </span>
-                )}
-                {c === null && <span className="muted"> (không đọc được thông tin kênh)</span>}
-              </span>
-              <button
-                className="link"
-                title="Bỏ"
-                onClick={() =>
-                  void set(
-                    'autopilot.competitors',
-                    competitors.filter((x) => x !== id),
-                  )
-                }
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
-        {!competitors.length && <li className="muted">Chưa có đối thủ.</li>}
-      </ul>
-      <div className="row">
-        <input
-          data-testid="competitor-input"
-          placeholder="URL kênh, @handle hoặc ID (UC…)"
-          value={adding}
-          onChange={(e) => setAdding(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void addCompetitor();
-          }}
-        />
-        <button onClick={() => void addCompetitor()}>Thêm</button>
-      </div>
-
-      <h3>Nội dung</h3>
-      <label className="field">
-        Chủ đề trụ cột{src('autopilot.pillars')}
-        <div className="row">
-          <input
-            placeholder="ví dụ: lịch sử Việt Nam, nhân vật, trận đánh"
-            value={pillars}
-            onChange={(e) => setPillars(e.target.value)}
-          />
-          <button onClick={() => void set('autopilot.pillars', parseList(pillars), 'Đã lưu.')}>
-            Lưu
-          </button>
+      <div className="set-top">
+        <div>
+          <h2>{info?.name ?? 'Cài đặt kênh'}</h2>
+          <span className={`badge ${on ? 'on' : 'fmt'}`}>{on ? 'Autopilot' : 'Manual'}</span>{' '}
+          {info && <span className="badge fmt">{LANG_LABEL[info.language]}</span>}
         </div>
-      </label>
-      <div className="field">
-        Workflow được dùng{src('autopilot.workflows')}
-        <span className="muted"> — không chọn = mọi workflow</span>
-        <div className="chips">
-          {workflows.map((w) => (
-            <label key={w.id} className="chip">
-              <input
-                type="checkbox"
-                checked={allowed.includes(w.id)}
-                onChange={(e) =>
-                  void set(
-                    'autopilot.workflows',
-                    e.target.checked ? [...allowed, w.id] : allowed.filter((x) => x !== w.id),
-                  )
-                }
-              />
-              {w.title}
-            </label>
-          ))}
-        </div>
+        <button onClick={onClose}>Đóng</button>
       </div>
-      <label className="field">
-        Số video tối đa mỗi ngày{src('autopilot.max_per_day')}
-        <input
-          type="number"
-          min={0}
-          max={20}
-          value={String(v<number>('autopilot.max_per_day') ?? 1)}
-          onChange={(e) => void set('autopilot.max_per_day', Number(e.target.value))}
-        />
-      </label>
-
-      <h3>Đăng video</h3>
-      {/* 071: kết nối tài khoản đăng video của kênh */}
-      <ChannelConnections channel={channel} />
-      <div className="field">
-        Nền tảng{src('publish.platforms')}
-        <span className="muted"> — nền tảng nào sẽ được đăng tự động</span>
-        <div className="chips">
-          {Object.entries(PLATFORM_LABEL).map(([id, label]) => (
-            <label key={id} className="chip">
-              <input
-                type="checkbox"
-                checked={platforms.includes(id)}
-                onChange={(e) =>
-                  void set(
-                    'publish.platforms',
-                    e.target.checked ? [...platforms, id] : platforms.filter((x) => x !== id),
-                  )
-                }
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-      <label className="field">
-        Khung giờ đăng{src('publish.slots')}
-        <span className="muted"> — "19:00" mỗi ngày, "sat 09:00" theo thứ, "mon-fri 07:15"</span>
-        <div className="row">
-          <input value={slots} onChange={(e) => setSlots(e.target.value)} />
-          <button onClick={() => void set('publish.slots', parseList(slots), 'Đã lưu.')}>
-            Lưu
-          </button>
-        </div>
-      </label>
-      <label className="field">
-        Múi giờ{src('publish.timezone')}
-        <input
-          defaultValue={String(v<string>('publish.timezone') ?? '')}
-          onBlur={(e) => void set('publish.timezone', e.target.value.trim())}
-        />
-      </label>
-      <label className="field">
-        Giờ chờ phản đối trước khi công khai{src('publish.veto_hours')}
-        <input
-          type="number"
-          min={0}
-          max={72}
-          value={String(v<number>('publish.veto_hours') ?? 2)}
-          onChange={(e) => void set('publish.veto_hours', Number(e.target.value))}
-        />
-      </label>
-
       {msg && (
         <p className={msg.tone === 'error' ? 'error' : 'success'} role="status">
           {msg.text}
         </p>
       )}
-      <button onClick={onClose}>Đóng</button>
+      <div className="set-layout">
+        <nav className="set-nav" aria-label="Mục cài đặt kênh">
+          {SECTIONS.map((x) => (
+            <button key={x.id} className={active === x.id ? 'active' : ''} onClick={() => go(x.id)}>
+              {x.label}
+            </button>
+          ))}
+        </nav>
+        <div className="set-body" ref={body}>
+          {section(
+            'info',
+            info ? (
+              <>
+                <label className="field">
+                  Tên kênh
+                  <span className="row">
+                    <input value={name} onChange={(e) => setName(e.target.value)} />
+                    <button
+                      disabled={!name.trim() || name.trim() === info.name}
+                      onClick={() => void setInfoField({ name }, 'Đã đổi tên kênh.')}
+                    >
+                      Lưu
+                    </button>
+                  </span>
+                </label>
+                <label className="field">
+                  Ngôn ngữ mặc định
+                  <select
+                    data-testid="channel-language"
+                    value={info.language}
+                    onChange={(e) =>
+                      void setInfoField(
+                        { language: e.target.value as Lang },
+                        `Đã đặt ngôn ngữ mặc định: ${LANG_LABEL[e.target.value as Lang]}. Video tạo sau sẽ dùng ngôn ngữ này.`,
+                      )
+                    }
+                  >
+                    {(Object.keys(LANG_LABEL) as Lang[]).map((l) => (
+                      <option key={l} value={l}>
+                        {LANG_LABEL[l]}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="muted">
+                    Ngôn ngữ lời đọc, phụ đề và kịch bản của video mới. Video đã có giữ ngôn ngữ của
+                    nó.
+                  </span>
+                </label>
+                <dl className="kv about">
+                  <div>
+                    <dt>Thư mục</dt>
+                    <dd>
+                      <button
+                        className="link"
+                        onClick={() => void window.studioflow.openPath(info.path)}
+                      >
+                        {info.path}
+                      </button>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Video</dt>
+                    <dd>{info.videos}</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <p className="muted">Đang tải…</p>
+            ),
+          )}
+
+          {section(
+            'mode',
+            <div className="mode-cards" role="radiogroup" aria-label="Chế độ kênh">
+              <label className={`mode-card${!on ? ' active' : ''}`}>
+                <input
+                  type="radio"
+                  name="mode"
+                  checked={!on}
+                  onChange={() => void set('autopilot.enabled', false, 'Đã chuyển sang Manual.')}
+                />
+                <span>
+                  <b>Manual</b>
+                  <span className="muted">Bạn ra lệnh, agent làm từng video cùng bạn.</span>
+                </span>
+              </label>
+              <label className={`mode-card${on ? ' active' : ''}`}>
+                <input
+                  type="radio"
+                  name="mode"
+                  data-testid="mode-autopilot"
+                  checked={on}
+                  onChange={() => void set('autopilot.enabled', true, 'Đã bật Autopilot cho kênh.')}
+                />
+                <span>
+                  <b>
+                    <Icon name="sparkles" size={14} /> Autopilot
+                  </b>
+                  <span className="muted">
+                    Mỗi ngày tự tìm chủ đề, lên kế hoạch, làm video và đăng theo lịch.
+                  </span>
+                </span>
+              </label>
+            </div>,
+          )}
+
+          {section(
+            'content',
+            <>
+              <label className="field">
+                <span>Chủ đề trụ cột {src('autopilot.pillars')}</span>
+                <span className="row">
+                  <input
+                    placeholder="ví dụ: lịch sử Việt Nam, nhân vật, trận đánh"
+                    value={pillars}
+                    onChange={(e) => setPillars(e.target.value)}
+                  />
+                  <button
+                    onClick={() => void set('autopilot.pillars', parseList(pillars), 'Đã lưu.')}
+                  >
+                    Lưu
+                  </button>
+                </span>
+              </label>
+              <div className="field">
+                <span>
+                  Workflow được dùng {src('autopilot.workflows')}{' '}
+                  <span className="muted">— không chọn = mọi workflow</span>
+                </span>
+                <div className="chips">
+                  {workflows.map((w) => (
+                    <label key={w.id} className={`chip${allowed.includes(w.id) ? ' on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={allowed.includes(w.id)}
+                        onChange={(e) =>
+                          void set(
+                            'autopilot.workflows',
+                            e.target.checked
+                              ? [...allowed, w.id]
+                              : allowed.filter((x) => x !== w.id),
+                          )
+                        }
+                      />
+                      {w.title}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className="field">
+                <span>Số video tối đa mỗi ngày {src('autopilot.max_per_day')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={String(v<number>('autopilot.max_per_day') ?? 1)}
+                  onChange={(e) => void set('autopilot.max_per_day', Number(e.target.value))}
+                />
+              </label>
+            </>,
+            'Autopilot chọn chủ đề trong các trụ cột này và chỉ dùng các workflow được chọn.',
+          )}
+
+          {section(
+            'competitors',
+            <>
+              <ul className="competitor-list" data-testid="competitors">
+                {competitors.map((id) => {
+                  const c = cards[id];
+                  return (
+                    <li key={id}>
+                      {c?.thumbnail ? (
+                        <img src={c.thumbnail} alt="" width={36} height={36} />
+                      ) : (
+                        <span className="avatar">{(c?.title ?? id).slice(0, 1)}</span>
+                      )}
+                      <span className="grow">
+                        <b>{c?.title ?? id}</b>
+                        <span className="muted">
+                          {c
+                            ? `${c.handle ?? ''} · ${compactCount(c.subscribers)} người đăng ký`
+                            : c === null
+                              ? 'không đọc được thông tin kênh'
+                              : 'đang tải…'}
+                        </span>
+                      </span>
+                      <button
+                        className="ghost icon-only"
+                        title="Bỏ đối thủ"
+                        aria-label={`Bỏ ${c?.title ?? id}`}
+                        onClick={() =>
+                          void set(
+                            'autopilot.competitors',
+                            competitors.filter((x) => x !== id),
+                          )
+                        }
+                      >
+                        <Icon name="x" size={14} />
+                      </button>
+                    </li>
+                  );
+                })}
+                {!competitors.length && <li className="muted">Chưa có đối thủ.</li>}
+              </ul>
+              <div className="row">
+                <input
+                  data-testid="competitor-input"
+                  placeholder="URL kênh, @handle hoặc ID (UC…)"
+                  value={adding}
+                  onChange={(e) => setAdding(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void addCompetitor();
+                  }}
+                />
+                <button onClick={() => void addCompetitor()}>
+                  <Icon name="plus" /> Thêm
+                </button>
+              </div>
+            </>,
+            'Autopilot theo dõi video mới và video nổi bật của các kênh này để tìm chủ đề.',
+          )}
+
+          {section(
+            'publish',
+            <>
+              {/* 071: kết nối tài khoản đăng video của kênh */}
+              <ChannelConnections channel={channel} />
+              <div className="field">
+                <span>
+                  Nền tảng {src('publish.platforms')}{' '}
+                  <span className="muted">— nền tảng nào sẽ được đăng tự động</span>
+                </span>
+                <div className="chips">
+                  {Object.entries(PLATFORM_LABEL).map(([id, label]) => (
+                    <label key={id} className={`chip${platforms.includes(id) ? ' on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={platforms.includes(id)}
+                        onChange={(e) =>
+                          void set(
+                            'publish.platforms',
+                            e.target.checked
+                              ? [...platforms, id]
+                              : platforms.filter((x) => x !== id),
+                          )
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className="field">
+                <span>
+                  Khung giờ đăng {src('publish.slots')}{' '}
+                  <span className="muted">
+                    — "19:00" mỗi ngày, "sat 09:00" theo thứ, "mon-fri 07:15"
+                  </span>
+                </span>
+                <span className="row">
+                  <input value={slots} onChange={(e) => setSlots(e.target.value)} />
+                  <button onClick={() => void set('publish.slots', parseList(slots), 'Đã lưu.')}>
+                    Lưu
+                  </button>
+                </span>
+              </label>
+              <label className="field">
+                <span>Múi giờ {src('publish.timezone')}</span>
+                <input
+                  defaultValue={String(v<string>('publish.timezone') ?? '')}
+                  onBlur={(e) => void set('publish.timezone', e.target.value.trim())}
+                />
+              </label>
+              <label className="field">
+                <span>Giờ chờ phản đối trước khi công khai {src('publish.veto_hours')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={72}
+                  value={String(v<number>('publish.veto_hours') ?? 2)}
+                  onChange={(e) => void set('publish.veto_hours', Number(e.target.value))}
+                />
+              </label>
+            </>,
+          )}
+        </div>
+      </div>
     </Surface>
   );
 }

@@ -81,12 +81,30 @@ export interface IpcMethods {
         name: string;
         exists: boolean;
         autopilot: boolean;
+        /** 082: ngôn ngữ mặc định của kênh. */
+        language: string;
         competitors: number;
         added_at: string;
       }[];
     };
   };
   'channels.managed.add': { params: ChannelRef; result: { ok: boolean } };
+  /** 082: thông tin kênh (`channel.json`) — tên, ngôn ngữ mặc định cho video mới. */
+  'channel.info.get': {
+    params: ChannelRef;
+    result: {
+      id: string;
+      name: string;
+      language: 'vi' | 'de' | 'en';
+      created_at: string;
+      path: string;
+      videos: number;
+    };
+  };
+  'channel.info.set': {
+    params: ChannelRef & { name?: string; language?: 'vi' | 'de' | 'en' };
+    result: { name: string; language: 'vi' | 'de' | 'en' };
+  };
   'channels.managed.remove': { params: ChannelRef; result: { ok: boolean } };
   /** Cài đặt Autopilot tầng kênh đã giải (giá trị + nguồn). */
   'channel.autopilot.get': {
