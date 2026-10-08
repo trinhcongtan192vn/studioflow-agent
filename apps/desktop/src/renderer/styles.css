@@ -2633,3 +2633,46 @@ kbd {
 .adv-row .switch input {
   accent-color: var(--accent);
 }
+
+/* 091: bước "Đăng lên nền tảng" — bộ chọn nền tảng + kết quả */
+.step-error.wait {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+.publish-picker {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pub-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.pub-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pub-options label.disabled {
+  opacity: 0.6;
+}
+.pub-preview {
+  border-left: 2px solid var(--line-strong);
+  padding-left: 10px;
+}
+.pub-preview p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.pub-results {
+  margin: 0;
+  padding-left: 18px;
+}
+.pub-results .pub-failed {
+  color: var(--warn);
+}
+.pub-results .pub-public {
+  color: var(--ok-ink);
+}

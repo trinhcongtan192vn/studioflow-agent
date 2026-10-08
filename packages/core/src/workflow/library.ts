@@ -166,6 +166,14 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     gates: () => [{ kind: 'objective', check: 'thumbnail_valid' }],
   },
   render: { by: 'engine', reads: r('index'), writes: r('renders'), outputs: r(), gates: () => [] },
+  // 091: đăng bản render phát hành lên nền tảng người dùng chọn (video làm tay)
+  publish: {
+    by: 'engine',
+    reads: r('renders', 'publish'),
+    writes: r('publish_state'),
+    outputs: r(),
+    gates: () => [],
+  },
 };
 
 export interface ManifestError {

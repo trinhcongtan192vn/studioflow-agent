@@ -53,12 +53,22 @@ export function workflowNotices(
         ...(last?.status === 'approved' && isAutoApproval(last) ? { auto_approved: true } : {}),
         ...(st?.outputs?.length ? { outputs: st.outputs } : {}),
       });
-      if (i === n - 1)
+      if (i === n - 1) {
+        // 091: bước cuối là Đăng → nút "Xem video" lấy video của bước render gần nhất
+        const video = [...steps]
+          .reverse()
+          .map((x) => state.steps?.[x.id]?.outputs ?? [])
+          .find((o) => o.some((f) => /\.mp4$/i.test(f)));
+        const outs = [
+          ...(st?.outputs ?? []),
+          ...(st?.outputs?.some((f) => /\.mp4$/i.test(f)) ? [] : (video ?? [])),
+        ];
         out.push({
           event: 'finished',
           ...base,
-          ...(st?.outputs?.length ? { outputs: st.outputs } : {}),
+          ...(outs.length ? { outputs: outs } : {}),
         });
+      }
     } else if (s.status === 'waiting_approval') {
       const ap = state.approvals?.find((a) => a.step_id === s.id && a.status === 'pending');
       out.push({

@@ -41,7 +41,7 @@ interface WorkflowManifest {
 }
 
 type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render';
+  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
 
 interface StepDecl {
   id: string;                               // duy nhất trong workflow
@@ -115,6 +115,7 @@ steps:
 | `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline); `asr_clean` (061: còn line ASR `mismatch` → cảnh báo sớm, vì render phát hành sẽ chặn; xử lý: nghe lại + `asr.accept` hoặc sửa chữ) |
 | `publish-meta` | engine (`text.generate` vai `aux` + `refine-loop` khi `advanced.refine`) | — | 085: phụ đề SRT (`caption_groups.json` + bản sửa; chưa có → lời đọc `SCRIPT.md`), thông tin kênh (tên, ngôn ngữ, chủ đề trụ cột, `style-guide.md`, `preferences.md`), `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
 | `render` | engine | `mode: 'draft' \| 'release'` | `index.html` | `renders/<rd>/` (+ `CREDITS.txt`, `description.txt` khi release) | gate phát hành (D4) khi `release` |
+| `publish` (091) | engine (bộ đăng 053/056 ở chế độ đăng ngay) | — | bản render phát hành mới nhất, `publish.md`, phụ đề, `thumbnail.*`, lựa chọn nền tảng của người dùng (`publish.video.start`) | `publish-state.json` (D3 5.22) | — · chưa chọn → `failed` `E_STEP_INCOMPLETE` "waiting for you to choose where to publish"; video Autopilot → xong ngay (Autopilot đăng theo kế hoạch ngày) |
 
 - **agent:** Engine gửi cho phiên một chỉ dẫn chuẩn `Thực hiện bước <id> của workflow <wf> theo skill. Đầu vào: … Đầu ra: …` và chờ `workflow.step_complete`. Quá `maxTurns` hoặc agent dừng mà chưa báo xong → bước `failed` (`E_STEP_INCOMPLETE`).
 - **engine:** Engine tự gọi capability/graph, không cần agent.

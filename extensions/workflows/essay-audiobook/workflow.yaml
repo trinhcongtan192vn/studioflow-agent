@@ -49,3 +49,5 @@ steps:
     refine: { enabled: true, rubric: meta-default }
   - { id: thumbnail, uses: thumbnail, title: Thumbnail }
   - { id: render, uses: render, title: Render phát hành, params: { mode: release } }
+  # 091: đăng ngay lên nền tảng người dùng chọn (video Autopilot: kế hoạch ngày lo việc đăng)
+  - { id: publish, uses: publish, title: Đăng lên nền tảng }

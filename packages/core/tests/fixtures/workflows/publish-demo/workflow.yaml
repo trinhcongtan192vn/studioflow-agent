@@ -1,0 +1,9 @@
+id: publish-demo
+version: 1.0.0
+title: Demo đăng
+description: Workflow mẫu cho test bước đăng lên nền tảng (091)
+app_api: '>=1.0 <2.0'
+output_profiles: [yt-1080p30, yt-shorts-1080x1920]
+requires: []
+steps:
+  - { id: publish, uses: publish, title: Đăng lên nền tảng }

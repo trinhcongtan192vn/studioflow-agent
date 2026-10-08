@@ -44,6 +44,7 @@ export const SCHEMA_ROOTS = [
   'AutopilotLogLine',
   'DailyReport',
   'ChannelLearning',
+  'PublishRecord',
 ];
 
 const ID_PREFIXES = [

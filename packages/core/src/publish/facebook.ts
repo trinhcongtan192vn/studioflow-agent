@@ -98,8 +98,18 @@ export class FacebookPublisher implements PlatformPublisher {
       video_id: videoId,
       description: desc || ctx.item.title,
       title: (ctx.meta.title || ctx.item.title).slice(0, 100),
-      schedule: sched.publish_at,
+      // 091: video làm tay đăng ngay (không hẹn giờ)
+      ...(ctx.mode === 'now' ? {} : { schedule: sched.publish_at }),
     });
+    if (ctx.mode === 'now')
+      return {
+        status: 'public',
+        video_id: videoId,
+        url: `https://www.facebook.com/reel/${videoId}`,
+        publish_at: iso(ctx.now),
+        uploaded_at: iso(ctx.now),
+        attempts,
+      };
     return {
       status: 'scheduled',
       video_id: videoId,

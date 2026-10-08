@@ -38,7 +38,7 @@
   .trash/<vd>-<YYYYMMDDHHmmss>/     (064) video đã xóa (thùng rác, khôi phục được; tự dọn sau trash.retention_days ngày) + trash.json
   videos/<video_id>/                một video = một HyperFrames project
     hyperframes.json                file project HyperFrames (do adapter quản lý)
-    BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md
+    BRIEF.md  frame.md  STORY.md  SCRIPT.md  CAST.md  STORYBOARD.md  publish.md  publish-state.json
     REFERENCE.md                    (tùy chọn, 044) phân tích video YouTube tham khảo: công thức nội dung, không chép nội dung; markdown tự do, không qua schema
     .sf/paid.json                   (052) sổ lệnh API có phí được Autopilot tự cho phép trong ngân sách video: {approved_usd, calls[]}
     audio/lines/<line_id>.wav       audio từng line
@@ -606,6 +606,19 @@ interface LearningGroup {
   ratio: number;
   /** @minimum 0.7 @maximum 1.3 */
   multiplier: number;
+}
+```
+
+### 5.22 `publish-state.json` (091)
+Bước `publish` của video làm tay (D6): lựa chọn nền tảng của người dùng và trạng thái đăng từng nền tảng (cùng dạng `PlanItem.publish`, 5.18). Video Autopilot không dùng file này (trạng thái đăng nằm trong kế hoạch ngày). Đổi bản render phát hành → trạng thái cũ bị bỏ khi bấm Đăng lần sau.
+
+```ts
+interface PublishRecord extends Versioned {
+  video_id: VideoId;
+  render_id: string | null;                        // bản render phát hành đã/đang đăng
+  requested_at: Iso8601 | null;                    // lúc người dùng bấm "Đăng"/"Không đăng"; null = chưa chọn
+  platforms: string[];                             // nền tảng đã chọn (`youtube` | `tiktok` | `facebook`); rỗng = không đăng
+  results: PublishState;                           // trạng thái từng nền tảng
 }
 ```
 

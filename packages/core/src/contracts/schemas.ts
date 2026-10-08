@@ -3270,7 +3270,8 @@ export const schemas = {
           "finalize",
           "publish-meta",
           "thumbnail",
-          "render"
+          "render",
+          "publish"
         ]
       },
       "GateDecl": {
@@ -4787,6 +4788,130 @@ export const schemas = {
           "multiplier"
         ],
         "additionalProperties": false
+      }
+    }
+  },
+  PublishRecord: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/PublishRecord",
+    "definitions": {
+      "PublishRecord": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "number"
+          },
+          "video_id": {
+            "$ref": "#/definitions/VideoId"
+          },
+          "render_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Iso8601"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "results": {
+            "$ref": "#/definitions/PublishState"
+          }
+        },
+        "required": [
+          "platforms",
+          "render_id",
+          "requested_at",
+          "results",
+          "schema_version",
+          "video_id"
+        ],
+        "additionalProperties": false
+      },
+      "VideoId": {
+        "$ref": "#/definitions/Id%3C%22vd%22%3E"
+      },
+      "Id<\"vd\">": {
+        "type": "string",
+        "pattern": "^vd_[0-9a-z]{8}$"
+      },
+      "Iso8601": {
+        "type": "string"
+      },
+      "PublishState": {
+        "type": "object",
+        "properties": {
+          "youtube": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "tiktok": {
+            "$ref": "#/definitions/PlatformPublish"
+          },
+          "facebook": {
+            "$ref": "#/definitions/PlatformPublish"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformPublish": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/definitions/PublishStatus"
+          },
+          "video_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "publish_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "veto_until": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "uploaded_at": {
+            "$ref": "#/definitions/Iso8601"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublishStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "uploading",
+          "scheduled",
+          "private",
+          "public",
+          "cancelled",
+          "failed"
+        ]
       }
     }
   },

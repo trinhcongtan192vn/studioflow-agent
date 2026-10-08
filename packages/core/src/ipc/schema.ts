@@ -3,6 +3,7 @@
 import type { VideoCard } from '../domain/video-card.js';
 import type { LibraryEntry } from '../render/export.js';
 import type { PublishQueueItem } from '../publish/queue-view.js';
+import type { PublishOptions } from '../publish/video-publish.js';
 import type { WorkflowNotice } from '../workflow/notices.js';
 import type {
   AgentEvent,
@@ -168,6 +169,12 @@ export interface IpcMethods {
       platform?: 'youtube' | 'tiktok' | 'facebook';
     };
     result: { status: string; note?: string };
+  };
+  // 091: bước `publish` của video làm tay — bộ chọn nền tảng
+  'publish.video.options': { params: VideoRef; result: PublishOptions };
+  'publish.video.start': {
+    params: VideoRef & { platforms: string[] };
+    result: VideoStateSummary;
   };
   'publish.now': {
     params: {

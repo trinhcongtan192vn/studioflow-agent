@@ -69,6 +69,15 @@ export class PublishService {
     this.publishers.set(p.platform, p);
   }
 
+  /** Bộ đăng đã đăng ký (091: bước `publish` của video làm tay dùng chung). */
+  publisher(p: Platform): PlatformPublisher | undefined {
+    return this.publishers.get(p);
+  }
+
+  platforms(): PlatformPublisher[] {
+    return [...this.publishers.values()];
+  }
+
   setPreview(p: PreviewPort | undefined): void {
     this.preview = p;
   }
@@ -178,26 +187,7 @@ export class PublishService {
         'E_FILE_NOT_FOUND',
         'chưa có bản render phát hành (release) của video để đăng — chỉ bản nháp có chữ NHÁP',
       );
-    const pf = path.join(ref.channel, 'videos', video, 'publish.md');
-    let meta: PublishMeta = {
-      title: ref.item.title,
-      description: '',
-      tags: [],
-      chapters: [],
-      language: m.language,
-    };
-    if (existsSync(pf)) {
-      const b = parseBlocksDoc(readFileSync(pf, 'utf8'));
-      meta = {
-        title: String(b.front.title ?? ref.item.title),
-        description: b.body.join('\n').trim(),
-        tags: Array.isArray(b.front.tags) ? (b.front.tags as unknown[]).map(String) : [],
-        chapters: Array.isArray(b.front.chapters)
-          ? (b.front.chapters as { start_ms: number; title: string }[])
-          : [],
-        language: m.language,
-      };
-    }
+    const meta = loadPublishMeta(ref.channel, video, ref.item.title, m.language);
     const store = this.d.storeFor(ref.channel);
     return {
       channel: ref.channel,
@@ -206,6 +196,7 @@ export class PublishService {
       store,
       date: ref.date,
       item: ref.item,
+      mode: 'scheduled',
       video,
       render,
       meta,
@@ -564,4 +555,26 @@ export class PublishService {
         })),
     };
   }
+}
+
+/** Thông tin đăng từ `publish.md` (D3 5.15); chưa có file → chỉ tiêu đề dự phòng. */
+export function loadPublishMeta(
+  channel: string,
+  video: string,
+  fallbackTitle: string,
+  language: string,
+): PublishMeta {
+  const pf = path.join(channel, 'videos', video, 'publish.md');
+  if (!existsSync(pf))
+    return { title: fallbackTitle, description: '', tags: [], chapters: [], language };
+  const b = parseBlocksDoc(readFileSync(pf, 'utf8'));
+  return {
+    title: String(b.front.title ?? fallbackTitle),
+    description: b.body.join('\n').trim(),
+    tags: Array.isArray(b.front.tags) ? (b.front.tags as unknown[]).map(String) : [],
+    chapters: Array.isArray(b.front.chapters)
+      ? (b.front.chapters as { start_ms: number; title: string }[])
+      : [],
+    language,
+  };
 }
