@@ -287,6 +287,12 @@ ipcMain.handle('dialog:files', async () => {
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('shell:open', (_e, p: string) => shell.openPath(p));
+// 071: mở trang đăng nhập (Google OAuth…) trong trình duyệt — chỉ https
+ipcMain.handle('shell:external', async (_e, url: string) => {
+  if (!/^https:\/\//i.test(url)) return false;
+  await shell.openExternal(url);
+  return true;
+});
 // 058: "Mở thư mục" sau khi render — chọn sẵn video trong File Explorer
 ipcMain.handle('shell:reveal', (_e, p: string) => {
   if (!existsSync(p)) return false;

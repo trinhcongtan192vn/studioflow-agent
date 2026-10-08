@@ -8,6 +8,8 @@ export interface StudioflowApi {
   openPath(p: string): Promise<string>;
   /** 058: mở File Explorer tại thư mục chứa tệp, chọn sẵn tệp. */
   revealFile(p: string): Promise<boolean>;
+  /** 071: mở URL https trong trình duyệt mặc định (đăng nhập Google…). */
+  openExternal(url: string): Promise<boolean>;
   /** Đọc file âm thanh được phép (008) để phát trong app. */
   readAudio(absPath: string): Promise<{ mime: string; data: Uint8Array }>;
   secretsStatus(): Promise<{ name: string; hint: string | null }[]>;
@@ -42,6 +44,7 @@ const api: StudioflowApi = {
   pickFiles: () => ipcRenderer.invoke('dialog:files'),
   openPath: (p) => ipcRenderer.invoke('shell:open', p),
   revealFile: (p) => ipcRenderer.invoke('shell:reveal', p),
+  openExternal: (url) => ipcRenderer.invoke('shell:external', url),
   readAudio: (p) => ipcRenderer.invoke('media:audio', p),
   secretsStatus: () => ipcRenderer.invoke('secrets:status'),
   secretsSet: (n, v) => ipcRenderer.invoke('secrets:set', n, v),
