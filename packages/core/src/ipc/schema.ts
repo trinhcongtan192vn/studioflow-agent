@@ -1,6 +1,7 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
 import type { VideoCard } from '../domain/video-card.js';
+import type { LibraryEntry } from '../render/export.js';
 import type { WorkflowNotice } from '../workflow/notices.js';
 import type {
   AgentEvent,
@@ -256,6 +257,8 @@ export interface IpcMethods {
       }[];
     };
   };
+  /** 073: thư viện — mọi bản render đã xong của các video trong kênh, mới nhất trước. */
+  'render.library': { params: ChannelRef; result: { renders: LibraryEntry[] } };
   /** 066: sao chép bản render (+ thumbnail / .srt / .txt) ra thư mục người dùng chọn; không ghi đè. */
   'video.export': {
     params: VideoRef & {

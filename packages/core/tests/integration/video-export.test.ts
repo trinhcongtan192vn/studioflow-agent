@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { exportVideo, listRenders, safeFileName } from '../../src/render/export.js';
+import { exportVideo, listRenders, renderLibrary, safeFileName } from '../../src/render/export.js';
 import { createVideo } from '../../src/domain/video.js';
 import { WriteStore } from '../../src/store/writer.js';
 import { copyChannel, tempDir } from '../domain-helpers.js';
@@ -153,5 +153,19 @@ describe('video export (066)', () => {
     expect(safeFileName('a<b>c:d"e/f\\g|h?i*j. ')).toBe('abcdefghij');
     expect(safeFileName('CON')).toBe('CON_');
     expect(safeFileName('   ')).toBe('video');
+  });
+});
+
+describe('render library (073)', () => {
+  it('lists finished renders of every video, newest first, with the video title', () => {
+    const s = setup();
+    s.render('rd_aaaaaaaa', 'draft', '2026-10-08T01:00:00.000Z', 'nháp');
+    s.render('rd_bbbbbbbb', 'release', '2026-10-08T02:00:00.000Z', 'phát hành');
+    const lib = renderLibrary(s.dir);
+    expect(lib.map((x) => [x.video_id, x.render_id, x.mode, x.title])).toEqual([
+      [s.video, 'rd_bbbbbbbb', 'release', 'Lốc xoáy: vì sao?'],
+      [s.video, 'rd_aaaaaaaa', 'draft', 'Lốc xoáy: vì sao?'],
+    ]);
+    expect(lib[0]!.file).toMatch(/video\.mp4$/);
   });
 });

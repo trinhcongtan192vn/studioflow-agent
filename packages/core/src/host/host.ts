@@ -58,7 +58,7 @@ import { getSecretDefault } from '../secrets/credman.js';
 import { getOpsSession, getSession, listOpsSessions, listSessions } from '../agent/session-log.js';
 import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash.js';
 import { videoCard, type VideoCard } from '../domain/video-card.js';
-import { exportVideo, listRenders, type ExportInclude } from '../render/export.js';
+import { exportVideo, listRenders, renderLibrary, type ExportInclude } from '../render/export.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
 import { PUBLISH_CALLBACK } from '../publish/index.js';
@@ -877,6 +877,9 @@ export class CoreHost extends EventEmitter {
       case 'trash.empty':
         return emptyTrash(this.store(p.channel), { all: true });
       // 066: xuất video ra thư mục người dùng chọn (constitution 1.2)
+      // 073: thư viện — mọi bản render của kênh
+      case 'render.library':
+        return { renders: renderLibrary(this.store(p.channel).root) };
       case 'render.list':
         return { renders: listRenders(this.store(p.channel).root, String(p.video)) };
       case 'video.export':
