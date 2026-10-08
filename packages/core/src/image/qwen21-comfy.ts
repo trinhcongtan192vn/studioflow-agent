@@ -142,7 +142,14 @@ export function createQwen21ComfyProvider(opts: { server: ComfyServer }) {
         resolution,
       });
       const id = await c.submit(wf);
-      const out = await c.wait(id, { signal: ctx.signal, onProgress: ctx.progress });
+      const out = await c
+        .wait(id, { signal: ctx.signal, onProgress: ctx.progress })
+        .catch(async (e: unknown) => {
+          // 077: quá hạn → ComfyUI có thể đang kẹt: dừng để lần sau khởi động lại sạch
+          if (/did not return an image within/.test(String((e as Error)?.message)))
+            await opts.server.stop().catch(() => {});
+          throw e;
+        });
       const buf = await c.view(out.images[0]!);
       const info = imageInfo(buf);
       if (!info)

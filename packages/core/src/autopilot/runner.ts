@@ -324,6 +324,28 @@ export class AutopilotRunner extends EventEmitter {
         });
       },
     );
+    // 077: yêu cầu xác nhận khác của video Autopilot được quyết ngay — ghi lý do
+    bus.on(
+      'autopilot.decided',
+      (e: {
+        session: { channel_dir: string; video_id?: string };
+        request: { kind: string; summary: string };
+        allow: boolean;
+      }) => {
+        const channel = canonicalDir(e.session.channel_dir);
+        this.log(channel, this.dateOf(channel, this.now()), {
+          level: e.allow ? 'info' : 'warn',
+          event: 'permission.auto',
+          ...(e.session.video_id
+            ? { video_id: e.session.video_id as AutopilotLogLine['video_id'] }
+            : {}),
+          message: e.allow
+            ? `Tự cho phép: ${e.request.summary}${e.request.kind === 'overwrite_approved' ? ' (bản cũ đã sao lưu)' : ''}.`
+            : `Tự từ chối: ${e.request.summary} — giữ phần người dùng đã sửa tay.`,
+          data: { kind: e.request.kind, allow: e.allow },
+        });
+      },
+    );
     bus.on(
       'autopilot.blocked',
       (e: {

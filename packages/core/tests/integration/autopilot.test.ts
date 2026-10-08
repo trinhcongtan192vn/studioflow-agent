@@ -94,6 +94,36 @@ describe('autopilot (034)', () => {
     expect(asked).toEqual(['paid_api', 'batch_gen']);
   });
 
+  it('Autopilot videos never wait for a person: overwrite allowed, pinned frame declined (077)', async () => {
+    fx = workflowFixture();
+    wireDemo(fx);
+    // video do bộ chạy Autopilot tạo (052): state.autopilot
+    const sp = path.join(fx.dir, fx.v('state.json'));
+    const st = JSON.parse(readFileSync(sp, 'utf8'));
+    st.autopilot = { plan_date: '2026-10-08', item_id: 'pi_aaaaaaaa', channel_id: st.channel_id };
+    writeFileSync(sp, JSON.stringify(st, null, 2));
+    const p = fx.core.gateway.permissions;
+    const asked: string[] = [];
+    const decided: { kind: string; allow: boolean }[] = [];
+    p.on('permission.requested', (r: { kind: string }) => asked.push(r.kind));
+    p.on('autopilot.decided', (e: { request: { kind: string }; allow: boolean }) =>
+      decided.push({ kind: e.request.kind, allow: e.allow }),
+    );
+    const t0 = Date.now();
+    expect(await p.ask(fx.session, { tool: 't', kind: 'overwrite_approved', summary: 'x' })).toBe(
+      true,
+    );
+    expect(await p.ask(fx.session, { tool: 't', kind: 'pinned_frame', summary: 'x' })).toBe(false);
+    expect(await p.ask(fx.session, { tool: 't', kind: 'render', summary: 'x' })).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(5000); // không chờ người (trước đây 10 phút mỗi lần)
+    expect(asked).toEqual([]);
+    expect(decided).toEqual([
+      { kind: 'overwrite_approved', allow: true },
+      { kind: 'pinned_frame', allow: false },
+      { kind: 'render', allow: true },
+    ]);
+  });
+
   it('missing voice: the voice step hands over to the agent, then builds audio (SC-004)', async () => {
     fx = workflowFixture();
     // kênh chưa có giọng người dẫn

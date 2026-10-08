@@ -138,6 +138,14 @@ export class PermissionBus extends EventEmitter {
       this.emit('autopilot.blocked', { session, request });
       return false;
     }
+    // 077: video Autopilot không có người trả lời → quyết ngay (trước đây chờ 10 phút rồi từ chối, treo cả hàng
+    // đợi): ghi đè bản đã duyệt / render → cho (file đã duyệt luôn được sao lưu trước khi ghi đè); frame người
+    // dùng sửa tay (đã ghim) → giữ, từ chối
+    if (isAutopilotVideo(session.channel_dir, session.video_id)) {
+      const allow = req.kind !== 'pinned_frame';
+      this.emit('autopilot.decided', { session, request, allow });
+      return allow;
+    }
     const decision = await new Promise<PermissionDecision | undefined>((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(request.request_id);
