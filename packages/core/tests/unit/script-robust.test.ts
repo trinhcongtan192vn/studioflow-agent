@@ -1,7 +1,13 @@
 // 036 — kịch bản: người nói phải thuộc dàn nhân vật; marker beat lệch dòng được chuẩn hóa;
 // gate ném lỗi → kết quả không qua (không kẹt bước); người dẫn khai trong CAST dùng voice.id.
 import { describe, expect, it } from 'vitest';
-import { checkScript, evaluateGate, registerObjective, stripWrapping } from '../../src/index.js';
+import {
+  assignScriptIds,
+  checkScript,
+  evaluateGate,
+  registerObjective,
+  stripWrapping,
+} from '../../src/index.js';
 
 const doc = (speaker: string) =>
   `---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: draft\n---\n## Mở <!-- sf:beat id=bt_4nd8w1zc -->\n\n<!-- sf:line id=ln_2r7c4kxm speaker=${speaker} -->\nChào.\n`;
@@ -70,5 +76,26 @@ describe('unknown sf markers from the producer (042)', () => {
     expect(out).toContain('<!-- sf:line id=ln_2r7c4kxm speaker=narrator -->');
     const doc = `---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: draft\n---\n${out}`;
     expect(checkScript(doc, octx).find((r) => r.id === 'schema')).toMatchObject({ pass: true });
+  });
+});
+
+describe('revise output clean-up (080, vd_rbxtpyp5)', () => {
+  it('a line id invented by the model (ln_xxx_b) is replaced with a valid one', () => {
+    const t = `---\nschema_version: 1\nvideo_id: vd_8m2pq7rt\nlanguage: vi\nstatus: draft\n---\n## Mở <!-- sf:beat id=bt_4nd8w1zc -->\n\n<!-- sf:line id=ln_j5u9imcg speaker=narrator -->\nMột.\n\n<!-- sf:line id=ln_j5u9imcg_b speaker=narrator -->\nHai.\n`;
+    const r = assignScriptIds(t, new Set(), { seed: 'x' });
+    expect(r.assigned).toHaveLength(1);
+    expect(r.assigned[0]).toMatch(/^ln_[0-9a-z]{8}$/);
+    expect(r.text).not.toContain('ln_j5u9imcg_b');
+    expect(r.text).toContain('id=ln_j5u9imcg ');
+    expect(checkScript(r.text, octx).find((x) => x.id === 'schema')).toMatchObject({ pass: true });
+  });
+
+  it('an echoed revise prompt (# Brief … # Bản nháp … # Vấn đề cần sửa) keeps only the draft', () => {
+    const out = stripWrapping(
+      '# Brief\nTiêu đề tạm: X\n## Nguồn\n- a\n\n# Bản nháp\n## Mở <!-- sf:beat id=bt_4nd8w1zc -->\n\n<!-- sf:line id=ln_2r7c4kxm speaker=narrator -->\nChào.\n\n# Vấn đề cần sửa\n- hook yếu\n',
+    );
+    expect(out).not.toMatch(/Brief|Tiêu đề tạm|Bản nháp|Vấn đề cần sửa|hook yếu/);
+    expect(out.startsWith('## Mở <!-- sf:beat id=bt_4nd8w1zc -->')).toBe(true);
+    expect(out).toContain('Chào.');
   });
 });
