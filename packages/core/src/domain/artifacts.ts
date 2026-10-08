@@ -22,6 +22,7 @@ export type ArtifactKind =
   | 'storyboard'
   | 'cast'
   | 'publish'
+  | 'publish_state'
   | 'research'
   | 'plan';
 
@@ -136,6 +137,13 @@ export const ARTIFACTS: KindSpec[] = [
     pattern: new RegExp(`${V}publish\\.md$`),
     format: 'md',
     schema: 'PublishFrontMatter',
+  },
+  // 091: lựa chọn nền tảng + trạng thái đăng của video làm tay (D3 5.22)
+  {
+    kind: 'publish_state',
+    pattern: new RegExp(`${V}publish-state\\.json$`),
+    format: 'json',
+    schema: 'PublishRecord',
   },
   // 049: quét nghiên cứu Autopilot theo ngày ở gốc kênh (D3 5.17)
   {

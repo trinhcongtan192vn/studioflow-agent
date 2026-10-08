@@ -248,7 +248,8 @@
         "finalize",
         "publish-meta",
         "thumbnail",
-        "render"
+        "render",
+        "publish"
       ]
     },
     "GateDecl": {

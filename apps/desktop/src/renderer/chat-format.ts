@@ -304,6 +304,9 @@ export function stepCtas(
   error?: string,
 ): StepCta[] {
   if (step.status === 'failed') {
+    // 091: bộ chọn nền tảng nằm ở tab Tiến độ
+    if (error && isPublishWaiting(error))
+      return [{ kind: 'tab', label: '📤 Chọn nền tảng', tab: 'Tiến độ' }];
     const retry: StepCta = { kind: 'retry', label: 'Chạy lại bước', step: step.id };
     if (error && isMissingVoice(error))
       return [
@@ -483,7 +486,14 @@ export function isAwaitingReply(error: string): boolean {
   return /waiting for your reply in chat$/.test(error);
 }
 
+/** 091: bước "Đăng lên nền tảng" chờ người dùng chọn nền tảng (không phải lỗi). */
+export function isPublishWaiting(error: string): boolean {
+  return /waiting for you to choose where to publish$/.test(error);
+}
+
 export function friendlyStepError(e: string): string {
+  if (isPublishWaiting(e))
+    return 'Video đã render xong. Chọn nền tảng (YouTube, TikTok, Facebook) rồi bấm "Đăng" ở tab Tiến độ — hoặc "Không đăng".';
   if (isAwaitingReply(e))
     return 'Agent đang chờ bạn trả lời trong chat (ví dụ chọn giọng). Trả lời agent để bước làm tiếp, hoặc bấm "Chạy lại bước".';
   // 086: hết lượt Claude → engine tự chạy lại lúc hết hạn mức

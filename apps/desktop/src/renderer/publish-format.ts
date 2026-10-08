@@ -78,3 +78,28 @@ export function platformActions(st: St | undefined): { now: boolean; cancel: boo
     cancel: !['public', 'cancelled'].includes(st.status),
   };
 }
+
+/** 091: kết quả một nền tảng ở bước "Đăng lên nền tảng" (đăng ngay, không hẹn giờ). */
+export function publishResultText(st: St): string {
+  switch (st.status) {
+    case 'public':
+      return 'Đã công khai';
+    case 'private':
+      return `Riêng tư${st.note ? ` — ${st.note}` : ''}`;
+    case 'uploading':
+      return 'Đang tải lên…';
+    case 'failed':
+      return `Lỗi: ${st.error ?? st.note ?? 'không rõ'}`;
+    case 'scheduled':
+      return `Đã hẹn công khai${st.publish_at ? ` ${at(st.publish_at)}` : ''}`;
+    case 'cancelled':
+      return st.note ?? 'Đã hủy';
+    default:
+      return 'Chờ tải lên';
+  }
+}
+
+/** 091: dòng tóm tắt dưới bộ chọn nền tảng. */
+export function pickerSummary(labels: string[]): string {
+  return labels.length ? `Đăng lên ${labels.join(', ')}` : 'Chưa chọn nền tảng nào';
+}

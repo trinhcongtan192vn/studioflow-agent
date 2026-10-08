@@ -78,6 +78,8 @@ export interface VideoMetadataInput {
   audited: boolean;
   /** Giờ công khai (chỉ dùng khi `audited`). */
   publishAt?: Date;
+  /** 091: đăng ngay công khai (chỉ khi `audited`; không hẹn giờ). */
+  publicNow?: boolean;
 }
 
 export interface VideoMetadata {
@@ -90,7 +92,7 @@ export interface VideoMetadata {
     defaultAudioLanguage: string;
   };
   status: {
-    privacyStatus: 'private';
+    privacyStatus: 'private' | 'public';
     publishAt?: string;
     selfDeclaredMadeForKids: false;
     containsSyntheticMedia: true;
@@ -109,8 +111,8 @@ export function buildVideoMetadata(i: VideoMetadataInput): VideoMetadata {
       defaultAudioLanguage: i.language,
     },
     status: {
-      privacyStatus: 'private',
-      ...(i.audited && i.publishAt ? { publishAt: i.publishAt.toISOString() } : {}),
+      privacyStatus: i.audited && i.publicNow ? 'public' : 'private',
+      ...(i.audited && i.publishAt && !i.publicNow ? { publishAt: i.publishAt.toISOString() } : {}),
       selfDeclaredMadeForKids: false,
       // khai báo nội dung do AI tạo/biến đổi (yêu cầu của YouTube)
       containsSyntheticMedia: true,

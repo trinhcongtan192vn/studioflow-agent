@@ -77,7 +77,7 @@ export class YouTubePublisher implements PlatformPublisher {
         chapters: ctx.meta.chapters,
         language: ctx.meta.language,
         audited,
-        publishAt: sched.publish_at,
+        ...(ctx.mode === 'now' ? { publicNow: true } : { publishAt: sched.publish_at }),
       });
       const sf = sessionFile(this.d.appDataDir, ctx.item.id);
       const size = statSync(ctx.render.file).size;
@@ -150,10 +150,13 @@ export class YouTubePublisher implements PlatformPublisher {
       video_id: videoId,
       url: `https://youtu.be/${videoId}`,
       uploaded_at: iso(ctx.now),
-      veto_until: iso(sched.veto_until),
+      ...(ctx.mode === 'now' ? {} : { veto_until: iso(sched.veto_until) }),
       attempts: prev?.attempts ?? 1,
     };
     const note = notes.join(' ');
+    // 091: video làm tay — đăng ngay, công khai khi dự án API đã kiểm duyệt
+    if (ctx.mode === 'now' && audited)
+      return { status: 'public', publish_at: iso(ctx.now), ...common, ...(note ? { note } : {}) };
     if (audited)
       return {
         status: 'scheduled',
@@ -165,7 +168,9 @@ export class YouTubePublisher implements PlatformPublisher {
       status: 'private',
       ...common,
       note: [
-        'Dự án API YouTube chưa được Google kiểm duyệt nên video ở chế độ riêng tư, không hẹn giờ được — hãy công khai thủ công trong YouTube Studio',
+        ctx.mode === 'now'
+          ? 'Dự án API YouTube chưa được Google kiểm duyệt nên video ở chế độ riêng tư — mở link, vào YouTube Studio → Hiển thị → Công khai'
+          : 'Dự án API YouTube chưa được Google kiểm duyệt nên video ở chế độ riêng tư, không hẹn giờ được — hãy công khai thủ công trong YouTube Studio',
         ctx.item.publish_at ? `(giờ dự kiến ${ctx.item.publish_at})` : '',
         note,
       ]

@@ -835,6 +835,20 @@ export class CoreHost extends EventEmitter {
           date: String(p.date),
           ...(p.platform ? { platform: p.platform as 'youtube' | 'tiktok' | 'facebook' } : {}),
         });
+      case 'publish.video.options':
+        return c.videoPublish.options(this.store(p.channel), String(p.video));
+      case 'publish.video.start': {
+        const plats = p.platforms as unknown;
+        if (!Array.isArray(plats) || plats.some((x) => typeof x !== 'string'))
+          throw new SfError('E_SCHEMA_INVALID', 'platforms must be a list of platform ids');
+        c.videoPublish.request(this.store(p.channel), String(p.video), plats as string[]);
+        const e = this.engine(p.channel, String(p.video));
+        // đã đăng xong (render lại rồi đăng lại) → chạy lại bước; đang chờ chọn / lỗi / chưa tới → chạy tới bước
+        const s = e.readState().steps.publish?.status;
+        if (s === 'done' || s === 'skipped') void e.rewind('publish');
+        else void e.runTo('publish');
+        return e.summary();
+      }
       case 'publish.now':
         return c.publisher.publishNow({
           channel: path.resolve(p.channel),

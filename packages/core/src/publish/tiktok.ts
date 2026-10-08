@@ -5,7 +5,7 @@ import { SfError } from '../errors.js';
 import type { PlatformPublisher, PublishContext } from './types.js';
 import { isVerticalProfile, socialTokenSecret } from './social.js';
 import type { SecretStore } from '../secrets/store.js';
-import type { TikTokApi } from './tiktok-api.js';
+import { TIKTOK_CONSTANTS, type TikTokApi } from './tiktok-api.js';
 
 /**
  * Bộ đăng TikTok (056, FR-AP-10, D4 9.8): chỉ video dọc 9:16. TikTok không có hẹn giờ qua API:
@@ -47,7 +47,8 @@ export class TikTokPublisher implements PlatformPublisher {
 
   /** Đã kiểm duyệt → chỉ đăng công khai đúng giờ (API không hẹn giờ); chưa → đăng riêng tư ngay. */
   due(ctx: PublishContext): Date | undefined {
-    if (!this.audited() || !ctx.item.publish_at) return undefined;
+    // 091: video làm tay đăng ngay
+    if (ctx.mode === 'now' || !this.audited() || !ctx.item.publish_at) return undefined;
     return new Date(ctx.item.publish_at);
   }
 
@@ -61,7 +62,7 @@ export class TikTokPublisher implements PlatformPublisher {
       const size = statSync(file).size;
       if (size <= 0) throw new SfError('E_PROVIDER_FAILED', 'file video rỗng');
       const init = await api.init({
-        title: ctx.meta.title || ctx.item.title,
+        title: tiktokCaption(ctx.meta.title || ctx.item.title, ctx.meta.tags),
         privacy: audited ? 'PUBLIC_TO_EVERYONE' : 'SELF_ONLY',
         size,
       });
@@ -122,4 +123,20 @@ export class TikTokPublisher implements PlatformPublisher {
         : 'Ứng dụng TikTok chưa được kiểm duyệt nên app không công khai được — mở app TikTok để đổi hiển thị.',
     };
   }
+}
+
+/**
+ * 091: chú thích TikTok = tiêu đề + hashtag từ thẻ (bỏ khoảng trắng), tối đa `TITLE_MAX` ký tự; hashtag không vừa thì
+ * bỏ cả thẻ (không cắt giữa thẻ).
+ */
+export function tiktokCaption(title: string, tags: string[]): string {
+  const max = TIKTOK_CONSTANTS.TITLE_MAX;
+  let out = title.trim().slice(0, max);
+  for (const t of tags) {
+    const h = `#${t.replace(/[\s#]+/g, '')}`;
+    if (h.length < 2) continue;
+    if (out.length + 1 + h.length > max) break;
+    out = `${out} ${h}`;
+  }
+  return out;
 }

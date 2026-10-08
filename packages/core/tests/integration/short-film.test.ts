@@ -23,6 +23,7 @@ import {
   setConfig,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
+import { publishWaiting } from '../workflow-helpers.js';
 import { frameRuntime } from '../workflow-e2e-helpers.js';
 
 const STORY = [
@@ -283,9 +284,15 @@ describeStudio('short-film end to end (031 FR-WF-08)', () => {
     for (let i = 0; i < 14; i++) {
       await e.idle();
       const st = state();
-      const failed = Object.entries(st.steps).find(([, s]) => s.status === 'failed');
+      const failed = Object.entries(st.steps).find(
+        ([, s]) => s.status === 'failed' && !publishWaiting(s),
+      );
       if (failed) throw new Error(`step ${failed[0]} failed: ${JSON.stringify(failed[1].error)}`);
-      if (st.steps.render?.status === 'done') break;
+      if (st.steps.render?.status === 'done') {
+        // 091: sau Render phát hành, bước Đăng chờ người dùng chọn nền tảng
+        expect(publishWaiting(st.steps.publish)).toBe(true);
+        break;
+      }
       const pending = st.approvals.find((a) => a.status === 'pending');
       if (!pending) throw new Error(`stuck: ${JSON.stringify(e.summary().steps)}`);
       approved.push(pending.step_id);

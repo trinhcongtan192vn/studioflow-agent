@@ -338,6 +338,14 @@ export interface LearningGroup {
   multiplier: number;
 }
 
+export interface PublishRecord extends Versioned {
+  video_id: VideoId;
+  render_id: string | null;                        // bản render phát hành đã/đang đăng
+  requested_at: Iso8601 | null;                    // lúc người dùng bấm "Đăng"/"Không đăng"; null = chưa chọn
+  platforms: string[];                             // nền tảng đã chọn (`youtube` | `tiktok` | `facebook`); rỗng = không đăng
+  results: PublishState;                           // trạng thái từng nền tảng
+}
+
 export interface ChannelConfig extends Versioned {
   id: ChannelId; name: string; language: Lang; created_at: Iso8601;
   profile_dir: 'profile';

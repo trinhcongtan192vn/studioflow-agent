@@ -24,14 +24,29 @@ export interface PublishMeta {
   language: string;
 }
 
+/** Mục được đăng: mục kế hoạch Autopilot, hoặc video làm tay (091: `id` = ID video, không giờ hẹn). */
+export type PublishItem =
+  | Pick<PlanItem, 'id' | 'title' | 'publish_at'>
+  | {
+      id: string;
+      title: string;
+      publish_at: null;
+    };
+
 /** Ngữ cảnh một lần đăng một mục lên một nền tảng. */
 export interface PublishContext {
   channel: string;
   channel_id: string;
   channel_name: string;
   store: WriteStore;
+  /** Ngày kế hoạch (Autopilot); video làm tay: chuỗi rỗng. */
   date: string;
-  item: PlanItem;
+  item: PublishItem;
+  /**
+   * `scheduled` (Autopilot 053/056): hẹn giờ + cửa sổ phản đối. `now` (091, video làm tay): đăng ngay — công khai
+   * nếu API cho phép, không hẹn giờ.
+   */
+  mode: 'scheduled' | 'now';
   video: string;
   render: ReleaseRender;
   meta: PublishMeta;

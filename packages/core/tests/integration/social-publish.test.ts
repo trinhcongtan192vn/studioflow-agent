@@ -178,7 +178,8 @@ describe('TikTok', () => {
     const init = s.tt.to(/video\/init/)[0]!;
     expect(init.headers.authorization).toBe(`Bearer ${TT_TOKEN}`);
     expect(init.body).toMatchObject({
-      post_info: { title: 'Năm 1428: Lê Lợi lên ngôi', privacy_level: 'SELF_ONLY' },
+      // 091: chú thích = tiêu đề + hashtag từ thẻ của publish.md
+      post_info: { title: 'Năm 1428: Lê Lợi lên ngôi #lịchsử #LêLợi', privacy_level: 'SELF_ONLY' },
       source_info: {
         source: 'FILE_UPLOAD',
         video_size: 3000,

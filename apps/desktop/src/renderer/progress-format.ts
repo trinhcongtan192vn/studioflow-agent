@@ -2,7 +2,13 @@
  * Tab Tiến độ (UI-04, FN-008 mục 3): trạng thái tổng, phản hồi sau mỗi thao tác (chạy tới / chạy lại /
  * quay lại / tạm dừng), nút theo ngữ cảnh từng bước. Hàm thuần.
  */
-import { asrWarningLines, canRecheck, hasDurationWarning, isDurationWarning } from './chat-format';
+import {
+  asrWarningLines,
+  canRecheck,
+  hasDurationWarning,
+  isDurationWarning,
+  isPublishWaiting,
+} from './chat-format';
 export interface StepView {
   id: string;
   title: string;
@@ -199,6 +205,8 @@ export function stepButtons(
         },
       ];
     case 'failed': {
+      // 091: bước Đăng chờ chọn nền tảng — bộ chọn trong thẻ bước thay cho các nút
+      if (error !== undefined && isPublishWaiting(error)) return [];
       // 065: lỗi provider/agent hoặc chưa có file đầu ra → không có gì để kiểm tra lại, Chạy lại là chính
       if (error !== undefined && !canRecheck(error))
         return [

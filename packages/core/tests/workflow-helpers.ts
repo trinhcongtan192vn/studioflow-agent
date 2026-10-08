@@ -96,3 +96,8 @@ export function finalizeExecutor(core: Core): StepExecutor {
     return { outputs: [] };
   };
 }
+
+/** 091: bước `publish` dừng chờ người dùng chọn nền tảng sau Render phát hành (không phải lỗi). */
+export const publishWaiting = (s?: { status: string; error?: { message: string } }): boolean =>
+  s?.status === 'failed' &&
+  Boolean(s.error?.message.endsWith('waiting for you to choose where to publish'));

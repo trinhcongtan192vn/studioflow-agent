@@ -14,3 +14,4 @@ export * from './tiktok.js';
 export * from './facebook-api.js';
 export * from './facebook.js';
 export * from './social-accounts.js';
+export * from './video-publish.js';

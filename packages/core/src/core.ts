@@ -62,6 +62,7 @@ import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
 import { musicExecutor } from './workflow/music-step.js';
+import { VideoPublish } from './publish/video-publish.js';
 import { getSecretDefault } from './secrets/credman.js';
 import { SfError } from './errors.js';
 import { MemorySecretStore, type SecretStore } from './secrets/store.js';
@@ -160,6 +161,8 @@ export interface Core {
   videoEvents: EventEmitter;
   /** Bộ đăng bài (053): tải lên các mục đã làm xong, xem trước/hủy/đăng ngay. */
   publisher: PublishService;
+  /** 091: bước `publish` của video làm tay. */
+  videoPublish: VideoPublish;
   /** Báo cáo ngày (054): thu số liệu YouTube Analytics, soạn và gửi Telegram. */
   reports: ReportService;
   /** Bộ thu số liệu YouTube Analytics vào SQLite (054). */
@@ -570,6 +573,13 @@ export function createCore(opts: CoreOptions = {}): Core {
   );
   // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
   workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));
+  // 091: đăng ngay lên nền tảng người dùng chọn (dùng chung bộ đăng 053/056)
+  const videoPublish = new VideoPublish({
+    appDataDir,
+    publish: publisher,
+    ...(opts.clock ? { clock: opts.clock } : {}),
+  });
+  workflows.registerExecutor('publish', videoPublish.executor());
   if (opts.start !== false) {
     queue.recover();
     queue.start();
@@ -591,6 +601,7 @@ export function createCore(opts: CoreOptions = {}): Core {
     videoEvents,
     autopilot,
     publisher,
+    videoPublish,
     reports,
     metrics: collector,
     learning,

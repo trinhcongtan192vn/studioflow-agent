@@ -78,6 +78,8 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `publish.tiktok.status` / `publish.facebook.status` | `{channel}` → `{connected, audited?, page_id?}` (056) |
 | `publish.tiktok.disconnect` / `publish.facebook.disconnect` | `{channel}` → `{ok}`: xóa token (056) |
 | `publish.cancel` / `publish.now` | `{channel, date, item_id, platform?}` → `{status, url?, note?}`: Hủy đăng / Đăng ngay trong cửa sổ phản đối (053) |
+| `publish.video.options` | `{channel, video}` → `{render: {id, output_profile} \| null, meta: {title, description, tags}, platforms: [{platform, label, connected, eligible, reason?, checked, state?}], requested_at}`: bộ chọn nền tảng của bước `publish` (091) |
+| `publish.video.start` | `{channel, video, platforms}` → tóm tắt workflow: ghi lựa chọn vào `publish-state.json` rồi chạy bước `publish`; `platforms` rỗng = không đăng (091) |
 | `telegram.status` | `{}` → `{enabled, state, reason?, bot_username?, chat_id_set, has_token, last_error?}`: bot Telegram đang chạy/tắt và vì sao (token sai, xung đột getUpdates…) (055) |
 | `telegram.test` | `{}` → `{ok}`: gửi tin thử vào `telegram.chat_id` (055) |
 | `telegram.set_token` | `{token}` → `{ok, bot_username}`: kiểm token bằng `getMe` rồi lưu bí mật `telegram_bot_token` qua `main`, khởi động lại bot (055) |

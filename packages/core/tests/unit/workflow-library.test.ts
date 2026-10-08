@@ -55,6 +55,7 @@ describe('validateManifest (007 FR-002)', () => {
         'publish-meta',
         'thumbnail',
         'render',
+        'publish',
       ].sort(),
     );
   });

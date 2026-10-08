@@ -55,6 +55,16 @@ describe('workflowNotices', () => {
     expect(r.map((x) => x.event)).toEqual(['done', 'finished']);
     expect(r[1]).toMatchObject({ outputs: ['renders/rd_1/video.mp4'] });
   });
+  it('091: when the last step is publish, "finished" still carries the release video', () => {
+    const r = workflowNotices({ r: 'done', p: 'failed' }, steps(['r', 'done'], ['p', 'done']), {
+      steps: {
+        r: { outputs: ['renders/rd_1/video.mp4'] },
+        p: { outputs: ['publish-state.json'] },
+      },
+    });
+    expect(r.map((x) => x.event)).toEqual(['done', 'finished']);
+    expect(r[1]!.outputs).toEqual(['publish-state.json', 'renders/rd_1/video.mp4']);
+  });
 });
 
 describe('noticeText (083)', () => {

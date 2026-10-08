@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JobInfo, VideoStateSummary } from '@studioflow/core';
 import { AdvancedPanel } from './AdvancedPanel';
-import { activityLabel, friendlyStepError, toolLabel } from './chat-format';
+import { activityLabel, friendlyStepError, isPublishWaiting, toolLabel } from './chat-format';
+import { PublishPicker } from './PublishPicker';
 import {
   feedbackFor,
   overall,
@@ -365,7 +366,9 @@ export function ProgressTab({
       : ov.state.kind === 'waiting'
         ? `Chờ bạn duyệt: ${ov.state.step.title}`
         : ov.state.kind === 'failed'
-          ? `Lỗi ở bước: ${ov.state.step.title}`
+          ? isPublishWaiting(errors[ov.state.step.id] ?? '')
+            ? `Chờ bạn chọn nền tảng: ${ov.state.step.title}`
+            : `Lỗi ở bước: ${ov.state.step.title}`
           : ov.state.kind === 'done'
             ? 'Đã xong mọi bước'
             : `Sẵn sàng: ${ov.state.next?.title ?? ''}`;
@@ -488,9 +491,18 @@ export function ProgressTab({
                     );
                   })()}
                 {err && (
-                  <div className="step-error" title={err}>
+                  <div className={`step-error${isPublishWaiting(err) ? ' wait' : ''}`} title={err}>
                     {friendlyStepError(err)}
                   </div>
+                )}
+                {/* 091: bộ chọn nền tảng / kết quả đăng */}
+                {s.id === 'publish' && s.status !== 'pending' && s.status !== 'running' && (
+                  <PublishPicker
+                    channel={channel}
+                    video={video}
+                    waiting={Boolean(err && isPublishWaiting(err))}
+                    status={`${s.status}:${err || ''}`}
+                  />
                 )}
               </div>
               <span className="step-actions">
