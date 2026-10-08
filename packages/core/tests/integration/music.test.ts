@@ -5,9 +5,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  appLibrary,
   BuildGraph,
   createCore,
   readMusicManifest,
+  scanAudio,
   renderBed,
   validateArtifact,
   type Core,
@@ -100,6 +102,40 @@ describe('music library (012 US1, US2)', () => {
       timeout_ms: 60_000,
     })) as { data: { result: { track_ids: string[] } } };
     expect(done.data.result.track_ids).toEqual([ids.slow90]);
+  });
+
+  it('084: files on disk go straight into the app library with their names and folder tags', async () => {
+    const src = tempDir('disk-');
+    try {
+      mkdirSync(path.join(src.dir, 'Hồi hộp'), { recursive: true });
+      writeFileSync(path.join(src.dir, 'Hồi hộp', 'Đêm tối.wav'), clickWav(70, 30));
+      writeFileSync(path.join(src.dir, 'notes.txt'), 'x');
+      const found = scanAudio([src.dir]);
+      expect(found).toEqual([
+        { path: path.join(src.dir, 'Hồi hộp', 'Đêm tối.wav'), tags: ['hồi hộp'] },
+      ]);
+      const job = core.queue.enqueue('music.library.add', {
+        channel_dir: c.dir,
+        payload: { files: [], disk_files: found, scope: 'app', tags: ['nền'] },
+      });
+      const done = (await core.gateway.call(session, 'job.wait', {
+        job_id: job.id,
+        timeout_ms: 120_000,
+      })) as { data: { status: string; result: { track_ids: string[]; skipped: unknown[] } } };
+      expect(done.data).toMatchObject({ status: 'succeeded', result: { skipped: [] } });
+      const m = readMusicManifest(appLibrary(t.dir));
+      const tr = m.tracks.find((x) => x.id === done.data.result.track_ids[0])!;
+      expect(tr).toMatchObject({
+        title: 'Đêm tối',
+        original_name: 'Đêm tối.wav',
+        tags: ['nền', 'hồi hộp'],
+      });
+      expect(existsSync(path.join(t.dir, 'music', tr.file))).toBe(true);
+      // không chép vào uploads/ của kênh
+      expect(existsSync(path.join(c.dir, 'uploads'))).toBe(false);
+    } finally {
+      src.cleanup();
+    }
   });
 
   it('AC-M1-04: "nhạc chậm, ~90 BPM, dài ≥ 3 phút" finds the right track', async () => {

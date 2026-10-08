@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { JobInfo } from '@studioflow/core';
 import { ExportDialog } from './ExportDialog';
 import { core } from './rpc';
+import { importProgress, importSummary, SCOPE_LABEL, type MusicScope } from './music-format';
 import { CaptionPanel } from './CaptionPanel';
 import { addContextRef } from './context-refs';
 import { StudioBridge } from './studio-bridge';
@@ -215,14 +216,46 @@ type Track = {
   analysis: { duration_ms: number; bpm?: number; energy: number };
 };
 
-/** UI-07 Nhạc: kho app + kênh, tìm bằng `music.find`, kéo thả/chọn file để nạp. */
+/**
+ * UI-07 Nhạc: kho app + kênh, tìm bằng `music.find`. 084: chọn kho để nạp (kênh / app), nạp nhiều file hoặc cả
+ * thư mục (thư mục con → thẻ), xem tiến độ, hủy giữa chừng.
+ */
 export function MusicTab({ channel }: { channel: string }) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<string[] | null>(null);
+  const [scope, setScope] = useState<MusicScope>('channel');
+  const [folderTags, setFolderTags] = useState(true);
+  const [job, setJob] = useState<{ id: string; done: number; total: number } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
+  const before = useRef<{ ids: Set<string>; scope: MusicScope }>({ ids: new Set(), scope });
   const load = () =>
     void core.call('music.list', { channel }).then((r) => setTracks(r.tracks as Track[]));
   useEffect(load, [channel]);
+  useEffect(() => {
+    if (!job) return;
+    return core.on('job.updated', (j) => {
+      if (j.id !== job.id) return;
+      if (j.status === 'queued' || j.status === 'running') {
+        setJob({ id: j.id, done: j.progress.done, total: j.progress.total });
+        return;
+      }
+      setJob(null);
+      load();
+      if (j.status === 'succeeded' && j.result)
+        setMsg({
+          tone: 'success',
+          text: importSummary(
+            j.result as Parameters<typeof importSummary>[0],
+            before.current.ids,
+            before.current.scope,
+          ),
+        });
+      else if (j.status === 'canceled')
+        setMsg({ tone: 'success', text: 'Đã dừng nạp. Bài nạp xong vẫn giữ.' });
+      else setMsg({ tone: 'error', text: j.error?.message ?? 'Nạp nhạc lỗi.' });
+    });
+  }, [job?.id]);
   const find = async () => {
     try {
       const r = (await core.call('music.find', { channel, query: q })) as {
@@ -233,23 +266,94 @@ export function MusicTab({ channel }: { channel: string }) {
       setFound([]);
     }
   };
-  const add = async () => {
-    const files = await window.studioflow.pickFiles();
-    if (files.length)
-      await core.call('music.add', { channel, paths_on_disk: files, scope: 'channel' });
+  const add = async (folder: boolean) => {
+    const picked = folder
+      ? await window.studioflow.pickFolder().then((d) => (d ? [d] : []))
+      : await window.studioflow.pickFiles();
+    if (!picked.length) return;
+    setMsg(undefined);
+    before.current = { ids: new Set(tracks.map((t) => t.id)), scope };
+    try {
+      const r = await core.call('music.add', {
+        channel,
+        paths_on_disk: picked,
+        scope,
+        folder_tags: folderTags,
+      });
+      setJob({ id: r.job_id, done: 0, total: r.files });
+      if (r.capped)
+        setMsg({
+          tone: 'error',
+          text: `Chỉ nạp ${r.files} file đầu tiên một lần; nạp tiếp phần còn lại sau.`,
+        });
+    } catch (e) {
+      setMsg({ tone: 'error', text: (e as Error).message });
+    }
   };
-  const shown = found ? tracks.filter((t) => found.includes(t.id)) : tracks;
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  const shown = found ? found.flatMap((id) => byId.get(id) ?? []) : tracks;
+  const count = (s: MusicScope) => tracks.filter((t) => t.scope === s).length;
   return (
-    <div>
+    <div className="music-tab" data-testid="music-tab">
+      <section className="music-import">
+        <div className="row">
+          <span className="muted">Nạp vào</span>
+          <div className="segmented" role="group" aria-label="Kho nhạc để nạp">
+            {(['channel', 'app'] as const).map((s) => (
+              <button
+                key={s}
+                className={scope === s ? 'active' : ''}
+                data-testid={`music-scope-${s}`}
+                onClick={() => setScope(s)}
+              >
+                Kho {SCOPE_LABEL[s].toLowerCase()} ({count(s)})
+              </button>
+            ))}
+          </div>
+          <button disabled={!!job} onClick={() => void add(false)}>
+            Nạp file…
+          </button>
+          <button disabled={!!job} onClick={() => void add(true)}>
+            Nạp thư mục…
+          </button>
+          <label className="field inline">
+            <input
+              type="checkbox"
+              checked={folderTags}
+              onChange={(e) => setFolderTags(e.target.checked)}
+            />
+            Tên thư mục con làm thẻ
+          </label>
+        </div>
+        <p className="muted">
+          {scope === 'app'
+            ? 'Kho app: mọi kênh đều dùng được.'
+            : 'Kho kênh: chỉ kênh này dùng, nằm trong thư mục kênh.'}{' '}
+          Nạp và phân tích chạy trên máy, không tốn token. Bài trùng nội dung được bỏ qua.
+        </p>
+        {job && (
+          <div className="row">
+            <progress max={job.total || 1} value={job.done} />
+            <span>{importProgress(job.done, job.total)}</span>
+            <button
+              className="ghost"
+              onClick={() => void core.call('job.cancel', { job_id: job.id })}
+            >
+              Dừng
+            </button>
+          </div>
+        )}
+        {msg && <p className={msg.tone}>{msg.text}</p>}
+      </section>
       <div className="row">
         <input
           placeholder="Tìm: nhạc chậm piano…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && void find()}
         />
         <button onClick={() => void find()}>Tìm</button>
         <button onClick={() => (setFound(null), load())}>Tất cả</button>
-        <button onClick={() => void add()}>Nạp…</button>
       </div>
       <table className="jobs">
         <tbody>
@@ -259,9 +363,14 @@ export function MusicTab({ channel }: { channel: string }) {
               <td>{Math.round(t.analysis.duration_ms / 1000)} s</td>
               <td>{t.analysis.bpm ? `${Math.round(t.analysis.bpm)} BPM` : ''}</td>
               <td>{t.tags.join(', ')}</td>
-              <td className="muted">{t.scope}</td>
+              <td className="muted">{SCOPE_LABEL[t.scope as MusicScope] ?? t.scope}</td>
             </tr>
           ))}
+          {!shown.length && (
+            <tr>
+              <td className="muted">{found ? 'Không có bài phù hợp.' : 'Kho nhạc trống.'}</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

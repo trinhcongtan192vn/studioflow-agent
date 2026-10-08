@@ -51,6 +51,8 @@ Bất biến:
 - `analysis` luôn được điền trước khi bài dùng được để tìm; `embedding` có từ M2.
 - Ghi `manifest.json` qua module ghi của Gateway (kho kênh như `artifact.write`; kho app là ghi nội bộ, D3 mục 8).
 
+Nạp từ giao diện (084): app (host) đọc thẳng file/thư mục người dùng chọn trên ổ đĩa — không qua `uploads/`, giữ tên file làm `title`, thư mục con (tính từ thư mục chọn) thành `tags` nếu bật; một job cho cả lần nạp (tiến độ, hủy). Tool của agent vẫn chỉ nhận file trong `uploads/`.
+
 ### 2.2 `music.find` / `sfx.find`
 
 ```ts

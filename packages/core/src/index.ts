@@ -254,6 +254,8 @@ export {
   trackById,
   recentVideoIds,
   markUsed,
+  scanAudio,
+  MAX_SCAN_FILES,
   type MusicLibrary,
   type AddInput,
 } from './music/library.js';
