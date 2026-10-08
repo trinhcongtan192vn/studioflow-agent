@@ -146,6 +146,8 @@ export class CoreHost extends EventEmitter {
       ...(opts.telegramFetch ? { fetch: opts.telegramFetch } : {}),
       ...(opts.telegramSleep ? { sleep: opts.telegramSleep } : {}),
       log: (level, msg) => this.core.gateway.logger.write(level, 'sf.telegram', { message: msg }),
+      // 083: màn Cài đặt cập nhật trạng thái bot khi bot kết nối xong / lỗi
+      onChange: () => this.send('telegram.updated', {}),
       // 054: /report soạn báo cáo ngay cho mọi kênh (không đánh dấu đã gửi)
       report: async () => {
         const r = await this.core.reports.run();
@@ -573,6 +575,11 @@ export class CoreHost extends EventEmitter {
       else this.replying.delete(busyKey);
       // 081: video agent vừa tạo ở lượt kênh này → chuyển yêu cầu sang phiên chat của video
       if (!video) this.flushHandoffs(channel);
+      // 083: agent vừa báo xong bước đang chờ người dùng trả lời → bước chạy tiếp
+      else if (!this.replying.has(busyKey))
+        void this.engine(channel, video)
+          .resumeAfterTurn()
+          .catch(() => {});
     }
   }
 

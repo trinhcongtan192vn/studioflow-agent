@@ -277,6 +277,9 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await expect(win.getByTestId('autopilot-background')).toBeChecked();
     // 076: ngân sách Claude/ngày đặt tay được
     await expect(win.getByTestId('daily-tokens')).toBeVisible();
+    // 083: đủ ba vai model text
+    for (const r of ['producer', 'critic', 'aux'])
+      await expect(win.getByTestId(`model-${r}`)).toBeAttached();
     // 071: Cài đặt chia mục; Telegram ở mục Kết nối
     await win
       .getByRole('navigation', { name: 'Mục cài đặt' })

@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { core } from './rpc';
+import { canTestTelegram, tgStateLabel, type TgStatus } from './telegram-format';
 
 type Msg = { tone: 'error' | 'success'; text: string } | undefined;
-type TgStatus = Awaited<ReturnType<typeof core.call<'telegram.status'>>>;
 type YtStatus = Awaited<ReturnType<typeof core.call<'publish.youtube.status'>>>;
 type SocialStatus = Awaited<ReturnType<typeof core.call<'publish.tiktok.status'>>>;
-
-const TG_STATE: Record<TgStatus['state'], string> = {
-  running: 'Đang chạy',
-  stopped: 'Đang dừng',
-  disabled: 'Đang tắt',
-};
 
 /** 071: bot Telegram (cấp app) — token, nhóm nhận tin, người được ra lệnh, bật/tắt, gửi tin thử. */
 export function TelegramSettings() {
@@ -27,7 +21,16 @@ export function TelegramSettings() {
       .call('settings.get', {})
       .then((s) => setCfg((s as { config: Record<string, unknown> }).config));
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    // 083: bot kết nối sau khi lưu token/bật → cập nhật trạng thái
+    return core.on('telegram.updated', () => {
+      void core
+        .call('telegram.status', {})
+        .then(setSt)
+        .catch(() => {});
+    });
+  }, []);
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try {
       await fn();
@@ -48,14 +51,14 @@ export function TelegramSettings() {
         <b>Telegram</b>
         {st && (
           <span className={`conn-state ${st.state === 'running' ? 'on' : ''}`}>
-            {TG_STATE[st.state]}
+            {tgStateLabel(st)}
             {st.bot_username ? ` · @${st.bot_username}` : ''}
           </span>
         )}
       </div>
       <p className="muted">
         Nhận báo cáo, duyệt / phản đối đăng video và ra lệnh cho Autopilot qua một nhóm Telegram.
-        {st?.reason ? ` ${st.reason}` : ''}
+        {st?.message ? ` ${st.message}` : ''}
       </p>
       <label className="field">
         Bot token {st?.has_token ? '(đã có — dán để thay)' : '(lấy từ @BotFather)'}
@@ -117,7 +120,8 @@ export function TelegramSettings() {
       </label>
       <div className="row">
         <button
-          disabled={st?.state !== 'running'}
+          disabled={!canTestTelegram(st)}
+          title={canTestTelegram(st) ? undefined : 'Cần token bot và Chat ID của nhóm'}
           onClick={() => void act(() => core.call('telegram.test', {}), 'Đã gửi tin thử vào nhóm.')}
         >
           Gửi tin thử

@@ -94,6 +94,9 @@ export function noticeText(n: WorkflowNotice): string {
     case 'waiting':
       return `⏸ Bước **${n.step_title}** đã xong và cần bạn duyệt. Xem kết quả rồi bấm **Duyệt** (hoặc ghi điều cần sửa).`;
     case 'failed':
+      // 083: agent dừng lượt để hỏi người dùng (chọn giọng…) — không phải lỗi
+      if (n.error?.endsWith('waiting for your reply in chat'))
+        return `💬 Bước **${n.step_title}** ${at} đang chờ bạn trả lời agent ở trên. Trả lời xong, agent hoàn tất bước và app làm tiếp.`;
       return `✕ Bước **${n.step_title}** gặp lỗi${n.error ? `: ${n.error}` : '.'}`;
     case 'finished':
       return '🎬 Video đã render xong.';

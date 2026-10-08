@@ -6,6 +6,7 @@ import {
   fileCtaLabel,
   friendlyStepError,
   groupRuns,
+  isAwaitingReply,
   isSoftWarning,
   noticeCtas,
   stepCtas,
@@ -684,9 +685,11 @@ function NoticeCard({
         <>
           <Markdown
             text={
-              notice.error && isSoftWarning(notice.error)
-                ? `⚠ Cảnh báo ở bước **${notice.step_title}** ${at} — cần bạn chọn`
-                : `✕ Lỗi ở bước **${notice.step_title}** ${at}`
+              notice.error && isAwaitingReply(notice.error)
+                ? `💬 Bước **${notice.step_title}** ${at} đang chờ bạn trả lời`
+                : notice.error && isSoftWarning(notice.error)
+                  ? `⚠ Cảnh báo ở bước **${notice.step_title}** ${at} — cần bạn chọn`
+                  : `✕ Lỗi ở bước **${notice.step_title}** ${at}`
             }
           />
           {notice.error && (
