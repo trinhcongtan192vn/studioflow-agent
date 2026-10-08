@@ -11,6 +11,9 @@ export interface ComfyImageRef {
  * Client HTTP/WS của một tiến trình ComfyUI (D4 mục 9.2, FN-018 mục 2): `/prompt`, tiến độ qua
  * `/ws?clientId=`, kết quả `/history` + `/view`, hủy `/interrupt` + `/queue`, giải phóng `/free`.
  */
+/** 077: thời gian chờ tối đa một ảnh. */
+export const COMFY_WAIT_MS = 15 * 60_000;
+
 export class ComfyClient {
   readonly clientId = `sf-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -78,8 +81,11 @@ export class ComfyClient {
       signal?: AbortSignal;
       onProgress?: (done: number, total: number) => void;
       pollMs?: number;
+      /** 077: chờ tối đa (mặc định 15 phút) — ComfyUI kẹt thì hủy lệnh và báo lỗi, không treo cả Autopilot. */
+      timeoutMs?: number;
     } = {},
   ): Promise<{ images: ComfyImageRef[] }> {
+    const deadline = Date.now() + (opts.timeoutMs ?? COMFY_WAIT_MS);
     let ws: WebSocket | undefined;
     try {
       ws = new WebSocket(`${this.baseUrl.replace(/^http/, 'ws')}/ws?clientId=${this.clientId}`);
@@ -105,6 +111,13 @@ export class ComfyClient {
         if (opts.signal?.aborted) {
           await this.cancel(promptId);
           throw new SfError('E_JOB_CANCELED', 'image job canceled');
+        }
+        if (Date.now() > deadline) {
+          await this.cancel(promptId);
+          throw new SfError(
+            'E_PROVIDER_FAILED',
+            `ComfyUI did not return an image within ${Math.round((opts.timeoutMs ?? COMFY_WAIT_MS) / 60_000) || 1} min — prompt canceled (ComfyUI may be stuck; it will be restarted)`,
+          );
         }
         const r = await fetch(`${this.baseUrl}/history/${promptId}`);
         const h = (await r.json()) as Record<
