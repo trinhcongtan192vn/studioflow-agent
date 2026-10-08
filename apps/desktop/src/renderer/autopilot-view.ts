@@ -4,6 +4,7 @@ export interface StatusView {
   paused: boolean;
   running: boolean;
   waiting_until?: string;
+  waiting_reason?: string;
   current?: { channel: string; video?: string; item_id: string; title: string; step_id?: string };
   today: { channel: string; name: string; date: string; items: { status: string }[] }[];
 }
@@ -17,7 +18,8 @@ const hhmm = (iso: string) => {
 /** Một câu: Autopilot đang làm gì. */
 export function statusLine(s: StatusView): string {
   if (s.paused) return 'Autopilot đang tạm dừng.';
-  if (s.waiting_until) return `Hết hạn mức Claude — chờ tới ${hhmm(s.waiting_until)} rồi làm tiếp.`;
+  if (s.waiting_until)
+    return `${s.waiting_reason ?? 'Hết hạn mức Claude'} — chờ tới ${hhmm(s.waiting_until)} rồi làm tiếp.`;
   if (s.running && s.current)
     return `Đang làm: "${s.current.title}"${s.current.step_id ? ` — bước ${s.current.step_id}` : ''}.`;
   const left = s.today.reduce(

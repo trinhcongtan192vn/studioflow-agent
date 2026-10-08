@@ -39,7 +39,8 @@ export function formatStatus(s: AutopilotStatus): string {
         ? '▶️ <b>Autopilot đang chạy</b>'
         : '🟢 <b>Autopilot đang chờ lượt</b>',
   );
-  if (s.waiting_until) lines.push(`⏳ Chờ hạn mức Claude tới ${e(s.waiting_until)}`);
+  if (s.waiting_until)
+    lines.push(`⏳ ${e(s.waiting_reason ?? 'Chờ hạn mức Claude')} — chờ tới ${e(s.waiting_until)}`);
   if (s.current)
     lines.push(
       `🎬 Đang làm: “${e(clip(s.current.title, 80))}”${s.current.step_id ? ` (bước ${e(s.current.step_id)})` : ''}`,

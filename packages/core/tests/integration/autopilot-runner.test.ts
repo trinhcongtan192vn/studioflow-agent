@@ -648,6 +648,50 @@ describe('lỗi bước: chạy lại một lần, rồi báo (NFR-11)', () => {
   });
 });
 
+describe('lỗi chung tạm thời: tạm dừng rồi làm tiếp, không đánh hỏng mục (078)', () => {
+  it('a network outage pauses 15 minutes, then the same step runs again and the item is produced', async () => {
+    const rig = makeRig({
+      scriptError: (id, n) =>
+        id === 'pi_a0000001' && n === 1 ? new Error('TypeError: fetch failed') : undefined,
+    });
+    setApp(rig.app, 'autopilot.work_window', '00:00-23:59');
+    const dir = rig.dirs[0]!;
+    rig.clock.now = new Date('2026-10-07T03:00:00Z');
+    writePlan(dir, [{ id: 'pi_a0000001' }, { id: 'pi_a0000002' }]);
+    const r1 = await rig.runner.tick();
+    expect(r1.outcomes.map((x) => x.outcome)).toEqual(['wait']);
+    expect(itemOf(dir, 'pi_a0000001').status).toBe('in_production');
+    expect(rig.runner.status().waiting_until).toBe('2026-10-07T03:15:00.000Z');
+    expect(logOf(dir).find((l) => l.event === 'outage.wait')).toMatchObject({
+      level: 'warn',
+      step_id: 'script',
+      message: expect.stringMatching(/mạng/),
+    });
+    rig.clock.now = new Date('2026-10-07T03:10:00Z');
+    expect((await rig.runner.tick()).skipped).toBe('limit_wait');
+    rig.clock.now = new Date('2026-10-07T03:16:00Z');
+    const r3 = await rig.runner.tick();
+    expect(r3.outcomes.map((x) => x.outcome)).toEqual(['produced', 'produced']);
+    expect(logOf(dir).some((l) => l.event === 'step.retry')).toBe(false);
+  });
+
+  it('Claude asking to log in again pauses an hour instead of failing every item', async () => {
+    const rig = makeRig({
+      scriptError: (id, n) =>
+        n === 1 ? new Error('Invalid API key · Please run /login') : undefined,
+    });
+    setApp(rig.app, 'autopilot.work_window', '00:00-23:59');
+    const dir = rig.dirs[0]!;
+    rig.clock.now = new Date('2026-10-07T03:00:00Z');
+    writePlan(dir, [{ id: 'pi_a0000001' }, { id: 'pi_a0000002' }]);
+    const r1 = await rig.runner.tick();
+    expect(r1.outcomes.map((x) => x.outcome)).toEqual(['wait']);
+    expect(rig.runner.status().waiting_until).toBe('2026-10-07T04:00:00.000Z');
+    expect(logOf(dir).find((l) => l.event === 'outage.wait')!.message).toMatch(/đăng nhập/);
+    expect(itemOf(dir, 'pi_a0000002').status).toBe('planned'); // không lan sang mục sau
+  });
+});
+
 describe('hết hạn mức Claude: chờ tới giờ reset rồi làm tiếp (NFR-11)', () => {
   it('pauses until the reset time in the message, then resumes the same video from the same step', async () => {
     const rig = makeRig({

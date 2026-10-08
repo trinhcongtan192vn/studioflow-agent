@@ -35,6 +35,10 @@ describe('platformState (074)', () => {
       text: 'Đã hẹn công khai 19:00 08/10',
     });
     expect(platformState({ status: 'private' }, null, now, TZ).text).toMatch(/Riêng tư/);
+    // 078: chưa kết nối → lý do
+    expect(
+      platformState({ status: 'pending', error: 'Kênh chưa kết nối TikTok' }, null, now, TZ),
+    ).toEqual({ tone: 'warn', text: 'Kênh chưa kết nối TikTok' });
     expect(platformState({ status: 'public' }, null, now, TZ)).toEqual({
       tone: 'ok',
       text: 'Đã công khai',

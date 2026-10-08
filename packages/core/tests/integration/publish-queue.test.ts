@@ -1,4 +1,6 @@
 // 074 — màn Duyệt trước khi đăng: video Autopilot đã làm xong, trạng thái đăng từng nền tảng, thông tin đăng.
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createVideo } from '../../src/domain/video.js';
 import { publishQueue } from '../../src/publish/queue-view.js';
@@ -98,6 +100,21 @@ describe('publishQueue (074)', () => {
     expect(q[0]!.render!.file).toMatch(/video\.mp4$/);
     // hết giờ phản đối → đã lên nền tảng (theo lịch)
     expect(publishQueue(s.dir, { now: new Date('2026-10-08T12:00:00Z') })[0]!.stage).toBe(
+      'published',
+    );
+  });
+
+  it('a platform that is not connected does not keep the video in "pending" (078)', () => {
+    const s = setup();
+    const f = path.join(s.dir, 'autopilot/plans/2026-10-08.json');
+    const plan = JSON.parse(readFileSync(f, 'utf8'));
+    plan.items[0].platforms = ['youtube', 'tiktok'];
+    plan.items[0].publish = {
+      youtube: { status: 'public', url: 'https://youtu.be/abc' },
+      tiktok: { status: 'pending', error: 'Kênh chưa kết nối TikTok' },
+    };
+    writeFileSync(f, JSON.stringify(plan));
+    expect(publishQueue(s.dir, { now: new Date('2026-10-08T08:00:00Z') })[0]!.stage).toBe(
       'published',
     );
   });
