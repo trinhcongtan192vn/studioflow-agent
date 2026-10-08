@@ -12,6 +12,8 @@ import {
   type Core,
   type TextService,
   type VideoState,
+  setAdvanced,
+  setConfig,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, fixtureVideo, tempDir } from '../domain-helpers.js';
 
@@ -126,6 +128,9 @@ beforeAll(() => {
   );
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Thử' }).video_id;
+  // 085: refine là tính năng nâng cao
+  setAdvanced(store, 'advanced.refine', true);
+  setConfig(store, 'refine.min_rounds', 2, { tier: 'channel' });
   // kịch bản có sẵn (line/beat của video mẫu)
   store.write(
     `videos/${videoId}/SCRIPT.md`,

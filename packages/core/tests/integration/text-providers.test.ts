@@ -62,10 +62,11 @@ describe('text providers (009 FR-001)', () => {
   it('OpenAI-compatible generate with the key, tokens/cost added to the video budget', async () => {
     const { s, dir } = svc((n) => (n === 'openai' ? 'sk-test-123' : undefined));
     const store = new WriteStore(dir);
+    // 085: OpenAI không còn là producer mặc định — chọn tường minh (không gọi Claude thật)
     const out = await s.generate(
       'primary',
       { role: 'primary', messages: [{ role: 'user', content: 'Chào' }], max_tokens: 50 },
-      { store, videoId: fixtureVideoId },
+      { store, videoId: fixtureVideoId, model: { provider: 'openai', model: 'gpt-5' } },
     );
     expect(out).toMatchObject({
       text: 'Xin chào',

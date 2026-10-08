@@ -108,12 +108,12 @@ steps:
 | `frame-build` | agent (`frame` × N) | — | frame packet | `compositions/frames/<fr>.html` | `lint`/`check` qua; `data-sf-id` đủ; mọi frame đã báo xong |
 | `animatic` | engine | — | `STORYBOARD.md`, `audio_meta.json`, asset | `renders/<rd>/` với `mode: animatic` (khung tĩnh theo frame + audio) | — |
 | `captions` | engine | — | `audio_meta.json`, `SCRIPT.md` | `caption_groups.json` | hợp lệ |
-| `music` | agent (`main`) + engine | — | `sf-scene.music`, kho nhạc | `public/music/*`, cập nhật `sf-scene.music.track_id` | mỗi scene có `track_id` hoặc `music: none` |
+| `music` | engine (085: `music.find` theo `music.query`/`mood` của scene, không phiên agent; chỉ chạy khi `advanced.music`) | — | `sf-scene.music`, kho nhạc | `public/music/*`, cập nhật `sf-scene.music.track_id` (storyboard đã duyệt giữ hiệu lực duyệt) | mỗi scene có `track_id` hoặc `music: none` |
 | `look` / `effects` / `overlays` | agent (`main`) | — | hồ sơ kênh | `sf-scene.look`, `sf-frame.effects/overlays` | — |
 | `thumbnail` (063) | engine | — | `publish.md`, BRIEF, `frame.md`, ảnh chụp frame | `thumbnail.jpg` (1280×720 ≤ 2 MB; video dọc bỏ qua) | `thumbnail_valid` |
 | `finish` (062) | agent (`main`) | — | hồ sơ kênh, danh mục look/hiệu ứng/overlay, hiện trạng từng frame | `sf-scene.look`, `sf-frame.effects/overlays` (một phiên cho cả ba) | `look_valid`, `effects_valid`, `overlays_valid` |
 | `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline); `asr_clean` (061: còn line ASR `mismatch` → cảnh báo sớm, vì render phát hành sẽ chặn; xử lý: nghe lại + `asr.accept` hoặc sửa chữ) |
-| `publish-meta` | engine (`text.generate` + `refine-loop`) | — | `BRIEF.md`, `SCRIPT.md`, `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
+| `publish-meta` | engine (`text.generate` vai `aux` + `refine-loop` khi `advanced.refine`) | — | 085: phụ đề SRT (`caption_groups.json` + bản sửa; chưa có → lời đọc `SCRIPT.md`), thông tin kênh (tên, ngôn ngữ, chủ đề trụ cột, `style-guide.md`, `preferences.md`), `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
 | `render` | engine | `mode: 'draft' \| 'release'` | `index.html` | `renders/<rd>/` (+ `CREDITS.txt`, `description.txt` khi release) | gate phát hành (D4) khi `release` |
 
 - **agent:** Engine gửi cho phiên một chỉ dẫn chuẩn `Thực hiện bước <id> của workflow <wf> theo skill. Đầu vào: … Đầu ra: …` và chờ `workflow.step_complete`. Quá `maxTurns` hoặc agent dừng mà chưa báo xong → bước `failed` (`E_STEP_INCOMPLETE`).
@@ -164,7 +164,7 @@ Mặc định engine tự chạy liên tiếp các bước không cần duyệt;
 ### 4.1 Thuật toán
 
 ```
-input: step, artifact_path, producer_cfg, critic_cfg, rubric, min=2, max=3, threshold
+input: step, artifact_path, producer_cfg, critic_cfg, rubric, min=1, max=2, threshold
 reserve = estimate_cost(producer_cfg, critic_cfg) * min
 if budget_remaining < reserve: ask_user(add_budget | run_once | cancel)
 draft = producer.generate(prompt_pack[step], brief, notes)
@@ -181,8 +181,9 @@ write artifact (draft cuối) ; step.refine = {rounds, final_score, incomplete}
 engine tạo approval kèm tóm tắt các vòng
 ```
 - **Kiểm "khác model":** `critic.provider + model` ≠ `producer.provider + model`, nếu không → `E_REFINE_SAME_MODEL`. Khi cả hai là Claude (chưa có khóa ngoài) thì model phải khác tầng và tóm tắt ghi "critic cùng hãng".
-- Producer cho `script`/`publish-meta`: `text.generate` vai `primary`. Producer cho `storyboard`: phiên `producer` (D5). Critic: `text.review` định tuyến theo artifact (kịch bản/tiêu đề → `text.claude`; storyboard → model ngoài, thiếu khóa thì Claude khác tầng).
+- Producer cho `script`: `text.generate` vai `primary`; `publish-meta` (085): vai `aux`. Producer cho `storyboard`: phiên `producer` (D5). Critic: `text.review` định tuyến theo artifact (kịch bản/tiêu đề → `text.claude`; storyboard → model ngoài, thiếu khóa thì Claude khác tầng).
 - `min`, `max`, `threshold` lấy từ khóa `refine.*` (D3 mục 7.2), workflow có thể ghi đè trong `refine`.
+- **085 — refine là tính năng nâng cao:** vòng lặp chỉ chạy khi manifest bật `refine` **và** `advanced.refine` = true. Tắt → `draft = producer.generate(...)`; `checks = objective_checks(draft)`; có kiểm trượt → một lần `producer.revise(draft, failing checks)` (không critic); giữ bản ít kiểm trượt hơn. Không ghi `ReviewRound`, không đặt `step.refine`; cổng chất lượng Autopilot coi bước là "không có refine".
 
 ### 4.2 Kiểm tra khách quan
 

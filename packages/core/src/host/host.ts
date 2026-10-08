@@ -14,6 +14,7 @@ import type {
   VideoState,
 } from '../contracts/types.js';
 import { defaultAppDataDir, resolveConfig, setConfig } from '../config/resolve.js';
+import { advancedFlags, setAdvanced } from '../config/advanced.js';
 import { createCore, type Core, type CoreOptions } from '../core.js';
 import { detectChannel, initChannel, updateChannelInfo } from '../domain/channel.js';
 import { newId } from '../domain/ids.js';
@@ -1275,6 +1276,22 @@ export class CoreHost extends EventEmitter {
       }
       case 'workflow.progress':
         return { steps: this.engine(p.channel, p.video).progress() };
+      case 'advanced.get':
+        return {
+          flags: advancedFlags(
+            path.resolve(p.channel),
+            p.video ? String(p.video) : undefined,
+            c.appDataDir,
+          ),
+        };
+      case 'advanced.set':
+        setAdvanced(
+          this.store(p.channel),
+          String(p.key),
+          p.value as boolean | null,
+          p.video ? String(p.video) : undefined,
+        );
+        return { ok: true };
       case 'workflow.set_autopilot': {
         setConfig(this.store(p.channel), 'workflow.autopilot', p.on === true, {
           tier: 'video',

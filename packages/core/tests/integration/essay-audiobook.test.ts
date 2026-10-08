@@ -168,7 +168,7 @@ describeStudio('essay-audiobook end to end (029 FR-WF-07)', () => {
       await e.approve(pending.id);
     }
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
-    expect(agentSteps).toEqual(['storyboard', 'finish', 'music']);
+    expect(agentSteps).toEqual(['storyboard', 'finish']); // 085: nhạc tắt mặc định
 
     // tầng workflow (D3 7.1): ghi đè kênh (kênh mẫu đặt caption.max_words = 6), video vẫn thắng
     const scope = { channelDir: c.dir, videoId };

@@ -61,6 +61,8 @@ Engine đã sinh ảnh cho mọi `asset_request: { source: generate }`. Bạn ch
 
 ## Bước `music`
 
+> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
+
 Như workflow narrated-explainer, nhưng **nhạc theo scene**: mỗi scene `music.find` với `query` của scene (mô tả tiếng Anh). Có kết quả → `music: { track_id: mt_…, volume_db: -20 }`. Không có kết quả (`E_MUSIC_NOT_FOUND`, kể cả kho trống) là bình thường: thử lại một lần ít bộ lọc hơn; vẫn không có → đặt `music: none` cho scene đó, vẫn ghi `STORYBOARD.md` và gọi `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}` — không dừng chờ người dùng, không bịa `track_id`.
 
 ## Bước `finish` (M3, 062)

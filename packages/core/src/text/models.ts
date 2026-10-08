@@ -9,7 +9,7 @@ export interface ModelRef {
 
 export const TEXT_PROVIDERS = ['claude', 'openai', 'deepseek'] as const;
 
-/** Mặc định `[chờ S14]` (009 research R2). */
+/** Model theo hãng (009 research R2; 085: `critic` của Claude = model mạnh dùng khi `advanced.reasoning`). */
 export const DEFAULT_MODELS = {
   claude: { primary: 'claude-sonnet-5-5', critic: 'claude-opus-5-5', aux: 'claude-haiku-4-5' },
   openai: { primary: 'gpt-5' },
@@ -27,30 +27,43 @@ export function parseModelRef(s: string): ModelRef {
   return { provider: m[1]!, model: m[2]! };
 }
 
+const claude = (model: string): ModelRef => ({ provider: 'claude', model });
+const deepseek = (): ModelRef => ({ provider: 'deepseek', model: DEFAULT_MODELS.deepseek.primary });
+
 /**
- * `text.producer/critic/aux` theo tầng cấu hình; không đặt → mặc định D4 mục 4.3: producer OpenAI nếu
- * có khóa, không thì Claude; critic Claude khác tầng; aux rẻ nhất có khóa.
+ * `text.producer/critic/aux` theo tầng cấu hình; không đặt → mặc định D4 mục 4.3 (085): `advanced.reasoning`
+ * tắt → producer DeepSeek nếu có khóa, không thì Sonnet; critic Sonnet (producer Sonnet → Haiku). Bật →
+ * producer Opus, critic Sonnet. Aux: DeepSeek nếu có khóa, không thì Haiku.
  */
 export function resolveTextModels(
   scope: ConfigScope,
-  opts: { appDataDir?: string; getSecret: (name: string) => string | undefined },
+  opts: {
+    appDataDir?: string;
+    getSecret: (name: string) => string | undefined;
+    /** Ghi đè `advanced.reasoning` (test); không đặt → giải theo tầng. */
+    reasoning?: boolean;
+  },
 ): { producer: ModelRef; critic: ModelRef; aux: ModelRef } {
-  const cfg = (k: string) =>
-    resolveConfig<string | null>(k, scope, { appDataDir: opts.appDataDir }).value;
-  const producer = cfg('text.producer')
-    ? parseModelRef(cfg('text.producer')!)
-    : opts.getSecret('openai')
-      ? { provider: 'openai', model: DEFAULT_MODELS.openai.primary }
-      : { provider: 'claude', model: DEFAULT_MODELS.claude.primary };
-  let critic = cfg('text.critic')
-    ? parseModelRef(cfg('text.critic')!)
-    : { provider: 'claude', model: DEFAULT_MODELS.claude.critic };
-  if (!cfg('text.critic') && producer.provider === 'claude' && producer.model === critic.model) {
-    critic = { provider: 'claude', model: DEFAULT_MODELS.claude.primary };
-  }
-  const aux = cfg('text.aux')
-    ? parseModelRef(cfg('text.aux')!)
-    : { provider: 'claude', model: DEFAULT_MODELS.claude.aux };
+  const cfg = <T>(k: string) => resolveConfig<T>(k, scope, { appDataDir: opts.appDataDir }).value;
+  const reasoning = opts.reasoning ?? cfg<boolean>('advanced.reasoning') === true;
+  const hasDeepseek = Boolean(opts.getSecret('deepseek'));
+  const set = (k: string) => {
+    const v = cfg<string | null>(k);
+    return v ? parseModelRef(v) : undefined;
+  };
+  const producer =
+    set('text.producer') ??
+    (reasoning
+      ? claude(DEFAULT_MODELS.claude.critic)
+      : hasDeepseek
+        ? deepseek()
+        : claude(DEFAULT_MODELS.claude.primary));
+  const sonnetWrites =
+    producer.provider === 'claude' && producer.model === DEFAULT_MODELS.claude.primary;
+  const critic =
+    set('text.critic') ??
+    claude(sonnetWrites ? DEFAULT_MODELS.claude.aux : DEFAULT_MODELS.claude.primary);
+  const aux = set('text.aux') ?? (hasDeepseek ? deepseek() : claude(DEFAULT_MODELS.claude.aux));
   return { producer, critic, aux };
 }
 

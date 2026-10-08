@@ -6,23 +6,36 @@ import { fixtureAppData, fixtureChannel, fixtureVideoId } from '../domain-helper
 const scope = { channelDir: fixtureChannel, videoId: fixtureVideoId };
 
 describe('text models (009 US2)', () => {
-  it('defaults to Claude tiers without external keys', () => {
+  it('085: cheap Claude tiers without external keys', () => {
     expect(
       resolveTextModels(scope, { appDataDir: fixtureAppData, getSecret: () => undefined }),
     ).toEqual({
       producer: { provider: 'claude', model: 'claude-sonnet-5-5' },
-      critic: { provider: 'claude', model: 'claude-opus-5-5' },
+      critic: { provider: 'claude', model: 'claude-haiku-4-5' },
       aux: { provider: 'claude', model: 'claude-haiku-4-5' },
     });
   });
 
-  it('prefers OpenAI as producer when an OpenAI key exists', () => {
+  it('085: DeepSeek writes and helps when its key exists; Claude Sonnet reviews', () => {
     const m = resolveTextModels(scope, {
       appDataDir: fixtureAppData,
-      getSecret: (n) => (n === 'openai' ? 'sk-x' : undefined),
+      getSecret: (n) => (n === 'deepseek' || n === 'openai' ? 'sk-x' : undefined),
     });
-    expect(m.producer).toEqual({ provider: 'openai', model: 'gpt-5' });
-    expect(m.critic.provider).toBe('claude');
+    expect(m).toEqual({
+      producer: { provider: 'deepseek', model: 'deepseek-chat' },
+      critic: { provider: 'claude', model: 'claude-sonnet-5-5' },
+      aux: { provider: 'deepseek', model: 'deepseek-chat' },
+    });
+  });
+
+  it('085: advanced.reasoning picks Opus to write and Sonnet to review', () => {
+    const m = resolveTextModels(scope, {
+      appDataDir: fixtureAppData,
+      getSecret: () => undefined,
+      reasoning: true,
+    });
+    expect(m.producer).toEqual({ provider: 'claude', model: 'claude-opus-5-5' });
+    expect(m.critic).toEqual({ provider: 'claude', model: 'claude-sonnet-5-5' });
   });
 
   it('config keys override defaults', () => {

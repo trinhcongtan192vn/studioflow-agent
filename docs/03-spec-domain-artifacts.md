@@ -661,6 +661,9 @@ interface SettingsConfig extends Versioned {
 | `provider.<capability>` | string | app, channel, video |
 | `text.producer` / `text.critic` / `text.aux` | string (`<provider>/<model>`) | app, channel, video |
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | number | channel, video |
+| `advanced.refine` | boolean (vòng viết–chấm–sửa cho bước có `refine`; false = một bản nháp + kiểm khách quan, 085) | app, channel, video |
+| `advanced.music` | boolean (bước nhạc nền; false = bỏ qua bước `music`, 085) | app, channel, video |
+| `advanced.reasoning` | boolean (model mạnh mặc định cho `text.*` chưa đặt; false = model rẻ, 085) | app, channel, video |
 | `frame.min_duration_ms` | Ms | channel, video, scene, frame |
 | `frame_build.parallel` | number | app |
 | `frame_build.model` | string (model Claude) | app, channel |
@@ -714,6 +717,8 @@ interface SettingsConfig extends Versioned {
 | `publish.veto_hours` | number | app, channel |
 
 `workflow.autopilot` là **"Tự duyệt bước"** (034: engine tự duyệt các điểm duyệt trong một video, trừ điểm chốt `workflow.key_approvals`). `autopilot.*` là chế độ **Autopilot** theo kênh (M6, 047): kênh bật `autopilot.enabled` thì "Tự duyệt bước" luôn bật cho video của kênh.
+
+`advanced.*` là **tính năng nâng cao** (085): mặc định tắt; chỉ đặt ở app, kênh, video — `config_defaults` của workflow không đặt các khóa này.
 
 Giá trị mặc định của từng khóa: `tech-defaults.md` mục 7 (đổi mặc định không phải đổi spec hệ thống).
 

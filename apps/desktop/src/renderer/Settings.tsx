@@ -367,19 +367,19 @@ const MODEL_ROLES = [
   {
     key: 'text.producer',
     label: 'Model viết',
-    hint: 'Viết kịch bản, storyboard, mô tả. Mặc định: OpenAI nếu có khóa, không thì Claude Sonnet.',
+    hint: 'Viết kịch bản. Để trống = tự chọn: DeepSeek nếu có khóa, không thì Claude Sonnet; bật Model mạnh (Nâng cao) → Claude Opus.',
     placeholder: 'claude/claude-sonnet-5-5',
   },
   {
     key: 'text.critic',
     label: 'Model chấm',
-    hint: 'Chấm điểm và góp ý bản nháp; phải khác model viết. Mặc định: Claude Opus.',
-    placeholder: 'claude/claude-opus-5-5',
+    hint: 'Chấm điểm bản nháp khi bật Viết – chấm – sửa (Nâng cao); phải khác model viết. Để trống = Claude Sonnet (Haiku nếu model viết là Sonnet).',
+    placeholder: 'claude/claude-sonnet-5-5',
   },
   {
     key: 'text.aux',
     label: 'Model phụ',
-    hint: 'Việc nhỏ (tóm tắt, đặt tên…). Mặc định: Claude Haiku.',
+    hint: 'Tiêu đề, mô tả, thumbnail và việc nhỏ. Để trống = DeepSeek nếu có khóa, không thì Claude Haiku.',
     placeholder: 'claude/claude-haiku-4-5',
   },
 ] as const;
@@ -403,9 +403,9 @@ function Models() {
     });
   }, []);
   const save = async () => {
-    const p = vals['text.producer'].trim() || 'claude/claude-sonnet-5-5';
-    const c = vals['text.critic'].trim() || 'claude/claude-opus-5-5';
-    if (p === c) {
+    const p = vals['text.producer'].trim();
+    const c = vals['text.critic'].trim();
+    if (p && p === c) {
       setMsg({ tone: 'error', text: 'Model chấm phải khác model viết.' });
       return;
     }
@@ -430,7 +430,7 @@ function Models() {
           <input
             list="sf-models"
             data-testid={`model-${r.key.slice(5)}`}
-            placeholder={`Mặc định — ${r.placeholder}`}
+            placeholder={`Tự chọn — ví dụ ${r.placeholder}`}
             value={vals[r.key]}
             onChange={(e) => setVals((v) => ({ ...v, [r.key]: e.target.value }))}
           />

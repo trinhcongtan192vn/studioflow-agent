@@ -20,6 +20,7 @@ import {
   type SessionContext,
   type TextService,
   type VideoState,
+  setAdvanced,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { sampleFrame } from '../frame-helpers.js';
@@ -197,6 +198,8 @@ beforeAll(() => {
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Vì sao trời xanh' }).video_id;
+  // 085: bật nhạc nền — engine chọn nhạc (kho trống → music: none), không giao agent
+  setAdvanced(store, 'advanced.music', true);
   const briefRel = `videos/${videoId}/BRIEF.md`;
   const brief = parseBlocksDoc(readFileSync(store.abs(briefRel), 'utf8'));
   brief.body = [
@@ -238,7 +241,7 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
     expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
     expect(asked).toContain('overwrite_approved');
     // assets do engine (nút asset, 023): không có layer cần ảnh thư viện → không giao agent
-    expect(agentSteps).toEqual(['storyboard', 'finish', 'music']);
+    expect(agentSteps).toEqual(['storyboard', 'finish']);
     const st = state();
     expect(Object.fromEntries(Object.entries(st.steps).map(([k, s]) => [k, s.status]))).toEqual({
       design: 'done',

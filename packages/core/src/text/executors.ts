@@ -1,5 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
-import type { Provenance, ReviewRound, Rubric, StepState } from '../contracts/types.js';
+import path from 'node:path';
+import type {
+  CaptionGroups,
+  CaptionOverrides,
+  Provenance,
+  ReviewRound,
+  Rubric,
+  StepState,
+} from '../contracts/types.js';
+import { captionsToSrt } from '../publish/youtube-meta.js';
 import { resolveConfig } from '../config/resolve.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
@@ -141,8 +150,18 @@ export interface Plan {
   max: number;
   threshold: number;
   sameVendor: boolean;
+  /** Vai gọi `text.generate`: `primary` (producer) hoặc `aux` (085: tiêu đề/mô tả). */
+  role: 'primary' | 'aux';
   producer: ModelRef;
   critic: ModelRef;
+}
+
+/** 085: bước có `refine` trong manifest chỉ chạy vòng viết–chấm–sửa khi `advanced.refine` bật. */
+export function refineEnabled(
+  step: { refine?: { enabled?: boolean } },
+  cfg: (key: string) => unknown,
+): boolean {
+  return Boolean(step.refine?.enabled) && cfg('advanced.refine') === true;
 }
 
 export function refinePlan(
@@ -150,11 +169,14 @@ export function refinePlan(
   text: TextService,
   packDir: string | undefined,
   defaultRubric: string,
+  role: 'primary' | 'aux' = 'primary',
 ): Plan {
   const r = env.ctx.step.refine;
   const m = text.models(env.scope);
-  const enabled = Boolean(r?.enabled);
-  const same = enabled ? assertDifferentModels(m.producer, m.critic).sameVendor : false;
+  // 085: refine là tính năng nâng cao — manifest bật VÀ `advanced.refine` bật
+  const enabled = refineEnabled(env.ctx.step, env.cfg);
+  const producer = role === 'aux' ? m.aux : m.producer;
+  const same = enabled ? assertDifferentModels(producer, m.critic).sameVendor : false;
   return {
     enabled,
     ...(enabled
@@ -169,7 +191,8 @@ export function refinePlan(
     max: enabled ? (r?.max_rounds ?? Number(env.cfg('refine.max_rounds'))) : 1,
     threshold: r?.threshold ?? Number(env.cfg('refine.threshold')),
     sameVendor: same,
-    producer: m.producer,
+    role,
+    producer,
     critic: m.critic,
   };
 }
@@ -311,16 +334,29 @@ async function refineText(
   });
   const gen = (content: string) =>
     d.text.generate(
-      'primary',
-      { role: 'primary', messages: [{ role: 'user', content }], max_tokens: o.maxTokens },
+      plan.role,
+      { role: plan.role, messages: [{ role: 'user', content }], max_tokens: o.maxTokens },
       env.scope,
     );
   const first = o.prompt(vars());
   const perRound = Math.ceil(first.length / 3) * 2 + o.maxTokens * 2;
   const canSpend = await budgetGuard(env, perRound, plan.min, d.permissions);
   if (!plan.enabled) {
-    const g = await gen(first);
-    const draft = o.normalize(g.text);
+    // 085: một bản nháp + kiểm khách quan trên máy; trượt → một lần sửa với đúng các lỗi đó (không critic)
+    let draft = o.normalize((await gen(first)).text);
+    const failed = o.checks(draft).filter((c) => !c.pass);
+    if (failed.length) {
+      env.ctx.progress?.(1, 2, 'Sửa lỗi định dạng của bản nháp');
+      const issues: Issue[] = failed.map((c) => ({
+        severity: 'major',
+        text: `Kiểm ${c.id} chưa qua${c.detail ? `: ${c.detail}` : ''}`,
+      }));
+      const fixed = o.normalize(
+        (await gen(o.revisePrompt(vars({ draft: bodyOf(draft), issues: issuesText(issues) }))))
+          .text,
+      );
+      if (o.checks(fixed).filter((c) => !c.pass).length <= failed.length) draft = fixed;
+    }
     return { draft, rounds: [], final_score: 0, incomplete: false };
   }
   return runRefine({
@@ -482,16 +518,66 @@ function chapters(env: StepEnv): { start_ms: number; title: string }[] {
   });
 }
 
+/** Đọc JSON nếu có, lỗi/thiếu → undefined. */
+function readJson<T>(file: string): T | undefined {
+  try {
+    return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 085: phụ đề SRT của video (lời đọc kèm mốc thời gian) từ `caption_groups.json` + bản sửa tay; chưa có
+ * phụ đề → lời đọc trong `SCRIPT.md` (không mốc).
+ */
+export function videoSrt(env: StepEnv): string {
+  const abs = (f: string) => env.ctx.store.abs(`${env.v}/${f}`);
+  const srt = captionsToSrt(
+    readJson<CaptionGroups>(abs('caption_groups.json')),
+    readJson<CaptionOverrides>(abs('caption-overrides.json')),
+  );
+  if (srt) return srt;
+  if (!existsSync(abs('SCRIPT.md'))) return '';
+  const doc = parseScript(env.read(`${env.v}/SCRIPT.md`));
+  return doc.lines.map((l) => l.text).join('\n');
+}
+
+const CHANNEL_NOTE_MAX = 1500;
+
+/** 085: thông tin kênh cho tiêu đề/mô tả: tên, ngôn ngữ, chủ đề trụ cột, style guide, sở thích. */
+export function channelContext(env: StepEnv): string {
+  const ch =
+    readJson<{ name?: string; language?: string }>(path.join(env.ctx.channelDir, 'channel.json')) ??
+    {};
+  const pillars = (env.cfg('autopilot.pillars') as string[] | null) ?? [];
+  const note = (f: string) => {
+    const file = path.join(env.ctx.channelDir, 'profile', 'references', f);
+    if (!existsSync(file)) return '';
+    const t = readFileSync(file, 'utf8').trim();
+    return t.length > CHANNEL_NOTE_MAX ? `${t.slice(0, CHANNEL_NOTE_MAX)}…` : t;
+  };
+  return [
+    `Tên kênh: ${ch.name ?? ''}`,
+    `Ngôn ngữ: ${ch.language ?? env.language}`,
+    ...(pillars.length ? [`Chủ đề trụ cột: ${pillars.join(', ')}`] : []),
+    note('style-guide.md'),
+    note('preferences.md'),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 /** Executor bước `publish-meta` (D6 mục 2): tiêu đề/mô tả/thẻ/chương → `publish.md`. */
 export function publishMetaExecutor(d: TextExecutorDeps) {
   return async (ctx: StepRunContext): Promise<TextStepResult> => {
-    const env = stepEnv(ctx);
-    const plan = refinePlan(env, d.text, ctx.packDir, 'meta-default');
+    // 085: chỉ phụ đề SRT + thông tin kênh (không brief/storyboard), model aux
+    const env = { ...stepEnv(ctx) };
+    env.brief = channelContext(env);
+    const plan = refinePlan(env, d.text, ctx.packDir, 'meta-default', 'aux');
     const pack = loadPromptPack(ctx.channelDir);
     const scope = { channelDir: ctx.channelDir, videoId: ctx.videoId, appDataDir: ctx.appDataDir };
-    const script = existsSync(ctx.store.abs(`${env.v}/SCRIPT.md`))
-      ? bodyOf(env.read(`${env.v}/SCRIPT.md`))
-      : '';
+    const srt = videoSrt(env);
     const octx = objectiveContext(
       ctx.channelDir,
       ctx.videoId,
@@ -540,7 +626,13 @@ export function publishMetaExecutor(d: TextExecutorDeps) {
       };
     };
     const r = await refineText(env, d, plan, {
-      prompt: (v) => buildPrompt(pack, 'description', { ...v, draft: script }, scope).text,
+      prompt: (v) =>
+        buildPrompt(
+          pack,
+          'description',
+          { ...v, draft: srt, ...({ srt, channel: env.brief } as object) } as PromptVars,
+          scope,
+        ).text,
       revisePrompt: (v) =>
         `${buildPrompt(pack, 'revise', v, scope).text}\n\nTrả về đúng một JSON {"title": "...", "description": "...", "tags": ["..."]}.`,
       normalize,

@@ -53,6 +53,8 @@ Nền mỗi scene: `asset_request: { source: generate, prompt: "<bối cảnh, p
 
 ## Bước `music`
 
+> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
+
 Nhạc theo không khí từng scene (`music.find`, query tiếng Anh). Không có kết quả → `music: none` cho scene đó, vẫn ghi `STORYBOARD.md` và `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
 ## Bước `finish` (M3, 062)
 

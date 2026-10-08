@@ -33,6 +33,7 @@ import {
   decideRefine,
   type Decision,
 } from './gates.js';
+import { refineEnabled } from '../text/executors.js';
 import { limitResumeAt, parseLimit } from './limit.js';
 import { markPlanItem, planDates, readPlan, type PlanTodayResult } from './plan.js';
 
@@ -546,7 +547,9 @@ export class AutopilotRunner extends EventEmitter {
       const threshold =
         step.refine?.threshold ??
         Number(this.cfg<number>('refine.threshold', ctx.store.root, ctx.videoId));
-      d = decideRefine(ctx.refine, { configured: Boolean(step.refine?.enabled), threshold });
+      // 085: refine chỉ chạy khi `advanced.refine` bật — tắt thì bước coi như không có refine
+      const configured = refineEnabled(step, (k) => this.cfg(k, ctx.store.root, ctx.videoId));
+      d = decideRefine(ctx.refine, { configured, threshold });
     }
     const a = st.autopilot;
     if (a)

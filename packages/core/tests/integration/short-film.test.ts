@@ -19,6 +19,8 @@ import {
   type SessionContext,
   type TextService,
   type VideoState,
+  setAdvanced,
+  setConfig,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { frameRuntime } from '../workflow-e2e-helpers.js';
@@ -247,6 +249,9 @@ beforeAll(() => {
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Chiếc ô bị quên' }).video_id;
+  // 085: test đường refine — bật tính năng nâng cao, giữ 2 vòng như trước
+  setAdvanced(store, 'advanced.refine', true);
+  setConfig(store, 'refine.min_rounds', 2, { tier: 'channel' });
   for (const [f, ms] of [
     ['narrator', 4000],
     ['mai', 4500],
@@ -310,7 +315,7 @@ describeStudio('short-film end to end (031 FR-WF-08)', () => {
       `tl.set("[data-sf-id=\\"${mouthAnchor}\\"] [data-sf-mouth=\\"open\\"]", { opacity: 1 }, `,
     );
     expect(existsSync(path.join(v(), 'public', 'mouths', 'flat', 'front', 'open.svg'))).toBe(true);
-    expect(agentSteps).toEqual(['cast', 'finish', 'music']);
+    expect(agentSteps).toEqual(['cast', 'finish']); // 085: nhạc tắt mặc định
 
     // nhân vật lưu cấp kênh, dùng lại giữa video
     const mai = JSON.parse(

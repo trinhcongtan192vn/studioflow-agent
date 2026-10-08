@@ -70,7 +70,8 @@ describe('prompt pack (009 US3)', () => {
     const p = buildPrompt(
       pack,
       'description',
-      { ...vars, draft: 'câu thoại '.repeat(3000) },
+      // 085: mẫu mô tả của app nhận phụ đề qua {{srt}}
+      { ...vars, draft: 'câu thoại '.repeat(3000), srt: 'câu thoại '.repeat(3000) } as typeof vars,
       {
         channelDir: fixtureChannel,
       },

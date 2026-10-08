@@ -61,6 +61,7 @@ import { createTextService, type TextService } from './text/service.js';
 import { defaultWorkflowDirs } from './workflow/packs.js';
 import { WorkflowService } from './workflow/service.js';
 import { workflowTools } from './workflow/tools.js';
+import { musicExecutor } from './workflow/music-step.js';
 import { getSecretDefault } from './secrets/credman.js';
 import { SfError } from './errors.js';
 import { MemorySecretStore, type SecretStore } from './secrets/store.js';
@@ -558,6 +559,14 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor(
     'publish-meta',
     publishMetaExecutor({ text, permissions: gateway.permissions }),
+  );
+  // 085: nhạc nền do engine chọn (không phiên agent); chỉ chạy khi `advanced.music` bật
+  workflows.registerExecutor(
+    'music',
+    musicExecutor({
+      appDataDir,
+      ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
+    }),
   );
   // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
   workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));

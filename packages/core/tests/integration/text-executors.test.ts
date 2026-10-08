@@ -23,18 +23,22 @@ const usage = { input: 10, output: 5 };
 function stubText(answers: {
   gen: string[];
   scores?: number[];
-}): TextService & { prompts: string[] } {
+}): TextService & { prompts: string[]; roles: string[]; reviews: () => number } {
   const prompts: string[] = [];
+  const roles: string[] = [];
   let g = 0;
   let r = 0;
   return {
     prompts,
+    roles,
+    reviews: () => r,
     models: () => ({
       producer: { provider: 'claude', model: 'p' },
       critic: { provider: 'claude', model: 'c' },
       aux: { provider: 'claude', model: 'a' },
     }),
-    generate: async (_role, input) => {
+    generate: async (role, input) => {
+      roles.push(role);
       prompts.push(input.messages.map((m) => m.content).join('\n'));
       return {
         text: answers.gen[Math.min(g++, answers.gen.length - 1)]!,
@@ -70,6 +74,15 @@ function ctxFor(dir: string, step: StepDecl): StepRunContext {
   };
 }
 
+/** Ghi đè cấu hình tầng video (085: bật tính năng nâng cao cho một video). */
+function setVideoConfig(dir: string, key: string, value: unknown) {
+  const store = new WriteStore(dir);
+  const rel = `videos/${fixtureVideoId}/state.json`;
+  const st = JSON.parse(readFileSync(store.abs(rel), 'utf8'));
+  st.config_overrides = { ...st.config_overrides, [key]: value };
+  store.write(rel, JSON.stringify(st), { by: 'test' });
+}
+
 describe('text executors (009 FR-008)', () => {
   it('script without refine: one producer call, front matter + IDs, provenance, no reviews', async () => {
     const c = copyChannel();
@@ -98,6 +111,7 @@ describe('text executors (009 FR-008)', () => {
   it('script with refine writes one ReviewRound per round and a summary', async () => {
     const c = copyChannel();
     cleanups.push(c.cleanup);
+    setVideoConfig(c.dir, 'advanced.refine', true);
     const text = stubText({ gen: [BODY, BODY], scores: [6, 9] });
     const step = {
       id: 'script',
@@ -120,6 +134,69 @@ describe('text executors (009 FR-008)', () => {
       critic: { model: 'c' },
     });
     expect(text.prompts[1]).toContain('Sửa bản nháp');
+  });
+
+  it('085: refine in the manifest but advanced.refine off → one draft, no critic; a failed check gets one fix', async () => {
+    const c = copyChannel();
+    cleanups.push(c.cleanup);
+    // bản nháp đầu có beat rỗng (kiểm beat trượt) → một lần sửa bằng producer với lỗi đó
+    const text = stubText({
+      gen: ['## Mở đầu <!-- sf:beat -->\n\nBeat này chưa có line nào.\n', BODY],
+    });
+    const step = {
+      id: 'script',
+      uses: 'script',
+      title: 'K',
+      params: { mode: 'narration' },
+      refine: { enabled: true, rubric: 'script-default' },
+    } as StepDecl;
+    const out = await scriptExecutor({ text })(ctxFor(c.dir, step));
+    expect(out).toEqual({ outputs: ['SCRIPT.md'] });
+    expect(text.reviews()).toBe(0);
+    expect(text.prompts).toHaveLength(2);
+    expect(text.prompts[1]).toContain('Sửa bản nháp');
+    const script = readFileSync(`${c.dir}/videos/${fixtureVideoId}/SCRIPT.md`, 'utf8');
+    expect(validateArtifact(`videos/${fixtureVideoId}/SCRIPT.md`, script).errors).toEqual([]);
+  });
+
+  it('085: draft that passes the checks costs exactly one call', async () => {
+    const c = copyChannel();
+    cleanups.push(c.cleanup);
+    const text = stubText({ gen: [BODY] });
+    await scriptExecutor({ text })(
+      ctxFor(c.dir, {
+        id: 'script',
+        uses: 'script',
+        title: 'K',
+        params: { mode: 'narration' },
+        refine: { enabled: true, rubric: 'script-default' },
+      } as StepDecl),
+    );
+    expect(text.prompts).toHaveLength(1);
+    expect(text.reviews()).toBe(0);
+  });
+
+  it('085: publish-meta reads only the SRT and the channel, with the aux model', async () => {
+    const c = copyChannel();
+    cleanups.push(c.cleanup);
+    const text = stubText({
+      gen: ['{"title": "Năm 1428", "description": "Lê Lợi.", "tags": ["lịch sử"]}'],
+    });
+    await publishMetaExecutor({ text })(
+      ctxFor(c.dir, {
+        id: 'meta',
+        uses: 'publish-meta',
+        title: 'M',
+        refine: { enabled: true, rubric: 'meta-default' },
+      } as StepDecl),
+    );
+    expect(text.roles).toEqual(['aux']);
+    expect(text.reviews()).toBe(0);
+    const prompt = text.prompts[0]!;
+    expect(prompt).toMatch(/00:00:00,000 --> 00:00:01,300/);
+    expect(prompt).toContain('Sử Việt');
+    // không đọc brief
+    expect(prompt).not.toContain('Khán giả: người yêu sử');
   });
 
   it('publish-meta writes publish.md with chapters from SCRIPT.md beats', async () => {
