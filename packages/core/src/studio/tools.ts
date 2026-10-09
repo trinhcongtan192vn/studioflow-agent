@@ -57,7 +57,7 @@ export function studioTools(
     tools.push({
       name: 'studio.commit',
       description:
-        'Lưu thay đổi trong Studio (chế độ chỉnh) vào video: chỉ nhận vị trí/kích thước/timing/keyframe/grade/âm lượng; thay đổi khác bị từ chối kèm giải thích.',
+        'Lưu thay đổi trong Studio (chế độ chỉnh) vào video: frame nhận mọi thay đổi qua lint (ngoài vị trí/kích thước/timing/keyframe/grade/âm lượng → ghim nguyên frame, sinh lại không áp lại tự động); index.html chỉ nhận danh sách cho phép; thêm/xóa file bị từ chối.',
       input: {
         type: 'object',
         properties: { message: { type: 'string' } },

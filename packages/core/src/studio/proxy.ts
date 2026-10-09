@@ -2,14 +2,19 @@ import { createServer, request, type IncomingMessage, type Server } from 'node:h
 import { connect } from 'node:net';
 
 /**
- * API ghi của Studio được phép khi chỉnh (025 R2, D9 3.3): sửa thuộc tính/style phần tử, keyframe GSAP,
- * thăm dò, chọn phần tử. Mọi API ghi khác (lưu mã thô, thêm/xóa/bọc/tách phần tử, cài khối, render) bị chặn.
+ * API ghi của Studio được phép khi chỉnh (025 R2; 094 nới: mọi thao tác sửa file trong bản làm việc — sửa
+ * phần tử, thêm/xóa/bọc phần tử, keyframe GSAP, lưu mã thô, hoàn tác). `studio.commit` quyết định nhận gì.
+ * Vẫn chặn: render, tải file lên, tách nền, nhân bản/xóa file, đổi/xóa project.
  */
 const ALLOWED_WRITES = [
-  /^\/api\/projects\/[^/]+\/file-mutations\/(patch-element|patch-elements-batch|patch-element-batches|probe-element|probe-elements)(\/|$)/,
+  /^\/api\/projects\/[^/]+\/file-mutations\//,
   /^\/api\/projects\/[^/]+\/(gsap-mutations|gsap-mutations-batch|gsap-mutation-rollback)(\/|$)/,
   /^\/api\/projects\/[^/]+\/selection$/,
+  /^\/api\/projects\/[^/]+\/history(\/|$)/,
 ];
+/** Lưu mã thô (094): chỉ file cảnh trong bản làm việc (`public/` là liên kết tới thư mục thật), không xóa file. */
+const FILE_WRITE = /^\/api\/projects\/[^/]+\/files\//;
+const SCENE_FILE = /^\/api\/projects\/[^/]+\/files\/(index\.html|compositions\/[^?]+\.html)$/;
 
 /** Xem trước (017, chỉ đọc): chỉ chọn/thăm dò phần tử. */
 const PREVIEW_WRITES = [
@@ -21,7 +26,10 @@ export function studioWriteAllowed(method: string, url: string, readOnly = false
   if (['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) return true;
   const p = decodeURIComponent(url.split('?')[0]!);
   if (!p.startsWith('/api/')) return true;
-  return (readOnly ? PREVIEW_WRITES : ALLOWED_WRITES).some((r) => r.test(p));
+  if (readOnly) return PREVIEW_WRITES.some((r) => r.test(p));
+  if (FILE_WRITE.test(p))
+    return SCENE_FILE.test(p) && !p.includes('..') && method.toUpperCase() !== 'DELETE';
+  return ALLOWED_WRITES.some((r) => r.test(p));
 }
 
 /**
@@ -69,7 +77,7 @@ export function startStudioProxy(
       res.end(
         JSON.stringify({
           error:
-            'StudioFlow: thao tác này không được phép khi chỉnh trong Studio (chỉ chỉnh vị trí, kích thước, timing, keyframe, grade, âm lượng). Sửa nội dung/mã qua chat.',
+            'StudioFlow: thao tác này không được phép khi chỉnh trong Studio (render, tải file lên, tách nền, nhân bản/xóa file). Nhờ agent qua chat.',
         }),
       );
       return;
