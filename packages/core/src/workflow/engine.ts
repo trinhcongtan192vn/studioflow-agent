@@ -232,8 +232,15 @@ export class WorkflowEngine extends EventEmitter {
   /** Approval đã duyệt có file đổi hash → về `pending`, bước về `waiting_approval` (D6 mục 3.1). */
   private invalidate(st: VideoState): boolean {
     let changed = false;
+    // 093: chỉ điểm duyệt mới nhất của mỗi bước còn hiệu lực (điểm cũ của lần chạy trước không bật lại)
+    const latest = new Map(st.approvals.map((a) => [a.step_id, a]));
     for (const a of st.approvals) {
       if (a.status !== 'approved' || a.step_id === 'brief') continue;
+      if (latest.get(a.step_id) !== a) continue;
+      // 093: bước đang chạy lại / lỗi / chờ chạy lại → kết quả mới sẽ qua gate rồi tạo điểm duyệt mới; duyệt cũ
+      // không được kéo bước về "chờ duyệt" (trước đây bước lỗi gate thành chờ duyệt và được duyệt cho qua)
+      const step = st.steps[a.step_id]?.status;
+      if (step && step !== 'done' && step !== 'waiting_approval') continue;
       const stale = Object.entries(a.artifact_hashes).some(([f, h]) => this.hashOf(f) !== h);
       if (stale && isAutoApproval(a)) {
         // 034: tự duyệt → nhận nội dung mới, không quay về chờ duyệt

@@ -142,6 +142,42 @@ describe('steps, gates, approvals (007 US2, FR-WF-03/04)', () => {
     );
   });
 
+  it('093: a step that is failed or waiting to rerun keeps its status when its file changes', async () => {
+    fx = workflowFixture();
+    wireDemo(fx);
+    const e = await startWorkflow(fx);
+    await e.advance();
+    await e.approve(pending(fx)[0]!);
+    e.pause();
+    expect(stepStatus(fx).script).toBe('done');
+    // bước chạy lại rồi lỗi, file đã đổi: không được biến thành "chờ duyệt" (duyệt cũ không vượt qua gate trượt)
+    const sf = path.join(fx.dir, fx.v('state.json'));
+    const st = state(fx);
+    st.steps.script = {
+      ...st.steps.script,
+      status: 'failed',
+      error: {
+        code: 'E_GATE_FAILED',
+        message: 'artifact_valid(SCRIPT.md): line 12: unexpected marker',
+      },
+    };
+    writeFileSync(sf, JSON.stringify(st));
+    const p = path.join(fx.dir, fx.v('SCRIPT.md'));
+    writeFileSync(p, readFileSync(p, 'utf8').replace('Bệ hạ…', 'Tâu bệ hạ…'));
+    expect(stepStatus(fx).script).toBe('failed');
+    const scriptApprovals = () =>
+      state(fx).approvals.filter((a: { step_id: string }) => a.step_id === 'script');
+    expect(scriptApprovals().map((a: { status: string }) => a.status)).toEqual(['approved']);
+    // bước chờ chạy lại (quay lại) cũng giữ nguyên
+    const st2 = state(fx);
+    st2.steps.script.status = 'stale';
+    delete st2.steps.script.error;
+    writeFileSync(sf, JSON.stringify(st2));
+    writeFileSync(p, readFileSync(p, 'utf8').replace('Tâu bệ hạ…', 'Muôn tâu bệ hạ…'));
+    expect(stepStatus(fx).script).toBe('stale');
+    expect(scriptApprovals().map((a: { status: string }) => a.status)).toEqual(['approved']);
+  });
+
   it('an approved artifact that changes invalidates the approval', async () => {
     fx = workflowFixture();
     wireDemo(fx);

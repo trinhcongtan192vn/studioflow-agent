@@ -188,6 +188,8 @@ export function assignScriptIds(
   taken: ReadonlySet<string> = new Set(),
   opts: { seed?: string } = {},
 ): { text: string; assigned: string[] } {
+  // 093: marker đặt lệch (dòng trống trước sf:tts, sf:tts trước đoạn) → sắp lại trước khi phân tích
+  text = repairScriptMarkup(text);
   const p = parseScript(text);
   // 080: ID model tự đặt sai mẫu (ví dụ `ln_j5u9imcg_b` khi tách dòng lúc sửa) → coi như chưa có, gán ID mới
   let fixed = false;
@@ -265,4 +267,40 @@ export function toScriptDoc(p: ParsedScript, opts: { loose?: boolean } = {}): Sc
     return line;
   });
   return { front: p.front as unknown as ScriptFrontMatter, beats, lines };
+}
+
+/**
+ * 093: sắp lại các lỗi đặt marker nhỏ mà model hay mắc (tất định, 0 token) — dòng trống giữa đoạn và `sf:tts`;
+ * `sf:tts` viết trước đoạn. Văn bản không có lỗi này giữ nguyên.
+ */
+export function repairScriptMarkup(text: string): string {
+  const rows = text.split('\n');
+  const out: string[] = [];
+  const isPara = (r: string | undefined) => r !== undefined && r.trim() !== '' && !ANY_SF.test(r);
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    out.push(row);
+    if (!LINE.test(row)) continue;
+    let j = i + 1;
+    // `sf:tts` ngay sau marker, đoạn văn sau đó → đưa `sf:tts` xuống sau đoạn
+    const ttsFirst = TTS.test(rows[j] ?? '') && isPara(rows[j + 1]) ? rows[j]! : undefined;
+    if (ttsFirst) j++;
+    const start = j;
+    while (isPara(rows[j])) j++;
+    if (j === start) continue;
+    out.push(...rows.slice(start, j));
+    if (ttsFirst) {
+      out.push(ttsFirst);
+    } else {
+      // dòng trống rồi mới tới `sf:tts` → bỏ dòng trống
+      let k = j;
+      while (k < rows.length && rows[k]!.trim() === '') k++;
+      if (k > j && TTS.test(rows[k] ?? '')) {
+        out.push(rows[k]!);
+        j = k + 1;
+      }
+    }
+    i = j - 1;
+  }
+  return out.join('\n');
 }

@@ -226,3 +226,65 @@ export const artifactTools: ToolDefinition[] = [
     },
   },
 ];
+
+/**
+ * 093: `artifact.edit` — sửa đúng đoạn sai (mỗi `old` phải xuất hiện đúng một lần) thay vì viết lại cả file; kết quả đi
+ * qua cùng đường ghi của `artifact.write` (phạm vi, owner, schema, base_hash, gán ID, hỏi khi ghi đè file đã duyệt).
+ */
+const writeTool = artifactTools.find((t) => t.name === 'artifact.write')!;
+artifactTools.push({
+  name: 'artifact.edit',
+  description:
+    'Sửa một file trong video bằng cách thay từng đoạn chữ (old → new, mỗi old xuất hiện đúng một lần) — dùng khi chỉ cần sửa vài chỗ, không viết lại cả file. Kiểm như artifact.write.',
+  input: {
+    type: 'object',
+    properties: {
+      path: { type: 'string' },
+      edits: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 50,
+        items: {
+          type: 'object',
+          properties: { old: { type: 'string', minLength: 1 }, new: { type: 'string' } },
+          required: ['old', 'new'],
+          additionalProperties: false,
+        },
+      },
+      base_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+    },
+    required: ['path', 'edits'],
+    additionalProperties: false,
+  },
+  async handler(
+    input: { path: string; edits: { old: string; new: string }[]; base_hash?: string },
+    ctx,
+  ) {
+    const sp = sessionPath(ctx.session, input.path, 'write');
+    let text = readExisting(ctx, sp.rel).toString('utf8');
+    const original = text;
+    for (const [i, e] of input.edits.entries()) {
+      const n = text.split(e.old).length - 1;
+      if (n === 0)
+        throw new SfError(
+          'E_SCHEMA_INVALID',
+          `edit ${i + 1}: old text not found in ${sp.inner} — read the file again and copy the exact snippet`,
+        );
+      if (n > 1)
+        throw new SfError(
+          'E_SCHEMA_INVALID',
+          `edit ${i + 1}: old text matches ${n} times in ${sp.inner} — include more surrounding text so it is unique`,
+        );
+      text = text.replace(e.old, () => e.new);
+    }
+    return writeTool.handler(
+      {
+        path: input.path,
+        content: text,
+        // không truyền base_hash → so với nội dung vừa đọc (không ai ghi chen giữa)
+        base_hash: input.base_hash ?? sha256(original),
+      },
+      ctx,
+    );
+  },
+});

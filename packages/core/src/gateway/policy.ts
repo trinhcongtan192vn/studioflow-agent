@@ -18,6 +18,8 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   ['config.resolve', MFP],
   ['config.set', M],
   ['artifact.write', MFP],
+  // 093: sửa đúng đoạn sai thay vì viết lại cả file
+  ['artifact.edit', MFP],
   ['script.run', MF],
   ['workflow.step_complete', MFP],
   [/^(graph|workflow)\./, M],
