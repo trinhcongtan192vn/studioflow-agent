@@ -433,7 +433,12 @@ export interface IpcMethods {
   'studio.close': { params: VideoRef & { discard?: boolean }; result: { closed: boolean } };
   'studio.commit': {
     params: VideoRef;
-    result: { changed_files: string[]; pinned_frames: string[]; readback_changes: unknown[] };
+    result: {
+      changed_files: string[];
+      pinned_frames: string[];
+      whole_frames: string[];
+      readback_changes: unknown[];
+    };
   };
   'frame.pinned_decide': {
     params: VideoRef & { frame_id: string; decision: 'keep' | 'reapply' | 'discard' };

@@ -48,9 +48,13 @@ function listFiles(dir: string, rel = ''): string[] {
   );
 }
 
+const FRAME_FILE = /^compositions\/frames\/fr_[0-9a-z]{8}\.html$/;
+
 export interface CommitResult {
   changed_files: string[];
   pinned_frames: string[];
+  /** 094: frame nhận nguyên khối (có thay đổi ngoài danh sách D9 3.3) — sinh lại không áp lại tự động. */
+  whole_frames: string[];
   readback_changes: { kind: string; target: string; value: unknown }[];
 }
 
@@ -295,7 +299,12 @@ export class StudioEdits {
       }
       changes.push(...diffHtml(readFileSync(o, 'utf8'), this.workContent(w), f));
     }
-    const bad = changes.filter((c) => !c.allowed);
+    // 094: file frame có thay đổi ngoài danh sách → nhận nguyên frame (D9 3.4 c, ghim '*'); file khác giữ luật cũ
+    const isFrame = (f: string) => FRAME_FILE.test(f);
+    const whole = new Set(
+      changes.filter((c) => !c.allowed && c.attr !== 'file' && isFrame(c.file)).map((c) => c.file),
+    );
+    const bad = changes.filter((c) => !c.allowed && !whole.has(c.file));
     if (bad.length)
       throw new SfError(
         'E_STUDIO_DISALLOWED_CHANGE',
@@ -305,7 +314,8 @@ export class StudioEdits {
           .join('; ')}`,
         bad,
       );
-    if (!files.length) return { changed_files: [], pinned_frames: [], readback_changes: [] };
+    if (!files.length)
+      return { changed_files: [], pinned_frames: [], whole_frames: [], readback_changes: [] };
     // 4. data-sf-id không trùng; lint bản làm việc
     for (const f of files) {
       const ids = [
@@ -375,7 +385,17 @@ export class StudioEdits {
       s.base[f] = sha256(readFileSync(store.abs(`${v}/${f}`)));
       const fr = /^compositions\/frames\/(fr_[0-9a-z]{8})\.html$/.exec(f)?.[1];
       if (!fr) continue;
-      const mine = changes.filter((c) => c.file === f);
+      // nhận nguyên frame: thay đổi trong danh sách vẫn ghi từng mục (áp lại được), phần còn lại gộp vào '*'
+      const mine = changes.filter((c) => c.file === f && c.allowed);
+      if (whole.has(f))
+        mine.push({
+          file: f,
+          element_id: '*',
+          attr: 'frame',
+          before: null,
+          after: null,
+          allowed: true,
+        });
       const prev = (st.pinned_frames ?? {})[fr as keyof VideoState['pinned_frames']] as
         | {
             pinned_at: string;
@@ -414,7 +434,12 @@ export class StudioEdits {
         videoId,
         pinned.map((fr) => `frame_html:${fr}`),
       );
-    return { changed_files: files, pinned_frames: pinned, readback_changes: readback };
+    return {
+      changed_files: files,
+      pinned_frames: pinned,
+      whole_frames: pinned.filter((fr) => whole.has(`compositions/frames/${fr}.html`)),
+      readback_changes: readback,
+    };
   }
 
   /** `studio.close` (D9 3.5): còn thay đổi chưa commit → `E_STUDIO_UNCOMMITTED` trừ khi `discard`. */

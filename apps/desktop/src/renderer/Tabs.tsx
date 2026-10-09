@@ -117,7 +117,10 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
       const r = await core.call('studio.commit', { channel, video });
       setMsg(
         r.changed_files.length
-          ? `Đã lưu ${r.changed_files.length} file; frame chỉnh tay: ${r.pinned_frames.join(', ') || '—'}.`
+          ? `Đã lưu ${r.changed_files.length} file; frame chỉnh tay: ${r.pinned_frames.join(', ') || '—'}.` +
+              (r.whole_frames?.length
+                ? ` Lưu nguyên frame (chỉnh tự do): ${r.whole_frames.join(', ')} — nếu sinh lại frame này, phần chỉnh tự do không được áp lại tự động.`
+                : '')
           : 'Không có thay đổi để lưu.',
       );
     } catch (e) {

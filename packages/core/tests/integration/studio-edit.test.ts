@@ -1,5 +1,6 @@
 // 025 · SC-001 (AC-M3-01), SC-002 (AC-M3-02), FR-ST-06 — Studio chế độ chỉnh thật (hyperframes preview)
-// sau proxy: chỉnh qua API Studio → commit → frame ghim; thay đổi ngoài danh sách bị từ chối.
+// sau proxy: chỉnh qua API Studio → commit → frame ghim; 094: frame nhận mọi thay đổi (ghim nguyên frame),
+// index.html vẫn theo danh sách cho phép.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -88,11 +89,11 @@ describeStudio('Studio edit mode (025)', () => {
     });
     expect(w).toMatchObject({ ok: false, error: { code: 'E_OWNER_CONFLICT' } });
     const base = new URL(url).origin;
-    // lưu mã thô bị proxy chặn (FR-ST-03)
-    const raw = await fetch(
-      `${base}/api/projects/${project_id}/files/compositions/frames/${F1}.html`,
-      { method: 'PUT', body: 'x' },
-    );
+    // ghi file ngoài cảnh bị proxy chặn (FR-ST-03; 094 cho lưu mã thô file cảnh)
+    const raw = await fetch(`${base}/api/projects/${project_id}/files/hyperframes.json`, {
+      method: 'PUT',
+      body: 'x',
+    });
     expect(raw.status).toBe(403);
     // chỉnh như người dùng kéo phần tử + đổi thời lượng (API Studio thật qua proxy)
     const el = 'el_q2k7m4zp';
@@ -163,31 +164,48 @@ describeStudio('Studio edit mode (025)', () => {
     expect(over).toMatchObject({ ok: false, error: { code: 'E_PERMISSION_DECLINED' } });
   }, 300_000);
 
-  it('AC-M3-02: free code/text edits are refused with an explanation; close needs discard', async () => {
+  it('AC-M3-02 / 094: free frame edits are saved as a whole-frame pin; index.html still refuses; close needs discard', async () => {
     const open = await call('studio.open', { mode: 'edit' });
-    const { session_id } = open.data as { session_id: string };
-    const work = path.join(
-      v,
-      '.sf',
-      'studio-work',
-      session_id,
-      'compositions',
-      'frames',
-      `${F2}.html`,
+    const { session_id, url, project_id } = open.data as {
+      session_id: string;
+      url: string;
+      project_id: string;
+    };
+    const work = path.join(v, '.sf', 'studio-work', session_id);
+    const fr2 = path.join(work, 'compositions', 'frames', `${F2}.html`);
+    // lưu mã thô một frame qua proxy được phép (094); file ngoài cảnh / xóa file vẫn bị chặn
+    const base = new URL(url).origin;
+    const api = `${base}/api/projects/${project_id}/files`;
+    const edited = readFileSync(fr2, 'utf8')
+      .replace('tl.fromTo(', 'tl.to("#x", { rotation: 360 }, 0); tl.fromTo(')
+      .replace(`id="${F2}-bg"`, `id="${F2}-bg" data-x="1"`);
+    const put = await fetch(`${api}/compositions/frames/${F2}.html`, {
+      method: 'PUT',
+      body: edited,
+    });
+    expect(put.status).not.toBe(403);
+    expect((await fetch(`${api}/public/x.txt`, { method: 'PUT', body: 'x' })).status).toBe(403);
+    expect(
+      (await fetch(`${api}/compositions/frames/${F2}.html`, { method: 'DELETE' })).status,
+    ).toBe(403);
+    writeFileSync(fr2, edited);
+    const ok = await call('studio.commit', {});
+    expect(ok.ok, JSON.stringify(ok.error)).toBe(true);
+    expect(ok.data).toMatchObject({ pinned_frames: [F2], whole_frames: [F2] });
+    expect(readFileSync(path.join(v, 'compositions', 'frames', `${F2}.html`), 'utf8')).toContain(
+      'rotation: 360',
     );
-    writeFileSync(
-      work,
-      readFileSync(work, 'utf8').replace(
-        'tl.fromTo(',
-        'tl.to("#x", { rotation: 360 }, 0); tl.fromTo(',
-      ),
-    );
+    const pin = (state().pinned_frames as Record<string, { changes: { element_id: string }[] }>)[
+      F2
+    ]!;
+    expect(pin.changes.some((c) => c.element_id === '*')).toBe(true);
+    // index.html: thay đổi ngoài danh sách vẫn bị từ chối (builder dựng lại file này)
+    const idx = path.join(work, 'index.html');
+    writeFileSync(idx, readFileSync(idx, 'utf8').replace('<body', '<body data-x="1"'));
     const r = await call('studio.commit', {});
     expect(r).toMatchObject({ ok: false, error: { code: 'E_STUDIO_DISALLOWED_CHANGE' } });
-    expect(r.error!.message).toMatch(/script/);
-    expect(
-      readFileSync(path.join(v, 'compositions', 'frames', `${F2}.html`), 'utf8'),
-    ).not.toContain('rotation: 360');
+    expect(r.error!.message).toMatch(/index\.html/);
+    expect(readFileSync(path.join(v, 'index.html'), 'utf8')).not.toContain('data-x="1"');
     expect(await call('studio.close', {})).toMatchObject({
       ok: false,
       error: { code: 'E_STUDIO_UNCOMMITTED' },
@@ -196,6 +214,6 @@ describeStudio('Studio edit mode (025)', () => {
       const cl = await call('studio.close', { discard: true });
       expect(cl.ok, JSON.stringify(cl.error)).toBe(true);
     }
-    expect(existsSync(path.join(v, '.sf', 'studio-work', session_id))).toBe(false);
+    expect(existsSync(work)).toBe(false);
   }, 300_000);
 });

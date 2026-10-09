@@ -32,7 +32,7 @@
 
 ### 3.2 Lưu — `studio.commit`
 1. Diff từng file của bản làm việc với bản gốc tại thời điểm mở (`base.json`). File gốc đã đổi ngoài phiên (hash ≠ base) → `E_BASE_HASH_MISMATCH`, không ghi gì.
-2. Phân tích HTML (parse DOM, không so chuỗi). Mỗi thay đổi được phân loại theo **danh sách thuộc tính cho phép** (mục 3.3). Có thay đổi ngoài danh sách → từ chối toàn bộ commit với `E_STUDIO_DISALLOWED_CHANGE` kèm danh sách (phần tử, thuộc tính, lý do); người dùng có thể hủy thay đổi đó trong Studio hoặc nhờ agent.
+2. Phân tích HTML (parse DOM, không so chuỗi). Mỗi thay đổi được phân loại theo **danh sách thuộc tính cho phép** (mục 3.3). 094: file frame có thay đổi ngoài danh sách → **nhận nguyên frame** (mục 3.4 c): mục trong danh sách ghi từng thay đổi, phần còn lại gộp `{element_id:'*', attr:'frame'}`; kết quả có `whole_frames`. File khác (`index.html`, do builder dựng lại) có thay đổi ngoài danh sách, hoặc thêm/xóa file → từ chối toàn bộ commit với `E_STUDIO_DISALLOWED_CHANGE` kèm danh sách (phần tử, thuộc tính, lý do).
 3. Kiểm mọi `data-sf-id` còn nguyên (không mất, không trùng).
 4. Chạy `hyperframes lint` trên bản làm việc.
 5. Read-back (mục 4); ghi các file qua `artifact.write` (bỏ qua kiểm owner cho chính phiên Studio).
@@ -51,6 +51,8 @@ Mặc định tạm, chốt bằng bảng "thao tác → thay đổi file" của
 | Caption kiểu | khối style caption → ghi vào `caption-overrides.json.style` |
 | Audio | `data-volume*`, `data-fade-*` trên phần tử audio |
 | Không cho phép | thêm/xóa phần tử, đổi thẻ, đổi `<script>`, đổi nội dung chữ, đổi `src`, đổi `data-sf-id` |
+
+094: "không cho phép" chỉ còn áp cho `index.html`; trong file frame các thay đổi đó được nhận và frame ghim nguyên khối. Proxy chế độ chỉnh cho mọi API sửa phần tử/GSAP/hoàn tác và lưu mã thô file cảnh (`index.html`, `compositions/**/*.html`); chặn render, tải lên, tách nền, nhân bản/xóa file, ghi ngoài file cảnh.
 
 ### 3.4 Keyframe
 Tùy kết quả S6 (c):
