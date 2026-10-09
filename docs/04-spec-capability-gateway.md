@@ -58,6 +58,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 |---|---|---|---|
 | `artifact.read` | `path` | `{content, hash, schema_version?}` | Chỉ trong kênh/video hiện tại |
 | `artifact.write` | `path, content, base_hash?` | `{hash, assigned_ids?}` | Kiểm schema, owner, `base_hash`, phạm vi; gán ID cho line/beat mới (D3 5.4); sao lưu khi cần |
+| `artifact.edit` | `path, edits: {old, new}[], base_hash?` | `{hash, assigned_ids?}` | 093: sửa đúng đoạn sai (mỗi `old` xuất hiện đúng một lần) thay vì viết lại cả file; cùng kiểm tra như `artifact.write` |
 | `artifact.validate` | `path` hoặc `{path, content}` | `{valid, errors[]}` | |
 | `artifact.list` | `glob` | `{paths[]}` | |
 | `config.resolve` | `key, scene_id?, frame_id?` | `ResolvedValue` | D3 mục 7 |

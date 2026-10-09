@@ -22,8 +22,11 @@ it('rewind re-runs the step when later steps are missing from state.json', async
   await e.idle();
   const st = JSON.parse(
     readFileSync(path.join(c.dir, 'videos', fixtureVideoId, 'state.json'), 'utf8'),
-  ) as { steps: Record<string, { status: string }> };
-  // quay lại → bước chạy lại ngay (tới điểm duyệt); các bước sau có mặt, chưa chạy
-  expect(st.steps.script!.status).toBe('waiting_approval');
+  ) as { steps: Record<string, { status: string; attempt: number; error?: { code: string } }> };
+  // quay lại → bước chạy lại ngay (lần chạy thứ 2); các bước sau có mặt, chưa chạy.
+  // 093: test không có bản ghi LLM nên lần chạy lại lỗi — và giữ trạng thái lỗi (không thành "chờ duyệt")
+  expect(st.steps.script!.attempt).toBe(2);
+  expect(st.steps.script!.status).toBe('failed');
+  expect(st.steps.script!.error!.code).toBe('E_LLM_FIXTURE_MISSING');
   expect(Object.keys(st.steps).length).toBeGreaterThan(1);
 });

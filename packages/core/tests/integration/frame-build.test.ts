@@ -28,9 +28,11 @@ afterEach(() => cleanups.splice(0).forEach((c) => c()));
 /** Runtime giả: đọc packet trong chỉ dẫn, ghi frame bằng artifact.write, báo step_complete. */
 function fakeRuntime(
   core: Core,
-  opts: { badFirst?: string; silent?: string; limit?: boolean } = {},
+  opts: { badFirst?: string; silent?: string; limit?: boolean; overlap?: string } = {},
 ) {
   const calls: string[] = [];
+  /** 093: chỉ dẫn gửi cho từng phiên (`<frame>` → văn bản). */
+  const texts: [string, string][] = [];
   /** 060: model của từng phiên frame (`<frame>:<model>`). */
   const models: string[] = [];
   const rt: AgentRuntime = {
@@ -44,6 +46,7 @@ function fakeRuntime(
           const step = /"step_id": "([^"]+)"/.exec(m.text)![1]!;
           const fid = packet.frame.id;
           calls.push(fid);
+          texts.push([fid, m.text]);
           models.push(`${fid}:${o.model}`);
           if (opts.limit) {
             // 086: hết lượt Claude
@@ -60,7 +63,7 @@ function fakeRuntime(
               : undefined;
           const w = await core.gateway.call(o.context, 'artifact.write', {
             path: packet.output_path,
-            content: sampleFrame(packet, drop),
+            content: sampleFrame(packet, drop, opts.overlap === fid),
           });
           if (!(w as { ok: boolean }).ok) throw new Error(JSON.stringify(w));
           // phạm vi ghi: phiên frame không ghi được file khác
@@ -83,7 +86,7 @@ function fakeRuntime(
       };
     },
   };
-  return { rt, calls, models };
+  return { rt, calls, models, texts };
 }
 
 /** `custom` = frame dựng bằng phiên agent (086: tính năng nâng cao); tắt = dựng từ mẫu. */
@@ -177,6 +180,31 @@ describe('frame-build (011 US1, US2)', () => {
     const r = await run(['fr_9x2b7cqe']);
     expect(r.built).toEqual(['fr_9x2b7cqe']);
   }, 120_000);
+
+  it('093: an AI frame still failing lint/check after the fix round falls back to a template frame', async () => {
+    const { core, base, v, run } = setup();
+    const step = { id: 'ds', uses: 'design-system', title: 'DS' };
+    await designSystemExecutor()({ ...base, step, manifest: { id: 't', steps: [step] } } as never);
+    const { rt, calls, texts } = fakeRuntime(core, { overlap: 'fr_9x2b7cqe' });
+    core.workflows.setAgentRuntime(rt);
+    const r = (await run()) as Awaited<ReturnType<typeof run>> & { summary: string };
+    // một vòng sửa với phát hiện của check, vẫn đè → frame mẫu cho riêng frame đó
+    expect(calls.filter((c) => c === 'fr_9x2b7cqe')).toHaveLength(2);
+    // vòng sửa là sửa tại chỗ: kèm file hiện tại + lỗi, yêu cầu artifact.edit, không gửi lại đề dựng từ đầu
+    const second = texts.filter(([f]) => f === 'fr_9x2b7cqe')[1]![1];
+    expect(second).toMatch(/^# Nhiệm vụ: sửa đúng chỗ sai trong frame `fr_9x2b7cqe`/);
+    expect(second).toContain('mcp__sf__artifact_edit');
+    expect(second).toContain('Chữ đè lên chữ khác');
+    expect(second).toMatch(/# Lỗi cần sửa\n[^#]*(contrast_aa_failure|content_overlap)/);
+    const html = readFileSync(path.join(v, 'compositions/frames/fr_9x2b7cqe.html'), 'utf8');
+    expect(html).toContain('fr_9x2b7cqe-t');
+    expect(html).not.toContain('Chữ đè lên chữ khác');
+    expect(r.summary).toMatch(/1 frame AI vẫn lỗi .*dựng từ mẫu: fr_9x2b7cqe/);
+    // frame AI còn lại giữ nguyên
+    expect(
+      readFileSync(path.join(v, 'compositions/frames/fr_3m8k1w7d.html'), 'utf8'),
+    ).not.toContain('fr_3m8k1w7d-t');
+  }, 180_000);
 
   it('without frame.md or runtime the step fails clearly', async () => {
     const { core, run, v } = setup();

@@ -168,3 +168,34 @@ export function frameInstruction(
     frameMd,
   ].join('\n');
 }
+
+/**
+ * 093: chỉ dẫn sửa frame tại chỗ — gửi nội dung frame hiện tại + từng lỗi lint/check (kèm selector), yêu cầu sửa
+ * đúng phần tử sai bằng `artifact.edit`, không vẽ lại cả frame (ít token đầu ra, giữ phần đã đúng).
+ */
+export function frameRepairInstruction(
+  p: FramePacket,
+  current: string,
+  stepId: string,
+  problems: string,
+): string {
+  return [
+    `# Nhiệm vụ: sửa đúng chỗ sai trong frame \`${p.frame.id}\` (video \`${p.video_id}\`)`,
+    `File \`${p.output_path}\` đã dựng nhưng còn các lỗi dưới đây. Sửa ĐÚNG các phần tử bị nêu bằng tool mcp__sf__artifact_edit (mỗi edit: \`old\` là đoạn nguyên văn đang có trong file, \`new\` là đoạn đã sửa). KHÔNG viết lại cả file, KHÔNG đổi bố cục, chữ, màu hay chuyển động của các phần tử khác; giữ nguyên mọi \`data-sf-id\`. Chỉ dùng mcp__sf__artifact_write khi file hỏng tới mức không sửa từng đoạn được.`,
+    'Gợi ý theo loại lỗi: `content_overlap` → dời `top`/`left` hoặc giảm `font-size`/`line-height` của một trong hai khối cho hết đè (khoảng cách ≥ 24 px); `contrast_aa_failure` → đổi màu chữ theo gợi ý; chữ ra ngoài vùng an toàn → dời vào trong hoặc giảm cỡ chữ.',
+    `Sửa xong gọi workflow.step_complete với {"step_id": "${stepId}", "frame_id": "${p.frame.id}", "outputs": ["${p.output_path}"]}.`,
+    '',
+    '# Lỗi cần sửa',
+    problems,
+    '',
+    `# Nội dung hiện tại của ${p.output_path}`,
+    '```html',
+    current,
+    '```',
+    '',
+    '# Frame packet (tra ID, không cần dựng lại)',
+    '```json',
+    JSON.stringify(p, null, 2),
+    '```',
+  ].join('\n');
+}

@@ -1,7 +1,8 @@
 import type { FramePacket } from '../src/index.js';
 
 /** Frame hợp lệ theo vai frame worker (cho runtime giả). */
-export function sampleFrame(p: FramePacket, drop?: string): string {
+/** `overlap`: thêm một khối chữ đè lên lớp chữ đầu (hyperframes check báo `content_overlap`, 093). */
+export function sampleFrame(p: FramePacket, drop?: string, overlap = false): string {
   const id = p.frame.id;
   // khung theo output profile (quy tắc "Canvas W×H" trong packet; shorts dọc 030)
   const m = /Canvas (\d+)×(\d+)/.exec(p.rules.join('\n'));
@@ -25,7 +26,7 @@ export function sampleFrame(p: FramePacket, drop?: string): string {
     <style>#root { position: relative; width: ${W}px; height: ${H}px; }</style>
     <div class="clip" id="${id}-bg" data-start="0" data-duration="${d}" data-track-index="9" style="position:absolute;inset:0;background:#101418"></div>
 ${layers.join('\n')}
-    <script>
+${overlap ? `    <div class="clip" data-start="0" data-duration="${d}" data-track-index="8" style="position:absolute;left:120px;top:160px;font-family:sans-serif;font-size:96px;color:#f4f1ea">Chữ đè lên chữ khác</div>\n` : ''}    <script>
       window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
       tl.fromTo("#${id}-bg", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0);

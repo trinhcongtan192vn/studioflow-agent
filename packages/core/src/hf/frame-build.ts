@@ -18,7 +18,12 @@ import { frameModel } from './frame-model.js';
 import { checkFrameFile } from './frame-file.js';
 import { ensureHfProject } from './index-builder.js';
 import { loadOutputProfile } from './outputs.js';
-import { buildFramePacket, frameInstruction, stageFrameAssets } from './packet.js';
+import {
+  buildFramePacket,
+  frameInstruction,
+  frameRepairInstruction,
+  stageFrameAssets,
+} from './packet.js';
 import { parseDesignTokens, TEMPLATE_VERSION, templateFrame } from './templates.js';
 
 export interface FrameBuildDeps {
@@ -202,7 +207,9 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           { appDataDir: ctx.appDataDir },
         ).value,
       ) || 2;
-    const failures: string[] = [];
+    const failedIds: string[] = [];
+    /** 093: frame AI vẫn lỗi sau vòng sửa → dựng từ mẫu (0 token), báo trong tóm tắt. */
+    const fallback: string[] = [];
     // 086: hết lượt Claude → không mở phiên mới, không thử lại bằng model khác
     let limited: string | undefined;
     /** 086: frame từ mẫu — HTML tất định từ packet + frame.md. */
@@ -216,6 +223,14 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         { by: 'frame-template', validate: false },
       );
       state.frames[id] = { packet_hash: p.hash, built_at: new Date().toISOString() };
+    };
+    const fallBack = (ids: string[]) => {
+      for (const id of ids) {
+        const p = packets.get(id);
+        if (!p || fallback.includes(id)) continue;
+        buildFromTemplate(id, p);
+        fallback.push(id);
+      }
     };
     /** Một phiên `frame` (tối đa 2 lần); trả lỗi hoặc undefined. */
     const buildOne = async (
@@ -251,9 +266,13 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         void waiter.then((r) => (reported = r));
         let error: string | undefined;
         try {
-          for await (const e of session.send({
-            text: frameInstruction(p.packet, frameMd, ctx.step.id, feedback),
-          })) {
+          // 093: đã có file + có lỗi cụ thể → sửa tại chỗ (artifact.edit), không vẽ lại cả frame
+          const out = ctx.store.abs(`${v}/${p.packet.output_path}`);
+          const text =
+            feedback && existsSync(out)
+              ? frameRepairInstruction(p.packet, readFileSync(out, 'utf8'), ctx.step.id, feedback)
+              : frameInstruction(p.packet, frameMd, ctx.step.id, feedback);
+          for await (const e of session.send({ text })) {
             if (e.type === 'error') error = `${e.code}: ${e.message}`;
           }
         } finally {
@@ -318,15 +337,18 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       if (!custom) buildFromTemplate(id, p);
       else {
         const err = await buildOne(id, p);
-        if (err && !limited) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
+        if (err && !limited) failedIds.push(id);
       }
       builtCount++;
       frameProgress(todo.length);
     });
+    if (limited) {
+      saveState();
+      throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
+    }
+    // 093: frame AI không dựng được (phiên lỗi, không phải hết lượt) → frame mẫu cho riêng frame đó
+    fallBack(failedIds.splice(0));
     saveState();
-    if (limited) throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
-    if (failures.length)
-      throw new SfError('E_GATE_FAILED', `frames failed: ${failures.join('; ')}`);
     const built = todo.map(([id]) => id);
     if (ctx.inGraph)
       return { outputs: built.map((id) => `compositions/frames/${id}.html`), built, skipped: [] };
@@ -415,14 +437,25 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
           packets.get(id)!,
           `hyperframes lint/check báo lỗi trong frame này:\n${[...new Set(msgs)].map((m) => `- ${m}`).join('\n')}`,
         );
-        if (err) failures.push(`${id}: ${err.replace(/\n/g, ' ')}`);
+        if (err && !limited) failedIds.push(id);
       });
+      if (limited) {
+        saveState();
+        throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
+      }
+      fallBack(failedIds.splice(0));
       saveState();
-      if (limited) throw new SfError('E_RUNTIME_RATE_LIMIT', limited);
-      if (failures.length)
-        throw new SfError('E_GATE_FAILED', `frames failed: ${failures.join('; ')}`);
       for (const [id] of redo) if (!built.includes(id)) built.push(id);
       res = await verify();
+      // 093: vẫn lỗi sau vòng sửa tại chỗ → frame mẫu (0 token) cho đúng các frame đó, kiểm lại một lần
+      const still = [...res.byFrame.keys()].filter(
+        (id) => packets.has(id) && !fallback.includes(id),
+      );
+      if (still.length) {
+        fallBack(still);
+        saveState();
+        res = await verify();
+      }
     }
     const left = [
       ...res.general,
@@ -437,7 +470,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       outputs: [...model.frames.map((f) => `compositions/frames/${f.id}.html`), 'index.html'],
       built,
       skipped: [...packets.keys()].filter((id) => !built.includes(id)),
-      summary: `${custom ? 'Dựng' : 'Dựng từ mẫu'} ${built.length} frame (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.`,
+      summary: `${custom ? 'Dựng' : 'Dựng từ mẫu'} ${built.length} frame (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.${fallback.length ? ` ${fallback.length} frame AI vẫn lỗi sau khi sửa nên dựng từ mẫu: ${fallback.join(', ')} — muốn AI vẽ lại thì bấm "Quay lại" ở bước này.` : ''}`,
     };
   };
 }
