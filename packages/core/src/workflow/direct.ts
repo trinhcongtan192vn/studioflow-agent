@@ -9,7 +9,7 @@ import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { SfError } from '../errors.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { readChannelAssets } from '../hf/packet.js';
-import { LAYOUT_INFO, LAYOUTS, MOTIONS } from '../hf/templates.js';
+import { ACTOR_ACTIONS, LAYOUT_INFO, LAYOUTS, MOTIONS } from '../hf/templates.js';
 import { loadVideoModel } from '../graph/model.js';
 import {
   imageStyleSuffix,
@@ -40,11 +40,36 @@ export interface DirectShot {
   motion?: string;
   transition?: string;
   hero?: boolean;
+  /** Layout `scene`: khóa trong `backgrounds` (bối cảnh không người). */
+  background?: string | null;
+  /** Layout `scene`: nhân vật/đối tượng tách nền ghép lên nền. */
+  actors?: DirectActor[];
+}
+
+/** Một nhân vật/đối tượng trong cảnh ghép: tư thế theo câu, vị trí, cỡ, hướng, cách vào khung, cử động. */
+export interface DirectActor {
+  cast: string;
+  pose?: string;
+  x?: number;
+  size?: number;
+  facing?: string;
+  enter?: string;
+  action?: string;
+}
+
+/** Nhân vật/đối tượng lặp lại của video: ngoại hình cố định để mọi tư thế là cùng một nhân vật. */
+export interface VisualCast {
+  key: string;
+  name?: string;
+  kind?: 'character' | 'object';
+  look: string;
 }
 
 export interface DirectPlan {
   scenes: { title?: string; mood?: string; music?: string | null; shots: DirectShot[] }[];
   images?: { key: string; prompt?: string; asset_id?: string }[];
+  cast?: VisualCast[];
+  backgrounds?: { key: string; prompt?: string }[];
 }
 
 /** Tham số preset trên bước `direct` của manifest. */
@@ -57,6 +82,8 @@ export interface DirectParams {
   prefer?: string[];
   /** Nhạc: `single` (mặc định) = một bài cho cả video; `per-scene` = đổi nhạc theo chương (phim tài liệu). */
   music?: 'single' | 'per-scene';
+  /** Cảnh ghép nhân vật/đối tượng (layout `scene`); `false` = chỉ ảnh tĩnh (sách nói). Mặc định bật. */
+  scenes?: boolean;
 }
 
 const TRANSITIONS = ['cut', 'crossfade', 'blur-crossfade', 'push-slide', 'zoom-through', 'squeeze'];
@@ -156,7 +183,20 @@ export function directPrompt(i: {
     ...(i.params.prefer?.length
       ? [`Preferred for this format: ${i.params.prefer.join(', ')}.`]
       : []),
-    `Motions: ${MOTIONS.join(', ')}. Transitions: ${TRANSITIONS.join(', ')}.`,
+    `Motions (camera on the image / background): ${MOTIONS.join(', ')}. Transitions: ${TRANSITIONS.join(', ')}.`,
+    ...(i.params.scenes !== false
+      ? [
+          '',
+          '## Visual world — imagine the whole video first, then build shots from it',
+          '- "cast": the recurring characters or objects of the story (0–4): the inventor, a historical figure, an animal, a mascot-like object (a rubber ball, a molecule, a planet)… Give each a fixed "look" in English (for a person: age, build, face, hair, clothing with colors; for an object: shape, material, colors, any face/limbs) so every pose is clearly the same one. kind: character | object.',
+          '- "backgrounds": the places (workshop, street, jungle, lab, space…): wide establishing views WITHOUT people or the cast, leaving the lower part of the frame open for the actors.',
+          '- Layout "scene" = one background + 1–2 actors composited on it, like an animated explainer. For each actor: cast key, "pose" (what the body does for THIS line, e.g. "stretching a rubber band between both hands, eyes wide"), x (0–1 horizontal center), size (0.4–0.95 of the frame height; 0.9 close, 0.6 medium, 0.4 far), facing (left | right | camera), enter (left | right | bottom | fade | none — none when the actor was already on screen in the previous shot), action (' +
+            ACTOR_ACTIONS.join(' | ') +
+            ').',
+          '- When the video has a cast, use "scene" for most shots (about 2 of 3): consecutive shots in the same place reuse the background and change pose, position and action to follow the narration. Use the other layouts for numbers, lists, quotes and illustrations without the cast.',
+          '- For "scene", motion is the camera on the background: ken-burns-in (push in), ken-burns-out (pull out), pan-left, pan-right, static.',
+        ]
+      : []),
     ...(i.library.length
       ? [
           '',
@@ -196,6 +236,12 @@ export function directPrompt(i: {
     '## Output — ONLY this JSON',
     JSON.stringify(
       {
+        ...(i.params.scenes !== false
+          ? {
+              cast: [{ key: 'c1', name: '…', kind: 'character', look: '…' }],
+              backgrounds: [{ key: 'bg1', prompt: '…' }],
+            }
+          : {}),
         images: [{ key: 'img1', prompt: '…' }],
         scenes: [
           {
@@ -203,6 +249,29 @@ export function directPrompt(i: {
             mood: '…',
             music: 'upbeat electronic, driving drums',
             shots: [
+              ...(i.params.scenes !== false
+                ? [
+                    {
+                      line_ids: ['ln_…'],
+                      layout: 'scene',
+                      background: 'bg1',
+                      actors: [
+                        {
+                          cast: 'c1',
+                          pose: '…',
+                          x: 0.35,
+                          size: 0.8,
+                          facing: 'right',
+                          enter: 'left',
+                          action: 'walk',
+                        },
+                      ],
+                      text: { main: null },
+                      motion: 'pan-right',
+                      transition: 'cut',
+                    },
+                  ]
+                : []),
               {
                 line_ids: ['ln_…'],
                 layout: 'image-title',
@@ -313,7 +382,57 @@ export function planToStoryboard(
     avoidLayouts?: string[];
   },
 ): string {
-  const images = new Map((plan.images ?? []).map((x) => [x.key, x]));
+  const images = new Map<string, { key: string; prompt?: string; asset_id?: string }>([
+    ...(plan.images ?? []).map((x) => [x.key, x] as const),
+    // bối cảnh của cảnh ghép: không người, chừa chỗ cho nhân vật
+    ...(plan.backgrounds ?? []).map(
+      (x) =>
+        [
+          x.key,
+          {
+            key: x.key,
+            ...(x.prompt
+              ? {
+                  prompt: `${x.prompt}, wide establishing view, empty scene without people or characters`,
+                }
+              : {}),
+          },
+        ] as const,
+    ),
+  ]);
+  const cast = new Map((plan.cast ?? []).map((c) => [c.key, c]));
+  /** Lớp nhân vật tách nền: tư thế theo câu; ảnh tham chiếu = ảnh chuẩn của nhân vật (bước Ảnh sinh trước). */
+  const actorLayer = (a: DirectActor, i: number, n: number, keep: boolean) => {
+    const c = cast.get(a.cast);
+    if (!c?.look) return undefined;
+    const object = c.kind === 'object';
+    let prompt = `${c.look}, ${a.pose?.trim() || (object ? 'centered' : 'standing, natural pose')}, ${object ? 'whole object' : 'full body head to feet'}, isolated, plain background`;
+    if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
+    const refs = o.castRefs[a.cast] ?? [];
+    const num = (v: number | undefined, lo: number, hi: number) =>
+      typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined;
+    const x = num(a.x, 0.05, 0.95) ?? (n === 1 ? 0.5 : 0.28 + (0.44 * i) / Math.max(1, n - 1));
+    const size = num(a.size, 0.2, 1) ?? (n === 1 ? 0.8 : 0.62);
+    const notes = [
+      `actor: cast=${a.cast}`,
+      `x=${Math.round(x * 100) / 100}`,
+      `size=${Math.round(size * 100) / 100}`,
+      `facing=${['left', 'right', 'camera'].includes(a.facing ?? '') ? a.facing : 'camera'}`,
+      `enter=${keep ? 'none' : ['left', 'right', 'bottom', 'fade', 'none'].includes(a.enter ?? '') ? a.enter : 'fade'}`,
+      `action=${(ACTOR_ACTIONS as readonly string[]).includes(a.action ?? '') ? a.action : 'idle'}`,
+    ].join('; ');
+    return {
+      kind: 'object',
+      notes,
+      asset_request: {
+        source: 'generate',
+        prompt,
+        transparent: true,
+        aspect: object ? '1:1' : '9:16',
+        ...(refs.length ? { reference_asset_ids: [...new Set(refs)] } : {}),
+      },
+    };
+  };
   const layer = (key: string | null | undefined, kind: 'background' | 'image') => {
     if (!key) return undefined;
     const lib = /^asset:(as_[0-9a-z]{8})$/.exec(key)?.[1];
@@ -384,8 +503,15 @@ export function planToStoryboard(
         : undefined;
     const t = s.text ?? {};
     const layers: Record<string, unknown>[] = [];
-    const bg = layer(s.image, 'background');
+    const bg = layer(layout === 'scene' ? (s.background ?? s.image) : s.image, 'background');
     if (bg) layers.push(bg);
+    if (layout === 'scene') {
+      const as = (s.actors ?? []).filter((a) => cast.has(a.cast)).slice(0, 3);
+      as.forEach((a, i) => {
+        const l = actorLayer(a, i, as.length, f.continuation);
+        if (l) layers.push(l);
+      });
+    }
     if (layout === 'image-split') {
       const second = layer(s.image2, 'image');
       if (second) layers.push(second);
@@ -463,7 +589,12 @@ export function parsePlan(text: string): DirectPlan {
     throw new Error('plan must have a non-empty "scenes" array');
   for (const s of j.scenes)
     if (!Array.isArray(s.shots) || !s.shots.length) throw new Error('every scene needs "shots"');
-  return { scenes: j.scenes, ...(Array.isArray(j.images) ? { images: j.images } : {}) };
+  return {
+    scenes: j.scenes,
+    ...(Array.isArray(j.images) ? { images: j.images } : {}),
+    ...(Array.isArray(j.cast) ? { cast: j.cast } : {}),
+    ...(Array.isArray(j.backgrounds) ? { backgrounds: j.backgrounds } : {}),
+  };
 }
 
 /** Model đạo diễn: luôn Opus (Tan chốt 2026-10-10). */
@@ -549,6 +680,10 @@ export function directExecutor(d: { text: TextService }) {
     }
     if (!plan) throw new SfError('E_PROVIDER_FAILED', `director returned no usable plan: ${error}`);
     ctx.progress?.(1, 2, 'Đạo diễn: ghi storyboard');
+    // nhân vật có sẵn của kênh (ảnh tham chiếu) dùng thẳng làm cast của cảnh ghép
+    for (const c of castMembers)
+      if (!plan.cast?.some((x) => x.key === c.id))
+        (plan.cast ??= []).push({ key: c.id, name: c.name, look: c.description ?? c.name });
     const maxShotMs = (params.max_shot_s ?? (vertical ? 6 : 8)) * 1000;
     const { frames, fixes } = normalizePlan(plan, lines, maxShotMs);
     const model0 = castMembers;
@@ -573,10 +708,28 @@ export function directExecutor(d: { text: TextService }) {
     });
     const { text: withIds } = assignStoryboardIds(text);
     ctx.store.write(`${v}/STORYBOARD.md`, withIds, { by: 'direct' });
-    const imgs = frames.filter((f) => f.shot.image).length;
+    // nhân vật/đối tượng của video (ảnh chuẩn sinh ở bước Ảnh, làm tham chiếu cho mọi tư thế)
+    const refOf = new Map(castMembers.map((c) => [c.id, c.reference_images[0]]));
+    ctx.store.write(
+      `${v}/visual-cast.json`,
+      `${JSON.stringify(
+        {
+          schema_version: 1,
+          cast: (plan.cast ?? [])
+            .filter((c) => c.key && c.look)
+            .slice(0, 6)
+            .map((c) => (refOf.get(c.key) ? { ...c, asset_id: refOf.get(c.key) } : c)),
+        },
+        null,
+        2,
+      )}\n`,
+      { by: 'direct', validate: false },
+    );
+    const imgs = frames.filter((f) => f.shot.image || f.shot.background).length;
+    const sceneShots = frames.filter((f) => f.shot.layout === 'scene').length;
     return {
       outputs: ['STORYBOARD.md'],
-      summary: `Đạo diễn (${model}): ${frames.length} cảnh, ${imgs} cảnh có ảnh, ${plan.scenes.length} scene.${fixes.length ? ` App tự chỉnh: ${fixes.slice(0, 4).join('; ')}${fixes.length > 4 ? '…' : ''}.` : ''}`,
+      summary: `Đạo diễn (${model}): ${frames.length} cảnh, ${imgs} cảnh có ảnh${sceneShots ? `, ${sceneShots} cảnh ghép nhân vật (${(plan.cast ?? []).map((c) => c.name ?? c.key).join(', ')})` : ''}, ${plan.scenes.length} scene.${fixes.length ? ` App tự chỉnh: ${fixes.slice(0, 4).join('; ')}${fixes.length > 4 ? '…' : ''}.` : ''}`,
     };
   };
 }

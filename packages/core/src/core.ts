@@ -548,6 +548,23 @@ export function createCore(opts: CoreOptions = {}): Core {
     'media',
     mediaExecutor({
       builders: graph,
+      // ảnh chuẩn (tách nền) của nhân vật/đối tượng trong cảnh ghép
+      castBase: async (ctx, r) =>
+        (
+          await generateImage(
+            { providers, db },
+            ctx.store,
+            {
+              prompt: r.prompt,
+              width: r.width,
+              height: r.height,
+              transparent: true,
+              seed: r.seed,
+              tags: ['cast-base', `cast:${r.key}`],
+            },
+            { videoId: ctx.videoId, appDataDir, signal: ctx.signal },
+          )
+        ).asset_id,
       music: musicExecutor({
         appDataDir,
         ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),

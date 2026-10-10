@@ -38,6 +38,8 @@ steps:
       style: 'Sách nói / tiểu luận: ảnh không khí, tĩnh lặng, ít cảnh, chuyển động rất chậm; trích câu quan trọng bằng quote.'
       max_shot_s: 12
       prefer: [image-caption, quote, image-title]
+      # sách nói: ảnh không khí tĩnh, không ghép nhân vật
+      scenes: false
   - { id: media, uses: media, title: Ảnh và nhạc }
   # dựng hình bằng bộ layout + kiểm cuối tự sửa; duyệt bản xem trước trước khi render phát hành
   - id: compose

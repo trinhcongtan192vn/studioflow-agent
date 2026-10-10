@@ -206,4 +206,45 @@ describe('template frames (086)', () => {
       `left: ${Math.round(0.4 * W - W * 0.03)}px; top: ${Math.round(0.3 * 1080 - W * 0.018)}px`,
     );
   });
+
+  it('scene: background with camera motion, cut-out actors placed, entering and moving; no images → text layout', () => {
+    const tokens = parseDesignTokens('- canvas: #101418\n');
+    const layers = [
+      {
+        id: 'el_bbbbbbb1',
+        kind: 'background',
+        asset_id: 'as_bbbbbbb1',
+      },
+      {
+        id: 'el_ccccccc1',
+        kind: 'object',
+        asset_id: 'as_ccccccc1',
+        notes: 'actor: cast=c1; x=0.3; size=0.8; facing=left; enter=left; action=walk',
+      },
+      { id: 'el_aaaaaaa1', kind: 'text', text: 'Năm 1839' },
+    ] as never;
+    const p = {
+      ...packet('scene', layers),
+      frame: { ...packet('scene', layers).frame, layout: 'scene', motion: 'pan-right' },
+      assets: [
+        { asset_id: 'as_bbbbbbb1', file: 'public/bg.png', width: 1920, height: 1088, alpha: false },
+        { asset_id: 'as_ccccccc1', file: 'public/c1.png', width: 768, height: 1344, alpha: true },
+      ],
+    } as unknown as FramePacket;
+    expect(pickTemplate(p)).toBe('scene');
+    const html = templateFrame(p, loadOutputProfile('yt-1080p30'), tokens, { karaoke: false });
+    // nền: pan phải; nhân vật cao 80% khung, tâm ở 30% bề rộng, quay trái, đi vào từ trái và bước đi
+    expect(html).toContain('xPercent: -3 }, { scale: 1.15, xPercent: 3');
+    const h = Math.round(1080 * 0.8);
+    const w = Math.round((h * 768) / 1344);
+    expect(html).toContain(
+      `left: ${Math.round(0.3 * 1920 - w / 2)}px; top: ${1080 - h + 22}px; width: ${w}px; height: ${h}px`,
+    );
+    expect(html).toMatch(/fr_aaaaaaaa-el_ccccccc1-flip \{[^}]*scaleX\(-1\)/);
+    expect(html).toContain('tl.fromTo(".fr_aaaaaaaa-el_ccccccc1-move", { x: -864, opacity: 1 }');
+    expect(html).toContain('.fr_aaaaaaaa-el_ccccccc1-walk", { x: 96 }, { x: -96');
+    expect(html).toContain('Năm 1839');
+    // ảnh chưa sinh được → layout chữ
+    expect(pickTemplate({ ...p, assets: [] } as FramePacket)).toBe('big-text');
+  });
 });

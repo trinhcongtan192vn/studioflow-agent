@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { imageStyleSuffix, readChannelDesign } from '../design/channel-design.js';
 import { SfError } from '../errors.js';
 import { isMap, isSeq } from 'yaml';
 import { resolveConfig } from '../config/resolve.js';
@@ -12,7 +13,15 @@ import type { StepExecutor, StepRunContext } from './engine.js';
  * nội dung + seed scene → cảnh dùng chung prompt chỉ sinh một lần) rồi chọn nhạc theo `music.query`. Ảnh sinh
  * lỗi hoặc máy không có bộ sinh ảnh → bỏ yêu cầu ảnh của layer đó (layout tự đổi sang bản chữ), không chặn bước.
  */
-export function mediaExecutor(d: { builders: BuilderRegistry; music?: StepExecutor }) {
+export function mediaExecutor(d: {
+  builders: BuilderRegistry;
+  music?: StepExecutor;
+  /** Sinh ảnh chuẩn (tách nền) của một nhân vật/đối tượng → asset kênh. */
+  castBase?: (
+    ctx: StepRunContext,
+    req: { prompt: string; width: number; height: number; seed: number; key: string },
+  ) => Promise<string>;
+}) {
   return async (ctx: StepRunContext): Promise<{ outputs: string[]; summary: string }> => {
     const rel = `videos/${ctx.videoId}/STORYBOARD.md`;
     const notes: string[] = [];
@@ -30,6 +39,12 @@ export function mediaExecutor(d: { builders: BuilderRegistry; music?: StepExecut
       );
     let failed: string[] = [];
     let generated = 0;
+    // nhân vật/đối tượng của video: ảnh chuẩn trước, làm tham chiếu cho mọi tư thế (cùng một nhân vật)
+    if (d.builders.active('asset') && d.castBase) {
+      const n = await castBases(ctx, rel, d.castBase);
+      if (n.made) notes.push(`${n.made} ảnh chuẩn nhân vật/đối tượng`);
+      if (n.failed) notes.push(`${n.failed} ảnh chuẩn nhân vật lỗi → tư thế sinh không tham chiếu`);
+    }
     if (d.builders.active('asset')) {
       ctx.progress?.(0, 2, 'Sinh ảnh minh họa');
       const r = await graph.build(ctx.videoId, {
@@ -96,4 +111,82 @@ function dropRequests(ctx: StepRunContext, rel: string, layers: Set<string>): vo
   }
   if (changed)
     ctx.store.write(rel, serializeStoryboard(p), { by: `step.${ctx.step.id}`, validate: false });
+}
+
+interface CastFile {
+  schema_version: 1;
+  cast: { key: string; name?: string; kind?: string; look: string; asset_id?: string }[];
+}
+
+/** Hạt giống ổn định theo nhân vật (cùng nhân vật → cùng ảnh chuẩn khi sinh lại). */
+const seedOf = (s: string) => {
+  let h = 2166136261;
+  for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  return h % 2147483647;
+};
+
+/**
+ * Ảnh chuẩn của từng nhân vật/đối tượng trong `visual-cast.json` (sinh một lần, ghi `asset_id`), rồi gắn làm
+ * `reference_asset_ids` cho mọi lớp tư thế (`notes: "actor: cast=<key>…"`) chưa có tham chiếu.
+ */
+async function castBases(
+  ctx: StepRunContext,
+  rel: string,
+  make: NonNullable<Parameters<typeof mediaExecutor>[0]['castBase']>,
+): Promise<{ made: number; failed: number }> {
+  const castRel = `videos/${ctx.videoId}/visual-cast.json`;
+  if (!existsSync(ctx.store.abs(castRel))) return { made: 0, failed: 0 };
+  const file = JSON.parse(readFileSync(ctx.store.abs(castRel), 'utf8')) as CastFile;
+  if (!file.cast?.length) return { made: 0, failed: 0 };
+  const design = readChannelDesign(ctx.store.root);
+  const style = design ? `, ${imageStyleSuffix(design)}` : '';
+  let made = 0;
+  let failed = 0;
+  for (const c of file.cast) {
+    if (c.asset_id && existsSync(ctx.store.abs(`assets/files/${c.asset_id}.png`))) continue;
+    if (ctx.stop?.aborted) throw new SfError('E_JOB_CANCELED', PAUSED);
+    const object = c.kind === 'object';
+    ctx.progress?.(0, 2, `Ảnh chuẩn: ${c.name ?? c.key}`);
+    try {
+      c.asset_id = await make(ctx, {
+        key: c.key,
+        prompt: `${c.look}, ${object ? 'whole object, centered, front view' : 'full body head to feet, standing in a neutral pose, facing the camera'}, character reference, isolated, plain background${style}`,
+        width: object ? 1024 : 768,
+        height: object ? 1024 : 1344,
+        seed: seedOf(`${c.key}|${c.look}`),
+      });
+      made++;
+    } catch {
+      failed++;
+    }
+  }
+  ctx.store.write(castRel, `${JSON.stringify(file, null, 2)}\n`, {
+    by: `step.${ctx.step.id}`,
+    validate: false,
+  });
+  const ref = new Map(file.cast.filter((c) => c.asset_id).map((c) => [c.key, c.asset_id!]));
+  if (!ref.size) return { made, failed };
+  const p = parseStoryboard(readFileSync(ctx.store.abs(rel), 'utf8'));
+  let changed = false;
+  for (const b of p.blocks) {
+    if (b.tag !== 'sf-frame') continue;
+    const root = b.doc.contents;
+    if (!isMap(root)) continue;
+    const ls = root.get('layers', true);
+    if (!isSeq(ls)) continue;
+    for (const item of ls.items) {
+      if (!isMap(item)) continue;
+      const key = /actor:\s*cast=([^;\s]+)/.exec(String(item.get('notes') ?? ''))?.[1];
+      const id = key ? ref.get(key) : undefined;
+      const req = item.get('asset_request', true);
+      if (!id || !isMap(req) || req.get('reference_asset_ids')) continue;
+      req.set('reference_asset_ids', [id]);
+      changed = true;
+      b.docDirty = true;
+    }
+    if (b.docDirty) b.data = b.doc.toJS();
+  }
+  if (changed)
+    ctx.store.write(rel, serializeStoryboard(p), { by: `step.${ctx.step.id}`, validate: false });
+  return { made, failed };
 }

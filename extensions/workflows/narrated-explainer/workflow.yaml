@@ -28,9 +28,9 @@ steps:
     uses: direct
     title: Đạo diễn hình
     params:
-      style: 'Giải thích rõ ràng: ảnh minh họa cụ thể cho từng ý, số liệu bằng stat-pop/chart-bar, các bước bằng list.'
+      style: 'Giải thích rõ ràng như video hoạt hình giải thích: nhân vật/đối tượng chính diễn theo từng ý trên bối cảnh (scene), số liệu bằng stat-pop/chart-bar, các bước bằng list.'
       max_shot_s: 8
-      prefer: [image-title, image-caption, stat-pop, chart-bar, list, image-zoom-detail]
+      prefer: [scene, image-title, stat-pop, chart-bar, list, image-zoom-detail]
   - { id: media, uses: media, title: Ảnh và nhạc }
   # dựng hình bằng bộ layout + kiểm cuối tự sửa; duyệt bản xem trước trước khi render phát hành
   - id: compose

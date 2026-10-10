@@ -6,6 +6,7 @@ type Design = NonNullable<Awaited<ReturnType<typeof core.call<'design.get'>>>['d
 type Data = Awaited<ReturnType<typeof core.call<'design.get'>>>;
 
 const LAYOUTS = [
+  'scene',
   'image-title',
   'image-caption',
   'image-split',

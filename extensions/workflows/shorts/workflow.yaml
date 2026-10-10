@@ -40,7 +40,7 @@ steps:
     params:
       style: 'Nhịp nhanh, mỗi cảnh một hình mạnh; hook bằng hình gây tò mò; chữ rất ngắn ở nửa trên.'
       max_shot_s: 5
-      prefer: [image-title, image-caption, image-split, stat-pop, big-text]
+      prefer: [scene, image-title, image-split, stat-pop, big-text]
   - { id: media, uses: media, title: Ảnh và nhạc }
   # dựng hình bằng bộ layout + kiểm cuối tự sửa; duyệt bản xem trước trước khi render phát hành
   - id: compose

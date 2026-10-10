@@ -40,9 +40,9 @@ steps:
     uses: direct
     title: Đạo diễn hình
     params:
-      style: 'Phim ngắn: mỗi shot là một khung điện ảnh có nhân vật (dùng <cast:ID>), bối cảnh nhất quán; chữ gần như không có.'
+      style: 'Phim ngắn: nhân vật (cast key = ID trong Characters) diễn trên bối cảnh nhất quán bằng scene — tư thế, vị trí, hướng nhìn theo lời thoại; chữ gần như không có.'
       max_shot_s: 6
-      prefer: [image-caption, image-title, image-split]
+      prefer: [scene, image-caption, image-split]
   - { id: media, uses: media, title: Ảnh và nhạc }
   - id: lipsync
     uses: lipsync

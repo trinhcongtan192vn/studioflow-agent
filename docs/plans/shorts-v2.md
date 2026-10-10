@@ -104,8 +104,11 @@ Mở rộng `hf/templates.ts` (086/088 đã có `big-text`, `stat-pop`, `split-r
 | `quote` | trích dẫn + nguồn |
 | `image-zoom-detail` | ảnh phóng vào một vùng + nhãn chỉ |
 | `chart-bar` | biểu đồ cột đơn giản từ số trong `text` |
+| `scene` | cảnh ghép 2.5D (2026-10-10): ảnh nền + nhân vật/đối tượng tách nền — vị trí, cỡ, hướng, đi vào khung, cử động lặp, bóng, parallax; chữ tùy chọn trên cao |
 
-**Chuyển động (6):** `ken-burns-in`, `ken-burns-out`, `pan-left`, `pan-up`, `pop`, `slide-up`; chữ xuất hiện theo nhịp lời đọc (mốc từ ASR).
+**Chuyển động (8):** `ken-burns-in`, `ken-burns-out`, `pan-left`, `pan-right`, `pan-up`, `static`, `pop`, `slide-up`; chữ xuất hiện theo nhịp lời đọc (mốc từ ASR).
+
+**Cảnh ghép nhân vật (2026-10-10, mọi workflow trừ sách nói `scenes: false`):** đạo diễn hình dung cả video trước — `cast` (nhân vật/đối tượng lặp lại, ngoại hình cố định), `backgrounds` (bối cảnh không người) — rồi mỗi cảnh `scene` ghi nhân vật nào, tư thế theo câu, `x`/`size`/`facing`/`enter`/`action` (`idle, walk, bob, nod, shake, jump, lean, point, turn, float`). Ghi `visual-cast.json` của video. Bước `media` sinh ảnh chuẩn tách nền cho từng nhân vật trước (Qwen `t2i_rgba`, seed theo nhân vật), gắn làm `reference_asset_ids` cho mọi lớp tư thế (lớp `object`, `transparent`, `notes: "actor: …"`), rồi sinh nền và tư thế. Nhân vật có sẵn của kênh (cast + ảnh tham chiếu) dùng thẳng.
 
 **Frame AI tùy chọn:** khi bật `advanced.custom_frames`, chỉ shot có `"hero": true` (tối đa 2 mỗi video, thường là hook) mới gọi phiên frame AI. Lỗi thì dùng layout, không vòng sửa.
 

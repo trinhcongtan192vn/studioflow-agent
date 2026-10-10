@@ -58,6 +58,7 @@ export function parseDesignTokens(frameMd: string): DesignTokens {
 
 /** Bộ layout v1 (luồng v2). */
 export const LAYOUTS = [
+  'scene',
   'image-title',
   'image-caption',
   'image-split',
@@ -80,6 +81,11 @@ const ALIASES: Record<string, Layout> = {
 
 /** Mô tả cho bước đạo diễn: layout cần mấy ảnh, chữ đặt thế nào. */
 export const LAYOUT_INFO: Record<Layout, { images: 0 | 1 | 2; texts: string; use: string }> = {
+  scene: {
+    images: 1,
+    texts: 'main tùy chọn (≤ 5 từ, đặt trên cao)',
+    use: 'cảnh ghép: ảnh nền + nhân vật/đối tượng tách nền (tư thế theo câu, đi vào, cử động) — mặc định khi video có nhân vật/đối tượng',
+  },
   'image-title': {
     images: 1,
     texts: 'main (≤ 6 từ), sub tùy chọn',
@@ -127,12 +133,15 @@ export const MOTIONS = [
   'pan-up',
   'pop',
   'slide-up',
+  'pan-right',
+  'static',
 ] as const;
 export type Motion = (typeof MOTIONS)[number];
 
 const HAS_NUMBER = /\d/;
 const SPLIT = /\s*(?:≠|\bvs\.?\b|↔|\/)\s*/i;
 const NEEDS_IMAGE: Partial<Record<Layout, Layout>> = {
+  scene: 'big-text',
   'image-title': 'big-text',
   'image-caption': 'big-text',
   'image-zoom-detail': 'big-text',
@@ -282,6 +291,10 @@ function imageMotion(sel: string, motion: string | undefined, dur: number, order
       return `tl.fromTo("${sel}", { scale: 1.15, xPercent: 3 }, { scale: 1.15, xPercent: -3, duration: ${d}, ease: "none" }, 0);`;
     case 'pan-up':
       return `tl.fromTo("${sel}", { scale: 1.15, yPercent: 3 }, { scale: 1.15, yPercent: -3, duration: ${d}, ease: "none" }, 0);`;
+    case 'pan-right':
+      return `tl.fromTo("${sel}", { scale: 1.15, xPercent: -3 }, { scale: 1.15, xPercent: 3, duration: ${d}, ease: "none" }, 0);`;
+    case 'static':
+      return `tl.fromTo("${sel}", { scale: 1.02 }, { scale: 1.03, duration: ${d}, ease: "none" }, 0);`;
     default:
       return `tl.fromTo("${sel}", { scale: 1 }, { scale: 1.12, duration: ${d}, ease: "none" }, 0);`;
   }
@@ -345,7 +358,9 @@ export function templateFrame(
   // nền: ảnh tràn khung (layout ảnh: rõ; layout chữ: mờ sau lớp tối) hoặc màu canvas
   // ảnh tràn khung: ảnh của layer nền, không thì ảnh đầu tiên không trong suốt (ảnh tách nền → khung phụ)
   const hero = vis.find((v) => v.layer.id === bgLayer?.id && !v.alpha) ?? vis.find((v) => !v.alpha);
-  if (kind === 'image-split' && vis.length >= 2) {
+  if (kind === 'scene') {
+    sceneLayout({ p, P, W, H, dur, motion, vis, bgLayer, els, css, anim, placed, clip });
+  } else if (kind === 'image-split' && vis.length >= 2) {
     // hai cột ảnh cạnh nhau (cả khung dọc lẫn ngang)
     const colW = Math.floor((W - 12) / 2);
     const bgId = p.frame.layers.find(
@@ -388,15 +403,20 @@ export function templateFrame(
   }
   // lớp tối giữ tương phản cho chữ (WCAG AA — hyperframes check đo trên điểm ảnh thật)
   const c = tokens.canvas;
-  const scrim = !vis.length
-    ? `radial-gradient(ellipse at 50% 35%, ${alpha(tokens.accent, '22')}, ${alpha(c, '00')} 65%)`
-    : imageLayout && kind !== 'image-split'
-      ? vertical
-        ? `linear-gradient(180deg, ${alpha(c, 'f2')} 0%, ${alpha(c, 'd9')} ${Math.round(((box.y + box.h * 0.5) / H) * 100)}%, ${alpha(c, '00')} ${Math.round(((box.y + box.h) / H) * 100) + 8}%)`
-        : `linear-gradient(180deg, ${alpha(c, 'e6')} 0%, ${alpha(c, 'b3')} 55%, ${alpha(c, '33')} 100%)`
-      : kind === 'image-split'
-        ? `linear-gradient(180deg, ${alpha(c, 'f2')} 0%, ${alpha(c, 'cc')} ${Math.round(((box.y + box.h * 0.4) / H) * 100)}%, ${alpha(c, '00')} ${Math.round(((box.y + box.h * 0.7) / H) * 100)}%)`
-        : `linear-gradient(180deg, ${alpha(c, 'e6')}, ${alpha(c, 'cc')})`;
+  const scrim =
+    kind === 'scene'
+      ? texts.some((l) => l.text)
+        ? `linear-gradient(180deg, ${alpha(c, 'd9')} 0%, ${alpha(c, '80')} ${Math.round(((box.y + box.h * 0.3) / H) * 100)}%, ${alpha(c, '00')} ${Math.round(((box.y + box.h * 0.45) / H) * 100)}%)`
+        : `linear-gradient(180deg, ${alpha(c, '00')}, ${alpha(c, '00')})`
+      : !vis.length
+        ? `radial-gradient(ellipse at 50% 35%, ${alpha(tokens.accent, '22')}, ${alpha(c, '00')} 65%)`
+        : imageLayout && kind !== 'image-split'
+          ? vertical
+            ? `linear-gradient(180deg, ${alpha(c, 'f2')} 0%, ${alpha(c, 'd9')} ${Math.round(((box.y + box.h * 0.5) / H) * 100)}%, ${alpha(c, '00')} ${Math.round(((box.y + box.h) / H) * 100) + 8}%)`
+            : `linear-gradient(180deg, ${alpha(c, 'e6')} 0%, ${alpha(c, 'b3')} 55%, ${alpha(c, '33')} 100%)`
+          : kind === 'image-split'
+            ? `linear-gradient(180deg, ${alpha(c, 'f2')} 0%, ${alpha(c, 'cc')} ${Math.round(((box.y + box.h * 0.4) / H) * 100)}%, ${alpha(c, '00')} ${Math.round(((box.y + box.h * 0.7) / H) * 100)}%)`
+            : `linear-gradient(180deg, ${alpha(c, 'e6')}, ${alpha(c, 'cc')})`;
   css.push(
     `.${P}scrim { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; background: ${scrim}; }`,
   );
@@ -468,7 +488,10 @@ export function templateFrame(
     });
   };
 
-  if (kind === 'image-title') {
+  if (kind === 'scene') {
+    // chữ (nếu có) trên cao, nhường khung cho nhân vật
+    stack({ ...box, h: Math.round(box.h * 0.3) }, texts, tokens.ink, tokens.muted, entryOf('up'));
+  } else if (kind === 'image-title') {
     stack({ ...box, h: Math.round(box.h * 0.55) }, texts, tokens.ink, tokens.muted, entryOf('up'));
   } else if (kind === 'image-caption' || kind === 'image-zoom-detail') {
     texts.slice(0, 1).forEach((l) => {
@@ -679,8 +702,10 @@ export function templateFrame(
       if (l.kind === 'mouth') {
         // điểm miệng của nhân vật (tỉ lệ trên ảnh tràn khung, `notes: "anchor: x,y"`); không có → giữa khung
         const a = /anchor:\s*([\d.]+)\s*,\s*([\d.]+)/.exec(l.notes ?? '');
-        const mx = a ? Number(a[1]) * W : W / 2;
-        const my = a ? Number(a[2]) * H : H * 0.45 + W * 0.018;
+        // cảnh ghép: miệng trên đầu nhân vật đầu tiên (ước lượng theo hộp ảnh tách nền)
+        const head = kind === 'scene' ? actorHead(p, W, H) : undefined;
+        const mx = head ? head.x : a ? Number(a[1]) * W : W / 2;
+        const my = head ? head.y : a ? Number(a[2]) * H : H * 0.45 + W * 0.018;
         css.push(
           `.${cls} { position: absolute; left: ${Math.round(mx - W * 0.03)}px; top: ${Math.round(my - W * 0.018)}px; width: ${Math.round(W * 0.06)}px; height: ${Math.round(W * 0.036)}px; }`,
         );
@@ -724,4 +749,227 @@ export function templateFrame(
     '</template>',
     '',
   ].join('\n');
+}
+
+/** Một nhân vật/đối tượng trong cảnh ghép (`notes: "actor: cast=c1; x=0.3; size=0.8; facing=left; enter=left; action=walk"`). */
+export interface ActorSpec {
+  cast?: string;
+  /** Tâm ngang (0–1 bề rộng khung). */
+  x: number;
+  /** Chiều cao (0–1 bề cao khung). */
+  size: number;
+  facing: 'left' | 'right' | 'camera';
+  enter: 'left' | 'right' | 'bottom' | 'fade' | 'none';
+  action: string;
+}
+
+export const ACTOR_ACTIONS = [
+  'idle',
+  'walk',
+  'bob',
+  'nod',
+  'shake',
+  'jump',
+  'lean',
+  'point',
+  'turn',
+  'float',
+] as const;
+
+export function parseActor(notes: string | undefined, i = 0, n = 1): ActorSpec {
+  const kv = Object.fromEntries(
+    [...(notes ?? '').replace(/^\s*actor:\s*/i, '').matchAll(/([a-z_]+)\s*=\s*([^;]+)/gi)].map(
+      (m) => [m[1]!.toLowerCase(), m[2]!.trim()],
+    ),
+  );
+  const num = (v: string | undefined, d: number, lo: number, hi: number) => {
+    const x = Number(v);
+    return v !== undefined && Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d;
+  };
+  const defX = n === 1 ? 0.5 : 0.25 + (0.5 * i) / Math.max(1, n - 1);
+  const pick = <T extends string>(v: string | undefined, all: readonly T[], d: T): T =>
+    (all as readonly string[]).includes(v ?? '') ? (v as T) : d;
+  return {
+    ...(kv.cast ? { cast: kv.cast } : {}),
+    x: num(kv.x, defX, 0.05, 0.95),
+    size: num(kv.size, n === 1 ? 0.78 : 0.62, 0.2, 1),
+    facing: pick(kv.facing, ['left', 'right', 'camera'] as const, 'camera'),
+    enter: pick(kv.enter, ['left', 'right', 'bottom', 'fade', 'none'] as const, 'fade'),
+    action: pick(kv.action, ACTOR_ACTIONS, 'idle'),
+  };
+}
+
+const isActor = (l: L) => l.kind === 'object' || /^\s*actor:/i.test(l.notes ?? '');
+
+/** Hộp của một nhân vật: chân chạm đáy khung (lấn dải phụ đề như người thật trong phim), giữ tỉ lệ ảnh. */
+function actorBox(
+  a: ActorSpec,
+  asset: { width: number; height: number } | undefined,
+  W: number,
+  H: number,
+): Box {
+  const h = Math.round(H * a.size);
+  const ratio = asset && asset.height ? asset.width / asset.height : 0.75;
+  const w = Math.round(h * ratio);
+  return { x: Math.round(a.x * W - w / 2), y: H - h + Math.round(H * 0.02), w, h };
+}
+
+/** Điểm miệng ước lượng của nhân vật đầu tiên (đầu ≈ 14% chiều cao từ đỉnh). */
+function actorHead(p: FramePacket, W: number, H: number): { x: number; y: number } | undefined {
+  const actors = p.frame.layers.filter(isActor);
+  const l = actors[0];
+  if (!l) return undefined;
+  const asset = p.assets.find((x) => x.asset_id === l.asset_id);
+  const b = actorBox(parseActor(l.notes, 0, actors.length), asset, W, H);
+  return { x: b.x + b.w / 2, y: b.y + b.h * 0.14 };
+}
+
+/** Cử động lặp của nhân vật trong suốt cảnh (GSAP; số lần lặp hữu hạn để seek được). */
+function actorAction(
+  sel: string,
+  action: string,
+  dur: number,
+  start: number,
+  W: number,
+  dir: 1 | -1,
+): string[] {
+  const left = Math.max(0.1, dur - start);
+  const rep = (period: number) => Math.max(1, Math.floor(left / period) - 1);
+  const t = r1(start);
+  switch (action) {
+    case 'walk':
+      return [
+        // bước theo hướng nhìn (lớp -walk riêng, không đụng lớp đi vào / parallax)
+        `tl.fromTo("${sel}-walk", { x: ${-dir * Math.round(W * 0.05)} }, { x: ${dir * Math.round(W * 0.05)}, duration: ${r1(left)}, ease: "none" }, ${t});`,
+        `tl.to("${sel}-in", { y: -10, duration: 0.28, ease: "sine.inOut", yoyo: true, repeat: ${rep(0.28)} }, ${t});`,
+      ];
+    case 'bob':
+      return [
+        `tl.to("${sel}-in", { y: -14, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: ${rep(0.6)} }, ${t});`,
+      ];
+    case 'float':
+      return [
+        `tl.to("${sel}-in", { y: -26, rotation: 2, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: ${rep(1.4)} }, ${t});`,
+      ];
+    case 'nod':
+      return [
+        `tl.to("${sel}-in", { rotation: 3, duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: ${Math.min(5, rep(0.35))} }, ${t});`,
+      ];
+    case 'shake':
+      return [
+        `tl.to("${sel}-in", { rotation: -3, duration: 0.12, ease: "sine.inOut", yoyo: true, repeat: ${Math.min(9, rep(0.12))} }, ${t});`,
+      ];
+    case 'jump':
+      return [
+        `tl.to("${sel}-in", { y: -70, duration: 0.32, ease: "power2.out" }, ${t});`,
+        `tl.to("${sel}-in", { y: 0, duration: 0.4, ease: "bounce.out" }, ${r1(start + 0.32)});`,
+      ];
+    case 'lean':
+      return [
+        `tl.to("${sel}-in", { rotation: 4, duration: ${r1(Math.min(1.2, left))}, ease: "power2.out" }, ${t});`,
+      ];
+    case 'point':
+      return [
+        `tl.to("${sel}-in", { scale: 1.05, duration: 0.3, ease: "back.out(2)" }, ${t});`,
+        `tl.to("${sel}-in", { scale: 1, duration: 0.5, ease: "power2.inOut" }, ${r1(start + 0.3)});`,
+      ];
+    case 'turn':
+      return [
+        `tl.to("${sel}-flip", { scaleX: -1, duration: 0.3, ease: "power2.inOut" }, ${r1(start + left * 0.5)});`,
+      ];
+    default:
+      // thở nhẹ: không có cảm giác ảnh dán tĩnh
+      return [
+        `tl.to("${sel}-in", { scaleY: 1.012, duration: 1.6, ease: "sine.inOut", yoyo: true, repeat: ${rep(1.6)} }, ${t});`,
+      ];
+  }
+}
+
+/**
+ * Layout `scene` (cảnh ghép 2.5D): ảnh nền tràn khung + chuyển động camera; mỗi nhân vật/đối tượng tách nền đặt
+ * theo `actor:` (vị trí, cỡ, hướng), đi vào khung, cử động lặp, bóng dưới chân, lệch nhẹ ngược camera (parallax).
+ */
+function sceneLayout(o: {
+  p: FramePacket;
+  P: string;
+  W: number;
+  H: number;
+  dur: number;
+  motion: string | undefined;
+  vis: { layer: L; file: string; alpha: boolean }[];
+  bgLayer: L | undefined;
+  els: string[];
+  css: string[];
+  anim: string[];
+  placed: Set<string>;
+  clip: (cls: string, inner: string, sfId?: string) => string;
+}): void {
+  const { p, P, W, H, dur, vis, els, css, anim, placed, clip } = o;
+  const actors = vis.filter((v) => isActor(v.layer));
+  const bg =
+    vis.find((v) => v.layer.kind === 'background' && !isActor(v.layer)) ??
+    vis.find((v) => !v.alpha && !isActor(v.layer));
+  const bgId = o.bgLayer && !isActor(o.bgLayer) ? o.bgLayer.id : bg?.layer.id;
+  els.push(
+    clip(
+      `${P}bg`,
+      bg
+        ? `<img class="${P}fill ${P}bgimg"${bg.layer.id !== bgId ? ` data-sf-id="${bg.layer.id}"` : ''} src="${esc(bg.file)}" alt="">`
+        : '',
+      bgId,
+    ),
+  );
+  if (bgId) placed.add(bgId);
+  if (bg) {
+    placed.add(bg.layer.id);
+    css.push(`.${P}bgimg { transform-origin: 50% 55%; }`);
+    anim.push(imageMotion(`.${P}bgimg`, o.motion, dur, p.frame.order ?? 0));
+  }
+  // parallax: nhân vật trôi ngược chiều camera một chút
+  const drift = o.motion === 'pan-left' ? 1 : o.motion === 'pan-right' ? -1 : 0;
+  actors.forEach((v, i) => {
+    const a = parseActor(v.layer.notes, i, actors.length);
+    const asset = p.assets.find((x) => x.asset_id === v.layer.asset_id);
+    const b = actorBox(a, asset, W, H);
+    const cls = `${P}${v.layer.id}`;
+    css.push(
+      `.${cls} { position: absolute; left: ${b.x}px; top: ${b.y}px; width: ${b.w}px; height: ${b.h}px; }`,
+      `.${cls}-flip { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 50% 100%;${a.facing === 'left' ? ' transform: scaleX(-1);' : ''} }`,
+      `.${cls}-in { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 50% 100%; }`,
+      `.${cls}-img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; display: block; filter: drop-shadow(0 ${Math.round(H * 0.01)}px ${Math.round(H * 0.02)}px rgba(0,0,0,0.45)); }`,
+      `.${cls}-shadow { position: absolute; left: 15%; bottom: ${-Math.round(H * 0.012)}px; width: 70%; height: ${Math.round(H * 0.035)}px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,0.45), rgba(0,0,0,0) 70%); }`,
+    );
+    els.push(
+      clip(
+        cls,
+        `<div class="${cls}-move" style="position:absolute;left:0;top:0;width:100%;height:100%"><div class="${cls}-walk" style="position:absolute;left:0;top:0;width:100%;height:100%"><div class="${cls}-shadow"></div><div class="${cls}-flip"><div class="${cls}-in"><img class="${cls}-img" src="${esc(v.file)}" alt=""></div></div></div></div>`,
+        v.layer.id,
+      ),
+    );
+    placed.add(v.layer.id);
+    const delay = 0.1 + i * 0.25;
+    const off = Math.round(W * 0.45);
+    const from =
+      a.enter === 'left'
+        ? `{ x: ${-off}, opacity: 1 }`
+        : a.enter === 'right'
+          ? `{ x: ${off}, opacity: 1 }`
+          : a.enter === 'bottom'
+            ? `{ y: ${Math.round(H * 0.5)}, opacity: 1 }`
+            : a.enter === 'none'
+              ? '{ opacity: 1 }'
+              : '{ opacity: 0, y: 24 }';
+    const enterDur =
+      a.enter === 'none' ? 0.01 : a.enter === 'left' || a.enter === 'right' ? 0.9 : 0.6;
+    anim.push(
+      `tl.fromTo(".${cls}-move", ${from}, { x: 0, y: 0, opacity: 1, duration: ${enterDur}, ease: "power2.out" }, ${r1(delay)});`,
+    );
+    if (drift)
+      anim.push(
+        `tl.to(".${cls}", { x: ${drift * Math.round(W * 0.02)}, duration: ${dur}, ease: "none" }, 0);`,
+      );
+    anim.push(
+      ...actorAction(`.${cls}`, a.action, dur, delay + enterDur, W, a.facing === 'left' ? -1 : 1),
+    );
+  });
 }

@@ -30,9 +30,9 @@ steps:
     uses: direct
     title: Đạo diễn hình
     params:
-      style: 'Phim tài liệu: ảnh điện ảnh, ánh sáng tự nhiên, nhân vật/bối cảnh lịch sử chân thực; chữ tối thiểu (năm, địa danh); chuyển động chậm.'
+      style: 'Phim tài liệu: nhân vật lịch sử/đối tượng chính diễn lại câu chuyện trên bối cảnh chân thực (scene), xen ảnh điện ảnh cho cảnh rộng và chi tiết; chữ tối thiểu (năm, địa danh); chuyển động chậm.'
       max_shot_s: 8
-      prefer: [image-caption, image-title, image-zoom-detail, quote]
+      prefer: [scene, image-caption, image-zoom-detail, quote]
       # nhạc đổi theo chương khi không khí đổi rõ (các workflow khác: một bài cho cả video)
       music: per-scene
   - { id: media, uses: media, title: Ảnh và nhạc }
