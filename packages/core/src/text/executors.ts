@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import path from 'node:path';
 import type {
   CaptionGroups,
@@ -13,6 +12,8 @@ import { captionsToSrt } from '../publish/youtube-meta.js';
 import { resolveConfig } from '../config/resolve.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
+import { repairStoryBlocks } from '../domain/markdown/story-repair.js';
+export { repairStoryBlocks };
 import { assignScriptIds } from '../domain/markdown/script.js';
 import { validateArtifact } from '../domain/validate.js';
 import { SfError } from '../errors.js';
@@ -55,44 +56,6 @@ export interface TextStepResult {
 export interface TextExecutorDeps {
   text: TextService;
   permissions?: PermissionBus;
-}
-
-/**
- * Khối `sf-story` do model viết: câu có dấu `: ` không đặt trong ngoặc (`- Maya cheers: "So blue…"`) thành cặp
- * khóa–giá trị trong YAML → ghép lại thành chuỗi và ghi lại YAML (thư viện tự đặt ngoặc). Khối đọc không được
- * giữ nguyên để kiểm schema báo lỗi.
- */
-export function repairStoryBlocks(text: string): string {
-  const str = (x: unknown): string =>
-    typeof x === 'string'
-      ? x
-      : x && typeof x === 'object' && !Array.isArray(x)
-        ? Object.entries(x)
-            .map(([k, v]) => `${k}: ${str(v)}`)
-            .join('; ')
-        : String(x ?? '');
-  return text.replace(/```sf-story\n([\s\S]*?)\n```/g, (all, body: string) => {
-    let data: unknown;
-    try {
-      data = parseYaml(body);
-    } catch {
-      return all;
-    }
-    if (!data || typeof data !== 'object' || Array.isArray(data)) return all;
-    const d = data as Record<string, unknown>;
-    let changed = false;
-    for (const k of ['beats', 'characters'])
-      if (Array.isArray(d[k]) && d[k].some((x) => typeof x !== 'string')) {
-        d[k] = d[k].map(str);
-        changed = true;
-      }
-    for (const k of ['title', 'summary', 'setting'])
-      if (d[k] !== undefined && typeof d[k] !== 'string') {
-        d[k] = str(d[k]);
-        changed = true;
-      }
-    return changed ? `\`\`\`sf-story\n${stringifyYaml(d).trimEnd()}\n\`\`\`` : all;
-  });
 }
 
 /** Bỏ rào ``` và front matter nếu producer lỡ trả kèm. */
@@ -500,7 +463,8 @@ export function scriptExecutor(d: TextExecutorDeps) {
             },
           ];
         },
-        maxTokens,
+        // dàn ý có thoại + ghi chú hình dài hơn lời đọc nhiều; trần thấp → bị cắt giữa khối (vd_ojl8icgh)
+        maxTokens: Math.max(6000, Math.round((targetMs / 1000) * 40)),
         targetMs,
       });
       return finish(env, 'STORY.md', plan, r, { mode });

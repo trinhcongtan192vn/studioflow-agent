@@ -4,6 +4,7 @@ import { resolveConfig } from '../config/resolve.js';
 import { crossCheckVideo } from '../domain/crossref.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
+import { repairStoryBlocks } from '../domain/markdown/story-repair.js';
 import { validateArtifact } from '../domain/validate.js';
 import { BuildGraph, unsettled, type BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
@@ -133,7 +134,16 @@ async function evaluateGateInner(g: GateDecl, ctx: GateContext): Promise<GateRes
       const content = read(ctx, g.path);
       if (content === undefined)
         return { gate: g.kind, target: g.path, pass: false, detail: `${g.path} missing` };
-      const r = validateArtifact(`videos/${ctx.videoId}/${g.path}`, content);
+      let r = validateArtifact(`videos/${ctx.videoId}/${g.path}`, content);
+      // STORY.md chỉ lỗi định dạng YAML (câu có ":" không ngoặc, khối cuối thiếu rào đóng) → sửa tại chỗ
+      if (!r.valid && r.kind === 'story') {
+        const fixed = repairStoryBlocks(content);
+        const r2 = validateArtifact(`videos/${ctx.videoId}/${g.path}`, fixed);
+        if (fixed !== content && r2.valid) {
+          ctx.store.write(`videos/${ctx.videoId}/${g.path}`, fixed, { by: 'gate.repair' });
+          r = r2;
+        }
+      }
       let errors = r.errors.map((e) => e.message);
       if (
         r.valid &&

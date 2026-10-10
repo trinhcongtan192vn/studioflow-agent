@@ -36,6 +36,10 @@ it('beats with an unquoted colon become strings again', () => {
   const fixed = repairStoryBlocks(bad);
   expect(validateArtifact('videos/vd_aaaaaaaa/STORY.md', fixed)).toMatchObject({ valid: true });
   expect(fixed).toContain("Maya cheers: So blue is lighter, that's why it flies!");
+  // khối cuối thiếu rào đóng (bị cắt ngay trước ```) → đóng lại
+  const open = story('  - Grandpa drops a small blue ball.').replace(/```\n$/, '');
+  expect(validateArtifact('videos/vd_aaaaaaaa/STORY.md', open).valid).toBe(false);
+  expect(validateArtifact('videos/vd_aaaaaaaa/STORY.md', repairStoryBlocks(open)).valid).toBe(true);
   // khối đúng sẵn giữ nguyên từng ký tự
   const good = story('  - Grandpa drops a small blue ball.');
   expect(repairStoryBlocks(good)).toBe(good);
