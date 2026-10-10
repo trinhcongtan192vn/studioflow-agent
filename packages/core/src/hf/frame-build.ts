@@ -417,7 +417,9 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       const errs: Err[] = lint.findings
         .filter((f) => f.severity === 'error')
         .map((f) => ({ ...f, where: f.file ?? '' }));
-      if (!errs.length && d.check !== false) {
+      // `hyperframes check` (trình duyệt, ~1–2 phút): chỉ khi có frame do AI vẽ — frame từ bộ layout đã kiểm
+      // vùng an toàn/cỡ chữ lúc dựng
+      if (!errs.length && d.check !== false && heroIds.size > 0 && custom) {
         const chk = await hfCheck(videoDir, {
           watch,
           ...sig,

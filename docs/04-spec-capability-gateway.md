@@ -257,6 +257,8 @@ interface RunContext {
 Mặc định `text.*` (085, khi khóa chưa đặt ở tầng nào): `advanced.reasoning` tắt → `text.producer` = `deepseek/deepseek-chat` nếu có khóa DeepSeek, không thì `claude/claude-sonnet-5-5`; `text.critic` = `claude/claude-sonnet-5-5` (producer là Sonnet → `claude/claude-haiku-4-5`); `advanced.reasoning` bật → producer `claude/claude-opus-5-5`, critic `claude/claude-sonnet-5-5`. `text.aux` = `deepseek/deepseek-chat` nếu có khóa, không thì `claude/claude-haiku-4-5`.
 | `render.video` | `render.hf-producer` | node | M1 |
 
+Render một lần (2026-10-10): bản HyperFrames của render nháp được giữ ở `videos/<vd>/.sf/render-raw/<khóa>.mp4` (khóa = nội dung `index.html`, `hyperframes.json`, `compositions/`, `audio/`, `public/` + fps/crf + bản HyperFrames; chỉ giữ bản mới nhất). Render phát hành cùng khóa dùng lại bản đó, chỉ hoàn thiện (chuẩn hóa âm lượng, mã lại theo chuẩn đăng). `hyperframes check` (trình duyệt) chỉ chạy khi video có frame do AI vẽ.
+
 ### 4.4 Định tuyến
 Chọn provider theo: khóa `provider.<capability>` (D3 mục 7) → provider khả dụng (cài rồi + `health` ok) → hỗ trợ ngôn ngữ → chuỗi dự phòng trong `settings.json`. Không có provider khả dụng → `E_PROVIDER_UNAVAILABLE` kèm gợi ý cài hồ sơ.
 

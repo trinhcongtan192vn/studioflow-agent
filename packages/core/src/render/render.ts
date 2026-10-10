@@ -2,12 +2,13 @@ import { withSpan } from '../trace/trace.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AudioMeta, RenderInput, RenderRecord, VideoState } from '../contracts/types.js';
-import { sha256 } from '../domain/hash.js';
+import { canonicalJson, sha256 } from '../domain/hash.js';
 import { newId } from '../domain/ids.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { isSfError, SfError } from '../errors.js';
 import { BuildGraph, unsettled, type BuilderRegistry } from '../graph/graph.js';
-import { hfCheck } from '../hf/cli.js';
+import { hfCheck, hfInstall } from '../hf/cli.js';
+import { loadVideoModel } from '../graph/model.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { readChannelAssets } from '../hf/packet.js';
 import { Logger } from '../log.js';
@@ -37,6 +38,29 @@ export interface RenderJobInput extends Omit<RenderInput, 'output_profile'> {
 }
 
 type Gate = RenderRecord['gate_results'][number];
+
+/** Khóa của bản HyperFrames: nội dung mọi thứ render đọc (index, frame, audio, ảnh) + fps/crf + bản HyperFrames. */
+export function renderKey(d: RenderDeps, videoId: string, fps: number, crf: number): string {
+  const m = loadVideoModel(d.store.root, videoId, d.appDataDir);
+  return sha256(
+    canonicalJson({
+      files: ['index.html', 'hyperframes.json', 'compositions', 'audio', 'public'].map((f) =>
+        m.hashOf(f),
+      ),
+      fps,
+      crf,
+      hf: hfInstall().version,
+    }),
+  ).slice(0, 32);
+}
+
+/** Giữ bản HyperFrames của bản nháp (dữ liệu dẫn xuất `.sf/`, chỉ bản mới nhất của video). */
+function keepRaw(store: WriteStore, v: string, raw: string, rel: string): void {
+  const dir = store.abs(`${v}/.sf/render-raw`);
+  for (const f of existsSync(dir) ? readdirSync(dir) : [])
+    store.removeDerived(`${v}/.sf/render-raw/${f}`);
+  store.importFile(raw, rel, { by: 'render' });
+}
 
 export function newRenderId(store: WriteStore, videoId: string): string {
   const dir = store.abs(`videos/${videoId}/renders`);
@@ -241,13 +265,23 @@ async function renderVideoInner(
         `release gates failed: ${failing.map((g) => `${g.gate}: ${g.detail ?? ''}`).join('; ')}`,
       );
     }
-    const raw = path.join(scratch.dir, 'raw.mp4');
-    await hfRender(d.store.abs(v), raw, {
-      fps: profile.fps,
-      crf: profile.video.crf,
-      ...(o.signal ? { signal: o.signal } : {}),
-      progress: (p, m) => progress(10 + p * 0.75, m),
-    });
+    // render một lần: bản HyperFrames của bản nháp được giữ theo khóa nội dung; Render phát hành (hoặc nháp
+    // lại) với cùng hình/tiếng/tham số dùng lại, chỉ hoàn thiện (mã lại, chuẩn hóa âm lượng)
+    const key = renderKey(d, videoId, profile.fps, profile.video.crf);
+    const cacheRel = `${v}/.sf/render-raw/${key}.mp4`;
+    let raw = path.join(scratch.dir, 'raw.mp4');
+    if (existsSync(d.store.abs(cacheRel))) {
+      raw = d.store.abs(cacheRel);
+      progress(85, 'reuse draft render');
+    } else {
+      await hfRender(d.store.abs(v), raw, {
+        fps: profile.fps,
+        crf: profile.video.crf,
+        ...(o.signal ? { signal: o.signal } : {}),
+        progress: (p, m) => progress(10 + p * 0.75, m),
+      });
+      if (input.mode === 'draft') keepRaw(d.store, v, raw, cacheRel);
+    }
     progress(86, 'loudness');
     const final = path.join(scratch.dir, 'video.mp4');
     await finishVideo(raw, final, {
