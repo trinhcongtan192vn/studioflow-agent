@@ -185,15 +185,15 @@ describe('chooseWorkflow (051)', () => {
     ).toEqual(['shorts', 'story-documentary']);
   });
 
-  it('a short (≤ 60 s) goes to shorts when allowed, with the vertical profile', () => {
+  it('a short (≤ 3 min) goes to shorts when allowed, with the vertical profile', () => {
     expect(choose(short)).toMatchObject({
       workflow_id: 'shorts',
       output_profile: 'yt-shorts-1080x1920',
     });
-    expect(choose(cand('b', 'Biên', 50, { metrics: { duration_s: 60 } }))).toMatchObject({
+    expect(choose(cand('b', 'Biên', 50, { metrics: { duration_s: 180 } }))).toMatchObject({
       workflow_id: 'shorts',
     });
-    expect(choose(cand('c', 'Quá', 50, { metrics: { duration_s: 61 } }))).toMatchObject({
+    expect(choose(cand('c', 'Quá', 50, { metrics: { duration_s: 181 } }))).toMatchObject({
       workflow_id: 'narrated-explainer',
     });
   });

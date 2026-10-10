@@ -11,7 +11,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "setup": "node scripts/doctor.mjs && npm install && cd workers/gpu && uv sync && cd ../.. && git config core.hooksPath .githooks",
+    "setup": "node scripts/doctor.mjs && npm install && cd workers/gpu && uv sync && cd ../..",
     "doctor": "node scripts/doctor.mjs",
     "verify": "node scripts/verify.mjs",
     "package": "node scripts/package.mjs",

@@ -1,13 +1,13 @@
 ---
 name: shorts
-description: Hướng dẫn từng bước của workflow StudioFlow "shorts" (video dọc ≤ 60 giây, Hook → Insight → Paradox; mới hoặc cắt từ video dài). Dùng khi engine giao bước storyboard, assets, look, effects, overlays hoặc music của workflow này.
+description: Hướng dẫn từng bước của workflow StudioFlow "shorts" (video dọc ≤ 3 phút, Hook → Insight → Paradox; mới hoặc cắt từ video dài). Dùng khi engine giao bước storyboard, assets, look, effects, overlays hoặc music của workflow này.
 ---
 
-# Workflow shorts (video dọc ≤ 60 giây)
+# Workflow shorts (video dọc ≤ 3 phút)
 
 Engine giao cho bạn từng bước bằng chỉ dẫn "Thực hiện bước <id> của workflow shorts theo skill…". Chỉ làm đúng bước đó, ghi file bằng `artifact.write`, rồi gọi `workflow.step_complete` với `step_id` của bước và `outputs` là các file đã ghi. Không tự chạy bước khác.
 
-Các bước engine tự làm: design-system, script (refine-loop, rubric shorts), voice, frames (phiên frame dựng khung dọc 1080×1920), captions (karaoke lớn giữa màn hình), finalize (kiểm ≤ 60 giây và chữ trong vùng an toàn), meta (tiêu đề ≤ 60 ký tự, `#shorts`), render.
+Các bước engine tự làm: design-system, script (refine-loop, rubric shorts), voice, frames (phiên frame dựng khung dọc 1080×1920), captions (karaoke lớn giữa màn hình), finalize (kiểm ≤ 3 phút và chữ trong vùng an toàn), meta (tiêu đề ≤ 60 ký tự, `#shorts`), render.
 
 **Cắt từ video dài:** khi `BRIEF.md` có `source_video_id`, kịch bản đã dùng lại nguyên văn các line của video nguồn (audio dùng lại). Bạn đọc được video nguồn bằng `artifact.read` với tiền tố `video:<vd_…>/` (ví dụ `video:vd_…/STORYBOARD.md`) để giữ cùng hình ảnh/asset, nhưng **dựng lại bố cục dọc** — không chép nguyên frame ngang.
 
