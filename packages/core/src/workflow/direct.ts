@@ -50,6 +50,8 @@ export interface DirectShot {
 export interface DirectActor {
   cast: string;
   pose?: string;
+  /** Ảnh biểu cảm có sẵn của nhân vật (khóa trong `expressions`) — khớp đúng cảnh thì dùng lại, không sinh. */
+  expression?: string;
   x?: number;
   size?: number;
   facing?: string;
@@ -139,7 +141,14 @@ export function directPrompt(i: {
   params: DirectParams;
   styleGuide?: string;
   library: { id: string; description?: string; tags: string[] }[];
-  cast: { id: string; name: string; description?: string }[];
+  cast: {
+    id: string;
+    name: string;
+    description?: string;
+    look?: string;
+    /** Khóa ảnh biểu cảm đã có (dùng lại được). */
+    expressions?: string[];
+  }[];
   heroAllowed: boolean;
   music: boolean;
   /** Design system của kênh (khóa phong cách ảnh, layout/chuyển động ưu tiên, tâm trạng nhạc). */
@@ -188,7 +197,12 @@ export function directPrompt(i: {
       ? [
           '',
           '## Visual world — imagine the whole video first, then build shots from it',
-          '- "cast": the recurring characters or objects of the story (0–4): the inventor, a historical figure, an animal, a mascot-like object (a rubber ball, a molecule, a planet)… Give each a fixed "look" in English (for a person: age, build, face, hair, clothing with colors; for an object: shape, material, colors, any face/limbs) so every pose is clearly the same one. kind: character | object.',
+          ...(i.cast.length
+            ? [
+                '- Characters already defined for this video are listed under "Characters" below: use their ids as the actor "cast" and do NOT redefine them in "cast".',
+              ]
+            : []),
+          '- "cast": the recurring characters or objects of the story (0–4; only ones not already listed): the inventor, a historical figure, an animal, a mascot-like object (a rubber ball, a molecule, a planet)… Give each a fixed "look" in English (for a person: age, build, face, hair, clothing with colors; for an object: shape, material, colors, any face/limbs) so every pose is clearly the same one. kind: character | object.',
           '- "backgrounds": the places (workshop, street, jungle, lab, space…): wide establishing views WITHOUT people or the cast, leaving the lower part of the frame open for the actors.',
           '- Layout "scene" = one background + 1–2 actors composited on it, like an animated explainer. For each actor: cast key, "pose" (what the body does for THIS line, e.g. "stretching a rubber band between both hands, eyes wide"), x (0–1 horizontal center), size (0.4–0.95 of the frame height; 0.9 close, 0.6 medium, 0.4 far), facing (left | right | camera), enter (left | right | bottom | fade | none — none when the actor was already on screen in the previous shot), action (' +
             ACTOR_ACTIONS.join(' | ') +
@@ -205,11 +219,23 @@ export function directPrompt(i: {
         ]
       : []),
     ...(i.cast.length
-      ? [
-          '',
-          '## Characters (put the character id in the image prompt as "<cast:ID>" when the shot shows them)',
-          ...i.cast.map((c) => `- ${c.id}: ${c.name}${c.description ? ` — ${c.description}` : ''}`),
-        ]
+      ? i.params.scenes !== false
+        ? [
+            '',
+            '## Characters (already defined — actor "cast" = id; images are made after your plan, so ask for any pose or action the line needs)',
+            ...i.cast.map(
+              (c) =>
+                `- ${c.id}: ${c.name}${c.look ? ` — ${c.look}` : c.description ? ` — ${c.description}` : ''}${c.expressions?.length ? ` [existing expression images: ${c.expressions.join(', ')}]` : ''}`,
+            ),
+            '- For each actor write the "pose" the line needs (action, gesture, emotion). Only when an existing expression image already shows exactly that (a plain reaction while standing), set "expression": "<key>" and leave "pose" empty — it is reused instead of generated.',
+          ]
+        : [
+            '',
+            '## Characters (put the character id in the image prompt as "<cast:ID>" when the shot shows them)',
+            ...i.cast.map(
+              (c) => `- ${c.id}: ${c.name}${c.description ? ` — ${c.description}` : ''}`,
+            ),
+          ]
       : []),
     '',
     '## Rules',
@@ -375,6 +401,11 @@ export function planToStoryboard(
     singleMusic?: boolean;
     heroAllowed: boolean;
     castRefs: Record<string, string[]>;
+    /** Nhân vật đã khai báo của video/kênh: ngoại hình + ảnh biểu cảm có sẵn. */
+    castInfo?: Record<
+      string,
+      { name: string; look?: string; expressions?: Record<string, string> }
+    >;
     lipsync: Record<string, { mouth: boolean; anchor?: { x: number; y: number } }>;
     /** Phong cách ảnh của kênh — gắn vào mọi prompt ảnh (khóa phong cách). */
     imageStyle?: string;
@@ -400,15 +431,25 @@ export function planToStoryboard(
         ] as const,
     ),
   ]);
-  const cast = new Map((plan.cast ?? []).map((c) => [c.key, c]));
+  const cast = new Map<string, VisualCast>([
+    // nhân vật đã khai báo (bước Nhân vật / kênh) trước, nhân vật mới của đạo diễn sau
+    ...Object.entries(o.castInfo ?? {}).map(
+      ([key, c]) => [key, { key, name: c.name, look: c.look ?? '' }] as const,
+    ),
+    ...(plan.cast ?? []).filter((c) => !o.castInfo?.[c.key]).map((c) => [c.key, c] as const),
+  ]);
   /** Lớp nhân vật tách nền: tư thế theo câu; ảnh tham chiếu = ảnh chuẩn của nhân vật (bước Ảnh sinh trước). */
   const actorLayer = (a: DirectActor, i: number, n: number, keep: boolean) => {
     const c = cast.get(a.cast);
-    if (!c?.look) return undefined;
-    const object = c.kind === 'object';
-    let prompt = `${c.look}, ${a.pose?.trim() || (object ? 'centered' : 'standing, natural pose')}, ${object ? 'whole object' : 'full body head to feet'}, isolated, plain background`;
-    if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
     const refs = o.castRefs[a.cast] ?? [];
+    if (!c || (!c.look && !refs.length)) return undefined;
+    const object = c.kind === 'object';
+    // ảnh biểu cảm có sẵn khớp đúng cảnh (đạo diễn chọn, không xin tư thế riêng) → dùng lại, không sinh
+    const expr = a.expression ? o.castInfo?.[a.cast]?.expressions?.[a.expression] : undefined;
+    const reuse = expr && !a.pose?.trim() && o.libraryIds.has(expr) ? expr : undefined;
+    const who = c.look || `the same character as in the reference image (${c.name ?? c.key})`;
+    let prompt = `${who}, ${a.pose?.trim() || (object ? 'centered' : 'standing, natural pose')}, ${object ? 'whole object' : 'full body head to feet'}, isolated, plain background`;
+    if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
     const num = (v: number | undefined, lo: number, hi: number) =>
       typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined;
     const x = num(a.x, 0.05, 0.95) ?? (n === 1 ? 0.5 : 0.28 + (0.44 * i) / Math.max(1, n - 1));
@@ -421,6 +462,7 @@ export function planToStoryboard(
       `enter=${keep ? 'none' : ['left', 'right', 'bottom', 'fade', 'none'].includes(a.enter ?? '') ? a.enter : 'fade'}`,
       `action=${(ACTOR_ACTIONS as readonly string[]).includes(a.action ?? '') ? a.action : 'idle'}`,
     ].join('; ');
+    if (reuse) return { kind: 'object', notes, asset_id: reuse };
     return {
       kind: 'object',
       notes,
@@ -452,6 +494,10 @@ export function planToStoryboard(
     if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
     return {
       kind,
+      // khóa dùng chung: cùng ảnh ở nhiều cảnh → một seed → sinh một lần (graph)
+      ...(img
+        ? { notes: `${(plan.backgrounds ?? []).some((b) => b.key === key) ? 'bg' : 'img'}: ${key}` }
+        : {}),
       asset_request: {
         source: 'generate',
         prompt,
@@ -628,6 +674,8 @@ export function directExecutor(d: { text: TextService }) {
           ? { description: (c as { description?: string }).description }
           : {}),
         reference_images: (c.reference_images ?? []) as string[],
+        ...((c as { look?: string }).look ? { look: (c as { look?: string }).look } : {}),
+        ...(c.expressions ? { expressions: c.expressions as Record<string, string> } : {}),
         ...(c.mouth_set ? { mouth_set: c.mouth_set } : {}),
         ...(c.mouth_anchor ? { anchor: { x: c.mouth_anchor.x, y: c.mouth_anchor.y } } : {}),
       }));
@@ -644,7 +692,10 @@ export function directExecutor(d: { text: TextService }) {
       params,
       ...(read('profile/style-guide.md') ? { styleGuide: read('profile/style-guide.md')! } : {}),
       library,
-      cast: castMembers,
+      cast: castMembers.map(({ expressions, ...c }) => ({
+        ...c,
+        ...(expressions ? { expressions: Object.keys(expressions) } : {}),
+      })),
       heroAllowed,
       music,
       ...(design ? { design } : {}),
@@ -680,10 +731,6 @@ export function directExecutor(d: { text: TextService }) {
     }
     if (!plan) throw new SfError('E_PROVIDER_FAILED', `director returned no usable plan: ${error}`);
     ctx.progress?.(1, 2, 'Đạo diễn: ghi storyboard');
-    // nhân vật có sẵn của kênh (ảnh tham chiếu) dùng thẳng làm cast của cảnh ghép
-    for (const c of castMembers)
-      if (!plan.cast?.some((x) => x.key === c.id))
-        (plan.cast ??= []).push({ key: c.id, name: c.name, look: c.description ?? c.name });
     const maxShotMs = (params.max_shot_s ?? (vertical ? 6 : 8)) * 1000;
     const { frames, fixes } = normalizePlan(plan, lines, maxShotMs);
     const model0 = castMembers;
@@ -698,6 +745,16 @@ export function directExecutor(d: { text: TextService }) {
         : {}),
       heroAllowed,
       castRefs: Object.fromEntries(model0.map((c) => [c.id, c.reference_images])),
+      castInfo: Object.fromEntries(
+        model0.map((c) => [
+          c.id,
+          {
+            name: c.name,
+            ...(c.look ? { look: c.look } : {}),
+            ...(c.expressions ? { expressions: c.expressions } : {}),
+          },
+        ]),
+      ),
       lipsync: Object.fromEntries(
         model0.map((c) => [
           c.id,
@@ -715,10 +772,21 @@ export function directExecutor(d: { text: TextService }) {
       `${JSON.stringify(
         {
           schema_version: 1,
-          cast: (plan.cast ?? [])
-            .filter((c) => c.key && c.look)
-            .slice(0, 6)
-            .map((c) => (refOf.get(c.key) ? { ...c, asset_id: refOf.get(c.key) } : c)),
+          // nhân vật đã khai báo (có ảnh → dùng; chưa có → bước Ảnh sinh ảnh chuẩn từ `look`) + nhân vật mới
+          cast: [
+            ...castMembers
+              .filter((c) => c.look || refOf.get(c.id))
+              .map((c) => ({
+                key: c.id,
+                name: c.name,
+                kind: 'character',
+                look: c.look ?? c.name,
+                ...(refOf.get(c.id) ? { asset_id: refOf.get(c.id) } : {}),
+              })),
+            ...(plan.cast ?? [])
+              .filter((c) => c.key && c.look && !castMembers.some((m) => m.id === c.key))
+              .slice(0, 6),
+          ],
         },
         null,
         2,

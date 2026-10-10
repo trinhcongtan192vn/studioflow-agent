@@ -1949,6 +1949,10 @@ export const schemas = {
           },
           "caption_color": {
             "type": "string"
+          },
+          "look": {
+            "type": "string",
+            "description": "Ngoại hình bằng chữ (tiếng Anh, cố định) — bước Ảnh sinh ảnh chuẩn + mọi tư thế từ đây khi chưa có reference_images (2026-10-10)."
           }
         },
         "required": [
@@ -2936,6 +2940,10 @@ export const schemas = {
           },
           "caption_color": {
             "type": "string"
+          },
+          "look": {
+            "type": "string",
+            "description": "Ngoại hình bằng chữ (tiếng Anh, cố định) — bước Ảnh sinh ảnh chuẩn + mọi tư thế từ đây khi chưa có reference_images (2026-10-10)."
           },
           "id": {
             "$ref": "#/definitions/CastId"

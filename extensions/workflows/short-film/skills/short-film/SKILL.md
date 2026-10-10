@@ -7,16 +7,15 @@ description: Workflow StudioFlow "short-film" (phim ngắn nhiều nhân vật +
 
 Engine giao cho bạn **một** bước: `cast`. Chỉ làm đúng bước đó, ghi file bằng `artifact.write`, rồi gọi `workflow.step_complete` với `step_id: "cast"` và `outputs` là các file đã ghi.
 
-Phong cách hình **cố định theo kênh** (comic hoặc 2D phẳng — look kênh `{{config:look.id}}` và `frame.md`). Ảnh từng shot do bước Đạo diễn hình mô tả kèm nhân vật (dùng ảnh chuẩn của nhân vật làm tham chiếu); khẩu hình (khi bật) đặt lớp miệng theo điểm miệng của nhân vật.
+Phong cách hình **cố định theo kênh** (design system kênh và `frame.md`). **Bước này không sinh ảnh**: ảnh nhân vật được sinh sau khi Đạo diễn hình chốt từng cảnh — bước Ảnh vẽ ảnh chuẩn từ `look` rồi đúng các tư thế/hành động đạo diễn cần (cùng một nhân vật nhờ ảnh chuẩn làm tham chiếu). Khẩu hình (khi bật) đặt lớp miệng trên đầu nhân vật.
 
 ## Bước `cast` → `CAST.md` (+ nhân vật cấp kênh)
 
 Đọc `STORY.md` và `BRIEF.md`. Với mỗi nhân vật (tối đa 4) và người dẫn (nếu có):
-1. **Dùng lại** nhân vật đã có của kênh: gọi `cast.list` (và `voice.list`). Nhân vật trùng (cùng tên/vai) thì giữ **đúng id `ca_…`** trong CAST.md (giọng, ảnh chuẩn, biểu cảm tự theo), bỏ qua bước 2–4 cho nhân vật đó.
+1. **Dùng lại** nhân vật đã có của kênh: gọi `cast.list` (và `voice.list`). Nhân vật trùng (cùng tên/vai) thì giữ **đúng id `ca_…`** trong CAST.md (giọng, ngoại hình, ảnh đã có tự theo), bỏ qua bước 2–3 cho nhân vật đó.
 2. **Giọng**: xem `voice.list` trước, ưu tiên giọng sẵn có phù hợp (đưa vào lựa chọn cho người dùng). Người dùng đã đính kèm file giọng mẫu được phép (`uploads/…`) → `voice.profile_create {name, ref_audio, language}` → `voice_id`. Không có file và không có giọng sẵn phù hợp → gợi ý 2–3 giọng cho nhân vật bằng `voice.design {name, gender, age, pitch, for: "ca_…"}` theo tuổi/giới tính/tính cách (xem skill `studioflow` mục Giọng đọc), để người dùng nghe và chọn; ghi `voice_id` đã chọn. Không tự lấy giọng người thật.
-3. **Ảnh chuẩn**: `image.generate` chân dung toàn thân, nền trơn, miệng đóng, đúng phong cách kênh (`transparent: true`). Ghi `reference_images: [as_…]`.
-4. **Bộ biểu cảm** (`neutral, happy, sad, angry, surprised, scared, thinking, talking`): `image.edit` từ ảnh chuẩn (`reference_asset_ids`), mỗi biểu cảm một ảnh; trình bày cho người dùng duyệt trong tóm tắt bước. Ghi `expressions: { happy: as_…, … }`.
-5. Màu phụ đề riêng mỗi nhân vật (`caption_color`, tương phản tốt trên nền tối), người dẫn để trắng.
+3. **Ngoại hình** (`look`, tiếng Anh, một câu cố định): tuổi, dáng người, khuôn mặt, tóc, trang phục kèm màu, phụ kiện nhận diện — đủ cụ thể để mọi tư thế vẽ ra là cùng một người. Không gọi `image.generate`/`image.edit` ở bước này.
+4. Màu phụ đề riêng mỗi nhân vật (`caption_color`, tương phản tốt trên nền tối), người dẫn để trắng.
 
 `CAST.md`:
 
@@ -28,7 +27,7 @@ video_id: <vd_…>
 # Nhân vật
 
 ```sf-cast
-- { name: "Mai", role: character, voice_id: vo_…, reference_images: [as_…], expressions: { neutral: as_…, happy: as_… }, caption_color: "#ffd54a" }
+- { name: "Mai", role: character, voice_id: vo_…, reference_images: [], look: "9-year-old girl, two short braids with yellow ribbons, round face with freckles, yellow T-shirt, denim overalls, red sneakers", caption_color: "#ffd54a" }
 - { name: "Người dẫn", role: narrator, voice_id: vo_…, reference_images: [] }
 ```
 

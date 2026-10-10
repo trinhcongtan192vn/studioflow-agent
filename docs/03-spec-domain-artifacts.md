@@ -182,6 +182,8 @@ interface CastMember {      // CAST.md (video) hoặc characters/<id>/cast.json 
   mouth_set?: string;                      // file: mouths/<set>/<view>/<state>.svg, view ∈ front|three_quarter, state ∈ closed|half|open
   mouth_anchor?: { x: number; y: number; scale: number };
   caption_color?: string;   // hex
+  /** Ngoại hình bằng chữ (tiếng Anh, cố định) — bước Ảnh sinh ảnh chuẩn + mọi tư thế từ đây khi chưa có reference_images (2026-10-10). */
+  look?: string;
 }
 
 interface OutputProfile {   // extensions/outputs/<id>/output.json
