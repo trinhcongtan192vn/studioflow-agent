@@ -18,6 +18,8 @@ import type { StepExecutor, StepRunContext } from './engine.js';
 export function mediaExecutor(d: {
   builders: BuilderRegistry;
   music?: StepExecutor;
+  /** Hiệu ứng âm thanh theo kế hoạch đạo diễn (kho SFX → frame.sfx). */
+  sfx?: (ctx: StepRunContext) => Promise<{ placed: number; generated: number; missing: string[] }>;
   /** Sinh ảnh chuẩn (tách nền) của một nhân vật/đối tượng → asset kênh. */
   castBase?: (
     ctx: StepRunContext,
@@ -93,12 +95,20 @@ export function mediaExecutor(d: {
       const m = await d.music(ctx);
       musicNote = (m as { summary?: string } | undefined)?.summary ?? '';
     }
+    // hiệu ứng âm thanh (2026-10-10): kho trước; thiếu → báo (bộ tạo SFX bằng AI thêm sau)
+    let sfxNote = '';
+    if (d.sfx) {
+      const r = await d.sfx(ctx);
+      if (r.placed || r.missing.length)
+        sfxNote = `SFX: ${r.placed} âm${r.generated ? ` (${r.generated} mới tạo)` : ''}${r.missing.length ? `; chưa có trong kho: ${[...new Set(r.missing)].slice(0, 5).join(', ')}${r.missing.length > 5 ? '…' : ''}` : ''}.`;
+    }
     return {
       outputs,
       summary: [
         generated ? `Sinh ${generated} ảnh.` : 'Không sinh ảnh mới.',
         ...notes.map((n) => `${n[0]!.toUpperCase()}${n.slice(1)}.`),
         musicNote,
+        sfxNote,
       ]
         .filter(Boolean)
         .join(' '),

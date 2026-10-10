@@ -129,6 +129,8 @@ export interface IndexInput {
     duck_db: number;
     fade_ms: number;
   };
+  /** Hiệu ứng âm thanh (2026-10-10): mốc tuyệt đối, âm lượng tuyến tính (0–1) đã tính theo giọng đọc. */
+  sfx?: { track_id: string; file: string; start_ms: number; duration_ms: number; volume: number }[];
 }
 
 /** `index.html` theo quy ước HyperFrames (assemble-index.mjs + transitions.mjs v0.8.115, 011 R1). */
@@ -163,6 +165,11 @@ export function buildIndexHtml(i: IndexInput): string {
       `      <audio id="el-music" data-sf-track="${m.track_ids.join(',')}" src="${m.file}" data-start="0" data-duration="${total}" data-track-index="11" data-volume="1" data-volume-db="${m.volume_db}" data-fade-in-ms="${m.fade_ms}" data-fade-out-ms="${m.fade_ms}" data-duck-db="${m.duck_db}"></audio>`,
     );
   }
+  (i.sfx ?? []).forEach((x, n) => {
+    body.push(
+      `      <audio id="el-sfx-${n + 1}" data-sf-sfx="${x.track_id}" src="${x.file}" data-start="${r3(x.start_ms / 1000)}" data-duration="${r3(x.duration_ms / 1000)}" data-track-index="${12 + (n % 4)}" data-volume="${Math.round(x.volume * 1000) / 1000}"></audio>`,
+    );
+  });
   const gsap: string[] = [];
   i.frames.forEach((f, n) => {
     if (n === 0) return;

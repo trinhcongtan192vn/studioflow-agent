@@ -1,10 +1,17 @@
 import { ensureGsap } from './gsap.js';
 import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { AudioMeta, CaptionGroups, CaptionOverrides } from '../contracts/types.js';
 import type { Builder } from '../graph/graph.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { markUsed, trackById } from '../music/library.js';
-import { measureVoiceLufs, renderBed, type MusicSegment } from '../music/mix.js';
+import {
+  DEFAULT_VOICE_LUFS,
+  measureVoiceLufs,
+  renderBed,
+  type MusicSegment,
+} from '../music/mix.js';
+import { defaultAppDataDir } from '../config/resolve.js';
 import type { FrameTiming } from '../graph/timing.js';
 import type { WriteStore } from '../store/writer.js';
 import { applyCaptionOverrides, buildCaptionsHtml, lineWordsOf } from './captions-html.js';
@@ -116,6 +123,8 @@ export const indexBuilder =
     }
     const music = await musicBed(ctx, timing, voices, deps.appDataDir);
     if (music) outputs.push(music.file, ...music.copies);
+    const sfx = await sfxElements(ctx, timing, voices, deps.appDataDir);
+    outputs.push(...sfx.map((x) => x.file));
     // overlay theo frame (027, FR-CP-05)
     const ov = overlayInstances(ctx.model, timing, profile, deps.appDataDir);
     if (ov.problems.length) throw new SfError('E_SCHEMA_INVALID', ov.problems.join('; '));
@@ -140,11 +149,55 @@ export const indexBuilder =
       captions: outputs.includes('compositions/captions.html'),
       overlays: ov.instances,
       ...(music ? { music: music.element } : {}),
+      ...(sfx.length ? { sfx } : {}),
       total_ms: timing.total_ms,
     });
     ctx.store.write(`${v}/index.html`, html, { by: 'graph.build', validate: false });
     return { outputs };
   };
+
+/**
+ * Hiệu ứng âm thanh của frame (`sfx[]`, 2026-10-10): chép âm vào `public/sfx/`, đặt ở đầu frame + `at_ms`, âm
+ * lượng = độ to giọng đọc đo được + `volume_db` − độ to của âm (kẹp ≤ 1), không ducking (D8 mục 3).
+ */
+async function sfxElements(
+  ctx: Parameters<Builder>[0],
+  timing: FrameTiming,
+  voices: { file?: string }[],
+  appDataDir: string | undefined,
+): Promise<NonNullable<IndexInput['sfx']>> {
+  const frames = ctx.model.frames.filter((f) => f.sfx?.length);
+  if (!frames.length) return [];
+  const app = appDataDir ?? defaultAppDataDir();
+  const voiceLufs =
+    (await measureVoiceLufs(
+      voices.filter((v) => v.file).map((v) => ctx.store.abs(`${ctx.videoRel}/${v.file}`)),
+      ctx.signal,
+    ).catch(() => undefined)) ?? DEFAULT_VOICE_LUFS;
+  const out: NonNullable<IndexInput['sfx']> = [];
+  for (const f of frames) {
+    const t = timing.frames.find((x) => x.id === f.id);
+    if (!t) continue;
+    for (const s of f.sfx!) {
+      const tr = trackById(ctx.store, app, s.track_id);
+      if (!tr) continue;
+      const file = `public/sfx/${s.track_id}${path.extname(tr.abs).toLowerCase() || '.wav'}`;
+      if (!existsSync(ctx.store.abs(`${ctx.videoRel}/${file}`)))
+        ctx.store.importFile(tr.abs, `${ctx.videoRel}/${file}`, { by: 'graph.build' });
+      const start = t.start_ms + Math.max(0, s.at_ms);
+      if (start >= timing.total_ms) continue;
+      const gain = voiceLufs + (s.volume_db ?? -12) - tr.track.analysis.loudness_lufs;
+      out.push({
+        track_id: s.track_id,
+        file,
+        start_ms: start,
+        duration_ms: Math.min(tr.track.analysis.duration_ms, timing.total_ms - start),
+        volume: Math.min(1, Math.max(0.01, 10 ** (gain / 20))),
+      });
+    }
+  }
+  return out;
+}
 
 /**
  * Bed nhạc (012, D8 mục 3): đoạn theo scene (scene liền nhau cùng bài nối liền), chép bài vào

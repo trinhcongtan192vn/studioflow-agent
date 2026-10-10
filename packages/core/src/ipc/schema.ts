@@ -476,6 +476,8 @@ export interface IpcMethods {
       attribution?: string;
       /** 084: tên thư mục con làm thẻ (mặc định có). */
       folder_tags?: boolean;
+      /** Loại (2026-10-10): `sfx` cho gói hiệu ứng âm thanh; không có → tự nhận theo độ dài (< 10 s = sfx). */
+      kind?: 'music' | 'sfx';
     };
     result: { job_id: string; files: number; capped: boolean };
   };
