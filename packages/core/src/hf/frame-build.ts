@@ -96,13 +96,21 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
   return async (
     ctx: StepRunContext & { only?: string[]; inGraph?: boolean },
   ): Promise<FrameBuildResult> => {
-    // 086: frame dựng bằng agent là tính năng nâng cao; mặc định dựng từ mẫu (không phiên, 0 token)
-    const custom =
+    // v2: frame dựng từ bộ layout (0 token); `advanced.custom_frames` → chỉ frame `hero` (≤ 2, bước đạo diễn
+    // đánh dấu) do phiên frame AI dựng
+    const customOn =
       resolveConfig(
         'advanced.custom_frames',
         { channelDir: ctx.channelDir, videoId: ctx.videoId },
         { appDataDir: ctx.appDataDir },
       ).value === true;
+    const heroIds = new Set<string>(
+      loadVideoModel(ctx.store.root, ctx.videoId, ctx.appDataDir)
+        .frames.filter((f) => (f as { hero?: boolean }).hero)
+        .map((f) => f.id as string),
+    );
+    const custom = customOn && heroIds.size > 0;
+    const isAi = (id: string) => custom && heroIds.has(id);
     const runtime = d.runtime();
     if (custom && !runtime)
       throw new SfError(
@@ -181,7 +189,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         // 088: frame từ mẫu dựng lại khi đổi phiên bản mẫu (agent frame giữ khóa cũ)
         hash: sha256(
           canonicalJson(
-            custom
+            isAi(f.id)
               ? { packet, frameMd: sha256(frameMd) }
               : { packet, frameMd: sha256(frameMd), template: TEMPLATE_VERSION },
           ),
@@ -216,19 +224,25 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     const profile = loadOutputProfile(model.config('output.profile') as string | null);
     const tokens = parseDesignTokens(frameMd);
     const karaoke = model.config('caption.style') === 'caption-pill-karaoke';
-    const buildFromTemplate = (id: string, p: { packet: FramePacket; hash: string }) => {
+    const buildFromTemplate = (
+      id: string,
+      p: { packet: FramePacket; hash: string },
+      layout?: string,
+    ) => {
+      const packet = layout ? { ...p.packet, frame: { ...p.packet.frame, layout } } : p.packet;
       ctx.store.write(
         `${v}/${p.packet.output_path}`,
-        templateFrame(p.packet, profile, tokens, { karaoke }),
+        templateFrame(packet, profile, tokens, { karaoke }),
         { by: 'frame-template', validate: false },
       );
       state.frames[id] = { packet_hash: p.hash, built_at: new Date().toISOString() };
     };
+    /** Đường lùi: frame AI → layout của nó; frame layout lỗi → `big-text` (ảnh làm nền mờ). */
     const fallBack = (ids: string[]) => {
       for (const id of ids) {
         const p = packets.get(id);
         if (!p || fallback.includes(id)) continue;
-        buildFromTemplate(id, p);
+        buildFromTemplate(id, p, isAi(id) ? undefined : 'big-text');
         fallback.push(id);
       }
     };
@@ -334,7 +348,7 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     frameProgress(todo.length);
     await pool(todo, custom ? parallel : 1, async ([id, p]) => {
       if (limited) return;
-      if (!custom) buildFromTemplate(id, p);
+      if (!isAi(id)) buildFromTemplate(id, p);
       else {
         const err = await buildOne(id, p);
         if (err && !limited) failedIds.push(id);
@@ -428,9 +442,16 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
     };
     let res = await verify();
     // 086: frame từ mẫu lỗi lint/check → báo lỗi bên dưới (không tự gọi agent sửa)
+    // frame layout lỗi lint/check → frame big-text (không bao giờ gọi agent); frame AI lỗi → một vòng sửa tại chỗ
+    const layoutBad = [...res.byFrame.keys()].filter((id) => packets.has(id) && !isAi(id));
+    if (layoutBad.length) {
+      fallBack(layoutBad);
+      saveState();
+      res = await verify();
+    }
     if (res.byFrame.size && custom) {
       // một vòng sửa: gửi lại frame kèm phát hiện của lint/check (như orchestrator HyperFrames)
-      const redo = [...res.byFrame].filter(([id]) => packets.has(id));
+      const redo = [...res.byFrame].filter(([id]) => packets.has(id) && isAi(id));
       await pool(redo, parallel, async ([id, msgs]) => {
         const err = await buildOne(
           id,
@@ -466,11 +487,13 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
         'E_GATE_FAILED',
         `hyperframes lint/check: ${[...new Set(left)].slice(0, 8).join('; ')}`,
       );
+    const aiFallback = fallback.filter((id) => isAi(id));
+    const layoutFallback = fallback.filter((id) => !isAi(id));
     return {
       outputs: [...model.frames.map((f) => `compositions/frames/${f.id}.html`), 'index.html'],
       built,
       skipped: [...packets.keys()].filter((id) => !built.includes(id)),
-      summary: `${custom ? 'Dựng' : 'Dựng từ mẫu'} ${built.length} frame (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.${fallback.length ? ` ${fallback.length} frame AI vẫn lỗi sau khi sửa nên dựng từ mẫu: ${fallback.join(', ')} — muốn AI vẽ lại thì bấm "Quay lại" ở bước này.` : ''}`,
+      summary: `Dựng ${built.length} frame từ bộ layout${custom ? ` (${heroIds.size} frame hero do AI dựng)` : ''} (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.${aiFallback.length ? ` ${aiFallback.length} frame AI vẫn lỗi sau khi sửa nên dựng bằng layout: ${aiFallback.join(', ')} — muốn AI vẽ lại thì bấm "Quay lại" ở bước này.` : ''}${layoutFallback.length ? ` ${layoutFallback.length} frame lỗi lint/check nên dựng lại bằng big-text: ${layoutFallback.join(', ')}.` : ''}`,
     };
   };
 }

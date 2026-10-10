@@ -6,11 +6,10 @@ const steps = (st: Record<string, string>) =>
   [
     ['design', 'design-system', 'Design system'],
     ['script', 'script', 'Kịch bản'],
-    ['storyboard', 'storyboard', 'Storyboard'],
     ['voice', 'voice', 'Giọng đọc'],
-    ['frames', 'frame-build', 'Dựng frame'],
-    ['music', 'music', 'Nhạc nền'],
-    ['finalize', 'finalize', 'Hoàn thiện'],
+    ['direct', 'direct', 'Đạo diễn hình'],
+    ['media', 'media', 'Ảnh và nhạc'],
+    ['compose', 'compose', 'Dựng hình'],
     ['meta', 'publish-meta', 'Tiêu đề, mô tả, chương'],
     ['render', 'render', 'Render phát hành'],
   ].map(([id, uses, title]) => ({
@@ -21,15 +20,15 @@ const steps = (st: Record<string, string>) =>
   }));
 
 describe('rerunHint (092)', () => {
-  it('music: rerun from the music step; later steps are counted', () => {
+  it('music: rerun from the media step; later steps are counted', () => {
     const h = rerunHint('advanced.music', steps({}))!;
-    expect(h.primary).toEqual({ step: 'music', label: '↻ Chạy lại từ "Nhạc nền"' });
+    expect(h.primary).toEqual({ step: 'media', label: '↻ Chạy lại từ "Ảnh và nhạc"' });
     expect(h.text).toMatch(/3 bước sau/);
     expect(h.secondary).toBeUndefined();
   });
 
-  it('custom frames: rerun from frame building', () => {
-    expect(rerunHint('advanced.custom_frames', steps({}))!.primary!.step).toBe('frames');
+  it('custom frames: rerun from the director (hero shots)', () => {
+    expect(rerunHint('advanced.custom_frames', steps({}))!.primary!.step).toBe('direct');
   });
 
   it('refine / reasoning: earliest text step, plus a cheaper title-only option', () => {
@@ -43,14 +42,14 @@ describe('rerunHint (092)', () => {
   it('a step that has not run yet: applies by itself, no button', () => {
     const h = rerunHint(
       'advanced.music',
-      steps({ music: 'pending', finalize: 'pending', meta: 'pending', render: 'pending' }),
+      steps({ media: 'pending', compose: 'pending', meta: 'pending', render: 'pending' }),
     )!;
     expect(h.primary).toBeUndefined();
-    expect(h.text).toMatch(/Sẽ áp dụng khi chạy tới bước "Nhạc nền"/);
+    expect(h.text).toMatch(/Sẽ áp dụng khi chạy tới bước "Ảnh và nhạc"/);
   });
 
   it('a skipped step counts as run (music was off, now on)', () => {
-    expect(rerunHint('advanced.music', steps({ music: 'skipped' }))!.primary!.step).toBe('music');
+    expect(rerunHint('advanced.music', steps({ media: 'skipped' }))!.primary!.step).toBe('media');
   });
 
   it('a workflow without an affected step → no hint', () => {

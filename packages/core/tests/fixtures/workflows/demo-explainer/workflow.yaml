@@ -8,12 +8,18 @@ requires: [tts.synthesize]
 brief: { questions: ['Độ dài mục tiêu?'] }
 steps:
   - { id: script, uses: script, title: Kịch bản, approval: { required: true } }
-  - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
-  - { id: look, uses: look, title: Look màu, skip_if: { config: look.id, equals: warm-archive } }
   - { id: voice, uses: voice, title: Giọng đọc }
+  # luồng v2: id giữ `storyboard` cho test cơ chế; executor giả giao agent viết STORYBOARD.md
+  - { id: storyboard, uses: direct, title: Storyboard, approval: { required: true } }
+  - {
+      id: look,
+      uses: media,
+      title: Ảnh và nhạc,
+      skip_if: { config: look.id, equals: warm-archive },
+    }
   - {
       id: finalize,
-      uses: finalize,
+      uses: compose,
       title: Hoàn thiện,
       gate: [{ kind: approved, step: storyboard }],
       approval: { required: true },

@@ -5,8 +5,6 @@ import { canonicalJson } from '../domain/hash.js';
 import { loadVideoModel } from '../graph/model.js';
 import type { WriteStore } from '../store/writer.js';
 import { effectCatalog, frameFinish, normalizeGrading, type MediaEffect } from './grading.js';
-import { SfError } from '../errors.js';
-import type { StepExecutor } from '../workflow/engine.js';
 import { registerObjective } from '../workflow/gates.js';
 import { overlayProblems } from './overlays.js';
 import { overlayBlocks, stylePack, styleDirs } from './styles.js';
@@ -175,61 +173,3 @@ registerObjective('overlays_valid', async (g) => {
     ? { pass: false, detail: r.problems.overlays.slice(0, 6).join('; ') }
     : { pass: true };
 });
-
-/**
- * Executor bước `look` / `effects` / `overlays` (027): giao phiên `main` theo skill, kèm danh mục (look,
- * hiệu ứng, khối overlay) và hiện trạng hoàn thiện của video trong chỉ dẫn.
- */
-export function finishStepExecutor(kind: 'look' | 'effects' | 'overlays' | 'finish'): StepExecutor {
-  return async (ctx) => {
-    if (!ctx.agent) throw new SfError('E_STEP_INCOMPLETE', `${kind} needs an agent session`);
-    const cat = await finishCatalog(ctx.appDataDir);
-    const rep = await finishReport(ctx.store, ctx.videoId, ctx.appDataDir);
-    // 062: bước gộp — ba danh mục + ngân sách + hiện trạng đầy đủ trong một chỉ dẫn
-    if (kind === 'finish') {
-      const now = rep.frames
-        .map(
-          (f) =>
-            `${f.id}: look=${f.look ?? '—'}; effects=[${f.effects.join(', ')}]; overlays=[${f.overlays.join(', ')}]`,
-        )
-        .join('\n');
-      const extra = [
-        'Làm lần lượt trong một phiên: (1) look theo mục "Bước `look`", (2) hiệu ứng media theo mục "Bước `effects`", (3) overlay theo mục "Bước `overlays`" của skill; mỗi phần không cần gì thì bỏ qua. Ghi STORYBOARD.md một lần ở cuối nếu được (giữ mọi id).',
-        `Danh mục look: ${cat.looks.map((l) => `${l.id}${l.variants.length ? ` (biến thể: ${l.variants.join(', ')})` : ''}`).join('; ')}.`,
-        `Danh mục hiệu ứng media: ${cat.effects.map((e) => `${e.id}${e.heavy ? ' [nặng]' : ''}`).join('; ')}.`,
-        `Ngân sách hiệu ứng nặng: ${rep.heavy_allowed} cho video này (${HEAVY_PER_MINUTE}/phút); đang dùng ${rep.heavy_total}. Chạy media.treatment mode dry_run trước khi apply.`,
-        `Danh mục khối overlay: ${cat.overlays.map((o) => `${o.id} (${o.vars.map((v) => `${v.id}${v.required ? '*' : ''}`).join(', ')})`).join('; ')}.`,
-        `Hiện trạng:\n${now}`,
-      ].join('\n');
-      const out = await ctx.agent(extra);
-      return { outputs: out ?? ['STORYBOARD.md'] };
-    }
-    const list =
-      kind === 'look'
-        ? cat.looks.map(
-            (l) => `${l.id}${l.variants.length ? ` (biến thể: ${l.variants.join(', ')})` : ''}`,
-          )
-        : kind === 'effects'
-          ? cat.effects.map((e) => `${e.id}${e.heavy ? ' [nặng]' : ''}`)
-          : cat.overlays.map(
-              (o) => `${o.id} (${o.vars.map((v) => `${v.id}${v.required ? '*' : ''}`).join(', ')})`,
-            );
-    const now = rep.frames
-      .map(
-        (f) =>
-          `${f.id}: look=${f.look ?? '—'}${kind === 'look' ? '' : `; effects=[${f.effects.join(', ')}]; overlays=[${f.overlays.join(', ')}]`}`,
-      )
-      .join('\n');
-    const extra = [
-      `Danh mục ${kind === 'look' ? 'look' : kind === 'effects' ? 'hiệu ứng media' : 'khối overlay'}: ${list.join('; ')}.`,
-      ...(kind === 'effects'
-        ? [
-            `Ngân sách hiệu ứng nặng: ${rep.heavy_allowed} cho video này (${HEAVY_PER_MINUTE}/phút); đang dùng ${rep.heavy_total}. Chạy media.treatment mode dry_run trước khi apply.`,
-          ]
-        : []),
-      `Hiện trạng:\n${now}`,
-    ].join('\n');
-    const out = await ctx.agent(extra);
-    return { outputs: out ?? ['STORYBOARD.md'] };
-  };
-}

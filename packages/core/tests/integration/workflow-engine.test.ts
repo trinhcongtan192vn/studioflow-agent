@@ -59,7 +59,7 @@ describe('briefing (007 US1, FR-WF-01)', () => {
       workflow: { id: 'demo-explainer', version: '1.0.0' },
       output_profile: 'yt-1080p30',
     });
-    expect(Object.keys(st.steps)).toEqual(['script', 'storyboard', 'look', 'voice', 'finalize']);
+    expect(Object.keys(st.steps)).toEqual(['script', 'voice', 'storyboard', 'look', 'finalize']);
     expect(readFileSync(path.join(fx.dir, fx.v('BRIEF.md')), 'utf8')).toMatch(/approved_at: .+T/);
     expect(
       await fx.core.gateway.call(fx.session, 'workflow.select', {
@@ -241,7 +241,8 @@ describe('steps, gates, approvals (007 US2, FR-WF-03/04)', () => {
   it('a step without an executor fails with E_WORKFLOW_INCOMPATIBLE', async () => {
     fx = workflowFixture();
     wireDemo(fx);
-    fx.core.workflows.unregisterExecutor('finalize');
+    // luồng v2: bước `finalize` của gói mẫu là `uses: compose`
+    fx.core.workflows.unregisterExecutor('compose');
     const e = await startWorkflow(fx);
     await e.advance();
     await e.approve(pending(fx)[0]!);
@@ -267,8 +268,8 @@ describe('control (007 US3)', () => {
     await e.idle();
     expect(stepStatus(fx)).toMatchObject({
       script: 'done',
+      voice: 'done',
       storyboard: 'waiting_approval',
-      voice: 'stale',
       finalize: 'stale',
     });
   });
@@ -300,7 +301,7 @@ describe('control (007 US3)', () => {
       current_step: 'script',
       steps: [
         { id: 'script', title: 'Kịch bản', status: 'waiting_approval' },
-        expect.objectContaining({ id: 'storyboard' }),
+        expect.objectContaining({ id: 'voice' }),
         expect.anything(),
         expect.anything(),
         expect.anything(),

@@ -29,29 +29,26 @@ steps:
     params: { mode: narration }
     refine: { enabled: true, rubric: script-shorts }
     approval: { required: true }
-  - { id: storyboard, uses: storyboard, title: Storyboard, approval: { required: true } }
   - id: voice
     uses: voice
     title: Giọng đọc
     gate: [{ kind: objective, check: max_duration, params: { source: audio } }]
-  - { id: assets, uses: assets, title: Hình ảnh }
-  - { id: frames, uses: frame-build, title: Dựng frame dọc }
-  - {
-      id: finish,
-      uses: finish,
-      title: 'Hoàn thiện hình (look, hiệu ứng, overlay)',
-      skip_if: { phase_before: M3 },
-    }
-  - { id: captions, uses: captions, title: Phụ đề karaoke }
-  # 085: nhạc nền là tính năng nâng cao (advanced.music), mặc định bỏ qua
-  - { id: music, uses: music, title: Nhạc nền, skip_if: { config: advanced.music, equals: false } }
-  - id: finalize
-    uses: finalize
-    title: Hoàn thiện
+  # luồng v2: một lượt Opus lên danh sách cảnh (ảnh, layout, chữ, chuyển động, nhạc)
+  - id: direct
+    uses: direct
+    title: Đạo diễn hình
+    params:
+      style: 'Nhịp nhanh, mỗi cảnh một hình mạnh; hook bằng hình gây tò mò; chữ rất ngắn ở nửa trên.'
+      max_shot_s: 5
+      prefer: [image-title, image-caption, image-split, stat-pop, big-text]
+  - { id: media, uses: media, title: Ảnh và nhạc }
+  # dựng hình bằng bộ layout + kiểm cuối tự sửa; duyệt bản xem trước trước khi render phát hành
+  - id: compose
+    uses: compose
+    title: Dựng hình
     approval: { required: true }
-    gate:
-      - { kind: objective, check: max_duration, params: { source: timeline } }
-      - { kind: objective, check: text_safe_area }
+    # chữ trong vùng an toàn dọc (đo trong Chrome; tràn → tự co chữ)
+    gate: [{ kind: objective, check: text_safe_area }]
   - id: meta
     uses: publish-meta
     title: Tiêu đề và mô tả

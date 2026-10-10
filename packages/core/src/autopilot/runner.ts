@@ -538,10 +538,11 @@ export class AutopilotRunner extends EventEmitter {
 
   // ---------- cổng chất lượng (engine gọi khi một điểm chốt xong) ----------
 
-  /** Quyết định điểm chốt của video Autopilot (story/script/…: refine; finalize: ASR); ghi nhật ký. */
+  /** Quyết định điểm chốt của video Autopilot (story/script/…: refine; dựng hình: ASR); ghi nhật ký. */
   readonly autoDecide: AutoDecide = (step, st, ctx) => {
     let d: Decision;
-    if (step.id === 'finalize') {
+    // v2: bước `compose` (cũ: `finalize`) — điểm duyệt bản xem trước
+    if (step.uses === 'compose' || step.id === 'finalize') {
       d = decideFinalize({ mismatched: mismatchedLines(ctx.store, ctx.videoId) });
     } else {
       const threshold =

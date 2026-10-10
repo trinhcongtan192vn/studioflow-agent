@@ -89,7 +89,10 @@ function fakeRuntime(
   return { rt, calls, models, texts };
 }
 
-/** `custom` = frame dựng bằng phiên agent (086: tính năng nâng cao); tắt = dựng từ mẫu. */
+/**
+ * `custom` = frame dựng bằng phiên agent (086: tính năng nâng cao); tắt = dựng từ mẫu. Luồng v2: chỉ frame
+ * `hero` qua phiên agent → đánh dấu mọi frame của video mẫu là hero.
+ */
 function setup(custom = true) {
   const c = copyChannel();
   const t = tempDir('app-');
@@ -100,7 +103,15 @@ function setup(custom = true) {
   const core = createCore({ appDataDir: t.dir, permissionTimeoutMs: 1000, backoffMs: [10, 20] });
   cleanups.push(() => core.close(), c.cleanup, t.cleanup);
   const store = core.gateway.storeFor(c.dir);
-  if (custom) setAdvanced(store, 'advanced.custom_frames', true);
+  if (custom) {
+    setAdvanced(store, 'advanced.custom_frames', true);
+    const sb = `videos/${fixtureVideoId}/STORYBOARD.md`;
+    store.write(
+      sb,
+      readFileSync(store.abs(sb), 'utf8').replace(/^(intent: .*)$/gm, '$1\nhero: true'),
+      { by: 'test' },
+    );
+  }
   const engine = core.workflows.engine(c.dir, fixtureVideoId);
   const v = path.join(c.dir, 'videos', fixtureVideoId);
   const base = {
@@ -199,7 +210,7 @@ describe('frame-build (011 US1, US2)', () => {
     const html = readFileSync(path.join(v, 'compositions/frames/fr_9x2b7cqe.html'), 'utf8');
     expect(html).toContain('fr_9x2b7cqe-t');
     expect(html).not.toContain('Chữ đè lên chữ khác');
-    expect(r.summary).toMatch(/1 frame AI vẫn lỗi .*dựng từ mẫu: fr_9x2b7cqe/);
+    expect(r.summary).toMatch(/1 frame AI vẫn lỗi .*dựng bằng layout: fr_9x2b7cqe/);
     // frame AI còn lại giữ nguyên
     expect(
       readFileSync(path.join(v, 'compositions/frames/fr_3m8k1w7d.html'), 'utf8'),

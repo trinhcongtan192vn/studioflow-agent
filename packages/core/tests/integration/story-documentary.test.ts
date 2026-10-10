@@ -1,6 +1,6 @@
-// 023 · SC-002 (FR-WF-06) — workflow `story-documentary` chạy hết tới MP4 phát hành: TTS/ASR/ảnh giả
-// (SF_GPU=0), text giả cho script/critic/meta, phiên producer giả cho storyboard (refine), phiên frame
-// giả; asset sinh qua nút `asset`; HyperFrames + FFmpeg thật.
+// 023 · SC-002 (FR-WF-06) — workflow `story-documentary` (luồng v2) chạy hết tới MP4 phát hành: TTS/ASR/ảnh
+// giả (SF_GPU=0), text giả cho script/critic/meta + đạo diễn giả; ảnh sinh ở bước `media` (nút `asset`), frame
+// có ảnh từ bộ layout, look kênh nướng vào ảnh; HyperFrames + FFmpeg thật.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -12,12 +12,8 @@ import {
   publishMetaExecutor,
   scriptExecutor,
   serializeBlocksDoc,
-  storyboardExecutor,
-  type AgentEvent,
-  type AgentRuntime,
+  directExecutor,
   type Core,
-  type FramePacket,
-  type SessionContext,
   type TextService,
   type VideoState,
   setAdvanced,
@@ -25,7 +21,7 @@ import {
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { publishWaiting } from '../workflow-helpers.js';
-import { sampleFrame } from '../frame-helpers.js';
+import { withDirector } from '../workflow-e2e-helpers.js';
 
 const SCRIPT_BODY = [
   '## Khởi nghĩa <!-- sf:beat -->',
@@ -75,109 +71,9 @@ function stubText(): TextService {
 
 let core: Core;
 let videoId = '';
-const kinds: string[] = [];
-
-/** Storyboard tài liệu: scene có setting/time_of_day/mood/look, layer nền sinh ảnh. */
-function storyboard(script: string): string {
-  const lines = [...script.matchAll(/sf:line id=(ln_[0-9a-z]{8})/g)].map((m) => m[1]!);
-  const beats = [...script.matchAll(/sf:beat id=(bt_[0-9a-z]{8})/g)].map((m) => m[1]!);
-  const frame = (i: number, ids: string[], beat: string, prompt: string, tr: boolean) =>
-    [
-      `### Frame ${i}`,
-      '```sf-frame',
-      `beat_ids: [${beat}]`,
-      `line_ids: [${ids.join(', ')}]`,
-      `intent: "Ảnh nền chậm rãi phóng to, chữ năm xuất hiện"`,
-      'layers:',
-      `  - { kind: background, asset_request: { source: generate, prompt: "${prompt}", aspect: "16:9" } }`,
-      `  - { kind: text, text: "Mốc ${i}" }`,
-      ...(tr ? ['transition_in: { type: crossfade, duration_ms: 500 }'] : []),
-      '```',
-      '',
-    ].join('\n');
-  return [
-    '---',
-    'schema_version: 1',
-    `video_id: ${videoId}`,
-    'status: draft',
-    '---',
-    '## Scene 1 — Lam Sơn',
-    '```sf-scene',
-    'title: Lam Sơn',
-    'setting: núi rừng Thanh Hóa',
-    'time_of_day: bình minh',
-    'mood: hào hùng',
-    'music: { query: "epic, slow, drums" }',
-    '```',
-    '',
-    frame(
-      1,
-      lines.slice(0, 2),
-      beats[0]!,
-      'misty mountains of Thanh Hoa at dawn, 15th century Vietnam, painterly',
-      false,
-    ),
-    frame(
-      2,
-      lines.slice(2),
-      beats[1]!,
-      'ancient battlefield at Chi Lang pass, banners, dramatic light',
-      true,
-    ),
-  ].join('\n');
-}
-
-/** Runtime giả: phiên `producer` viết storyboard; phiên `frame` viết frame. */
-function runtime(): AgentRuntime {
-  return {
-    id: 'fake',
-    authStatus: async () => ({ ok: true, method: 'claude-plan' }),
-    async openSession(o) {
-      return {
-        id: o.context.session_id,
-        async *send(m: { text: string }): AsyncIterable<AgentEvent> {
-          kinds.push(o.kind);
-          if (o.kind === 'producer') {
-            const script = readFileSync(
-              core.gateway.storeFor(o.context.channel_dir).abs(`videos/${videoId}/SCRIPT.md`),
-              'utf8',
-            );
-            const w = await core.gateway.call(o.context, 'artifact.write', {
-              path: 'STORYBOARD.md',
-              content: storyboard(script),
-            });
-            if (!w.ok) throw new Error(JSON.stringify(w));
-            await core.gateway.call(o.context, 'workflow.step_complete', {
-              step_id: 'storyboard',
-              outputs: ['STORYBOARD.md'],
-            });
-          } else {
-            const packet = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(m.text)![1]!) as FramePacket;
-            const step = /"step_id": "([^"]+)"/.exec(m.text)![1]!;
-            expect(packet.assets.length).toBeGreaterThan(0); // ảnh sinh có trong packet
-            await core.gateway.call(o.context, 'artifact.write', {
-              path: packet.output_path,
-              content: sampleFrame(packet),
-            });
-            await core.gateway.call(o.context, 'workflow.step_complete', {
-              step_id: step,
-              frame_id: packet.frame.id,
-              outputs: [packet.output_path],
-            });
-          }
-          yield { type: 'done', stop_reason: 'end_turn' };
-        },
-        interrupt: async () => {},
-        close: async () => {},
-      };
-    },
-  };
-}
 
 const c = copyChannel();
 const t = tempDir('app-');
-const agentSteps: string[] = [];
-const treatments: { mode: string; within_budget: boolean; applied: string[] }[] = [];
 const v = () => path.join(c.dir, 'videos', videoId);
 
 beforeAll(() => {
@@ -189,61 +85,13 @@ beforeAll(() => {
   core = createCore({ appDataDir: t.dir, permissionTimeoutMs: 5000, backoffMs: [10, 20] });
   core.workflows.registerExecutor('script', scriptExecutor({ text: stubText() }));
   core.workflows.registerExecutor('publish-meta', publishMetaExecutor({ text: stubText() }));
-  core.workflows.registerExecutor(
-    'storyboard',
-    storyboardExecutor({
-      text: stubText(),
-      gateway: core.gateway,
-      runtime: () => core.workflows.agentRuntime,
-    }),
-  );
-  core.workflows.setAgentRuntime(runtime());
-  // người dùng đồng ý sửa STORYBOARD.md đã duyệt (D5 5.1)
-  core.gateway.permissions.on('permission.requested', (r: { request_id: string }) =>
-    core.gateway.permissions.decide({ request_id: r.request_id, allow: true }),
-  );
-  core.workflows.setAgentRunner(async (instruction, ctx) => {
-    const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
-    agentSteps.push(step);
-    const session: SessionContext = {
-      session_id: 'ss_agent001',
-      kind: 'main',
-      channel_dir: ctx.channelDir,
-      video_id: ctx.videoId as SessionContext['video_id'],
-    };
-    if (step === 'music') {
-      const r = await core.gateway.call(session, 'music.find', { query: 'epic, slow, drums' });
-      expect(r).toMatchObject({ ok: false, error: { code: 'E_MUSIC_NOT_FOUND' } });
-    }
-    if (step === 'finish') {
-      // 027: dry-run rồi áp hạt phim cho frame dùng ảnh nền đầu tiên (FN-common 6)
-      const g = JSON.parse(
-        readFileSync(ctx.store.abs(`videos/${ctx.videoId}/.sf/graph.json`), 'utf8'),
-      ) as { nodes: Record<string, { meta?: { asset_id?: string } }> };
-      const asset = Object.entries(g.nodes)
-        .filter(([id]) => id.startsWith('asset:'))
-        .map(([, n]) => n.meta!.asset_id!)
-        .sort()[0]!;
-      for (const mode of ['dry_run', 'apply']) {
-        const j = (await core.gateway.call(session, 'media.treatment', {
-          asset_id: asset,
-          effect: 'grain',
-          mode,
-        })) as { ok: boolean; job_id: string };
-        expect(j.ok).toBe(true);
-        const w = (await core.gateway.call(session, 'job.wait', {
-          job_id: j.job_id,
-          timeout_ms: 60_000,
-        })) as { data: { status: string; result: (typeof treatments)[number] } };
-        expect(w.data.status).toBe('succeeded');
-        treatments.push(w.data.result);
-      }
-    }
-    await ctx.stepComplete(step === 'music' || step === 'finish' ? ['STORYBOARD.md'] : []);
+  core.workflows.registerExecutor('direct', directExecutor({ text: withDirector(stubText()) }));
+  core.workflows.setAgentRunner(async (instruction) => {
+    throw new Error(`unexpected agent step: ${instruction.slice(0, 60)}`);
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Khởi nghĩa Lam Sơn' }).video_id;
-  // 085: test đường refine — bật tính năng nâng cao, giữ 2 vòng như trước
+  // 085: test đường refine kịch bản — bật tính năng nâng cao, giữ 2 vòng như trước
   setAdvanced(store, 'advanced.refine', true);
   setConfig(store, 'refine.min_rounds', 2, { tier: 'channel' });
   const briefRel = `videos/${videoId}/BRIEF.md`;
@@ -265,7 +113,7 @@ afterAll(() => {
 const state = () => JSON.parse(readFileSync(path.join(v(), 'state.json'), 'utf8')) as VideoState;
 
 describeStudio('story-documentary end to end (023 FR-WF-06)', () => {
-  it('runs every step to a release MP4 with generated images and a refined storyboard', async () => {
+  it('runs every step to a release MP4 with generated images in image layouts', async () => {
     const e = core.workflows.engine(c.dir, videoId);
     expect(
       core.workflows.packs().find((p) => p.manifest.id === 'story-documentary')?.compatible,
@@ -289,44 +137,23 @@ describeStudio('story-documentary end to end (023 FR-WF-06)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    // effects sửa STORYBOARD.md đã duyệt → duyệt lại storyboard (D6 3.1)
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
-    // assets do engine (nút asset); look/effects/overlays (027) giao phiên main; 085: nhạc tắt mặc định
-    expect(agentSteps).toEqual(['finish']);
-    expect(state().steps.music!.status).toBe('skipped');
-    expect(treatments.map((t) => [t.mode, t.within_budget, t.applied.length])).toEqual([
-      ['dry_run', true, 0],
-      ['apply', true, 1],
-    ]);
-    expect(kinds.filter((k) => k === 'producer')).toHaveLength(2); // refine min 2 vòng
+    expect(approved).toEqual(['brief', 'script', 'compose']);
     const st = state();
-    expect(st.steps.storyboard!.refine).toMatchObject({ rounds: 2 });
-    expect(st.steps.assets!.status).toBe('done');
+    expect(st.steps.script!.refine).toMatchObject({ rounds: 2 });
+    expect(st.steps.media!.status).toBe('done');
+    // ảnh sinh ở bước media: một prompt dùng chung cho các cảnh có ảnh (cùng scene) → cache, một asset
     const g = JSON.parse(readFileSync(path.join(v(), '.sf', 'graph.json'), 'utf8')) as {
       nodes: Record<string, { meta?: { asset_id?: string } }>;
     };
-    const assetIds = Object.entries(g.nodes)
-      .filter(([id]) => id.startsWith('asset:'))
-      .map(([, n]) => n.meta!.asset_id!);
-    expect(assetIds).toHaveLength(2);
+    const assetIds = [
+      ...new Set(
+        Object.entries(g.nodes)
+          .filter(([id]) => id.startsWith('asset:'))
+          .map(([, n]) => n.meta!.asset_id!),
+      ),
+    ];
+    expect(assetIds.length).toBeGreaterThan(0);
     for (const a of assetIds) expect(existsSync(path.join(v(), 'public', `${a}.png`))).toBe(true);
-    // look kênh (warm-archive) + hạt phim → data-color-grading đã chuẩn hóa trên ảnh của frame
-    const fr = treatments[1]!.applied[0]!;
-    const html = readFileSync(path.join(v(), 'compositions', 'frames', `${fr}.html`), 'utf8');
-    // look kênh nướng vào ảnh (027 R2): src → public/looks/…, gốc giữ ở data-sf-src
-    const img = /<img[^>]*>/.exec(html)![0];
-    const baked = /\ssrc="([^"]+)"/.exec(img)![1]!;
-    expect(baked).toMatch(/^public\/looks\/as_[0-9a-z]{8}-[0-9a-f]{12}\.png$/);
-    expect(existsSync(path.join(v(), baked))).toBe(true);
-    expect(img).toMatch(/data-sf-src="public\/as_[0-9a-z]{8}\.png"/);
-    // hạt phim (hiệu ứng) áp lúc render: data-color-grading đã chuẩn hóa
-    const grading = JSON.parse(
-      /data-color-grading="([^"]+)"/
-        .exec(img)![1]!
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&'),
-    );
-    expect(grading).toMatchObject({ preset: null, details: { grain: 0.25 } });
     const release = st.steps.render!.outputs!.find((o) => o.endsWith('video.mp4'))!;
     expect(existsSync(path.join(v(), release))).toBe(true);
   }, 900_000);

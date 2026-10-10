@@ -1,6 +1,6 @@
-// 029 · FR-WF-07 — workflow `essay-audiobook` chạy hết tới MP4 phát hành (TTS/ASR giả, text giả, agent giả,
-// phiên frame giả; HyperFrames + FFmpeg thật): tầng cấu hình workflow (caption tĩnh ≤ 10 từ, khoảng lặng
-// 600 ms, nhạc −21 dB), chương khớp mốc beat trên timeline.
+// 029 · FR-WF-07 — workflow `essay-audiobook` (luồng v2) chạy hết tới MP4 phát hành (TTS/ASR giả, text giả +
+// đạo diễn giả, không phiên agent; HyperFrames + FFmpeg thật): tầng cấu hình workflow (caption tĩnh ≤ 10 từ,
+// khoảng lặng 600 ms, nhạc −10 dB so với giọng), chương khớp mốc beat trên timeline.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -12,16 +12,16 @@ import {
   publishMetaExecutor,
   resolveConfig,
   scriptExecutor,
+  directExecutor,
   serializeBlocksDoc,
   type AudioMeta,
   type CaptionGroups,
   type Core,
-  type SessionContext,
   type VideoState,
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { publishWaiting } from '../workflow-helpers.js';
-import { frameRuntime, stubText } from '../workflow-e2e-helpers.js';
+import { stubText } from '../workflow-e2e-helpers.js';
 
 const SCRIPT_BODY = [
   '## Vì sao ta sợ im lặng <!-- sf:beat -->',
@@ -52,7 +52,6 @@ const t = tempDir('app-');
 let core: Core;
 let videoId = '';
 const v = () => path.join(c.dir, 'videos', videoId);
-const agentSteps: string[] = [];
 
 beforeAll(() => {
   process.env.SF_GPU = '0';
@@ -64,70 +63,9 @@ beforeAll(() => {
   const text = stubText(SCRIPT_BODY, META);
   core.workflows.registerExecutor('script', scriptExecutor({ text }));
   core.workflows.registerExecutor('publish-meta', publishMetaExecutor({ text }));
-  core.workflows.setAgentRuntime(frameRuntime(() => core));
-  core.gateway.permissions.on('permission.requested', (r: { request_id: string }) =>
-    core.gateway.permissions.decide({ request_id: r.request_id, allow: true }),
-  );
-  core.workflows.setAgentRunner(async (instruction, ctx) => {
-    const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
-    agentSteps.push(step);
-    const session: SessionContext = {
-      session_id: 'ss_agent001',
-      kind: 'main',
-      channel_dir: ctx.channelDir,
-      video_id: ctx.videoId as SessionContext['video_id'],
-    };
-    if (step === 'storyboard') {
-      const script = readFileSync(ctx.store.abs(`videos/${ctx.videoId}/SCRIPT.md`), 'utf8');
-      const lines = [...script.matchAll(/sf:line id=(ln_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      const beats = [...script.matchAll(/sf:beat id=(bt_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      // theo skill: mỗi chương một frame mở đầu có tên chương; trích dẫn nổi bật
-      const frame = (i: number, ids: string[], beat: string, title: string, extra: string[]) =>
-        [
-          `### Frame ${i}`,
-          '```sf-frame',
-          `beat_ids: [${beat}]`,
-          `line_ids: [${ids.join(', ')}]`,
-          `intent: "Tên chương hiện chậm trên nền giấy, sau đó trích dẫn"`,
-          'layers:',
-          '  - { kind: background, notes: "nền giấy ấm, chuyển động rất chậm" }',
-          `  - { kind: text, text: "${title}" }`,
-          ...extra,
-          ...(i > 1 ? ['transition_in: { type: blur-crossfade, duration_ms: 1000 }'] : []),
-          '```',
-          '',
-        ].join('\n');
-      const sb = [
-        '---',
-        'schema_version: 1',
-        `video_id: ${ctx.videoId}`,
-        'status: draft',
-        '---',
-        '## Scene 1 — Im lặng',
-        '```sf-scene',
-        'title: Im lặng',
-        'mood: trầm tư',
-        'music: { query: "slow ambient piano" }',
-        '```',
-        '',
-        frame(1, lines.slice(0, 2), beats[0]!, 'Vì sao ta sợ im lặng', [
-          '  - { kind: text, text: "— Blaise Pascal, Pensées" }',
-        ]),
-        frame(2, lines.slice(2), beats[1]!, 'Học cách ở cùng mình', []),
-      ].join('\n');
-      const w = await core.gateway.call(session, 'artifact.write', {
-        path: 'STORYBOARD.md',
-        content: sb,
-      });
-      if (!w.ok) throw new Error(JSON.stringify(w));
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else if (step === 'music') {
-      const r = await core.gateway.call(session, 'music.find', { query: 'slow ambient piano' });
-      expect(r).toMatchObject({ ok: false, error: { code: 'E_MUSIC_NOT_FOUND' } });
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else {
-      await ctx.stepComplete([]);
-    }
+  core.workflows.registerExecutor('direct', directExecutor({ text }));
+  core.workflows.setAgentRunner(async (instruction) => {
+    throw new Error(`unexpected agent step: ${instruction.slice(0, 60)}`);
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Vì sao ta sợ im lặng' }).video_id;
@@ -174,8 +112,7 @@ describeStudio('essay-audiobook end to end (029 FR-WF-07)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
-    expect(agentSteps).toEqual(['storyboard', 'finish']); // 085: nhạc tắt mặc định
+    expect(approved).toEqual(['brief', 'script', 'compose']);
 
     // tầng workflow (D3 7.1): ghi đè kênh (kênh mẫu đặt caption.max_words = 6), video vẫn thắng
     const scope = { channelDir: c.dir, videoId };

@@ -10,6 +10,7 @@ import { describeStudio } from '../../src/testing/gpu.js';
 import {
   createCore,
   createVideo,
+  directExecutor,
   parseBlocksDoc,
   probeDurationMs,
   publishMetaExecutor,
@@ -18,7 +19,6 @@ import {
   serializeBlocksDoc,
   type Core,
   type FramePacket,
-  type SessionContext,
   type VideoState,
   setAdvanced,
 } from '../../src/index.js';
@@ -72,7 +72,6 @@ let core: Core;
 let longId = '';
 let shortId = '';
 const packets: FramePacket[] = [];
-const readSource: string[] = [];
 const v = (id: string) => path.join(c.dir, 'videos', id);
 
 function brief(id: string, text: string, front: Record<string, unknown> = {}) {
@@ -104,59 +103,9 @@ beforeAll(async () => {
   core.gateway.permissions.on('permission.requested', (r: { request_id: string }) =>
     core.gateway.permissions.decide({ request_id: r.request_id, allow: true }),
   );
-  core.workflows.setAgentRunner(async (instruction, ctx) => {
-    const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
-    const session: SessionContext = {
-      session_id: 'ss_agent001',
-      kind: 'main',
-      channel_dir: ctx.channelDir,
-      video_id: ctx.videoId as SessionContext['video_id'],
-    };
-    if (step === 'storyboard') {
-      // theo skill: đọc video nguồn (video:<vd>/…), dựng lại bố cục dọc
-      const src = (await core.gateway.call(session, 'artifact.read', {
-        path: `video:${longId}/SCRIPT.md`,
-      })) as { ok: boolean; data?: { content: string } };
-      if (src.ok) readSource.push(longId);
-      const script = readFileSync(ctx.store.abs(`videos/${ctx.videoId}/SCRIPT.md`), 'utf8');
-      const lines = [...script.matchAll(/sf:line id=(ln_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      const beats = [...script.matchAll(/sf:beat id=(bt_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      const beatOf = (i: number) => (i === 0 ? beats[0]! : i < 3 ? beats[1]! : beats[2]!);
-      const frames = lines.map((ln, i) =>
-        [
-          `### Frame ${i + 1}`,
-          '```sf-frame',
-          `beat_ids: [${beatOf(i)}]`,
-          `line_ids: [${ln}]`,
-          `intent: "big-text: chữ lớn nửa trên khung"`,
-          'layers:',
-          '  - { kind: background, notes: "nền tối" }',
-          `  - { kind: text, text: "Ý ${i + 1}" }`,
-          '```',
-          '',
-        ].join('\n'),
-      );
-      const sb = [
-        '---',
-        'schema_version: 1',
-        `video_id: ${ctx.videoId}`,
-        'status: draft',
-        '---',
-        '## Scene 1 — Quyết định',
-        '```sf-scene',
-        'title: Quyết định',
-        'music: none',
-        '```',
-        '',
-        ...frames,
-      ].join('\n');
-      const w = await core.gateway.call(session, 'artifact.write', {
-        path: 'STORYBOARD.md',
-        content: sb,
-      });
-      if (!w.ok) throw new Error(JSON.stringify(w));
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else await ctx.stepComplete(step === 'music' ? ['STORYBOARD.md'] : []);
+  // luồng v2: không bước nào giao agent
+  core.workflows.setAgentRunner(async (instruction) => {
+    throw new Error(`unexpected agent step: ${instruction.slice(0, 60)}`);
   });
   // video dài của kênh: kịch bản + audio đã sinh (cache TTS)
   const store = core.gateway.storeFor(c.dir);
@@ -182,13 +131,14 @@ beforeAll(async () => {
   );
   // short cắt từ video dài
   shortId = createVideo(store, { title: 'Bạn có tự quyết định?' }).video_id;
-  // 086: test kiểm frame packet gửi phiên frame → bật frame tùy biến bằng AI cho short
+  // v2: frame tùy biến bật → frame "hero" do phiên frame AI dựng (test kiểm frame packet)
   setAdvanced(store, 'advanced.custom_frames', true, shortId);
   brief(shortId, 'Cắt từ video dài: beat "Lối tắt của não". Một ý: não chọn mặc định khi mệt.', {
     source_video_id: longId,
     target_duration_ms: 9_000,
   });
   core.workflows.registerExecutor('script', scriptExecutor({ text: stubText(SHORT_BODY, meta) }));
+  core.workflows.registerExecutor('direct', directExecutor({ text: stubText(SHORT_BODY, meta) }));
 }, 300_000);
 afterAll(() => {
   core.close();
@@ -222,11 +172,12 @@ describeStudio('shorts from a long video (030 AC-M4-01)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'finalize']);
+    expect(approved).toEqual(['brief', 'script', 'compose']);
     const st = state(shortId);
     expect(st.read_only_videos).toEqual([longId]);
-    expect(readSource).toEqual([longId]);
-    expect(st.steps.finalize!.status).toBe('done');
+    expect(st.steps.compose!.status).toBe('done');
+    // chỉ frame hero (cảnh đầu) qua phiên frame AI; còn lại dựng từ bộ layout
+    expect(packets).toHaveLength(1);
 
     // line giữ nguyên văn → audio lấy từ cache TTS của video dài
     const runs = core.db

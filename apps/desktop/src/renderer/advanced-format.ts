@@ -47,10 +47,10 @@ export function advancedSummary(flags: Partial<Record<AdvancedKey, Flag>>): stri
 
 /** 092: bước (theo loại trong thư viện D6) chịu ảnh hưởng của từng tùy chọn. */
 const AFFECTS: Record<AdvancedKey, string[]> = {
-  'advanced.refine': ['script', 'storyboard', 'publish-meta'],
-  'advanced.reasoning': ['script', 'storyboard', 'publish-meta'],
-  'advanced.music': ['music'],
-  'advanced.custom_frames': ['frame-build'],
+  'advanced.refine': ['script', 'publish-meta'],
+  'advanced.reasoning': ['script', 'publish-meta'],
+  'advanced.music': ['media'],
+  'advanced.custom_frames': ['direct'],
 };
 
 export interface RerunStep {

@@ -2581,6 +2581,15 @@ export const schemas = {
           "blueprint": {
             "type": "string"
           },
+          "layout": {
+            "type": "string"
+          },
+          "motion": {
+            "type": "string"
+          },
+          "hero": {
+            "type": "boolean"
+          },
           "intent": {
             "type": "string"
           },
@@ -3260,20 +3269,12 @@ export const schemas = {
         "enum": [
           "design-system",
           "script",
-          "storyboard",
           "cast",
           "voice",
-          "assets",
-          "frame-build",
-          "animatic",
-          "captions",
-          "music",
-          "look",
-          "effects",
-          "overlays",
-          "finish",
+          "direct",
+          "media",
           "lipsync",
-          "finalize",
+          "compose",
           "publish-meta",
           "thumbnail",
           "render",

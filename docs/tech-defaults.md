@@ -116,7 +116,7 @@ Codex app-server cần dynamicTools (đã kiểm protocol CLI 0.162.0-alpha.17.2
 | `asr.max_regen` | 1 |
 | `lipsync.enabled` | false (workflow `short-film`: true, 039) |
 | `workflow.autopilot` | true (034 "Tự duyệt bước": chỉ dừng ở điểm chốt) |
-| `workflow.key_approvals` | `[story, script, finalize]` |
+| `workflow.key_approvals` | `[story, script, compose]` (luồng v2: điểm duyệt bản xem trước ở bước dựng hình) |
 | `policy.auto_approve.batch_gen` | false |
 | `policy.auto_approve.paid_api` | false |
 | `check.duration_tolerance` | 0.10 |

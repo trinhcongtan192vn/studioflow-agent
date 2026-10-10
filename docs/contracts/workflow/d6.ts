@@ -15,8 +15,9 @@ export interface WorkflowManifest {
   steps: StepDecl[];                        // không gồm brief (brief là pha trước workflow)
 }
 
-export type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
+// luồng v2 (2026-10-10): kịch bản → giọng → đạo diễn → tài nguyên → dựng hình → meta/render/đăng
+export type StepLibraryId = 'design-system' | 'script' | 'cast' | 'voice' | 'direct' | 'media' | 'lipsync'
+  | 'compose' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
 
 export interface StepDecl {
   id: string;                               // duy nhất trong workflow

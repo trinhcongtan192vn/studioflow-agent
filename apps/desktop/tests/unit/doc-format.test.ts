@@ -91,7 +91,7 @@ describe('step CTAs', () => {
       { kind: 'file', label: 'Xem brief', path: 'BRIEF.md' },
       { kind: 'file', label: 'Xem design system', path: 'frame.md' },
     ]);
-    expect(stepCtas({ id: 'frames', status: 'done' })).toEqual([
+    expect(stepCtas({ id: 'compose', status: 'done' })).toEqual([
       { kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' },
     ]);
     expect(stepCtas({ id: 'voice', status: 'failed' }, ['SCRIPT.md'])).toEqual([
