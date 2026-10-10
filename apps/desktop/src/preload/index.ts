@@ -12,6 +12,8 @@ export interface StudioflowApi {
   openExternal(url: string): Promise<boolean>;
   /** Đọc file âm thanh được phép (008) để phát trong app. */
   readAudio(absPath: string): Promise<{ mime: string; data: Uint8Array }>;
+  /** Gốc URL máy chủ media cục bộ (video/ảnh), rỗng nếu chưa sẵn sàng. */
+  mediaBase: string;
   secretsStatus(): Promise<{ name: string; hint: string | null }[]>;
   secretsSet(name: string, value: string): Promise<{ name: string; hint: string | null }>;
   secretsDelete(name: string): Promise<{ name: string; deleted: boolean }>;
@@ -46,6 +48,7 @@ const api: StudioflowApi = {
   revealFile: (p) => ipcRenderer.invoke('shell:reveal', p),
   openExternal: (url) => ipcRenderer.invoke('shell:external', url),
   readAudio: (p) => ipcRenderer.invoke('media:audio', p),
+  mediaBase: String(ipcRenderer.sendSync('media:base') ?? ''),
   secretsStatus: () => ipcRenderer.invoke('secrets:status'),
   secretsSet: (n, v) => ipcRenderer.invoke('secrets:set', n, v),
   secretsDelete: (n) => ipcRenderer.invoke('secrets:delete', n),
