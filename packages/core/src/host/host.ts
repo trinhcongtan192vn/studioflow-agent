@@ -35,6 +35,14 @@ import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
 import { appLibrary, MAX_SCAN_FILES, readMusicManifest, scanAudio } from '../music/library.js';
 import { assignVoice, narrationPreview, reviewData, videoVoices } from '../review/review.js';
+import {
+  chooseProposal,
+  frameMdFromDesign,
+  readChannelDesign,
+  readProposals,
+  saveChannelDesign,
+  videoDesignStatus,
+} from '../design/channel-design.js';
 import { WriteStore } from '../store/writer.js';
 import { getTrace, listTraces } from '../trace/trace.js';
 import { CORE_VERSION } from '../version.js';
@@ -68,6 +76,7 @@ import { emptyTrash, listTrash, restoreVideo, trashVideo } from '../domain/trash
 import { videoCard, type VideoCard } from '../domain/video-card.js';
 import type { VideoCreated } from '../gateway/tools/video.js';
 import { exportVideo, listRenders, renderLibrary, type ExportInclude } from '../render/export.js';
+import { readChannelAssets } from '../hf/packet.js';
 import { publishQueue } from '../publish/queue-view.js';
 import { recordSessions } from '../agent/recorder.js';
 import type { SecretStore } from '../secrets/store.js';
@@ -1011,6 +1020,54 @@ export class CoreHost extends EventEmitter {
       // 073: thư viện — mọi bản render của kênh
       case 'render.library':
         return { renders: renderLibrary(this.store(p.channel).root) };
+      // design system cấp kênh (2026-10-10)
+      case 'design.get': {
+        const store = this.store(p.channel);
+        const design = readChannelDesign(store.root);
+        const proposals = readProposals(store.root);
+        const lib = readChannelAssets(store.root);
+        const images: Record<string, string> = {};
+        for (const d of [design, ...proposals])
+          if (d?.sample_asset_id) {
+            const a = lib.find((x) => x.id === d.sample_asset_id);
+            if (a) images[a.id] = store.abs(a.file);
+          }
+        return { ...(design ? { design } : {}), proposals, images };
+      }
+      case 'design.propose': {
+        const store = this.store(p.channel);
+        const job = c.queue.enqueue('design.propose', { channel_dir: store.root });
+        return { job_id: job.id };
+      }
+      case 'design.choose':
+        return chooseProposal(this.store(p.channel), Number(p.index));
+      case 'design.save': {
+        const store = this.store(p.channel);
+        const prev = readChannelDesign(store.root);
+        return saveChannelDesign(store, { ...(prev ?? {}), ...(p.design as object) });
+      }
+      case 'design.status': {
+        const store = this.store(p.channel);
+        const released = listRenders(store.root, String(p.video)).some((r) => r.mode === 'release');
+        return { ...videoDesignStatus(store, String(p.video)), released };
+      }
+      case 'design.apply_video': {
+        const store = this.store(p.channel);
+        const st = videoDesignStatus(store, String(p.video));
+        const design = readChannelDesign(store.root);
+        if (!design || !st.stale) return { step: '' };
+        const name = (
+          JSON.parse(readFileSync(store.abs('channel.json'), 'utf8')) as { name: string }
+        ).name;
+        store.write(`videos/${p.video}/frame.md`, frameMdFromDesign(design, name), {
+          by: 'design.apply',
+        });
+        const e = this.engine(p.channel, p.video);
+        const steps = e.summary().steps as { id: string; uses?: string; status: string }[];
+        const target = steps.find((x) => (x.uses ?? x.id) === (st.images ? 'direct' : 'compose'));
+        if (target && target.status !== 'pending') await e.rewind(target.id);
+        return { step: target?.id ?? '' };
+      }
       // xem lại kết quả từng bước + chọn giọng theo người nói (Tan 2026-10-10)
       case 'voice.speakers':
         return videoVoices(this.store(p.channel), String(p.video), c.appDataDir);

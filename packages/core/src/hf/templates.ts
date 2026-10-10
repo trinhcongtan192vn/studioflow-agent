@@ -19,6 +19,10 @@ export interface DesignTokens {
   accent: string;
   accent2: string;
   font: string;
+  /** Chữ trên hình viết hoa (design kênh). */
+  upper?: boolean;
+  /** Độ đậm chữ trên hình. */
+  weight?: number;
 }
 
 const DEFAULT_TOKENS: DesignTokens = {
@@ -45,6 +49,10 @@ export function parseDesignTokens(frameMd: string): DesignTokens {
     accent: color('accent') ?? DEFAULT_TOKENS.accent,
     accent2: color('accent-2') ?? DEFAULT_TOKENS.accent2,
     font: generic ?? DEFAULT_TOKENS.font,
+    ...(/^[-*]\s*text-case:\s*upper/im.test(frameMd) ? { upper: true } : {}),
+    ...(/^[-*]\s*weight:\s*(\d{3})/im.exec(frameMd)
+      ? { weight: Number(/^[-*]\s*weight:\s*(\d{3})/im.exec(frameMd)![1]) }
+      : {}),
   };
 }
 
@@ -290,11 +298,23 @@ function withAccent(text: string, notes: string | undefined, color: string): str
 }
 
 export function templateFrame(
-  p: FramePacket,
+  p0: FramePacket,
   profile: OutputProfile,
   tokens: DesignTokens,
   opts: { karaoke: boolean },
 ): string {
+  // design kênh viết hoa: đổi chữ trước khi đo (co chữ theo bề rộng thật của chữ hoa)
+  const p: FramePacket = tokens.upper
+    ? {
+        ...p0,
+        frame: {
+          ...p0.frame,
+          layers: p0.frame.layers.map((l) =>
+            l.kind === 'text' && l.text ? { ...l, text: l.text.toLocaleUpperCase() } : l,
+          ),
+        },
+      }
+    : p0;
   const id = p.frame.id;
   const P = `${id}-`;
   const dur = r1(p.timing.duration_ms / 1000);
@@ -308,7 +328,7 @@ export function templateFrame(
     `.${P}bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; background: ${tokens.canvas}; overflow: hidden; }`,
     `.${P}fill { width: 100%; height: 100%; object-fit: cover; display: block; }`,
     `.${P}t > span { display: inline-block; }`,
-    `.${P}t { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: ${tokens.ink}; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; overflow: hidden; }`,
+    `.${P}t { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: ${tokens.ink}; font-weight: ${tokens.weight ?? 800}; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; overflow: hidden; }`,
   ];
   const els: string[] = [];
   const anim: string[] = [];

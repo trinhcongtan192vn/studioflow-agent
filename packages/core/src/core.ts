@@ -13,6 +13,8 @@ import { PhoenixServer } from './trace/phoenix.js';
 import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
 import { composeExecutor } from './workflow/compose.js';
+import { runDesignProposal } from './design/channel-design.js';
+import { generateImage } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
 import { studioTools } from './studio/tools.js';
@@ -562,6 +564,31 @@ export function createCore(opts: CoreOptions = {}): Core {
   workflows.registerExecutor('compose', composeExecutor({ builders: graph, frames: frameBuild }));
   // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
   workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));
+  // design system cấp kênh (2026-10-10): AI đề xuất + ảnh mẫu, chạy nền
+  queue.define('design.propose', {
+    engine: 'comfyui',
+    idempotent: true,
+    run: async (job, ctx) => {
+      const store = gateway.storeFor(job.channel_dir!);
+      return runDesignProposal(
+        {
+          text,
+          sample: async (prompt) =>
+            (
+              await generateImage(
+                { providers, db },
+                store,
+                { prompt, width: 1280, height: 720, tags: ['design-sample'] },
+                { appDataDir },
+              )
+            ).asset_id,
+        },
+        store,
+        appDataDir,
+        (done, total, message) => ctx.progress(done, total, message),
+      );
+    },
+  });
   // 091: đăng ngay lên nền tảng người dùng chọn (dùng chung bộ đăng 053/056)
   const videoPublish = new VideoPublish({
     appDataDir,

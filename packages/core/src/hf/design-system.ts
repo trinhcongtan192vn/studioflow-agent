@@ -3,6 +3,7 @@ import path from 'node:path';
 import { EXTENSIONS_DIR } from '../agent/options.js';
 import { resolveConfig } from '../config/resolve.js';
 import { sha256 } from '../domain/hash.js';
+import { frameMdFromDesign, readChannelDesign } from '../design/channel-design.js';
 import type { StepRunContext } from '../workflow/engine.js';
 
 export const DEFAULT_FRAME_TPL = path.join(EXTENSIONS_DIR, 'studioflow-core', 'hf', 'frame.md.tpl');
@@ -13,6 +14,19 @@ export const DEFAULT_FRAME_TPL = path.join(EXTENSIONS_DIR, 'studioflow-core', 'h
  */
 export function designSystemExecutor() {
   return async (ctx: StepRunContext): Promise<{ outputs: string[] }> => {
+    // design system cấp kênh (2026-10-10): có thì mọi video theo bản của kênh
+    const design = readChannelDesign(ctx.channelDir);
+    if (design) {
+      const name = (
+        JSON.parse(readFileSync(path.join(ctx.channelDir, 'channel.json'), 'utf8')) as {
+          name: string;
+        }
+      ).name;
+      ctx.store.write(`videos/${ctx.videoId}/frame.md`, frameMdFromDesign(design, name), {
+        by: 'step.design-system',
+      });
+      return { outputs: ['frame.md'] };
+    }
     const own = path.join(ctx.channelDir, 'profile', 'frame.md.tpl');
     const tpl = readFileSync(existsSync(own) ? own : DEFAULT_FRAME_TPL, 'utf8');
     const channelJson = readFileSync(path.join(ctx.channelDir, 'channel.json'), 'utf8');
