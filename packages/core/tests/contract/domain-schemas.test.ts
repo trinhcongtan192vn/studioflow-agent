@@ -207,4 +207,13 @@ describe('artifact schemas (002 SC-001)', () => {
     const r = validateArtifact('channel.json', '{nope');
     expect(r.errors[0]!.code).toBe('E_SCHEMA_INVALID');
   });
+
+  it('a YouTube id in BRIEF source_video_id says what the field is for', () => {
+    const brief = readFileSync(
+      path.join(fixturesDir, 'channel/videos/vd_8m2pq7rt/BRIEF.md'),
+      'utf8',
+    ).replace('source_video_id: null', 'source_video_id: x3-KmCUJbTI');
+    const r = validateArtifact('videos/vd_8m2pq7rt/BRIEF.md', brief);
+    expect(r.errors[0]!.message).toMatch(/only the channel video id/);
+  });
 });

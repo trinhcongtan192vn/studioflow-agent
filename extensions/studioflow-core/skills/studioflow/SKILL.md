@@ -87,7 +87,7 @@ Người dùng gửi URL YouTube và nhờ làm video tương tự / hay hơn. M
    ```
 
 3. Tóm tắt trong chat (công thức + best angle, 4–6 dòng). Người dùng đã nêu chủ đề mới → áp công thức vào chủ đề đó.
-4. Lên brief như bình thường từ best angle: chọn workflow hợp với dạng video (giải thích, truyện, shorts…) và thời lượng, viết `BRIEF.md` với mục **Công thức tham khảo** (Winning formula, Best angle, hook mở đầu và cấu trúc dự kiến — tóm từ `REFERENCE.md`, kèm URL nguồn), rồi `workflow.select` → thẻ duyệt brief. Các bước sau (design system, kịch bản…) đọc `BRIEF.md` nên giữ được công thức; nội dung, ví dụ và câu chữ phải là của kênh, không lấy từ video gốc.
+4. Lên brief như bình thường từ best angle: chọn workflow hợp với dạng video (giải thích, truyện, shorts…) và thời lượng, viết `BRIEF.md` với mục **Công thức tham khảo** (Winning formula, Best angle, hook mở đầu và cấu trúc dự kiến — tóm từ `REFERENCE.md`, kèm URL nguồn trong thân brief), rồi `workflow.select` → thẻ duyệt brief. **Không** ghi ID/URL video YouTube vào front matter `source_video_id`: trường đó chỉ nhận ID video của kênh (`vd_…`) khi cắt shorts từ video dài; còn lại để `null`. Các bước sau (design system, kịch bản…) đọc `BRIEF.md` nên giữ được công thức; nội dung, ví dụ và câu chữ phải là của kênh, không lấy từ video gốc.
 
 Nghiên cứu thêm (chủ đề đang hot, video đối thủ): `youtube.search {query, order: "viewCount", published_after}` và `youtube.channel_videos {channel_id}`.
 
