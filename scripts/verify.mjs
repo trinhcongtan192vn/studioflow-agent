@@ -69,7 +69,8 @@ export function defaultPlan() {
       step: 'test',
       cwd: core,
       cmd: node,
-      args: [bin('vitest/vitest.mjs'), 'run', '--coverage'],
+      // không đo coverage trong verify (chậm ~20–30%): `npm run test:coverage` trong packages/core
+      args: [bin('vitest/vitest.mjs'), 'run'],
     },
     {
       project: 'apps/desktop',

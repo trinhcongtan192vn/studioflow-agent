@@ -6,7 +6,7 @@ Thư mục `specs/` và `.specify/` cũ chỉ còn để tham khảo lịch sử
 ## Cách làm
 1. Đọc code liên quan và mục `docs/` liên quan khi cần hiểu hành vi; `docs/contracts/` là định nghĩa schema/tool/manifest (test contract kiểm) — không định nghĩa lại.
 2. Viết test cho thay đổi; mọi ghi file của app đi qua Gateway / `src/store`.
-3. Một branch cho mỗi thay đổi → `npm run verify` ALL GREEN → `git merge --no-ff` vào `main` → push.
+3. Một branch cho mỗi thay đổi → `npm run verify` ALL GREEN → `git merge --no-ff` vào `main` → push. Sửa luồng dựng video thì chạy thêm `npm run test:e2e` (e2e từng workflow, ~8 phút); coverage: `npm run test:coverage -w packages/core`.
 4. Commit ghi mô tả ngắn của thay đổi.
 5. Chỉ hỏi (MCQ, có phương án đề xuất) khi là quyết định thật sự của người dùng.
 6. Sửa `docs/` khi thay đổi làm tài liệu hành vi/contract sai đi.
