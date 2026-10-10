@@ -2876,14 +2876,13 @@ kbd {
   margin-bottom: 16px;
 }
 .review-sec {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 14px;
+  /* dạng danh sách: không khung card, chỉ đường kẻ phân mục */
+  border-top: 1px solid var(--line);
+  padding: 10px 0 2px;
 }
 .review-sec h3 {
-  margin: 0 0 10px;
-  font-size: 15px;
+  margin: 0 0 6px;
+  font-size: 14px;
 }
 .review-tools {
   margin: 4px 0 6px;
@@ -2923,57 +2922,75 @@ kbd {
   opacity: 1;
   border-color: var(--warn);
 }
-.shot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+.shot-list {
+  display: flex;
+  flex-direction: column;
+}
+.shot-row {
+  display: flex;
   gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
 }
-.shot {
-  margin: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
+.shot-thumbs {
+  display: flex;
+  gap: 4px;
+  flex: none;
 }
-.shot-img {
+.shot-thumb {
   position: relative;
+  width: 96px;
   aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
   background: var(--panel-2);
+  cursor: zoom-in;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 11px;
 }
-.shot-img img {
+.shot-thumb + .shot-thumb {
+  width: 40px;
+}
+.shot-list.vertical .shot-thumb {
+  width: 45px;
+  aspect-ratio: 9 / 16;
+}
+.shot-thumb.empty {
+  cursor: default;
+}
+.shot-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.shot-no,
-.shot-dur {
-  position: absolute;
-  top: 4px;
-  font-size: 11px;
-  background: var(--backdrop);
-  color: var(--on-accent);
-  padding: 1px 6px;
-  border-radius: 4px;
+.shot-thumb:hover {
+  border-color: var(--accent);
 }
 .shot-no {
-  left: 4px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 10px;
+  background: var(--backdrop);
+  color: var(--on-accent);
+  padding: 0 4px;
+  border-radius: 3px;
 }
-.shot-dur {
-  right: 4px;
-}
-.shot figcaption {
-  padding: 6px 8px;
+.shot-info {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 .shot-meta {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .chip {
   font-size: 11px;
@@ -2982,21 +2999,15 @@ kbd {
   background: var(--accent-soft);
 }
 .shot-text {
-  font-size: 13px;
+  font-size: 12px;
 }
 .shot-lines {
-  margin: 0;
+  margin: 2px 0 0;
   opacity: 0.8;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.shot-prompt {
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .voice-table {
   width: 100%;
@@ -3034,9 +3045,38 @@ kbd {
   gap: 8px;
   overflow-x: auto;
 }
-.snap-row img {
-  height: 160px;
+.shot-thumb.snap {
+  width: 160px;
+  flex: none;
+}
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--backdrop);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+}
+.image-viewer img {
+  max-width: 94vw;
+  max-height: 84vh;
+  object-fit: contain;
   border-radius: 6px;
+  box-shadow: var(--shadow-2);
+}
+.iv-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 13px;
 }
 button.link {
   background: none;
@@ -3049,34 +3089,40 @@ ul.plain {
   margin: 0;
   padding-left: 18px;
 }
-.shot-grid.vertical {
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-}
-.shot-grid.vertical .shot-img {
-  aspect-ratio: 9 / 16;
-}
 .voice-cards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 8px 0;
+  margin: 4px 0;
 }
 .voice-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  /* một hàng mỗi người nói */
+  border-bottom: 1px solid var(--line);
+  padding: 4px 0;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
 }
 .voice-head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-width: 140px;
 }
 .voice-card select {
   flex: 1;
-  min-width: 0;
+  min-width: 180px;
+  max-width: 340px;
+}
+.voice-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.voice-top h3 {
+  margin: 0;
+}
+.line-row {
+  grid-template-columns: 160px 80px 1fr;
+  padding: 1px 0;
 }
 .voice-ref {
   display: flex;

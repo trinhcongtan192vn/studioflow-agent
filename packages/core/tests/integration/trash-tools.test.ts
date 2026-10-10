@@ -53,5 +53,7 @@ it('an unused library image leaves the manifest and goes to the trash; one used 
   const after = JSON.parse(readFileSync(path.join(c.dir, 'assets', 'manifest.json'), 'utf8'));
   expect(after.assets.some((a: { id: string }) => a.id === 'as_junk0001')).toBe(false);
   // ảnh mẫu của fixture được storyboard dùng
-  expect(() => trashAsset(store, 'as_h6k2q9vt')).toThrow(/still used by .*videos\/vd_8m2pq7rt\/STORYBOARD\.md/);
+  expect(() => trashAsset(store, 'as_h6k2q9vt')).toThrow(
+    /still used by .*videos\/vd_8m2pq7rt\/STORYBOARD\.md/,
+  );
 });

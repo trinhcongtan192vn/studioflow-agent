@@ -21,6 +21,7 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
   const [design, setDesign] = useState<Awaited<ReturnType<typeof core.call<'design.status'>>>>();
   const [designMsg, setDesignMsg] = useState('');
   const [err, setErr] = useState('');
+  const [viewing, setViewing] = useState<number>();
   // video đang xem: phản hồi về muộn của video trước (đổi video khi đang tải) bị bỏ
   const current = useRef(video);
   current.current = video;
@@ -49,6 +50,7 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
       .catch(mine(() => setSteps([])));
   };
   useEffect(() => {
+    setViewing(undefined);
     setData(undefined);
     setVoices(undefined);
     setDesign(undefined);
@@ -68,6 +70,9 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
       (s) => (s.uses ?? s.id) === uses && (s.status === 'done' || s.status === 'waiting_approval'),
     );
   const video0 = data.release ?? data.draft;
+  // mọi ảnh xem phóng to được (theo thứ tự cảnh, rồi ảnh chụp frame) — lướt bằng ←/→
+  const gallery = [...data.shots.flatMap((s) => s.images), ...data.snapshots];
+  const openViewer = (f: string) => setViewing(Math.max(0, gallery.indexOf(f)));
   return (
     <div className="review" data-testid="review">
       <StepStrip steps={steps} />
@@ -125,39 +130,44 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
           <h3>
             🖼 Cảnh <span className="muted">· {data.shots.length} cảnh</span>
           </h3>
-          <div className={`shot-grid${data.vertical ? ' vertical' : ''}`}>
+          <div className={`shot-list${data.vertical ? ' vertical' : ''}`}>
             {data.shots.map((s, i) => (
-              <figure key={s.frame_id} className="shot" data-testid="shot">
-                <div className="shot-img">
-                  {s.images[0] ? (
-                    <img src={mediaUrl(s.images[0])} alt="" loading="lazy" />
+              <div key={s.frame_id} className="shot-row" data-testid="shot">
+                <div className="shot-thumbs">
+                  {s.images.length ? (
+                    s.images.map((f, k) => (
+                      <button
+                        key={f}
+                        className="shot-thumb"
+                        title="Phóng to"
+                        onClick={() => openViewer(f)}
+                      >
+                        <img src={mediaUrl(f)} alt="" loading="lazy" />
+                        {k === 0 && <span className="shot-no">{i + 1}</span>}
+                      </button>
+                    ))
                   ) : (
-                    <span className="muted">
-                      {s.pending_prompts.length ? 'Chờ sinh ảnh' : 'Không ảnh (chữ)'}
+                    <span className="shot-thumb empty muted">
+                      <span className="shot-no">{i + 1}</span>
+                      {s.pending_prompts.length ? 'Chờ ảnh' : 'Chữ'}
                     </span>
                   )}
-                  <span className="shot-no">{i + 1}</span>
-                  {s.duration_ms ? <span className="shot-dur">{sec(s.duration_ms)}</span> : null}
                 </div>
-                <figcaption>
+                <div className="shot-info">
                   <div className="shot-meta">
+                    {s.duration_ms ? <span className="muted">{sec(s.duration_ms)}</span> : null}
                     {s.layout && <span className="chip">{s.layout}</span>}
                     {s.motion && <span className="chip muted">{s.motion}</span>}
+                    {s.texts.length > 0 && <b className="shot-text">{s.texts.join(' · ')}</b>}
                   </div>
-                  {s.texts.length > 0 && <b className="shot-text">{s.texts.join(' · ')}</b>}
-                  <p className="shot-lines">
+                  <p className="shot-lines" title={s.pending_prompts[0] ?? ''}>
                     {s.line_ids
                       .map((id) => data.script.lines.find((l) => l.id === id)?.text)
                       .filter(Boolean)
                       .join(' ')}
                   </p>
-                  {s.pending_prompts[0] && (
-                    <p className="shot-prompt muted" title={s.pending_prompts[0]}>
-                      🎨 {s.pending_prompts[0]}
-                    </p>
-                  )}
-                </figcaption>
-              </figure>
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -189,14 +199,86 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
           <h3>📸 Ảnh chụp frame</h3>
           <div className="snap-row">
             {data.snapshots.map((f) => (
-              <img key={f} src={mediaUrl(f)} alt="" loading="lazy" />
+              <button key={f} className="shot-thumb snap" onClick={() => openViewer(f)}>
+                <img src={mediaUrl(f)} alt="" loading="lazy" />
+              </button>
             ))}
           </div>
         </section>
       )}
+      {viewing !== undefined && gallery[viewing] && (
+        <ImageViewer
+          files={gallery}
+          index={viewing}
+          caption={(f) => {
+            const i = data.shots.findIndex((s) => s.images.includes(f));
+            const s = data.shots[i];
+            return s
+              ? `Cảnh ${i + 1}${s.texts.length ? ` · ${s.texts.join(' · ')}` : ''}`
+              : 'Ảnh chụp frame';
+          }}
+          onIndex={setViewing}
+          onClose={() => setViewing(undefined)}
+        />
+      )}
       {!video0 && !data.shots.length && !data.script.lines.some((l) => l.audio) && (
         <p className="muted">Chưa có kết quả để xem — các mục sẽ hiện dần khi từng bước xong.</p>
       )}
+    </div>
+  );
+}
+
+/** Xem ảnh phóng to: ←/→ lướt, Esc hoặc bấm nền để đóng. */
+function ImageViewer({
+  files,
+  index,
+  caption,
+  onIndex,
+  onClose,
+}: {
+  files: string[];
+  index: number;
+  caption: (f: string) => string;
+  onIndex: (i: number) => void;
+  onClose: () => void;
+}) {
+  const go = (d: number) => onIndex((index + d + files.length) % files.length);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') go(1);
+      else if (e.key === 'ArrowLeft') go(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  const f = files[index]!;
+  return (
+    <div
+      className="image-viewer"
+      role="dialog"
+      aria-label="Xem ảnh"
+      data-testid="image-viewer"
+      onClick={onClose}
+    >
+      <img src={mediaUrl(f)} alt="" onClick={(e) => e.stopPropagation()} />
+      <div className="iv-bar" onClick={(e) => e.stopPropagation()}>
+        <button onClick={() => go(-1)} aria-label="Ảnh trước">
+          ←
+        </button>
+        <span>
+          {caption(f)}{' '}
+          <span className="muted">
+            · {index + 1}/{files.length}
+          </span>
+        </span>
+        <button onClick={() => go(1)} aria-label="Ảnh sau">
+          →
+        </button>
+        <button onClick={onClose} aria-label="Đóng">
+          ✕
+        </button>
+      </div>
     </div>
   );
 }
@@ -279,79 +361,69 @@ function VoiceSection({
     }
   };
   const total = data.script.lines.reduce((a, l) => a + (l.duration_ms ?? 0), 0);
+  const lang = (voices?.language ?? '').slice(0, 2).toLowerCase();
   return (
     <section className="review-sec" data-testid="review-voice">
-      <h3>
-        🎙 Giọng đọc
-        {hasAudio && <span className="muted"> · {sec(total)}</span>}
-      </h3>
-      {hasAudio && (
-        <div className="row">
-          <NarrationPlayer channel={channel} video={video} />
-        </div>
-      )}
+      <div className="voice-top">
+        <h3>🎙 Giọng đọc{hasAudio && <span className="muted"> · {sec(total)}</span>}</h3>
+        {hasAudio && <NarrationPlayer channel={channel} video={video} />}
+        {hasAudio && (
+          <button className="link" onClick={() => setShowLines(!showLines)}>
+            {showLines ? 'Ẩn từng câu' : `Từng câu (${data.script.lines.length})`}
+          </button>
+        )}
+      </div>
       {voices && (
         <div className="voice-cards">
           {voices.speakers.map((sp) => {
             const sel = pick[sp.speaker] ?? sp.voice_id ?? '';
-            const ref = byId.get(sel)?.ref;
+            const v = byId.get(sel);
+            const picked = Boolean(pick[sp.speaker]) && pick[sp.speaker] !== sp.voice_id;
+            const wrongLang =
+              v?.language && lang && !v.language.toLowerCase().startsWith(lang)
+                ? v.language.toUpperCase()
+                : '';
             return (
               <div key={sp.speaker} className="voice-card" data-testid="voice-card">
-                <div className="voice-head">
-                  <b>{sp.name}</b>
-                  <span className="muted">
-                    {sp.lines} câu · đang dùng:{' '}
-                    {sp.voice_name ?? sp.voice_id ?? <span className="error">chưa có giọng</span>}
-                  </span>
-                </div>
-                <div className="row">
-                  <select
-                    value={sel}
-                    aria-label={`Giọng cho ${sp.name}`}
-                    onChange={(e) => setPick((p) => ({ ...p, [sp.speaker]: e.target.value }))}
-                  >
-                    {!sel && <option value="">— chọn giọng —</option>}
-                    {voices.voices.map((v) => (
-                      <option key={v.voice_id} value={v.voice_id} disabled={!v.ready}>
-                        {v.language ? `[${v.language.toUpperCase()}] ` : ''}
-                        {v.name}
-                        {v.kind === 'designed' ? ' (gợi ý)' : ''}
-                        {v.ready ? '' : ' — chưa sẵn sàng'}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    disabled={!pick[sp.speaker] || pick[sp.speaker] === sp.voice_id}
-                    onClick={() => void apply(sp.speaker)}
-                  >
-                    Dùng giọng này
+                <span className="voice-head" title={`${sp.lines} câu`}>
+                  <b>{sp.name}</b> <span className="muted">· {sp.lines} câu</span>
+                </span>
+                <select
+                  value={sel}
+                  aria-label={`Giọng cho ${sp.name}`}
+                  onChange={(e) => setPick((p) => ({ ...p, [sp.speaker]: e.target.value }))}
+                >
+                  {!sel && <option value="">— chọn giọng —</option>}
+                  {voices.voices.map((x) => (
+                    <option key={x.voice_id} value={x.voice_id} disabled={!x.ready}>
+                      {x.language ? `[${x.language.toUpperCase()}] ` : ''}
+                      {x.name}
+                      {x.kind === 'designed' ? ' (gợi ý)' : ''}
+                      {x.ready ? '' : ' — chưa sẵn sàng'}
+                    </option>
+                  ))}
+                </select>
+                {v?.ref && <AudioPlayer key={v.ref} src={v.ref} label="câu mẫu" />}
+                {picked && (
+                  <button className="primary" onClick={() => void apply(sp.speaker)}>
+                    Dùng
                   </button>
-                </div>
-                {(() => {
-                  const v = byId.get(sel);
-                  const lang = voices.language.slice(0, 2).toLowerCase();
-                  return v?.language && lang && !v.language.toLowerCase().startsWith(lang) ? (
-                    <span className="error">
-                      Giọng này là {v.language.toUpperCase()}, video nói {lang.toUpperCase()} — chọn
-                      giọng {lang.toUpperCase()}.
-                    </span>
-                  ) : null;
-                })()}
-                {sp.speaker === 'narrator' && (
-                  <label className="field inline">
+                )}
+                {picked && sp.speaker === 'narrator' && (
+                  <label className="field inline muted">
                     <input
                       type="checkbox"
                       checked={asDefault}
                       onChange={(e) => setAsDefault(e.target.checked)}
                     />
-                    Đặt làm giọng mặc định của kênh (video sau cũng dùng)
+                    mặc định của kênh
                   </label>
                 )}
-                {ref && (
-                  <div className="voice-ref">
-                    <span className="muted">Câu mẫu:</span>
-                    <AudioPlayer key={ref} src={ref} label="câu mẫu" />
-                  </div>
+                {!sp.voice_id && !picked && <span className="error">chưa có giọng</span>}
+                {wrongLang && (
+                  <span className="error">
+                    giọng {wrongLang}, video nói {lang.toUpperCase()}
+                  </span>
                 )}
               </div>
             );
@@ -373,9 +445,6 @@ function VoiceSection({
       )}
       {hasAudio && (
         <>
-          <button className="link" onClick={() => setShowLines(!showLines)}>
-            {showLines ? 'Ẩn từng câu' : `Nghe từng câu (${data.script.lines.length})`}
-          </button>
           {showLines && (
             <div className="line-list">
               {data.script.beats.map((b) => (
