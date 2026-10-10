@@ -18,6 +18,7 @@
     "lint": "eslint . && prettier --check . && node scripts/check-structure.mjs",
     "format": "prettier --write .",
     "test:scripts": "node --test scripts/tests/*.test.mjs",
+    "test:e2e": "npm run test:e2e -w packages/core",
     "sf": "node packages/core/bin/sf.mjs"
   },
   "devDependencies": {
