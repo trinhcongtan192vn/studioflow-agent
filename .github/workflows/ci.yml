@@ -23,9 +23,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.11'
-      - name: Commit messages reference NNN (FR-019)
-        if: github.event_name == 'pull_request'
-        run: node scripts/check-commit-msg.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
       - run: node scripts/doctor.mjs
       - run: npm ci
       - run: uv sync

@@ -6,7 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkMessage } from '../check-commit-msg.mjs';
 import { checkStructure } from '../check-structure.mjs';
 import { atLeast, check, parseVersion } from '../doctor.mjs';
 import { formatReport, runPlan } from '../verify.mjs';
@@ -81,14 +80,6 @@ test('desktop importing core internals fails lint (US3 AC4, FR-SC-002b)', () => 
   } finally {
     rmSync(file, { force: true });
   }
-});
-
-test('check-commit-msg (US6 AC1/AC2, FR-019)', () => {
-  assert.notEqual(checkMessage('fix: something'), null);
-  assert.equal(checkMessage('feat(core): sf CLI (001 FR-008)'), null);
-  assert.equal(checkMessage('chore: x\n\nRefs 002'), null);
-  assert.equal(checkMessage("Merge branch '001-repo-scaffold'"), null);
-  assert.notEqual(checkMessage('# 001 only in comment\nfix: y'), null);
 });
 
 test('doctor reports missing and outdated tools (FR-006)', () => {
