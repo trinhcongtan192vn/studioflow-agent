@@ -11,6 +11,7 @@ import {
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, fixtureVideoId, tempDir } from '../domain-helpers.js';
 import { workflowFixtures } from '../workflow-helpers.js';
+import type { DailyPlan } from '../../src/contracts/types.js';
 
 beforeAll(() => {
   process.env.SF_GPU = '0';
@@ -83,6 +84,66 @@ function setup() {
 }
 
 describe('CoreHost IPC (008)', () => {
+  it('096 AC-05: manual CTA creates a video and starts its agent once while Autopilot is paused', async () => {
+    const { host, dir, events } = setup();
+    await host.call('channel.open', { channel: dir });
+    await host.call('channel.info.set', { channel: dir, language: 'en' });
+    await host.call('autopilot.pause', {});
+    const preview = JSON.parse(
+      readFileSync(path.resolve(workflowFixtures, '../plan/daily-plan.json'), 'utf8'),
+    ) as DailyPlan;
+    preview.items = [preview.items[0]!];
+    preview.items[0]!.workflow_id = 'demo-explainer';
+    preview.items[0]!.output_profile = 'yt-1080p30';
+    const params = { channel: dir, date: preview.date, item_id: preview.items[0]!.id, preview };
+    const result = await host.call('autopilot.plan.create_video', params);
+    expect(result.created).toBe(true);
+    expect((await host.call('autopilot.status', {})).paused).toBe(true);
+    expect(
+      events.some(
+        ([n, e]) => n === 'video.created' && (e as { video: string }).video === result.video_id,
+      ),
+    ).toBe(true);
+    let history: { content: string }[] = [];
+    for (
+      let i = 0;
+      i < 100 && !history.some((l) => l.content.includes('[Tạo thủ công từ kế hoạch'));
+      i++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      history = (await host.call('video.open', { channel: dir, video: result.video_id })).history;
+    }
+    expect(
+      history.some(
+        (l) =>
+          l.content.includes(preview.items[0]!.angle) &&
+          l.content.includes('en (mặc định của kênh)'),
+      ),
+    ).toBe(true);
+    expect(readFileSync(path.join(dir, 'videos', result.video_id, 'BRIEF.md'), 'utf8')).toContain(
+      'language: en',
+    );
+    expect(
+      JSON.parse(readFileSync(path.join(dir, 'videos', result.video_id, 'state.json'), 'utf8'))
+        .autopilot,
+    ).toBeUndefined();
+    expect(await host.call('autopilot.plan.create_video', params)).toEqual({
+      ...result,
+      created: false,
+    });
+    expect(
+      events.filter(
+        ([n, e]) => n === 'video.created' && (e as { video: string }).video === result.video_id,
+      ),
+    ).toHaveLength(1);
+    await expect(
+      host.call('autopilot.plan.remove', {
+        channel: dir,
+        date: preview.date,
+        item_id: params.item_id,
+      }),
+    ).rejects.toThrow();
+  });
   it('channel open/recent, video create/list/open', async () => {
     const { host, dir } = setup();
     const open = await host.call('channel.open', { channel: dir });
@@ -417,6 +478,8 @@ describe('CoreHost IPC (008)', () => {
       host.call('channel.autopilot.set', { channel: dir, key, value });
     // chưa kênh nào bật Autopilot → không có kế hoạch
     expect(await host.call('autopilot.plan.get', {})).toEqual({ plans: [] });
+    // 096 AC-01: no false "planning" success when nothing is enabled.
+    await expect(host.call('autopilot.plan.run', {})).rejects.toThrow('Chưa có kênh');
     await set('autopilot.enabled', true);
     await set('autopilot.max_per_day', 2);
     // khung giờ bắt đầu từ giờ hiện tại, dài ~24 h (qua nửa đêm): luôn đủ thời gian máy, chạy giờ nào cũng như nhau
@@ -462,6 +525,28 @@ describe('CoreHost IPC (008)', () => {
     ];
     mkdirSync(path.join(dir, 'research'));
     writeFileSync(path.join(dir, 'research', `${today}.json`), JSON.stringify(sample));
+
+    // 096 AC-02: preview IPC returns a complete job result while the channel is off and app paused.
+    await set('autopilot.enabled', false);
+    await host.call('autopilot.pause', {});
+    await expect(host.call('autopilot.plan.run', {})).rejects.toThrow('Chưa có kênh');
+    const previewJob = await host.call('autopilot.plan.preview', { channel: dir });
+    await host.core.queue.wait(previewJob.job_id, 15_000);
+    expect(await host.call('job.get', previewJob)).toMatchObject({
+      job: {
+        status: 'succeeded',
+        result: {
+          preview: true,
+          paused: false,
+          plans: [{ plan: { date: today, items: expect.any(Array) } }],
+        },
+      },
+    });
+    expect(existsSync(path.join(dir, 'autopilot/plans', `${today}.json`))).toBe(false);
+    expect((await host.call('channels.managed', {})).channels[0]!.autopilot).toBe(false);
+    await set('autopilot.enabled', true);
+    await expect(host.call('autopilot.plan.run', {})).rejects.toThrow('tạm dừng');
+    await host.call('autopilot.resume', {});
 
     // chưa lập → plan null
     expect(await host.call('autopilot.plan.get', { channel: dir, date: today })).toMatchObject({

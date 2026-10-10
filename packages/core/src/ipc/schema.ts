@@ -128,6 +128,8 @@ export interface IpcMethods {
   };
   /** Lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot — job nền (D4 2.3). */
   'autopilot.plan.run': { params: { date?: string }; result: { job_id: string } };
+  /** 096: preview a single channel without saving executable plans or enabling Autopilot. */
+  'autopilot.plan.preview': { params: ChannelRef; result: { job_id: string } };
   /** 074: video Autopilot đã làm xong — trạng thái đăng từng nền tảng, bản phát hành, thông tin đăng. */
   'publish.queue': { params: { channel: string }; result: { items: PublishQueueItem[] } };
   /** 053: kết nối YouTube theo kênh (OAuth loopback + PKCE). */
@@ -222,6 +224,14 @@ export interface IpcMethods {
   'autopilot.plan.update': {
     params: { channel: string; date: string; item_id: string; patch: PlanPatch };
     result: { item: PlanItem };
+  };
+  'autopilot.plan.remove': {
+    params: { channel: string; date: string; item_id: string };
+    result: { item: PlanItem };
+  };
+  'autopilot.plan.create_video': {
+    params: { channel: string; date: string; item_id: string; preview?: DailyPlan };
+    result: { video_id: string; created: boolean };
   };
   /** Kênh YouTube (đối thủ) từ URL / @handle / ID. */
   'youtube.resolve_channel': {
@@ -381,6 +391,7 @@ export interface IpcMethods {
   'workflow.rewind': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'workflow.run_step': { params: VideoRef & { step_id: string }; result: VideoStateSummary };
   'job.list': { params: { video?: string; limit?: number }; result: { jobs: JobInfo[] } };
+  'job.get': { params: { job_id: string }; result: { job: JobInfo } };
   'job.cancel': { params: { job_id: string }; result: { ok: boolean } };
   'job.retry': { params: { job_id: string }; result: { job_id: string } };
   'render.start': { params: VideoRef & { mode: 'draft' | 'release' }; result: { job_id: string } };
@@ -408,6 +419,11 @@ export interface IpcMethods {
   };
   'settings.get': { params: Record<string, never>; result: unknown };
   'settings.set': { params: { key: string; value: unknown }; result: { ok: boolean } };
+  'codex.status': {
+    params: Record<string, never>;
+    result: { ok: boolean; method: string; detail?: string };
+  };
+  'codex.login': { params: Record<string, never>; result: { auth_url: string } };
   'install.plan': { params: { profile: 'minimal' | 'standard' | 'full' }; result: unknown };
   'install.start': {
     /** accept_licenses: người dùng đã xác nhận giấy phép phi thương mại hiện trong kế hoạch (018). */

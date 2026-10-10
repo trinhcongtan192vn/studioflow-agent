@@ -14,7 +14,6 @@ import {
 import { ExportDialog } from './ExportDialog';
 import { ChannelOverview } from './ChannelOverview';
 import { LibraryPage } from './LibraryPage';
-import { PublishReview } from './PublishReview';
 import { Palette, type Command } from './Palette';
 import { noticeToast } from './palette-format';
 import { toast, Toasts } from './Toasts';
@@ -71,14 +70,6 @@ const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; te
     title: 'Video đã render của kênh',
     icon: 'library',
     testId: 'nav-library',
-  },
-  // 074: duyệt trước khi đăng
-  {
-    page: 'publish',
-    label: 'Đăng',
-    title: 'Duyệt trước khi đăng',
-    icon: 'send',
-    testId: 'nav-publish',
   },
   {
     page: 'autopilot',
@@ -391,13 +382,17 @@ export function Workspace({
           <button
             key={x.page}
             className={
-              page === x.page || (x.page === 'channels' && page === 'channel-settings')
+              page === x.page ||
+              (x.page === 'autopilot' && page === 'publish') ||
+              (x.page === 'channels' && page === 'channel-settings')
                 ? 'active'
                 : ''
             }
             title={x.title}
             aria-label={x.label}
-            aria-current={page === x.page ? 'page' : undefined}
+            aria-current={
+              page === x.page || (x.page === 'autopilot' && page === 'publish') ? 'page' : undefined
+            }
             data-testid={x.testId}
             onClick={() => setPage(x.page)}
           >
@@ -448,8 +443,9 @@ export function Workspace({
                 }}
               />
             )}
-            {page === 'autopilot' && (
+            {(page === 'autopilot' || page === 'publish') && (
               <AutopilotPanel
+                initialTab={page === 'publish' ? 'publish' : 'plans'}
                 onClose={() => setPage('video')}
                 onOpenVideo={(dir, id) => {
                   setPage('video');
@@ -480,19 +476,6 @@ export function Workspace({
                 />
               ) : (
                 <p className="muted page">Mở một kênh để xem tổng quan.</p>
-              ))}
-            {page === 'publish' &&
-              (channel ? (
-                <PublishReview
-                  channel={channel}
-                  onOpenVideo={(id) => {
-                    setPage('video');
-                    void openVideo(id);
-                  }}
-                  onClose={() => setPage('video')}
-                />
-              ) : (
-                <p className="muted page">Mở một kênh để xem video chờ đăng.</p>
               ))}
             {page === 'library' &&
               (channel ? (

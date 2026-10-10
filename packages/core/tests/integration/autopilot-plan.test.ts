@@ -14,6 +14,7 @@ import {
   readPlan,
   setChannelAutopilot,
   workflowCost,
+  updatePlanItem,
   type CapacityChannel,
   type PlanWorkflow,
 } from '../../src/autopilot/index.js';
@@ -29,6 +30,11 @@ import { JobQueue } from '../../src/jobs/queue.js';
 import { openDb } from '../../src/store/db.js';
 import { WriteStore } from '../../src/store/writer.js';
 import { coreDir } from '../helpers.js';
+import {
+  createManualPlanVideo,
+  removePlanItem,
+  PLAN_REMOVED_NOTE,
+} from '../../src/autopilot/plan-actions.js';
 import { copyChannel, fixtureAppData, fixtureVideoId, tempDir } from '../domain-helpers.js';
 
 const NOW = new Date('2026-10-07T03:00:00Z'); // 10:00 giờ Việt Nam, thứ Tư
@@ -141,6 +147,135 @@ const run = (dirs: string[], o: Record<string, unknown> = {}) =>
   });
 
 describe('planToday (051 FR-AP-06)', () => {
+  it('096 AC-05: creates one manual video from a preview in the current channel language, preserving the selected context', async () => {
+    const a = channel({ 'autopilot.enabled': false }, A_TOPICS);
+    const preview = (await run([a.dir], { preview: true })).plans[0]!.plan;
+    const file = path.join(a.dir, 'channel.json');
+    const meta = JSON.parse(readFileSync(file, 'utf8'));
+    meta.language = 'de';
+    writeFileSync(file, JSON.stringify(meta));
+    const selected = preview.items[0]!;
+    selected.source.url = 'https://www.youtube.com/watch?v=aaaaaaaaa01';
+    const args = { date: DATE, item_id: selected.id, preview, installed };
+    const created = createManualPlanVideo(a.store, args);
+    expect(created.created).toBe(true);
+    const brief = readFileSync(path.join(a.dir, 'videos', created.video_id, 'BRIEF.md'), 'utf8');
+    expect(brief).toContain('language: de');
+    expect(brief).toContain(selected.angle);
+    expect(created.instruction).toContain(selected.workflow_id);
+    expect(created.instruction).toContain(selected.output_profile);
+    expect(created.instruction).toContain('de');
+    expect(created.instruction).toContain(selected.source.url!);
+    expect(created.instruction).toContain('youtube.video');
+    expect(created.instruction).toContain('youtube.transcript');
+    expect(brief).toContain(selected.source.url!);
+    const saved = readPlan(a.dir, DATE)!;
+    expect(saved.items).toHaveLength(1);
+    expect(saved.items[0]).toMatchObject({ status: 'skipped', video_id: created.video_id });
+    expect(createManualPlanVideo(a.store, args)).toMatchObject({
+      video_id: created.video_id,
+      created: false,
+    });
+    const refreshed = { ...preview, items: [{ ...selected, id: 'pi_other001' }] } as DailyPlan;
+    expect(
+      createManualPlanVideo(a.store, {
+        ...args,
+        preview: refreshed,
+        item_id: refreshed.items[0]!.id,
+      }),
+    ).toMatchObject({ video_id: created.video_id, created: false });
+    expect(() => removePlanItem(a.store, { date: DATE, item_id: selected.id })).toThrow();
+    expect(JSON.parse(readFileSync(file, 'utf8')).config['autopilot.enabled']).toBe(false);
+  });
+
+  it('096 AC-05: deletes an unstarted item without reintroducing it on replan and rejects started items', async () => {
+    const a = channel({ 'autopilot.max_per_day': 2 }, A_TOPICS);
+    await run([a.dir]);
+    const plan = readPlan(a.dir, DATE)!;
+    const selected = plan.items[0]!;
+    const args = { date: DATE, item_id: selected.id };
+    expect(removePlanItem(a.store, args)).toMatchObject({
+      status: 'skipped',
+      note: PLAN_REMOVED_NOTE,
+    });
+    expect(() => createManualPlanVideo(a.store, { ...args, installed })).toThrow();
+    expect(() =>
+      updatePlanItem(a.store, { ...args, installed, patch: { status: 'planned' } }),
+    ).toThrow();
+    await run([a.dir]);
+    const matching = readPlan(a.dir, DATE)!.items.filter(
+      (i) => i.candidate_id === selected.candidate_id,
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0]!.status).toBe('skipped');
+    const remaining = readPlan(a.dir, DATE)!;
+    remaining.items[1]!.status = 'in_production';
+    writeFileSync(planFile(a.dir), JSON.stringify(remaining));
+    expect(() =>
+      removePlanItem(a.store, { date: DATE, item_id: remaining.items[1]!.id }),
+    ).toThrow();
+    expect(() =>
+      createManualPlanVideo(a.store, { date: DATE, item_id: remaining.items[1]!.id, installed }),
+    ).toThrow();
+  });
+  it.each(['tokens', 'time', 'uploads'] as const)(
+    'plans and previews despite zero estimated capacity from %s, replacing an old blocked plan',
+    async (limiting_factor) => {
+      const a = channel({ 'autopilot.max_per_day': 2 }, A_TOPICS);
+      await run([a.dir]);
+      const old = {
+        ...readPlan(a.dir, DATE)!,
+        items: [],
+        notes: [
+          'Hôm nay chưa lập thêm được video: năng lực còn lại bằng 0 (giới hạn bởi ngân sách Claude).',
+        ],
+      };
+      writeFileSync(planFile(a.dir), JSON.stringify(old));
+      const before = sha(planFile(a.dir));
+      const exhausted = (channels: CapacityChannel[]) => {
+        const estimate = capacity(channels);
+        return {
+          ...estimate,
+          videos: 0,
+          limiting_factor,
+          channels: estimate.channels.map((c) => ({ ...c, videos: 0, limiting_factor })),
+        };
+      };
+      const preview = await run([a.dir], { preview: true, capacity: exhausted });
+      expect(preview.plans[0]!.plan.items).toHaveLength(2);
+      expect(preview.plans[0]!.plan.notes).not.toEqual(old.notes);
+      expect(sha(planFile(a.dir))).toBe(before);
+      await run([a.dir], { capacity: exhausted });
+      const saved = readPlan(a.dir, DATE)!;
+      expect(saved.items).toHaveLength(2);
+      expect(saved.notes).not.toEqual(old.notes);
+      await run([a.dir], { capacity: exhausted });
+      expect(readPlan(a.dir, DATE)!.items).toEqual(saved.items);
+    },
+  );
+  it('096 AC-02: previews a disabled channel while paused without saving today or changing yesterday', async () => {
+    const a = channel({ 'autopilot.enabled': false }, A_TOPICS);
+    await run([a.dir], {
+      now: new Date('2026-10-06T03:00:00Z'),
+      scan: async () => ({ ...research0, date: '2026-10-06', candidates: A_TOPICS }),
+    });
+    const before = sha(planFile(a.dir, '2026-10-06'));
+    const configBefore = sha(path.join(a.dir, 'channel.json'));
+    const app = tempDir('app-');
+    cleanups.push(app.cleanup);
+    cpSync(fixtureAppData, app.dir, { recursive: true });
+    const file = path.join(app.dir, 'settings.json');
+    const settings = JSON.parse(readFileSync(file, 'utf8'));
+    settings.config['autopilot.paused'] = true;
+    writeFileSync(file, JSON.stringify(settings));
+    const result = await run([a.dir], { preview: true, appDataDir: app.dir });
+    expect(result.paused).toBe(false);
+    expect(result.plans[0]!.plan.items.length).toBeGreaterThan(0);
+    expect(result.plans[0]!.carried).toBeGreaterThan(0);
+    expect(readPlan(a.dir, DATE)).toBeUndefined();
+    expect(sha(planFile(a.dir, '2026-10-06'))).toBe(before);
+    expect(sha(path.join(a.dir, 'channel.json'))).toBe(configBefore);
+  });
   it('plans two channels: valid schema-checked files, workflow/profile, slots, platforms, reasons', async () => {
     const { a, b } = twoChannels();
     const r = await run([a.dir, b.dir]);

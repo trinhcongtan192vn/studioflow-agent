@@ -152,13 +152,13 @@ describe('selectCandidates (051)', () => {
 });
 
 describe('freeSlots — max_per_day counts only Autopilot items (051 / 050 decision)', () => {
-  it('limited by capacity, by the daily cap, never negative', () => {
-    expect(freeSlots({ feasible: 3, max_per_day: 5, planned: 0, started: 0 })).toBe(3);
-    expect(freeSlots({ feasible: 5, max_per_day: 2, planned: 0, started: 0 })).toBe(2);
-    // đã bắt đầu 1, đang planned 1: trần 3 → còn 1; năng lực còn 2 video (đã gồm mục planned) → còn 1
-    expect(freeSlots({ feasible: 2, max_per_day: 3, planned: 1, started: 1 })).toBe(1);
-    expect(freeSlots({ feasible: 1, max_per_day: 3, planned: 2, started: 0 })).toBe(0);
-    expect(freeSlots({ feasible: 0, max_per_day: 3, planned: 0, started: 0 })).toBe(0);
+  it('limited by the configured daily count, never negative', () => {
+    expect(freeSlots({ max_per_day: 5, planned: 0, started: 0 })).toBe(5);
+    expect(freeSlots({ max_per_day: 2, planned: 0, started: 0 })).toBe(2);
+    // Đã bắt đầu 1, đang planned 1: trần 3 → còn 1.
+    expect(freeSlots({ max_per_day: 3, planned: 1, started: 1 })).toBe(1);
+    expect(freeSlots({ max_per_day: 3, planned: 2, started: 0 })).toBe(1);
+    expect(freeSlots({ max_per_day: 0, planned: 0, started: 0 })).toBe(0);
   });
 });
 
@@ -405,7 +405,7 @@ describe('buildPlan (051)', () => {
       est_ms: { 'narrated-explainer': 60 * 60_000, shorts: 30 * 60_000 },
     },
     config: {
-      max_per_day: 5,
+      max_per_day: 3,
       workflows: [],
       default_workflow: 'narrated-explainer',
       slots: ['09:00', '12:00', '19:00'],
@@ -533,14 +533,14 @@ describe('buildPlan (051)', () => {
       }),
     );
     expect(next.items.slice(0, 3)).toEqual(existing.items);
-    expect(freeSlots({ feasible: 3, max_per_day: 2, planned: 1, started: 1 })).toBe(0);
+    expect(freeSlots({ max_per_day: 2, planned: 1, started: 1 })).toBe(0);
   });
 
   it('a skipped item frees its cap slot but its topic is not re-planned', () => {
-    const first = buildPlan(input({ capacity: { ...input().capacity, videos: 1 } }));
+    const first = buildPlan(input({ config: { ...input().config, max_per_day: 1 } }));
     expect(first.items.map((i) => i.candidate_id)).toEqual(['a']);
     const existing: DailyPlan = { ...first, items: [{ ...first.items[0]!, status: 'skipped' }] };
-    const next = buildPlan(input({ existing, capacity: { ...input().capacity, videos: 1 } }));
+    const next = buildPlan(input({ existing, config: { ...input().config, max_per_day: 1 } }));
     expect(next.items.map((i) => [i.candidate_id, i.status])).toEqual([
       ['a', 'skipped'],
       ['b', 'planned'],
@@ -571,12 +571,12 @@ describe('buildPlan (051)', () => {
     expect(empty.notes?.join(' ')).toMatch(/ứng viên/i);
   });
 
-  it('no capacity → plans nothing with the limiting factor in the note', () => {
+  it('zero estimated capacity does not prevent planning', () => {
     const plan = buildPlan(
       input({ capacity: { ...input().capacity, videos: 0, limiting_factor: 'tokens' } }),
     );
-    expect(plan.items).toEqual([]);
-    expect(plan.notes?.join(' ')).toMatch(/năng lực|ngân sách/i);
+    expect(plan.items).toHaveLength(3);
+    expect(plan.notes?.join(' ') ?? '').not.toMatch(/năng lực|ngân sách/i);
   });
 
   it('no allowed workflow installed → plans nothing and says why', () => {
@@ -677,9 +677,9 @@ describe('buildPlan (051)', () => {
     });
 
     it('carried items take free slots before new candidates; leftovers stay planned with a note', () => {
-      const cap = { ...input().capacity, videos: 1 };
+      const config = { ...input().config, max_per_day: 1 };
       const two = [yItem('p1'), yItem('p2')];
-      const r = day({ capacity: cap, others: [plan('2026-10-06', two)] });
+      const r = day({ config, others: [plan('2026-10-06', two)] });
       expect(r.plan.items.map((i) => i.candidate_id)).toEqual(['old-p1']);
       expect(r.previous!.items.map((i) => i.status)).toEqual(['skipped', 'planned']);
       expect(r.plan.notes?.join(' ')).toMatch(

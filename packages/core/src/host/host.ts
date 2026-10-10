@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { createRuntime } from '../agent/index.js';
+import { createCodexPlan } from '../agent/fallback-settings.js';
+import type { CodexPlanRuntime } from '../agent/codex.js';
 import { sessionOptionsFor } from '../agent/options.js';
 import type {
   AgentRuntime,
@@ -21,7 +23,7 @@ import { newId } from '../domain/ids.js';
 import { createVideo, listVideoIds } from '../domain/video.js';
 import { isSfError, SfError } from '../errors.js';
 import { isLimitHit } from '../autopilot/capacity.js';
-import type { ChannelConfig, PlanItem } from '../contracts/types.js';
+import type { ChannelConfig, DailyPlan, PlanItem } from '../contracts/types.js';
 import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '../ipc/schema.js';
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
@@ -49,6 +51,8 @@ import {
   readPlan,
   type PlanPatch,
   updatePlanItem,
+  createManualPlanVideo,
+  removePlanItem,
   asrFixInstruction,
   briefInstruction,
   canonicalDir,
@@ -94,6 +98,7 @@ const EXPLORER_SKIP = new Set(['cache', '.sf', 'node_modules', '.git']);
 export class CoreHost extends EventEmitter {
   readonly core: Core;
   readonly runtime: AgentRuntime;
+  readonly codex: CodexPlanRuntime;
   private readonly sessions = new Map<string, OpenSession>();
   /** 045: phiên chat đang trả lời (`<kênh>|<video>`) — để cảnh báo khi đóng app. */
   private readonly replying = new Map<string, number>();
@@ -122,7 +127,9 @@ export class CoreHost extends EventEmitter {
     const appDataDir = opts.appDataDir ?? defaultAppDataDir();
     this.core = createCore({ ...opts, appDataDir });
     this.clock = opts.clock ?? (() => new Date());
-    this.runtime = opts.runtime ?? createRuntime({ gateway: this.core.gateway });
+    this.codex = createCodexPlan(this.core.gateway, appDataDir);
+    this.runtime =
+      opts.runtime ?? createRuntime({ gateway: this.core.gateway, appDataDir, codex: this.codex });
     this.core.queue.on('job.updated', (j) => this.send('job.updated', j));
     this.core.gateway.permissions.on('permission.requested', (r) =>
       this.send('permission.requested', r),
@@ -254,6 +261,7 @@ export class CoreHost extends EventEmitter {
   close(): void {
     void this.telegram.close();
     void this.ops.close();
+    void this.codex.close();
     if (this.autopilotTimer) clearInterval(this.autopilotTimer);
     this.core.autopilot.stop();
     this.watcher?.close();
@@ -677,6 +685,10 @@ export class CoreHost extends EventEmitter {
   ): Promise<unknown> {
     const c = this.core;
     switch (method) {
+      case 'codex.status':
+        return this.codex.authStatus();
+      case 'codex.login':
+        return this.codex.loginStart();
       case 'app.status': {
         const plan = installPlan(c.appDataDir, 'standard');
         return {
@@ -914,6 +926,13 @@ export class CoreHost extends EventEmitter {
           this.autopilotChannels(),
           p.date ? String(p.date) : undefined,
         );
+      case 'autopilot.plan.preview':
+        return enqueuePlanRun(
+          { queue: c.queue, appDataDir: c.appDataDir },
+          [this.store(p.channel).root],
+          undefined,
+          true,
+        );
       case 'autopilot.plan.update':
         return {
           item: updatePlanItem(this.store(p.channel), {
@@ -924,6 +943,38 @@ export class CoreHost extends EventEmitter {
             appDataDir: c.appDataDir,
           }),
         };
+      case 'autopilot.plan.remove':
+        return {
+          item: removePlanItem(this.store(p.channel), {
+            date: String(p.date),
+            item_id: String(p.item_id),
+          }),
+        };
+      case 'autopilot.plan.create_video': {
+        const result = createManualPlanVideo(this.store(p.channel), {
+          date: String(p.date),
+          item_id: String(p.item_id),
+          preview: p.preview as DailyPlan | undefined,
+          installed: installedWorkflows(c.workflows),
+        });
+        if (result.created) {
+          this.send('video.created', {
+            channel: p.channel,
+            video: result.video_id,
+            title:
+              this.videos(path.resolve(p.channel)).find((v) => v.id === result.video_id)?.title ??
+              '',
+          });
+          void this.chat(p.channel, result.video_id, result.instruction).catch((err) => {
+            this.postSystem(
+              p.channel,
+              result.video_id,
+              `Không khởi động được lượt tạo video: ${err instanceof Error ? err.message : String(err)}. Bạn có thể gửi lại yêu cầu trong chat video.`,
+            );
+          });
+        }
+        return { video_id: result.video_id, created: result.created };
+      }
       case 'research.latest':
         return { doc: readResearch(path.resolve(p.channel)) ?? null };
       case 'video.delete': {
@@ -1107,6 +1158,11 @@ export class CoreHost extends EventEmitter {
         return {
           jobs: c.queue.list(p.video ? { video_id: p.video } : {}).slice(0, Number(p.limit ?? 100)),
         };
+      case 'job.get': {
+        const job = c.queue.get(String(p.job_id));
+        if (!job) throw new SfError('E_ID_UNKNOWN', `job ${String(p.job_id)} not found`);
+        return { job };
+      }
       case 'job.cancel':
         return { ok: c.queue.cancel(String(p.job_id)) !== undefined };
       case 'job.retry': {

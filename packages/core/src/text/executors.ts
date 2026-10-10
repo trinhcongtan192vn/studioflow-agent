@@ -154,6 +154,7 @@ export interface Plan {
   role: 'primary' | 'aux';
   producer: ModelRef;
   critic: ModelRef;
+  producedBy?: ModelRef;
 }
 
 /** 085: bước có `refine` trong manifest chỉ chạy vòng viết–chấm–sửa khi `advanced.refine` bật. */
@@ -247,7 +248,10 @@ export async function budgetGuard(
 }
 
 function writeRounds(env: StepEnv, artifact: string, plan: Plan, r: RefineResult): void {
-  const prov = (ref: ModelRef) => ({ provider: `text.${ref.provider}`, model: ref.model });
+  const prov = (ref: ModelRef, actual: string) =>
+    actual.startsWith('codex/')
+      ? { provider: 'text.codex', model: actual.slice(6) }
+      : { provider: `text.${ref.provider}`, model: actual || ref.model };
   for (const x of r.rounds) {
     const doc: ReviewRound = {
       schema_version: 1,
@@ -255,8 +259,8 @@ function writeRounds(env: StepEnv, artifact: string, plan: Plan, r: RefineResult
       round: x.round,
       artifact,
       draft_hash: sha256(x.draft),
-      producer: { ...prov(plan.producer), model: x.producer_model || plan.producer.model },
-      critic: { ...prov(plan.critic), model: x.critic_model || plan.critic.model },
+      producer: prov(plan.producer, x.producer_model),
+      critic: prov(plan.critic, x.critic_model),
       objective_checks: x.objective_checks,
       score: x.score,
       criteria: x.criteria,
@@ -288,17 +292,18 @@ function writeProvenance(
   const hash = sha256(content);
   const briefHash = sha256(env.read(`${env.v}/BRIEF.md`));
   const params = { step: env.ctx.step.id, ...(env.ctx.step.params ?? {}), ...extra };
+  const producedBy = plan.producedBy ?? plan.producer;
   const p: Provenance = {
     schema_version: 1,
     output: artifact,
     output_hash: hash,
     capability: 'text.generate',
-    provider: `text.${plan.producer.provider}`,
+    provider: `text.${producedBy.provider}`,
     provider_version: CORE_VERSION,
-    model: { id: plan.producer.model },
+    model: { id: producedBy.model },
     params,
     inputs: [{ path: 'BRIEF.md', hash: briefHash, role: 'brief' }],
-    cache_key: sha256(canonicalJson({ params, brief: briefHash, model: plan.producer })),
+    cache_key: sha256(canonicalJson({ params, brief: briefHash, model: producedBy })),
     from_cache: false,
     source: { kind: 'generated' },
     created_at: new Date().toISOString(),
@@ -332,12 +337,17 @@ async function refineText(
     draft: '',
     ...over,
   });
-  const gen = (content: string) =>
-    d.text.generate(
+  const gen = async (content: string) => {
+    const result = await d.text.generate(
       plan.role,
       { role: plan.role, messages: [{ role: 'user', content }], max_tokens: o.maxTokens },
       env.scope,
     );
+    plan.producedBy = result.model.startsWith('codex/')
+      ? { provider: 'codex', model: result.model.slice(6) }
+      : { provider: plan.producer.provider, model: result.model || plan.producer.model };
+    return result;
+  };
   const first = o.prompt(vars());
   const perRound = Math.ceil(first.length / 3) * 2 + o.maxTokens * 2;
   const canSpend = await budgetGuard(env, perRound, plan.min, d.permissions);
@@ -351,11 +361,13 @@ async function refineText(
         severity: 'major',
         text: `Kiểm ${c.id} chưa qua${c.detail ? `: ${c.detail}` : ''}`,
       }));
+      const previousProducer = plan.producedBy;
       const fixed = o.normalize(
         (await gen(o.revisePrompt(vars({ draft: bodyOf(draft), issues: issuesText(issues) }))))
           .text,
       );
       if (o.checks(fixed).filter((c) => !c.pass).length <= failed.length) draft = fixed;
+      else plan.producedBy = previousProducer;
     }
     return { draft, rounds: [], final_score: 0, incomplete: false };
   }

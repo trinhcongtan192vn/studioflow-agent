@@ -1,8 +1,9 @@
 import { SfError } from '../errors.js';
 import { OPS_CHANNEL_PROP, type ToolDefinition } from '../gateway/types.js';
 import type { JobQueue } from '../jobs/queue.js';
+import type { DailyPlan } from '../contracts/types.js';
 import { researchDate } from '../research/scan.js';
-import { resolveConfig } from '../config/resolve.js';
+import { resolveAppConfig, resolveConfig } from '../config/resolve.js';
 import type { WriteStore } from '../store/writer.js';
 import type { FetchFn } from '../youtube/data-api.js';
 import type { CapacityChannel, CapacityResult } from './capacity.js';
@@ -33,15 +34,34 @@ export interface PlanDeps {
 
 const JOB = 'autopilot.plan';
 
+/** 096: shared job result for both saved plans and previews. */
+export interface PlanJobResult {
+  preview: boolean;
+  paused: boolean;
+  plans: {
+    channel: string;
+    path: string;
+    date: string;
+    items: number;
+    added: number;
+    kept: number;
+    carried: number;
+    notes: string[];
+    plan?: DailyPlan;
+  }[];
+}
+
 /** Job lập kế hoạch ngày (có thể quét nghiên cứu qua mạng → chạy nền, D4 2.3); một lần mỗi lúc. */
 export function defineAutopilotPlanJob(d: PlanDeps): void {
   d.queue.define(JOB, {
     engine: 'autopilot',
     idempotent: true,
-    run: async (job) => {
-      const payload = (job.payload ?? {}) as { channels?: string[] };
+    run: async (job, ctx): Promise<PlanJobResult> => {
+      const payload = (job.payload ?? {}) as { channels?: string[]; preview?: boolean };
       const channels = payload.channels ?? (job.channel_dir ? [job.channel_dir] : []);
+      ctx.progress(0, 1, 'Đang đọc nghiên cứu, tính năng lực và xếp lịch đăng…');
       const r = await planToday({
+        preview: payload.preview === true,
         channels,
         storeFor: d.storeFor,
         capacity: d.capacity,
@@ -53,6 +73,7 @@ export function defineAutopilotPlanJob(d: PlanDeps): void {
         ...(d.learn ? { learn: d.learn } : {}),
       });
       return {
+        preview: payload.preview === true,
         paused: r.paused,
         plans: r.plans.map((p) => ({
           channel: p.channel,
@@ -63,6 +84,7 @@ export function defineAutopilotPlanJob(d: PlanDeps): void {
           kept: p.kept,
           carried: p.carried,
           notes: p.plan.notes ?? [],
+          ...(payload.preview ? { plan: p.plan } : {}),
         })),
       };
     },
@@ -80,7 +102,18 @@ export function enqueuePlanRun(
   d: Pick<PlanDeps, 'queue' | 'now' | 'appDataDir'>,
   channels: string[],
   date?: string,
+  preview = false,
 ): { job_id: string } {
+  if (!channels.length)
+    throw new SfError(
+      'E_SCHEMA_INVALID',
+      'Chưa có kênh nào bật Autopilot. Chọn Xem thử kế hoạch ở một kênh bên dưới hoặc bật Autopilot cho kênh.',
+    );
+  if (!preview && resolveAppConfig<boolean>('autopilot.paused', { appDataDir: d.appDataDir }))
+    throw new SfError(
+      'E_SCHEMA_INVALID',
+      'Autopilot đang tạm dừng. Bấm Tiếp tục để lập kế hoạch thật, hoặc Xem thử kế hoạch.',
+    );
   if (date) {
     const now = d.now?.() ?? new Date();
     for (const c of channels) {
@@ -92,7 +125,7 @@ export function enqueuePlanRun(
         );
     }
   }
-  const job = d.queue.enqueue(JOB, { payload: { channels }, max_attempts: 1 });
+  const job = d.queue.enqueue(JOB, { payload: { channels, preview }, max_attempts: 1 });
   return { job_id: job.id };
 }
 

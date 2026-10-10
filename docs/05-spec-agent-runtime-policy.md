@@ -1,6 +1,6 @@
 # D5 — Spec Agent Runtime, tool và chính sách
 
-**Phiên bản:** 1.3 · **Ngày:** 03/10/2026
+**Phiên bản:** 1.4 · **Ngày:** 09/10/2026
 **Dựa trên:** `00-architecture.md` mục 11 · `04-spec-capability-gateway.md` mục 2
 **Phủ:** FR-CH-01/05/06, FR-ST-06, FR-OP-07, NFR-01/07/08
 **Tính năng triển khai:** 003 (chính sách), 005 `agent-runtime-claude`
@@ -12,7 +12,7 @@
 ```ts
 interface AgentRuntime {
   id: string;                                   // 'claude-agent-sdk'
-  authStatus(): Promise<{ ok: boolean; method: 'claude-plan' | 'api-key' | 'none'; detail?: string }>;
+  authStatus(): Promise<{ ok: boolean; method: 'claude-plan' | 'chatgpt-plan' | 'api-key' | 'none'; detail?: string }>;
   openSession(opts: SessionOptions): Promise<AgentSession>;
 }
 
@@ -30,6 +30,7 @@ interface SessionOptions {
 
 interface AgentSession {
   id: string;
+  readonly sdkSessionId?: string;               // id runtime; Codex dùng tiền tố codex: khi lưu qua fallback
   send(message: UserMessage): AsyncIterable<AgentEvent>;
   interrupt(): Promise<void>;
   close(): Promise<void>;
@@ -52,6 +53,20 @@ type ToolPolicy = { allowed: string[]; readRoots: string[] };   // allowed: tên
 Quyết định xác nhận của người dùng không đi qua `AgentEvent`; xem mục 5.1.
 
 Mọi phần khác của app chỉ dùng giao diện này. Thêm runtime mới = viết lớp cài đặt `AgentRuntime` + chạy hồi quy (D12).
+
+### 1.1 Fallback theo gói thuê bao (095, 09/10/2026)
+
+Claude vẫn là runtime chính. Khi nhận `E_RUNTIME_RATE_LIMIT`, chuyển một lần sang Codex app-server
+đăng nhập ChatGPT; không dùng API key, không tự mua credit hay reset hạn mức có phí. Nếu Codex chưa
+đăng nhập hoặc cũng hết hạn mức, giữ lỗi có mã và dừng theo cơ chế hiện có. Áp dụng cả chat, frame,
+producer, critic, ops và lời gọi text không tool. Hết thời gian nghỉ thì thử Claude lại.
+
+Codex dùng home riêng của app, chỉ nạp chỉ dẫn/plugin app truyền; không nạp cấu hình người dùng.
+Tool được cung cấp qua dynamic tools, gọi lại Gateway với nguyên SessionContext và ToolPolicy.
+Tắt shell, mạng, sửa file và sub-agent có sẵn. Mang theo lịch sử và các kết quả tool đã thực hiện;
+yêu cầu đọc lại artifact trước khi sửa, không tự phát lại tool đã chạy. Ngắt phiên phải ngăn fallback.
+Auth ChatGPT do Codex quản lý trong home riêng; app không ghi token vào settings, log hoặc trace.
+UI có bật/tắt fallback, model Codex, đường dẫn CLI, đăng nhập ChatGPT và trạng thái kết nối.
 
 ## 2. Loại phiên
 
