@@ -33,6 +33,12 @@ function validator(root: SchemaRoot): ValidateFunction {
   return v;
 }
 
+/** Gợi ý sửa cho lỗi agent hay mắc (thông báo lỗi là thứ agent đọc để tự sửa). */
+const HINTS: Record<string, string> = {
+  '/source_video_id':
+    'source_video_id is only the channel video id (vd_…) a short is cut from; otherwise null. Put a YouTube reference URL/id in the brief body or REFERENCE.md.',
+};
+
 function ajvErrors(errors: ErrorObject[] | null | undefined): ValidationError[] {
   return (errors ?? []).map((e) => ({
     code: 'E_SCHEMA_INVALID',
@@ -41,7 +47,9 @@ function ajvErrors(errors: ErrorObject[] | null | undefined): ValidationError[] 
       e.params && 'allowedValues' in e.params
         ? ` (${(e.params.allowedValues as unknown[]).join(', ')})`
         : ''
-    }${e.params && 'additionalProperty' in e.params ? ` (${String(e.params.additionalProperty)})` : ''}`,
+    }${e.params && 'additionalProperty' in e.params ? ` (${String(e.params.additionalProperty)})` : ''}${
+      HINTS[e.instancePath] ? ` — ${HINTS[e.instancePath]}` : ''
+    }`,
   }));
 }
 
