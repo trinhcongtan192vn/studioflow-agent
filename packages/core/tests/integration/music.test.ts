@@ -11,6 +11,7 @@ import {
   readMusicManifest,
   scanAudio,
   renderBed,
+  measureVoiceLufs,
   validateArtifact,
   type Core,
   type SessionContext,
@@ -212,6 +213,54 @@ describe('music bed and ducking (012 US3, SC-002)', () => {
     expect(open - ducked).toBeGreaterThanOrEqual(6);
   }, 120_000);
 
+  it('music sits relative to the measured voice loudness, not 35 dB under it', async () => {
+    // "giọng" giả: tone 220 Hz ở mức lời đọc thường gặp; đo loudness tích hợp như với các file line
+    const voiceFile = path.join(t.dir, 'voice.wav');
+    spawnSync('ffmpeg', [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=220:duration=6',
+      voiceFile,
+    ]);
+    const voiceLufs = await measureVoiceLufs([voiceFile]);
+    expect(voiceLufs).toBeGreaterThan(-30);
+    expect(voiceLufs).toBeLessThan(-10);
+    const lib = readMusicManifest({
+      scope: 'channel',
+      store: core.gateway.storeFor(c.dir),
+    }).tracks.find((x) => x.id === ids.mid120)!;
+    const wav = await renderBed({
+      segments: [
+        {
+          track_id: lib.id,
+          file: path.join(c.dir, 'music', lib.file),
+          start_ms: 0,
+          end_ms: 20_000,
+          volume_db: -6,
+        },
+      ],
+      voice: [{ start_ms: 5000, end_ms: 10_000 }],
+      total_ms: 20_000,
+      duck_db: -8,
+      voice_lufs: voiceLufs!,
+    });
+    const f = path.join(t.dir, 'bed-rel.wav');
+    writeFileSync(f, wav);
+    const v = rmsDb(voiceFile, 1, 5);
+    const open = rmsDb(f, 13, 17);
+    const ducked = rmsDb(f, 6, 9);
+    // không lời: nhạc nhỏ hơn giọng vài dB (không còn ~35 dB như bed cũ)
+    expect(v - open).toBeLessThan(14);
+    expect(v - open).toBeGreaterThan(0);
+    // có lời: hạ thêm theo duck_db
+    expect(open - ducked).toBeGreaterThanOrEqual(5);
+  }, 120_000);
+
   it('index.html carries the mixed bed with D8 attributes when a scene has a track', async () => {
     const store = core.gateway.storeFor(c.dir);
     const v = `videos/${fixtureVideoId}`;
@@ -231,7 +280,7 @@ describe('music bed and ducking (012 US3, SC-002)', () => {
     expect(r.status).toBe('succeeded');
     const index = readFileSync(store.abs(`${v}/index.html`), 'utf8');
     const m =
-      /<audio id="el-music" data-sf-track="([^"]+)" src="([^"]+)"[^>]*data-volume-db="-18" data-fade-in-ms="1000" data-fade-out-ms="1000" data-duck-db="-12"/.exec(
+      /<audio id="el-music" data-sf-track="([^"]+)" src="([^"]+)"[^>]*data-volume-db="-6" data-fade-in-ms="1000" data-fade-out-ms="1000" data-duck-db="-8"/.exec(
         index,
       );
     expect(m?.[1]).toBe(ids.mid120);

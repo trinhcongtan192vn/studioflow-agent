@@ -83,7 +83,7 @@ Công thức xếp hạng và cách phân tích: FN-012/021.
 - File nhạc dùng trong video nằm ở `public/music/<track_id>.<ext>`.
 - Phần tử audio nhạc trong `index.html` mang các thuộc tính (hợp đồng chung với Studio, D9 mục 3.3): `data-sf-track`, `data-volume-db`, `data-fade-in-ms`, `data-fade-out-ms`, `data-duck-db`.
 - SFX: `sf-frame.sfx[]` (D3), không ducking.
-- Mức âm lượng/ducking lấy từ khóa `music.volume_db`, `music.duck_db` (D3 mục 7.2); bản cuối đạt `loudness_lufs` của output profile.
+- Mức âm lượng/ducking lấy từ khóa `music.volume_db`, `music.duck_db` (D3 mục 7.2). `volume_db` là mức nhạc **so với loudness tích hợp của lời đọc** (đo trên các file line; không đo được → −20 LUFS): nhạc chuẩn hóa về `giọng + volume_db` (kẹp −40…−10 LUFS), khi có lời hạ thêm `duck_db`. Bản cuối đạt `loudness_lufs` của output profile.
 
 ## 4. Ghi công
 `CREDITS.txt` sinh khi render phát hành, chỉ gồm các bài nhạc/asset đã dùng có `attribution`; không có mục nào → không tạo file. Định dạng: FN-012/021.
