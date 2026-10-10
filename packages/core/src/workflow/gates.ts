@@ -96,6 +96,22 @@ export function registerObjective(id: string, fn: ObjectiveFn): void {
   OBJECTIVES[id] = fn;
 }
 
+/**
+ * Tự sửa tất định (0 token) cho một kiểm khách quan trượt: sửa đúng chỗ sai rồi engine kiểm lại một lần.
+ * Trả mô tả việc đã sửa, hoặc undefined nếu không sửa được gì.
+ */
+export type GateRepairFn = (ctx: GateContext, failed: GateResult) => Promise<string | undefined>;
+const REPAIRS: Record<string, GateRepairFn> = {};
+
+export function registerGateRepair(check: string, fn: GateRepairFn): void {
+  REPAIRS[check] = fn;
+}
+
+/** Hàm tự sửa của gate trượt (chỉ kiểm khách quan có đăng ký). */
+export function gateRepairFor(r: GateResult): GateRepairFn | undefined {
+  return !r.pass && r.gate === 'objective' ? REPAIRS[r.target] : undefined;
+}
+
 /** Đánh giá một gate; lỗi bất ngờ (ví dụ file không phân tích được) → gate không qua, không ném (036). */
 export async function evaluateGate(g: GateDecl, ctx: GateContext): Promise<GateResult> {
   try {

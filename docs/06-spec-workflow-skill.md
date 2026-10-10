@@ -199,6 +199,9 @@ Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc n
 | `schema` | mọi | artifact parse và hợp lệ |
 | `coverage` | storyboard | mỗi line thuộc đúng một frame; mọi frame có ≥ 1 layer |
 | `meta_limits` | meta | tiêu đề ≤ `meta.title_max`, mô tả ≤ `meta.description_max` ký tự |
+| `text_safe_area` | finalize (shorts) | mọi chữ đang hiện ở giữa mỗi frame nằm trong `safe_area` của output profile (đo trong Chrome headless) |
+
+**Tự sửa khi kiểm trượt (0 token):** kiểm có hàm sửa đăng ký (`registerGateRepair`) → engine sửa đúng chỗ sai một lần rồi kiểm lại mọi gate của bước; sửa được thì bước qua, chi tiết gate ghi "đã tự sửa — …"; không sửa được → lỗi như cũ. `text_safe_area`: đo trên trang xem trước, thu nhỏ dần `font-size` của đúng phần tử chữ tràn (không dưới 40% cỡ gốc), ghi `style="font-size: …"` vào file frame; frame ghim (chỉnh tay trong Studio) và caption/overlay không sửa.
 
 ### 4.3 Rubric `rubrics/<id>.yaml`
 

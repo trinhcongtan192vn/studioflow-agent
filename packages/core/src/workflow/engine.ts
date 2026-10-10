@@ -15,7 +15,13 @@ import { parseBlocksDoc, serializeBlocksDoc } from '../domain/markdown/blocks.js
 import { isSfError, SfError } from '../errors.js';
 import type { BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
-import { evaluateGate, isWarning, WAIVABLE_CHECKS, type GateResult } from './gates.js';
+import {
+  evaluateGate,
+  gateRepairFor,
+  isWarning,
+  WAIVABLE_CHECKS,
+  type GateResult,
+} from './gates.js';
 import { executionOrder, STEP_LIBRARY } from './library.js';
 import { resolveConfig } from '../config/resolve.js';
 import { limitResumeAt } from '../autopilot/limit.js';
@@ -1048,13 +1054,31 @@ export class WorkflowEngine extends EventEmitter {
         .filter((x) => x.status === 'done')
         .flatMap((x) => x.waived ?? []),
     ]);
-    const out: GateResult[] = [];
-    for (const g of all) {
-      const r = await evaluateGate(g, ctx);
-      // 043: cảnh báo người dùng đã chấp nhận bỏ qua
-      out.push(isWarning(r) && waived.has(r.target) ? { ...r, pass: true, waived: true } : r);
+    const run = async () => {
+      const out: GateResult[] = [];
+      for (const g of all) {
+        const r = await evaluateGate(g, ctx);
+        // 043: cảnh báo người dùng đã chấp nhận bỏ qua
+        out.push(isWarning(r) && waived.has(r.target) ? { ...r, pass: true, waived: true } : r);
+      }
+      return out;
+    };
+    const first = await run();
+    // tự sửa tất định đúng chỗ sai (ví dụ chữ tràn vùng an toàn → thu nhỏ đúng phần tử), rồi kiểm lại một lần
+    const fixed: string[] = [];
+    for (const r of first) {
+      const repair = gateRepairFor(r);
+      if (!repair) continue;
+      const note = await repair(ctx, r).catch(() => undefined);
+      if (note) fixed.push(`${r.target}: ${note}`);
     }
-    return out;
+    if (!fixed.length) return first;
+    const again = await run();
+    return again.map((r) =>
+      r.pass && first.some((f) => !f.pass && f.target === r.target)
+        ? { ...r, detail: `đã tự sửa — ${fixed.find((x) => x.startsWith(`${r.target}:`)) ?? ''}` }
+        : r,
+    );
   }
 
   /** `workflow.gate_check` — không đổi trạng thái. */
