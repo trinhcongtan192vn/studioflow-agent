@@ -414,6 +414,21 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
             <>
               {/* 071: kết nối tài khoản đăng video của kênh */}
               <ChannelConnections channel={channel} />
+              <label className="field inline" data-testid="ai-disclosure">
+                <input
+                  type="checkbox"
+                  checked={v<boolean>('publish.ai_disclosure') === true}
+                  onChange={(e) => void set('publish.ai_disclosure', e.target.checked)}
+                />
+                <span>
+                  Khai báo &quot;nội dung do AI tạo&quot; khi đăng YouTube{' '}
+                  {src('publish.ai_disclosure')}{' '}
+                  <span className="muted">
+                    — chỉ bật khi video có cảnh trông như thật mà không có thật, hoặc người thật
+                    nói/làm điều họ không làm (YouTube yêu cầu); video minh họa/hoạt hình để tắt
+                  </span>
+                </span>
+              </label>
               <div className="field">
                 <span>
                   Nền tảng {src('publish.platforms')}{' '}

@@ -215,7 +215,7 @@ describe('other calls and quota', () => {
       status: {
         privacyStatus: 'public',
         selfDeclaredMadeForKids: false,
-        containsSyntheticMedia: true,
+        containsSyntheticMedia: false,
       },
     });
     await s.api.insertCaption('vid', {

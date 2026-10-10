@@ -80,6 +80,8 @@ export interface VideoMetadataInput {
   publishAt?: Date;
   /** 091: đăng ngay công khai (chỉ khi `audited`; không hẹn giờ). */
   publicNow?: boolean;
+  /** Khai báo nội dung AI tạo/biến đổi (`publish.ai_disclosure`, mặc định không). */
+  synthetic?: boolean;
 }
 
 export interface VideoMetadata {
@@ -95,7 +97,7 @@ export interface VideoMetadata {
     privacyStatus: 'private' | 'public';
     publishAt?: string;
     selfDeclaredMadeForKids: false;
-    containsSyntheticMedia: true;
+    containsSyntheticMedia: boolean;
   };
 }
 
@@ -114,8 +116,8 @@ export function buildVideoMetadata(i: VideoMetadataInput): VideoMetadata {
       privacyStatus: i.audited && i.publicNow ? 'public' : 'private',
       ...(i.audited && i.publishAt && !i.publicNow ? { publishAt: i.publishAt.toISOString() } : {}),
       selfDeclaredMadeForKids: false,
-      // khai báo nội dung do AI tạo/biến đổi (yêu cầu của YouTube)
-      containsSyntheticMedia: true,
+      // khai báo "nội dung do AI tạo/biến đổi": chỉ khi bật `publish.ai_disclosure` (cảnh trông như thật/người thật)
+      containsSyntheticMedia: Boolean(i.synthetic),
     },
   };
 }

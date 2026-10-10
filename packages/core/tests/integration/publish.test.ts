@@ -174,7 +174,7 @@ describe('upload: not audited (default) → private, the user makes it public', 
     expect(meta.status).toEqual({
       privacyStatus: 'private',
       selfDeclaredMadeForKids: false,
-      containsSyntheticMedia: true,
+      containsSyntheticMedia: false,
     });
     expect(meta.snippet).toMatchObject({
       title: 'Năm 1428: Lê Lợi lên ngôi',
