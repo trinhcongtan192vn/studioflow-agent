@@ -91,10 +91,12 @@ export function Chat({
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // effect chạy lại (StrictMode khi dev, mở lại cùng video) → bỏ lịch sử của lượt cũ, kẻo hiện trùng tin nhắn
+    let alive = true;
     const history = core
       .call('chat.history', { channel, ...(video ? { video } : {}) })
       .then((h) => {
-        setItems((s) => [...h.history.map(toItem), ...s]);
+        if (alive) setItems((s) => [...h.history.map(toItem), ...s]);
         return h.history;
       });
     const add = (i: Item) =>
@@ -192,6 +194,7 @@ export function Chat({
         core.call('workflow.state', { channel, video }),
       ]).then(
         ([lines, s]) => {
+          if (!alive) return;
           void syncApprovals(s.steps);
           // bước đang lỗi khi mở video mà lịch sử chưa có thông báo lỗi (trước 041) → hiện thẻ lỗi
           const lastNotice = new Map(
@@ -205,7 +208,10 @@ export function Chat({
         () => {},
       );
     }
-    return () => offs.forEach((o) => o());
+    return () => {
+      alive = false;
+      offs.forEach((o) => o());
+    };
   }, [channel, video]);
 
   /** Dòng lịch sử → mục chat; dòng có `notice` thành thẻ thông báo. */
