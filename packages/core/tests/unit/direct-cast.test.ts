@@ -2,7 +2,7 @@
 // khớp đúng thì dùng lại (không sinh); nền/ảnh dùng chung mang khóa để graph sinh một lần.
 import { parse } from 'yaml';
 import { expect, it } from 'vitest';
-import { planToStoryboard, type DirectPlan } from '../../src/workflow/direct.js';
+import { directPrompt, planToStoryboard, type DirectPlan } from '../../src/workflow/direct.js';
 
 const line = (id: string) => ({
   id,
@@ -85,4 +85,29 @@ it('existing cast: expression reused, a requested pose is generated from the ref
   const bg = (i: number) => blocks[i]!.layers.find((l) => l.kind === 'background')!;
   expect(bg(0).notes).toBe('bg: park');
   expect(bg(1).notes).toBe('bg: park');
+});
+
+it('channel characters from earlier videos are optional for the director; the video cast is required', () => {
+  const p = directPrompt({
+    brief: 'b',
+    language: 'en',
+    width: 1080,
+    height: 1920,
+    lines: [line('ln_aaaaaaa1')],
+    params: {},
+    library: [],
+    cast: [
+      { id: 'ca_mine0001', name: 'Leo' },
+      { id: 'ca_maya0001', name: 'Maya', optional: true },
+    ],
+    heroAllowed: false,
+    music: false,
+  });
+  const own = p.indexOf('## Characters of this video');
+  const opt = p.indexOf('## Channel characters from earlier videos (OPTIONAL');
+  expect(own).toBeGreaterThan(-1);
+  expect(opt).toBeGreaterThan(own);
+  expect(p.slice(own, opt)).toContain('ca_mine0001: Leo');
+  expect(p.slice(opt)).toContain('ca_maya0001: Maya');
+  expect(p.slice(own, opt)).not.toContain('ca_maya0001');
 });
