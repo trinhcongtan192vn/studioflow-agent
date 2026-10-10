@@ -30,6 +30,7 @@ export async function alignVideo(
   opts: {
     lineIds?: string[];
     signal?: AbortSignal;
+    stop?: AbortSignal;
     progress?: (done: number, total: number, message?: string) => void;
   } = {},
 ): Promise<AlignResult> {
@@ -52,6 +53,7 @@ export async function alignVideo(
     const r = await graph.build(videoId, {
       targets,
       ...(opts.signal ? { signal: opts.signal } : {}),
+      ...(opts.stop ? { stop: opts.stop } : {}),
       ...(opts.progress ? { progress: opts.progress } : {}),
     });
     Object.assign(nodes, r.nodes);

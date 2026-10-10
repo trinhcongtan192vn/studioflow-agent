@@ -13,6 +13,8 @@ export interface StepView {
   id: string;
   title: string;
   status: string;
+  /** Loại bước trong thư viện (voice, media…) khi id khác loại. */
+  uses?: string;
 }
 
 export const STATUS_LABEL: Record<string, string> = {
@@ -92,7 +94,9 @@ export function feedbackFor(
     return r
       ? {
           tone: 'info',
-          text: `Sẽ tạm dừng sau khi bước "${r.title}" xong (bước đang chạy không bị ngắt).`,
+          text: ['voice', 'media'].includes(r.uses ?? r.id)
+            ? `Bước "${r.title}" làm nốt câu/ảnh đang sinh rồi dừng; bấm Chạy tiếp để làm tiếp phần còn lại.`
+            : `Sẽ tạm dừng sau khi bước "${r.title}" xong (bước đang chạy không bị ngắt).`,
           settled: true,
         }
       : { tone: 'success', text: 'Đã tạm dừng workflow.', settled: true };

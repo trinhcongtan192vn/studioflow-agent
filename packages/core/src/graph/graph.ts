@@ -853,6 +853,8 @@ export class BuildGraph {
     opts: {
       targets?: string[];
       signal?: AbortSignal;
+      /** Tạm dừng mềm: không bắt đầu nút mới (nút đang chạy chạy xong, kết quả được lưu). */
+      stop?: AbortSignal;
       progress?: (done: number, total: number, message?: string) => void;
     } = {},
   ): Promise<BuildResult> {
@@ -872,6 +874,8 @@ export class BuildGraph {
     opts: {
       targets?: string[];
       signal?: AbortSignal;
+      /** Tạm dừng mềm: không bắt đầu nút mới (nút đang chạy chạy xong, kết quả được lưu). */
+      stop?: AbortSignal;
       progress?: (done: number, total: number, message?: string) => void;
     },
   ): Promise<BuildResult> {
@@ -884,6 +888,7 @@ export class BuildGraph {
     let done = 0;
     for (const p of plan) {
       if (signal.aborted) throw new SfError('E_JOB_CANCELED', 'canceled');
+      if (opts.stop?.aborted) throw new SfError('E_JOB_CANCELED', PAUSED);
       const def = defs.get(p.node)!;
       opts.progress?.(done, plan.length, p.node);
       const blocked = def.deps.some((d) => {
@@ -975,6 +980,9 @@ export class BuildGraph {
     return result;
   }
 }
+
+/** Thông điệp của lần build dừng do tạm dừng mềm (`stop`). */
+export const PAUSED = 'paused after the current item';
 
 function closure(defs: NodeDef[], targets: string[]): Set<string> {
   const byId = new Map(defs.map((d) => [d.id, d]));

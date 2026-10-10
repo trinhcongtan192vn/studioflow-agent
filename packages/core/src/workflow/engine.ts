@@ -44,6 +44,11 @@ export interface StepRunContext {
   /** Ghi chú của lần `changes_requested` gần nhất cho bước này. */
   note?: string;
   signal: AbortSignal;
+  /**
+   * Tạm dừng mềm (người dùng bấm Tạm dừng khi bước đang chạy): bước nhiều mục (giọng, ảnh) làm xong mục đang
+   * chạy rồi dừng; bước về `pending`, chạy lại thì làm tiếp từ mục chưa xong (cache graph).
+   */
+  stop?: AbortSignal;
   appDataDir?: string;
   /** Thư mục gói workflow (rubric `rubrics/` của gói, D6 4.3). */
   packDir?: string;
@@ -166,6 +171,8 @@ export function migrateMergedSteps(
 export class WorkflowEngine extends EventEmitter {
   private chain: Promise<unknown> = Promise.resolve();
   private paused = false;
+  /** Tạm dừng mềm của bước đang chạy. */
+  private stopCtrl?: AbortController;
   private target?: string;
   private running?: Promise<void>;
   private readonly completions = new Map<string, (outputs: string[]) => void>();
@@ -466,6 +473,7 @@ export class WorkflowEngine extends EventEmitter {
 
   pause(): void {
     this.paused = true;
+    this.stopCtrl?.abort();
   }
 
   runTo(stepId: string): Promise<void> {
@@ -761,6 +769,8 @@ export class WorkflowEngine extends EventEmitter {
       this.writeState(st);
     });
     const ctrl = new AbortController();
+    const stop = new AbortController();
+    this.stopCtrl = stop;
     const ctx: StepRunContext = {
       store: this.d.store,
       channelDir: this.d.store.root,
@@ -769,6 +779,7 @@ export class WorkflowEngine extends EventEmitter {
       manifest,
       ...(note ? { note } : {}),
       signal: ctrl.signal,
+      stop: stop.signal,
       appDataDir: this.d.appDataDir,
       ...(this.pack(st0)?.dir ? { packDir: this.pack(st0)!.dir } : {}),
       waitFrame: (frameId) => this.waitFrame(decl.id, frameId),
@@ -813,9 +824,20 @@ export class WorkflowEngine extends EventEmitter {
         outputs = (await this.runAgent(decl, ctx, manifest)) ?? outputs;
       }
     } catch (e) {
+      // tạm dừng giữa chừng: mục đang chạy đã xong và được lưu → bước về chờ, không phải lỗi
+      if (stop.signal.aborted && this.paused) {
+        await this.exclusive(() => {
+          const st = this.readState();
+          const s = st.steps[decl.id]!;
+          st.steps[decl.id] = { status: 'pending', attempt: s.attempt };
+          this.writeState(st);
+        });
+        return false;
+      }
       await this.fail(decl.id, isSfError(e) ? e.code : 'E_INTERNAL', String((e as Error).message));
       return false;
     } finally {
+      if (this.stopCtrl === stop) this.stopCtrl = undefined;
       // 083: bước không cần giao agent lần nữa (voice đã đủ giọng) → bỏ phần trả lời chưa dùng
       if (this.answered?.stepId === decl.id) this.answered = undefined;
     }
