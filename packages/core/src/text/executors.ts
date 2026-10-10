@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import path from 'node:path';
 import type {
   CaptionGroups,
@@ -54,6 +55,44 @@ export interface TextStepResult {
 export interface TextExecutorDeps {
   text: TextService;
   permissions?: PermissionBus;
+}
+
+/**
+ * Khối `sf-story` do model viết: câu có dấu `: ` không đặt trong ngoặc (`- Maya cheers: "So blue…"`) thành cặp
+ * khóa–giá trị trong YAML → ghép lại thành chuỗi và ghi lại YAML (thư viện tự đặt ngoặc). Khối đọc không được
+ * giữ nguyên để kiểm schema báo lỗi.
+ */
+export function repairStoryBlocks(text: string): string {
+  const str = (x: unknown): string =>
+    typeof x === 'string'
+      ? x
+      : x && typeof x === 'object' && !Array.isArray(x)
+        ? Object.entries(x)
+            .map(([k, v]) => `${k}: ${str(v)}`)
+            .join('; ')
+        : String(x ?? '');
+  return text.replace(/```sf-story\n([\s\S]*?)\n```/g, (all, body: string) => {
+    let data: unknown;
+    try {
+      data = parseYaml(body);
+    } catch {
+      return all;
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return all;
+    const d = data as Record<string, unknown>;
+    let changed = false;
+    for (const k of ['beats', 'characters'])
+      if (Array.isArray(d[k]) && d[k].some((x) => typeof x !== 'string')) {
+        d[k] = d[k].map(str);
+        changed = true;
+      }
+    for (const k of ['title', 'summary', 'setting'])
+      if (d[k] !== undefined && typeof d[k] !== 'string') {
+        d[k] = str(d[k]);
+        changed = true;
+      }
+    return changed ? `\`\`\`sf-story\n${stringifyYaml(d).trimEnd()}\n\`\`\`` : all;
+  });
 }
 
 /** Bỏ rào ``` và front matter nếu producer lỡ trả kèm. */
@@ -439,7 +478,7 @@ export function scriptExecutor(d: TextExecutorDeps) {
     const maxTokens = Math.max(2000, Math.round((targetMs / 1000) * 15));
     if (mode === 'outline') {
       const fm = `---\nschema_version: 1\nvideo_id: ${ctx.videoId}\nstatus: draft\n---\n`;
-      const normalize = (t: string) => fm + stripWrapping(t);
+      const normalize = (t: string) => fm + repairStoryBlocks(stripWrapping(t));
       const r = await refineText(env, d, plan, {
         prompt: (v) => buildPrompt(pack, 'outline', v, scope).text,
         revisePrompt: (v) => buildPrompt(pack, 'revise', v, scope).text,
