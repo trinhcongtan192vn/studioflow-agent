@@ -261,7 +261,7 @@ describe('voice suggestions (033)', () => {
       forLabel: 'người dẫn',
       preview: 'voices/vo_ab12cd34/ref.wav',
       traits: ['Nữ', 'Thanh niên', 'Cao độ vừa'],
-      pick: 'Chọn giọng "Giọng nữ trẻ" (vo_ab12cd34) cho người dẫn.',
+      pick: 'Chọn giọng "Giọng nữ trẻ" (vo_ab12cd34) cho người dẫn. Đặt làm giọng mặc định của kênh: config.set {key: "voice.id", value: "vo_ab12cd34", tier: "channel"}.',
     });
     expect(voiceSuggestion({ ...job, status: 'running' })).toBeUndefined();
     expect(voiceSuggestion({ ...job, kind: 'voice.profile' })).toBeUndefined();

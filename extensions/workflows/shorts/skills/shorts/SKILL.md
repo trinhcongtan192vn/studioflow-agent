@@ -1,9 +1,9 @@
 ---
 name: shorts
-description: Workflow StudioFlow "shorts" (video dọc ≤ 3 phút, Hook → Insight → Paradox; mới hoặc cắt từ video dài). Dùng khi người dùng hỏi về luồng dựng short hoặc nhờ chỉnh hình, chữ, ảnh, nhạc của một cảnh.
+description: Workflow StudioFlow "shorts" (video dọc ≤ 90 giây, Hook → Insight → Paradox; mới hoặc cắt từ video dài). Dùng khi người dùng hỏi về luồng dựng short hoặc nhờ chỉnh hình, chữ, ảnh, nhạc của một cảnh.
 ---
 
-# Workflow shorts (video dọc ≤ 3 phút)
+# Workflow shorts (video dọc ≤ 90 giây)
 
 **Cắt từ video dài:** khi `BRIEF.md` có `source_video_id`, kịch bản dùng lại nguyên văn các line của video nguồn (audio dùng lại); đọc video nguồn bằng `artifact.read` với tiền tố `video:<vd_…>/`.
 

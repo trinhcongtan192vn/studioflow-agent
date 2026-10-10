@@ -1015,7 +1015,13 @@ export class CoreHost extends EventEmitter {
       case 'voice.speakers':
         return videoVoices(this.store(p.channel), String(p.video), c.appDataDir);
       case 'voice.assign':
-        assignVoice(this.store(p.channel), String(p.video), String(p.speaker), String(p.voice_id));
+        assignVoice(
+          this.store(p.channel),
+          String(p.video),
+          String(p.speaker),
+          String(p.voice_id),
+          p.scope === 'channel' ? 'channel' : 'video',
+        );
         return { ok: true };
       case 'voice.preview':
         return { file: await narrationPreview(this.store(p.channel), String(p.video)) };

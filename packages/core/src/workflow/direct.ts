@@ -50,6 +50,8 @@ export interface DirectParams {
   max_shot_s?: number;
   /** Layout ưu tiên của preset. */
   prefer?: string[];
+  /** Nhạc: `single` (mặc định) = một bài cho cả video; `per-scene` = đổi nhạc theo chương (phim tài liệu). */
+  music?: 'single' | 'per-scene';
 }
 
 const TRANSITIONS = ['cut', 'crossfade', 'blur-crossfade', 'push-slide', 'zoom-through', 'squeeze'];
@@ -159,9 +161,15 @@ export function directPrompt(i: {
     ...(i.heroAllowed
       ? ['- Mark at most 2 key shots with "hero": true (custom hand-built animation).']
       : []),
-    ...(i.music
-      ? ['- Give each scene a "music" mood query in English (genre, energy, instruments).']
-      : ['- Set "music": null (background music is off).']),
+    ...(!i.music
+      ? ['- Set "music": null (background music is off).']
+      : i.params.music === 'per-scene'
+        ? [
+            '- Give each scene a "music" mood query in English (genre, energy, instruments). Reuse the SAME query for scenes of the same mood; change it only when the story clearly changes mood.',
+          ]
+        : [
+            '- ONE background track for the whole video: put a single "music" mood query in English (genre, energy, instruments) on the first scene; other scenes use null.',
+          ]),
     '',
     '## Output — ONLY this JSON',
     JSON.stringify(
@@ -272,6 +280,8 @@ export function planToStoryboard(
     aspect: '9:16' | '16:9';
     libraryIds: Set<string>;
     music: boolean;
+    /** Một bài cho cả video: mọi scene dùng truy vấn nhạc đầu tiên. */
+    singleMusic?: boolean;
     heroAllowed: boolean;
     castRefs: Record<string, string[]>;
     lipsync: Record<string, { mouth: boolean; anchor?: { x: number; y: number } }>;
@@ -303,6 +313,7 @@ export function planToStoryboard(
       },
     };
   };
+  const firstMusic = plan.scenes.map((x) => x.music?.trim()).find(Boolean);
   const out: string[] = [
     '---',
     'schema_version: 1',
@@ -323,7 +334,15 @@ export function planToStoryboard(
         stringify({
           title: s.title?.trim() || `Scene ${scene + 1}`,
           ...(s.mood ? { mood: s.mood } : {}),
-          music: o.music && s.music?.trim() ? { query: s.music.trim() } : 'none',
+          music: !o.music
+            ? 'none'
+            : o.singleMusic
+              ? firstMusic
+                ? { query: firstMusic }
+                : 'none'
+              : (s.music?.trim() ?? firstMusic)
+                ? { query: (s.music?.trim() || firstMusic)! }
+                : 'none',
         }).trimEnd(),
       );
       out.push('```', '');
@@ -504,6 +523,7 @@ export function directExecutor(d: { text: TextService }) {
       aspect: vertical ? '9:16' : '16:9',
       libraryIds: new Set(readChannelAssets(ctx.store.root).map((a) => a.id)),
       music,
+      singleMusic: params.music !== 'per-scene',
       heroAllowed,
       castRefs: Object.fromEntries(model0.map((c) => [c.id, c.reference_images])),
       lipsync: Object.fromEntries(

@@ -587,6 +587,7 @@ export function voiceSuggestion(job: {
       .split(', ')
       .filter(Boolean)
       .map((t) => TRAITS[t] ?? t),
-    pick: `Chọn giọng "${r.name}" (${r.voice_id})${forLabel ? ` cho ${forLabel}` : ''}.`,
+    // người dẫn: lưu làm giọng mặc định của kênh (video sau cũng dùng), không chỉ video này
+    pick: `Chọn giọng "${r.name}" (${r.voice_id})${forLabel ? ` cho ${forLabel}` : ''}.${r.for === 'narrator' || !r.for ? ' Đặt làm giọng mặc định của kênh: config.set {key: "voice.id", value: "' + r.voice_id + '", tier: "channel"}.' : ''}`,
   };
 }

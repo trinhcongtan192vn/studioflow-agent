@@ -187,6 +187,8 @@ function VoiceSection({
   onChanged: () => void;
 }) {
   const [pick, setPick] = useState<Record<string, string>>({});
+  // người dẫn: mặc định đặt luôn làm giọng của kênh (video sau cũng dùng)
+  const [asDefault, setAsDefault] = useState(true);
   const [msg, setMsg] = useState('');
   const [changed, setChanged] = useState(false);
   const [showLines, setShowLines] = useState(false);
@@ -196,7 +198,13 @@ function VoiceSection({
     const voice_id = pick[speaker];
     if (!voice_id) return;
     try {
-      await core.call('voice.assign', { channel, video, speaker, voice_id });
+      await core.call('voice.assign', {
+        channel,
+        video,
+        speaker,
+        voice_id,
+        ...(speaker === 'narrator' && asDefault ? { scope: 'channel' as const } : {}),
+      });
       setMsg(`Đã đổi giọng cho ${voices?.speakers.find((s) => s.speaker === speaker)?.name}.`);
       setChanged(true);
       onChanged();
@@ -248,6 +256,7 @@ function VoiceSection({
                     {!sel && <option value="">— chọn giọng —</option>}
                     {voices.voices.map((v) => (
                       <option key={v.voice_id} value={v.voice_id} disabled={!v.ready}>
+                        {v.language ? `[${v.language.toUpperCase()}] ` : ''}
                         {v.name}
                         {v.kind === 'designed' ? ' (gợi ý)' : ''}
                         {v.ready ? '' : ' — chưa sẵn sàng'}
@@ -261,6 +270,26 @@ function VoiceSection({
                     Dùng giọng này
                   </button>
                 </div>
+                {(() => {
+                  const v = byId.get(sel);
+                  const lang = voices.language.slice(0, 2).toLowerCase();
+                  return v?.language && lang && !v.language.toLowerCase().startsWith(lang) ? (
+                    <span className="error">
+                      Giọng này là {v.language.toUpperCase()}, video nói {lang.toUpperCase()} — chọn
+                      giọng {lang.toUpperCase()}.
+                    </span>
+                  ) : null;
+                })()}
+                {sp.speaker === 'narrator' && (
+                  <label className="field inline">
+                    <input
+                      type="checkbox"
+                      checked={asDefault}
+                      onChange={(e) => setAsDefault(e.target.checked)}
+                    />
+                    Đặt làm giọng mặc định của kênh (video sau cũng dùng)
+                  </label>
+                )}
                 {ref && (
                   <div className="voice-ref">
                     <span className="muted">Câu mẫu:</span>
