@@ -158,6 +158,7 @@ export function frameMdFromDesign(d: ChannelDesign, channelName: string): string
   return [
     '---',
     'schema_version: 1',
+    `generated_from: ${sha256(canonicalJson({ ...d, updated_at: undefined }))}`,
     `design_look: ${h.look}`,
     `design_images: ${h.images}`,
     '---',

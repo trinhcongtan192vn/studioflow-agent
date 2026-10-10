@@ -34,6 +34,10 @@ export interface BriefFrontMatter extends Versioned {
 /** D3 5.3 */
 export interface FrameMdFrontMatter extends Versioned {
   generated_from: Sha256;
+  /** Design system cấp kênh (2026-10-10): băm phần màu/chữ/layout — để biết video lệch design kênh. */
+  design_look?: string;
+  /** Băm phong cách ảnh của design kênh. */
+  design_images?: string;
 }
 
 /** D3 5.3b */

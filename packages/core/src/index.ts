@@ -520,3 +520,11 @@ export {
 export { startStudioProxy, studioWriteAllowed } from './studio/proxy.js';
 export { PinnedDecider } from './studio/pinned.js';
 export { watchVideo, readExternal, externalRel, type ExternalChanges } from './studio/watch.js';
+export {
+  saveChannelDesign,
+  readChannelDesign,
+  videoDesignStatus,
+  frameMdFromDesign,
+  normalizeDesign,
+  type ChannelDesign,
+} from './design/channel-design.js';
