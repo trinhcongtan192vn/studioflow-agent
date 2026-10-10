@@ -549,6 +549,8 @@ export class CoreHost extends EventEmitter {
       jobs: c.queue
         .list({ status: 'running' })
         .map((j) => ({ kind: j.kind, ...(j.video_id ? { video: j.video_id } : {}) })),
+      // job đang chờ chạy — hẹn giờ ngủ đông chỉ tính là rảnh khi không còn job nào
+      queued: c.queue.list({ status: 'queued' }).length,
       chats: [...this.replying.keys()].map(split),
       autopilot: c.autopilot.activity(),
     };

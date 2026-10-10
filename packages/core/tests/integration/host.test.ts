@@ -877,6 +877,7 @@ describe('CoreHost IPC (008)', () => {
       studio: [],
       steps: [],
       jobs: [],
+      queued: 0,
       chats: [],
       autopilot: [],
     });
