@@ -3234,3 +3234,45 @@ ul.plain {
   max-width: 36px;
   height: 28px;
 }
+
+/* màn chat mới của kênh: video gần đây + gợi ý nội dung từ đối thủ */
+.chat-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4) var(--s2);
+}
+.chat-home h2 {
+  margin: 0;
+}
+.chat-home h4 {
+  margin: var(--s2) 0;
+}
+.home-ideas {
+  margin-bottom: var(--s3);
+}
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s2);
+  margin-top: var(--s1);
+}
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  padding: var(--s3);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  color: var(--ink);
+}
+button.home-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.home-card .primary {
+  margin-top: auto;
+}

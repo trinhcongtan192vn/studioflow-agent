@@ -87,6 +87,9 @@ const RAIL_ITEMS: { page: Page; label: string; title: string; icon: IconName; te
   },
 ];
 // 072: Job / Trace / Chi phí gộp vào "Kỹ thuật"; "Tệp" = thư mục của video đang mở
+// kênh đã mở chat mới trong lần chạy app này (mở app → màn chat mới với gợi ý, một lần mỗi kênh)
+const freshChat = new Set<string>();
+
 const TABS = ['Tiến độ', 'Xem trước', 'Tệp', 'Nhạc', 'Kỹ thuật'] as const;
 const TECH = ['Job', 'Trace', 'Chi phí'] as const;
 
@@ -129,6 +132,23 @@ export function Workspace({
   const [trashCount, setTrashCount] = useState(0);
   // 052: màn Autopilot hôm nay
   const [pendingVideo, setPendingVideo] = useState<string | null>(null);
+  // đổi số này → khung chat mở lại (sau "Chat mới")
+  const [chatNonce, setChatNonce] = useState(0);
+  const newChat = async () => {
+    if (!channel) return;
+    try {
+      await core.call('chat.new', { channel });
+      setChatNonce((n) => n + 1);
+    } catch (e) {
+      toast({ tone: 'error', text: (e as Error).message });
+    }
+  };
+  useEffect(() => {
+    if (!channel || video || freshChat.has(channel)) return;
+    freshChat.add(channel);
+    void newChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel]);
   // độ rộng cột kéo được (nhớ theo máy)
   const root = useRef<HTMLDivElement>(null);
   const total = () => (root.current?.clientWidth ?? window.innerWidth) - RAIL;
@@ -328,6 +348,15 @@ export function Workspace({
       },
     })),
   ];
+  /** Mở video ở kênh bất kỳ (kênh khác: đổi kênh rồi mở khi danh sách đã tải). */
+  const openAnyVideo = (dir: string, id: string) => {
+    setPage('video');
+    if (dir === channel) void openVideo(id);
+    else {
+      setPendingVideo(id);
+      onSwitch(dir);
+    }
+  };
   const openVideo = async (id: string) => {
     if (!channel) return;
     setVideo(id);
@@ -447,15 +476,7 @@ export function Workspace({
               <AutopilotPanel
                 initialTab={page === 'publish' ? 'publish' : 'plans'}
                 onClose={() => setPage('video')}
-                onOpenVideo={(dir, id) => {
-                  setPage('video');
-                  if (dir === channel) void openVideo(id);
-                  else {
-                    // mở video của kênh khác: đổi kênh rồi mở video khi danh sách đã tải
-                    setPendingVideo(id);
-                    onSwitch(dir);
-                  }
-                }}
+                onOpenVideo={openAnyVideo}
               />
             )}
             {page === 'overview' &&
@@ -714,6 +735,17 @@ export function Workspace({
                       </span>
                     )}
                   </div>
+                  {!video && (
+                    <div className="vh-actions">
+                      <button
+                        className="ghost"
+                        data-testid="new-chat"
+                        onClick={() => void newChat()}
+                      >
+                        <Icon name="plus" /> Chat mới
+                      </button>
+                    </div>
+                  )}
                   {video && (
                     <div className="vh-actions">
                       <button
@@ -739,9 +771,10 @@ export function Workspace({
                   />
                 )}
                 <Chat
-                  key={`${channel}|${video ?? ''}`}
+                  key={`${channel}|${video ?? ''}|${chatNonce}`}
                   channel={channel}
                   video={video}
+                  onOpenVideo={openAnyVideo}
                   onOpenFile={(rel) => void view(video ? `videos/${video}/${rel}` : rel)}
                   onOpenTab={(t) => setTab(t as (typeof TABS)[number])}
                 />

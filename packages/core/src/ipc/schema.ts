@@ -367,6 +367,8 @@ export interface IpcMethods {
   };
   'chat.interrupt': { params: ChannelRef & { video?: string }; result: Record<string, never> };
   'chat.history': { params: ChannelRef & { video?: string }; result: { history: ChatLine[] } };
+  /** Phiên chat mới (lịch sử trống, agent không nối phiên cũ); phiên mới nhất đang trống → giữ nguyên. */
+  'chat.new': { params: ChannelRef & { video?: string }; result: { session_id: string } };
   'upload.ingest': {
     params: ChannelRef & { video?: string; path_on_disk: string };
     result: { rel_path: string; mime: string };

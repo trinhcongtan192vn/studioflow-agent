@@ -569,6 +569,27 @@ export class CoreHost extends EventEmitter {
     });
   }
 
+  /** Phiên chat mới: tệp lịch sử trống (phiên mới nhất) → lượt sau mở phiên agent mới, không nối phiên cũ. */
+  private newChat(channel: string, video?: string): string {
+    const key = `${path.resolve(channel)}|${video ?? ''}`;
+    if (this.replying.has(key))
+      throw new SfError('E_VIDEO_BUSY', 'agent đang trả lời — đợi xong rồi mở chat mới');
+    const prev = this.latestChat(channel, video);
+    if (prev && !readFileSync(this.store(channel).abs(prev), 'utf8').trim())
+      return path.basename(prev, '.jsonl');
+    const open = this.sessions.get(key);
+    if (open) {
+      void open.session.close();
+      this.sessions.delete(key);
+    }
+    const id = newId('ss');
+    this.store(channel).write(`${this.chatDir(channel, video)}/${id}.jsonl`, '', {
+      by: 'chat.new',
+      validate: false,
+    });
+    return id;
+  }
+
   /** `chat.send`: luồng sự kiện agent → `chat.event`; ghi lịch sử (D3 5.16). */
   async chat(
     channel: string,
@@ -1156,6 +1177,8 @@ export class CoreHost extends EventEmitter {
         return {};
       case 'chat.history':
         return { history: this.history(p.channel, p.video || undefined) };
+      case 'chat.new':
+        return { session_id: this.newChat(p.channel, p.video || undefined) };
       case 'upload.ingest': {
         const src = String(p.path_on_disk);
         const ext = path.extname(src).toLowerCase();
