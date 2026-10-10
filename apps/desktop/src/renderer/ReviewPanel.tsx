@@ -219,7 +219,10 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
           }}
           onIndex={setViewing}
           onClose={() => setViewing(undefined)}
-          layerOf={(f) => data.shots.flatMap((s) => s.image_layers).find((l) => l.file === f)}
+          // lõi cũ (chưa khởi động lại) không có image_layers → không có nút Tạo lại, không sập
+          layerOf={(f) =>
+            data.shots.flatMap((s) => s.image_layers ?? []).find((l) => l?.file === f)
+          }
           onRegenerate={async (layer, note) => {
             const r = await core.call('shot.image.regenerate', {
               channel,

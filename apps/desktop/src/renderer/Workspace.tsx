@@ -17,6 +17,7 @@ import { LibraryPage } from './LibraryPage';
 import { Palette, type Command } from './Palette';
 import { noticeToast } from './palette-format';
 import { toast, Toasts } from './Toasts';
+import { ErrorBoundary } from './ErrorBoundary';
 import { Icon, type IconName } from './Icon';
 import { AsPage } from './Surface';
 import { core } from './rpc';
@@ -817,38 +818,40 @@ export function Workspace({
               ))}
             </nav>
             <div className="tab-body">
-              {channel && tab === 'Tiến độ' && (
-                <ProgressTab channel={channel} video={video} state={state} onState={setState} />
-              )}
-              {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
-              {channel && tab === 'Tệp' && (
-                <VideoFiles
-                  node={video ? findNode(tree, `videos/${video}`) : undefined}
-                  onOpen={(p) => void view(p)}
-                  onReveal={(p) => void window.studioflow.openPath(`${channel}/${p}`)}
-                />
-              )}
-              {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
-              {channel && tab === 'Kỹ thuật' && (
-                <>
-                  <div className="segmented tech-switch" role="tablist" aria-label="Kỹ thuật">
-                    {TECH.map((t) => (
-                      <button
-                        key={t}
-                        role="tab"
-                        aria-selected={tech === t}
-                        className={tech === t ? 'active' : ''}
-                        onClick={() => setTech(t)}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                  {tech === 'Job' && <JobsTab video={video} />}
-                  {tech === 'Trace' && <TraceTab video={video} />}
-                  {tech === 'Chi phí' && <CostTab channel={channel} video={video} />}
-                </>
-              )}
+              <ErrorBoundary resetKey={`${tab}|${video ?? ''}`} label={`Tab ${tab}`}>
+                {channel && tab === 'Tiến độ' && (
+                  <ProgressTab channel={channel} video={video} state={state} onState={setState} />
+                )}
+                {channel && tab === 'Xem trước' && <PreviewTab channel={channel} video={video} />}
+                {channel && tab === 'Tệp' && (
+                  <VideoFiles
+                    node={video ? findNode(tree, `videos/${video}`) : undefined}
+                    onOpen={(p) => void view(p)}
+                    onReveal={(p) => void window.studioflow.openPath(`${channel}/${p}`)}
+                  />
+                )}
+                {channel && tab === 'Nhạc' && <MusicTab channel={channel} />}
+                {channel && tab === 'Kỹ thuật' && (
+                  <>
+                    <div className="segmented tech-switch" role="tablist" aria-label="Kỹ thuật">
+                      {TECH.map((t) => (
+                        <button
+                          key={t}
+                          role="tab"
+                          aria-selected={tech === t}
+                          className={tech === t ? 'active' : ''}
+                          onClick={() => setTech(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    {tech === 'Job' && <JobsTab video={video} />}
+                    {tech === 'Trace' && <TraceTab video={video} />}
+                    {tech === 'Chi phí' && <CostTab channel={channel} video={video} />}
+                  </>
+                )}
+              </ErrorBoundary>
             </div>
           </aside>
         </>
