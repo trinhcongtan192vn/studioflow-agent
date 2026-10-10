@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatLine, IpcEvents, WorkflowNotice } from '@studioflow/core';
+import { ChatHome } from './ChatHome';
 import { core } from './rpc';
 import {
   activityLabel,
@@ -62,6 +63,7 @@ export function Chat({
   video,
   onOpenFile,
   onOpenTab,
+  onOpenVideo,
 }: {
   channel: string;
   video?: string;
@@ -69,8 +71,11 @@ export function Chat({
   onOpenFile?: (rel: string) => void;
   /** Chuyển tab bên phải ("Xem trước", "Nhạc"…). */
   onOpenTab?: (tab: string) => void;
+  /** Chat kênh còn trống → màn gợi ý (video gần đây, gợi ý từ đối thủ); mở/tạo video ở kênh bất kỳ. */
+  onOpenVideo?: (channel: string, video: string) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,7 +101,10 @@ export function Chat({
     const history = core
       .call('chat.history', { channel, ...(video ? { video } : {}) })
       .then((h) => {
-        if (alive) setItems((s) => [...h.history.map(toItem), ...s]);
+        if (alive) {
+          setItems((s) => [...h.history.map(toItem), ...s]);
+          setLoaded(true);
+        }
         return h.history;
       });
     const add = (i: Item) =>
@@ -448,6 +456,9 @@ export function Chat({
         />
       )}
       <div className="messages" data-testid="messages">
+        {!video && onOpenVideo && loaded && !items.length && !streaming && !busy && (
+          <ChatHome channel={channel} onOpenVideo={onOpenVideo} />
+        )}
         {groupRuns(items, (x) => x.type === 'line' && x.line.role === 'tool').map((g) => {
           if (g.kind === 'tools')
             return (

@@ -761,6 +761,19 @@ describe('CoreHost IPC (008)', () => {
     expect(rt2.opened[0]).toMatchObject({ kind: 'main', resume: 'sdk-123' });
   });
 
+  it('chat.new starts an empty channel chat whose next turn opens a fresh agent session', async () => {
+    const { host, dir } = setup();
+    await host.call('chat.send', { channel: dir, text: 'Xin chào' });
+    expect((await host.call('chat.history', { channel: dir })).history.length).toBeGreaterThan(0);
+    const a = await host.call('chat.new', { channel: dir });
+    expect((await host.call('chat.history', { channel: dir })).history).toEqual([]);
+    // phiên mới nhất còn trống → giữ nguyên, không tạo thêm tệp
+    expect((await host.call('chat.new', { channel: dir })).session_id).toBe(a.session_id);
+    await host.call('chat.send', { channel: dir, text: 'Chủ đề mới' });
+    const h = (await host.call('chat.history', { channel: dir })).history;
+    expect(h[0]).toMatchObject({ role: 'user', content: 'Chủ đề mới' });
+  });
+
   it('uploads go through the write module; types and sizes are checked (FR-CH-03)', async () => {
     const { host, dir } = setup();
     const t = tempDir('up-');

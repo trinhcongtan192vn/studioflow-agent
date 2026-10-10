@@ -68,7 +68,7 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `app.status` | Trạng thái cài đặt, đăng nhập, engine |
 | `channel.open` / `channel.init` / `channel.list_recent` | |
 | `video.list` / `video.create` / `video.open` | |
-| `chat.send` / `chat.interrupt` / `chat.history` | |
+| `chat.send` / `chat.interrupt` / `chat.history` / `chat.new` | |
 | `upload.ingest` | `{path_on_disk}` → `{rel_path}`; chép qua module ghi của Gateway |
 | `approval.decide` | `{approval_id, decision, note?}` |
 | `permission.decide` | `{request_id, allow, remember?}` |
