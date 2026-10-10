@@ -425,6 +425,8 @@ export interface IpcMethods {
       studio: { channel: string; video: string }[];
       steps: { channel: string; video: string; step_id: string; title: string }[];
       jobs: { kind: string; video?: string }[];
+      /** Số job đang xếp hàng chờ chạy (hẹn giờ ngủ đông khi xong việc). */
+      queued: number;
       chats: { channel: string; video: string }[];
       /** 052: video Autopilot đang làm dở (mục kế hoạch `in_production`) — đóng app thì lần mở sau làm tiếp. */
       autopilot: { channel: string; video: string; item_id: string; title: string }[];

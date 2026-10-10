@@ -37,6 +37,8 @@ export interface StudioflowApi {
   /** 052: khởi động cùng Windows (mở thẳng xuống khay). */
   getAutostart(): Promise<boolean>;
   setAutostart(on: boolean): Promise<boolean>;
+  /** Ngủ đông máy ngay (hẹn giờ khi xong việc — giao diện đã đếm ngược). */
+  hibernate(): Promise<{ ok: boolean; error?: string }>;
 }
 
 const api: StudioflowApi = {
@@ -67,6 +69,7 @@ const api: StudioflowApi = {
   },
   getAutostart: () => ipcRenderer.invoke('app:autostart-get'),
   setAutostart: (on) => ipcRenderer.invoke('app:autostart-set', on),
+  hibernate: () => ipcRenderer.invoke('power:hibernate'),
 };
 
 contextBridge.exposeInMainWorld('studioflow', api);

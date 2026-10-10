@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -362,6 +363,24 @@ ipcMain.on('autopilot:state', (_e, s: typeof apState) => {
   }
   updateTray();
 });
+// hẹn giờ ngủ đông khi xong việc (2026-10-10): giao diện đã đếm ngược 60 s cho người dùng hủy
+ipcMain.handle(
+  'power:hibernate',
+  () =>
+    new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      if (process.platform !== 'win32') return resolve({ ok: false, error: 'chỉ hỗ trợ Windows' });
+      execFile('shutdown.exe', ['/h'], { windowsHide: true }, (err, _out, stderr) =>
+        resolve(
+          err
+            ? {
+                ok: false,
+                error: `không ngủ đông được — Hibernate có thể đang tắt trong Windows (powercfg /hibernate on). ${String(stderr || err.message).trim()}`,
+              }
+            : { ok: true },
+        ),
+      );
+    }),
+);
 ipcMain.handle('app:autostart-get', () => app.getLoginItemSettings().openAtLogin);
 ipcMain.handle('app:autostart-set', (_e, on: boolean) => {
   app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });

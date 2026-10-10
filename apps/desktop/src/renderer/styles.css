@@ -3417,3 +3417,32 @@ button.home-card:hover {
 .step-status.waiting_user {
   color: var(--caution-ink);
 }
+
+/* Hẹn giờ ngủ đông khi xong việc — ở thanh dưới */
+.statusbar .hibernate {
+  position: relative;
+  margin-left: auto;
+}
+.statusbar .linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.statusbar .linkish:hover {
+  color: var(--ink);
+}
+.hibernate-pop {
+  position: absolute;
+  right: 0;
+  bottom: 22px;
+  width: 340px;
+  z-index: 20;
+  font-size: 13px;
+  color: var(--ink);
+}
+.hibernate-pop input[type='number'] {
+  width: 64px;
+}

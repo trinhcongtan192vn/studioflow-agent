@@ -3,6 +3,7 @@ import type { StudioflowApi } from '../preload/index';
 import { activityLines } from './close-format';
 import { closeAction, desktopState } from './autopilot-view';
 import { Onboarding } from './Onboarding';
+import { HibernateTimer } from './HibernateTimer';
 import { core } from './rpc';
 import { versionLabel } from './version-label';
 import { Workspace } from './Workspace';
@@ -159,6 +160,7 @@ export function App() {
             ? `Thiếu: ${status.install.missing.join(', ')}`
             : ''}
         </span>
+        <HibernateTimer />
       </footer>
     </div>
   );
