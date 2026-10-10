@@ -373,6 +373,8 @@ export class BuildGraph {
             ...(emotionRef(model, l) ? { emotion_ref: emotionRef(model, l) } : {}),
             provider: model.config('provider.tts.synthesize'),
             language: model.language,
+            // nhịp đọc của design kênh (1 = giữ hash cũ)
+            ...(model.voiceSpeed !== 1 ? { speed: model.voiceSpeed } : {}),
             // sinh lại do ASR lệch (010 R3) → seed khác
             ...(asr.regen[l.id] ? { regen: asr.regen[l.id] } : {}),
           },

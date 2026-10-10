@@ -2123,6 +2123,10 @@ export const schemas = {
           "design_images": {
             "type": "string",
             "description": "Băm phong cách ảnh của design kênh."
+          },
+          "design_voice": {
+            "type": "string",
+            "description": "Băm nhịp đọc (tốc độ, nghỉ giữa câu) của design kênh."
           }
         },
         "required": [

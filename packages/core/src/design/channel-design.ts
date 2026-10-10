@@ -7,6 +7,7 @@ import type { WriteStore } from '../store/writer.js';
 import { LAYOUTS, MOTIONS } from '../hf/templates.js';
 import { extractJson, type TextService } from '../text/service.js';
 import { DEFAULT_MODELS, type ModelRef } from '../text/models.js';
+import { normalizeVoice, type DesignVoice } from './voice.js';
 
 /**
  * Design system cấp kênh (Tan 2026-10-10): định nghĩa một lần trong `profile/design-system.json`, mọi video của
@@ -41,6 +42,8 @@ export interface ChannelDesign {
   layouts: { prefer: string[]; avoid: string[] };
   motion: { pace: 'calm' | 'medium' | 'fast'; prefer: string[] };
   music: { mood: string };
+  /** Nhịp đọc lời dẫn: tốc độ TTS và nghỉ sau mỗi câu (bước Giọng đọc tự áp dụng). */
+  voice: DesignVoice;
   /** Ảnh mẫu (asset kênh) cho phương án. */
   sample_asset_id?: string;
   /** Chủ thể ảnh mẫu (prompt). */
@@ -122,6 +125,7 @@ export function normalizeDesign(d: Partial<ChannelDesign>): ChannelDesign {
       ),
     },
     music: { mood: clean(d.music?.mood) },
+    voice: normalizeVoice(d.voice),
     ...(d.sample_asset_id ? { sample_asset_id: d.sample_asset_id } : {}),
     ...(d.sample_subject ? { sample_subject: clean(d.sample_subject, 300) } : {}),
   };
@@ -136,12 +140,13 @@ export function imageStyleSuffix(d: ChannelDesign): string {
 }
 
 /** Băm phần "nhìn" (màu, chữ, layout, chuyển động) và phần "ảnh" (phong cách ảnh) — để biết video lệch phần nào. */
-export function designHashes(d: ChannelDesign): { look: string; images: string } {
+export function designHashes(d: ChannelDesign): { look: string; images: string; voice: string } {
   return {
     look: sha256(
       canonicalJson({ c: d.colors, f: d.fonts, t: d.text, l: d.layouts, m: d.motion }),
     ).slice(0, 12),
     images: sha256(canonicalJson(d.image_style)).slice(0, 12),
+    voice: sha256(canonicalJson(d.voice)).slice(0, 12),
   };
 }
 
@@ -161,6 +166,7 @@ export function frameMdFromDesign(d: ChannelDesign, channelName: string): string
     `generated_from: ${sha256(canonicalJson({ ...d, updated_at: undefined }))}`,
     `design_look: ${h.look}`,
     `design_images: ${h.images}`,
+    `design_voice: ${h.voice}`,
     '---',
     `# frame.md — design system của kênh: ${d.name}`,
     '',
@@ -189,6 +195,9 @@ export function frameMdFromDesign(d: ChannelDesign, channelName: string): string
     '## Nhạc',
     `- ${d.music.mood || '—'}`,
     '',
+    '## Giọng đọc',
+    `- Tốc độ: ${d.voice.speed}× giọng mẫu; nghỉ sau mỗi câu: ${d.voice.pause_ms} ms`,
+    '',
   ].join('\n');
 }
 
@@ -196,7 +205,7 @@ export function frameMdFromDesign(d: ChannelDesign, channelName: string): string
 export function videoDesignStatus(
   store: WriteStore,
   videoId: string,
-): { stale: false } | { stale: true; images: boolean; design: string } {
+): { stale: false } | { stale: true; images: boolean; voice: boolean; design: string } {
   const d = readChannelDesign(store.root);
   if (!d) return { stale: false };
   const f = store.abs(`videos/${videoId}/frame.md`);
@@ -204,9 +213,14 @@ export function videoDesignStatus(
   const text = readFileSync(f, 'utf8');
   const look = /^design_look: (\S+)$/m.exec(text)?.[1];
   const images = /^design_images: (\S+)$/m.exec(text)?.[1];
+  const voice = /^design_voice: (\S+)$/m.exec(text)?.[1];
   const h = designHashes(d);
-  if (look === h.look && images === h.images) return { stale: false };
-  return { stale: true, images: images !== h.images, design: d.name };
+  // frame.md cũ (trước nhịp đọc) không có design_voice → coi như khớp nhịp mặc định
+  const voiceStale = voice
+    ? voice !== h.voice
+    : h.voice !== designHashes({ ...d, voice: normalizeVoice(undefined) }).voice;
+  if (look === h.look && images === h.images && !voiceStale) return { stale: false };
+  return { stale: true, images: images !== h.images, voice: voiceStale, design: d.name };
 }
 
 export const DESIGNER_MODEL: ModelRef = { provider: 'claude', model: DEFAULT_MODELS.claude.critic };
@@ -250,6 +264,7 @@ export async function proposeDesigns(
     '',
     channelBrief(store, appDataDir),
     '',
+    'Voice pacing (voice): the narration TTS clones a reference voice that speaks around 180 words per minute. speed scales it (0.8–1.2; 0.85 ≈ 155 wpm, calm documentary; 1.0 = energetic explainer; 1.1 = fast shorts) and pause_ms is the silence after every sentence (0–1500; 250–450 for documentaries, 100–200 for fast shorts). Match the channel tone.',
     'Rules: colors are 6-digit hex with strong contrast between ink and canvas (WCAG AA); fonts are generic families only (sans-serif, serif, system-ui, monospace, or common system fonts like "Georgia, serif"); image_style is concrete enough to keep every image consistent (medium, lighting, palette, camera/composition, avoid). sample_subject is one representative shot for this channel to preview the style.',
     `Layouts: ${LAYOUTS.join(', ')}. Motions: ${MOTIONS.join(', ')}.`,
     '',
@@ -279,6 +294,7 @@ export async function proposeDesigns(
           layouts: { prefer: ['image-title'], avoid: [] },
           motion: { pace: 'medium', prefer: ['ken-burns-in'] },
           music: { mood: '…' },
+          voice: { speed: 0.9, pause_ms: 300 },
           sample_subject: '…',
         },
       ],

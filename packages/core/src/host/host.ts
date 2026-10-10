@@ -1085,7 +1085,8 @@ export class CoreHost extends EventEmitter {
         });
         const e = this.engine(p.channel, p.video);
         const steps = e.summary().steps as { id: string; uses?: string; status: string }[];
-        const target = steps.find((x) => (x.uses ?? x.id) === (st.images ? 'direct' : 'compose'));
+        const from = st.voice ? 'voice' : st.images ? 'direct' : 'compose';
+        const target = steps.find((x) => (x.uses ?? x.id) === from);
         if (target && target.status !== 'pending') await e.rewind(target.id);
         return { step: target?.id ?? '' };
       }
