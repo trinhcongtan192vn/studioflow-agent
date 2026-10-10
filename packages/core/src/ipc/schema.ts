@@ -300,11 +300,11 @@ export interface IpcMethods {
   /** Người nói của video + giọng đang dùng; giọng ref của kênh để chọn (Tan 2026-10-10). */
   'voice.speakers': {
     params: VideoRef;
-    result: { speakers: SpeakerVoice[]; voices: ChannelVoice[] };
+    result: { language: string; speakers: SpeakerVoice[]; voices: ChannelVoice[] };
   };
   /** Đổi giọng một người nói (người dẫn → `voice.id` tầng video; nhân vật → `voice_id`). */
   'voice.assign': {
-    params: VideoRef & { speaker: string; voice_id: string };
+    params: VideoRef & { speaker: string; voice_id: string; scope?: 'video' | 'channel' };
     result: { ok: true };
   };
   /** Ghép audio các line thành một file nghe thử cả lời đọc. */

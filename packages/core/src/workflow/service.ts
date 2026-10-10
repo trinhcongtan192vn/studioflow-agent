@@ -4,6 +4,7 @@ import type { AgentRuntime } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
 import { SfError } from '../errors.js';
 import type { PermissionBus } from '../gateway/permission.js';
+import { voiceLanguageProblems } from '../review/review.js';
 import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
 import type { WriteStore } from '../store/writer.js';
 import {
@@ -165,6 +166,13 @@ function voiceExecutor(builders: BuilderRegistry, permissions?: PermissionBus): 
       throw new SfError(
         'E_ID_UNKNOWN',
         `no voice for ${unvoiced.join(', ')}: ${unvoiced.includes('narrator') ? 'set voice.id for the channel/video' : 'set voice_id in CAST.md'} — create a voice with voice.profile_create from a 3–10 s sample the user attaches, then rerun this step`,
+      );
+    // giọng khác ngôn ngữ video → dừng, nêu giọng đúng ngôn ngữ có sẵn (không đọc sai lặng lẽ)
+    const wrongLang = voiceLanguageProblems(ctx.store, ctx.videoId, ctx.appDataDir);
+    if (wrongLang.length)
+      throw new SfError(
+        'E_SCHEMA_INVALID',
+        `voice language: ${wrongLang.join('; ')}. Đổi giọng ở tab Xem trước (mục Giọng đọc) rồi chạy lại bước này.`,
       );
     const graph = new BuildGraph({ store: ctx.store, appDataDir: ctx.appDataDir, builders });
     const targets = ['audio.line', 'asr.line', 'audio_meta'];

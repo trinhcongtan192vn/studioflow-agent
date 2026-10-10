@@ -38,6 +38,8 @@ export interface SpeakerVoice {
 export interface ChannelVoice {
   voice_id: string;
   name: string;
+  /** Ngôn ngữ của giọng (`en`, `vi`…), rỗng nếu không ghi. */
+  language: string;
   kind: 'cloned' | 'designed';
   ready: boolean;
   /** Câu mẫu (`voices/<vo>/ref.wav`) để nghe thử, đường dẫn tuyệt đối. */
@@ -50,7 +52,7 @@ export function videoVoices(
   store: WriteStore,
   videoId: string,
   appDataDir?: string,
-): { speakers: SpeakerVoice[]; voices: ChannelVoice[] } {
+): { language: string; speakers: SpeakerVoice[]; voices: ChannelVoice[] } {
   const model = loadVideoModel(store.root, videoId, appDataDir);
   const lib = listVoices(store.root, videoId, appDataDir);
   const name = new Map(lib.voices.map((v) => [v.voice_id, v.name]));
@@ -73,6 +75,7 @@ export function videoVoices(
   const voices = lib.voices.map((v): ChannelVoice => ({
     voice_id: v.voice_id,
     name: v.name,
+    language: v.language,
     kind: v.kind,
     ready: v.ready,
     used_by: v.used_by,
@@ -80,7 +83,7 @@ export function videoVoices(
       ? { ref: path.join(store.root, 'voices', v.voice_id, 'ref.wav') }
       : {}),
   }));
-  return { speakers, voices };
+  return { language: model.language ?? '', speakers, voices };
 }
 
 /**
@@ -92,11 +95,21 @@ export function assignVoice(
   videoId: string,
   speaker: string,
   voiceId: string,
+  /** Người dẫn: `channel` = giọng mặc định của kênh (mọi video sau), bỏ ghi đè riêng của video này. */
+  scope: 'video' | 'channel' = 'video',
 ): void {
   if (!/^vo_[0-9a-z]{8}$/.test(voiceId) || !existsSync(path.join(store.root, 'voices', voiceId)))
     throw new SfError('E_ID_UNKNOWN', `voice ${voiceId} is not in this channel`);
   if (speaker === 'narrator') {
-    setConfig(store, 'voice.id', voiceId, { tier: 'video', videoId });
+    if (scope === 'channel') {
+      setConfig(store, 'voice.id', voiceId, { tier: 'channel' });
+      const rel = `videos/${videoId}/state.json`;
+      const st = readJson<{ config_overrides?: Record<string, unknown> }>(store.abs(rel));
+      if (st?.config_overrides && 'voice.id' in st.config_overrides) {
+        delete st.config_overrides['voice.id'];
+        store.write(rel, `${JSON.stringify(st, null, 2)}\n`, { by: 'voice.assign' });
+      }
+    } else setConfig(store, 'voice.id', voiceId, { tier: 'video', videoId });
     return;
   }
   const castRel = `videos/${videoId}/CAST.md`;
@@ -343,3 +356,34 @@ function readdirSafe(d: string): string[] {
 export const narratorVoice = (store: WriteStore, videoId: string, appDataDir?: string) =>
   resolveConfig<string | null>('voice.id', { channelDir: store.root, videoId }, { appDataDir })
     .value ?? null;
+
+/**
+ * Giọng khác ngôn ngữ video (vd. giọng tiếng Việt đọc kịch bản tiếng Anh — Tan 2026-10-10): trả mô tả lỗi kèm
+ * giọng đúng ngôn ngữ có sẵn của kênh; rỗng = ổn. Giọng không ghi ngôn ngữ thì bỏ qua.
+ */
+export function voiceLanguageProblems(
+  store: WriteStore,
+  videoId: string,
+  appDataDir?: string,
+): string[] {
+  const model = loadVideoModel(store.root, videoId, appDataDir);
+  const lang = (model.language ?? '').toLowerCase().slice(0, 2);
+  if (!lang) return [];
+  const lib = listVoices(store.root, videoId, appDataDir);
+  const byId = new Map(lib.voices.map((v) => [v.voice_id, v]));
+  const ok = lib.voices.filter((v) => v.ready && v.language.toLowerCase().startsWith(lang));
+  const { speakers } = videoVoices(store, videoId, appDataDir);
+  const out: string[] = [];
+  for (const sp of speakers) {
+    const v = sp.voice_id ? byId.get(sp.voice_id) : undefined;
+    const vl = v?.language?.toLowerCase().slice(0, 2);
+    if (!v || !vl || vl === lang) continue;
+    out.push(
+      `${sp.name} đang dùng giọng "${v.name}" (${vl}) nhưng video nói ${lang}` +
+        (ok.length
+          ? ` — chọn giọng ${lang} có sẵn: ${ok.map((x) => `"${x.name}" (${x.voice_id})`).join(', ')}`
+          : ` — kênh chưa có giọng ${lang}, nhờ agent tạo giọng`),
+    );
+  }
+  return out;
+}

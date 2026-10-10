@@ -1,8 +1,8 @@
-# Workflow `shorts` (FN-030, D6 mục 1) — video dọc ≤ 3 phút: Hook → Insight → Paradox; mới hoặc cắt từ video dài.
+# Workflow `shorts` (FN-030, D6 mục 1) — video dọc ≤ 90 giây: Hook → Insight → Paradox; mới hoặc cắt từ video dài.
 id: shorts
 version: 1.0.0
 title: Shorts dọc
-description: Video dọc 9:16 tối đa 3 phút theo cấu trúc Hook → Insight → Paradox — viết mới, hoặc cắt từ một video dài của kênh (dùng lại lời đọc, viết lại hook, dựng lại khung dọc).
+description: Video dọc 9:16 tối đa 90 giây theo cấu trúc Hook → Insight → Paradox — viết mới, hoặc cắt từ một video dài của kênh (dùng lại lời đọc, viết lại hook, dựng lại khung dọc).
 app_api: '>=1.0 <2.0'
 upstream: { hyperframes_workflow: motion-graphics, hyperframes_version: '0.8.115' }
 output_profiles: [yt-shorts-1080x1920]
@@ -13,7 +13,7 @@ brief:
     - Viết mới hay cắt từ video dài nào của kênh (source_video_id)? Dùng những đoạn/beat nào?
     - Một ý duy nhất người xem phải nhớ?
     - Câu hook 3–5 giây đầu?
-    - Độ dài mục tiêu (mặc định 45 giây, tối đa 3 phút)?
+    - Độ dài mục tiêu (mặc định 45 giây, tối đa 90 giây)?
 # tầng cấu hình workflow (D3 7.1): caption karaoke lớn giữa màn hình, tiêu đề ngắn, #shorts
 config_defaults:
   caption.style: caption-pill-karaoke

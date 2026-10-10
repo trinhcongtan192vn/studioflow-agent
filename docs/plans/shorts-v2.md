@@ -180,3 +180,5 @@ Bỏ: rubric chấm kịch bản mặc định (giữ khi bật `advanced.refine
 - Duyệt: kịch bản + bản xem trước (video làm tay); Autopilot tự duyệt.
 - Model bước `direct`: luôn Opus.
 - Đầu ra phải đăng được lên mọi nền tảng đích không lỗi (mục 8b).
+- 2026-10-10 (sau chạy thử vd_nnwcjgp9): **một bài nhạc cho cả video** (`direct.params.music`: mặc định `single`; phim tài liệu `per-scene`); **Shorts tối đa 90 giây**; bước Giọng đọc dừng khi giọng khác ngôn ngữ video; đổi giọng người dẫn mặc định lưu cấp kênh.
+

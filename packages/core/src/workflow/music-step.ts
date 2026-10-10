@@ -42,6 +42,8 @@ export function musicExecutor(d: { appDataDir: string; embedder?: TextEmbedder }
       }
     };
     const scenes = p.blocks.filter((b) => b.tag === 'sf-scene');
+    // cùng truy vấn → cùng bài (video một bài nhạc, hoặc các scene cùng tâm trạng): nhạc liền mạch
+    const memo = new Map<string, string | undefined>();
     let picked = 0;
     let none = 0;
     for (const [i, b] of scenes.entries()) {
@@ -51,8 +53,11 @@ export function musicExecutor(d: { appDataDir: string; embedder?: TextEmbedder }
       const query = (m && m.query) || data.mood || '';
       ctx.progress?.(i, scenes.length, `Chọn nhạc cho scene ${i + 1}/${scenes.length}`);
       const base: MusicFindInput = query ? { query } : {};
-      const id =
-        (total ? await find({ ...base, min_duration_ms: total }) : undefined) ?? (await find(base));
+      const id = memo.has(query)
+        ? memo.get(query)
+        : ((total ? await find({ ...base, min_duration_ms: total }) : undefined) ??
+          (await find(base)));
+      memo.set(query, id);
       const value: SceneMusic = id ? { ...(m ?? {}), track_id: id } : 'none';
       if (id) picked++;
       else none++;

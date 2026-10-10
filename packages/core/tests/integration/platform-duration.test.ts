@@ -8,7 +8,7 @@ import { copyChannel, fixtureVideoId } from '../domain-helpers.js';
 let c: ReturnType<typeof copyChannel> | undefined;
 afterEach(() => c?.cleanup());
 
-it('a 120 s vertical video passes for YouTube only but fails early when the channel also posts to Facebook Reels', () => {
+it('a 120 s vertical short fails early at the 90 s Shorts cap, whatever the channel platforms', () => {
   c = copyChannel();
   const store = new WriteStore(c.dir);
   const rel = `videos/${fixtureVideoId}/audio_meta.json`;
@@ -23,9 +23,7 @@ it('a 120 s vertical video passes for YouTube only but fails early when the chan
   });
   const check = () => maxDurationCheck(store, fixtureVideoId, undefined, 'audio');
   setConfig(store, 'publish.platforms', ['youtube'], { tier: 'channel' });
-  expect(check()).toEqual({ pass: true });
+  expect(check().detail).toMatch(/exceeds yt-shorts-1080x1920 max 90/);
   setConfig(store, 'publish.platforms', ['youtube', 'facebook'], { tier: 'channel' });
-  const r = check();
-  expect(r.pass).toBe(false);
-  expect(r.detail).toMatch(/exceeds Facebook Reels \(nền tảng đăng của kênh\) max 90/);
+  expect(check()).toMatchObject({ pass: false, detail: expect.stringMatching(/max 90/) });
 });

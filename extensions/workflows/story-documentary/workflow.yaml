@@ -33,6 +33,8 @@ steps:
       style: 'Phim tài liệu: ảnh điện ảnh, ánh sáng tự nhiên, nhân vật/bối cảnh lịch sử chân thực; chữ tối thiểu (năm, địa danh); chuyển động chậm.'
       max_shot_s: 8
       prefer: [image-caption, image-title, image-zoom-detail, quote]
+      # nhạc đổi theo chương khi không khí đổi rõ (các workflow khác: một bài cho cả video)
+      music: per-scene
   - { id: media, uses: media, title: Ảnh và nhạc }
   # dựng hình bằng bộ layout + kiểm cuối tự sửa; duyệt bản xem trước trước khi render phát hành
   - id: compose
