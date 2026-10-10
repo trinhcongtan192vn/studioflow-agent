@@ -34,7 +34,7 @@ export const PLAN_CONSTANTS = {
   /** Gần trùng tiêu đề: Jaccard ≥ ngưỡng của nghiên cứu (049). */
   DUP_SIMILARITY: RESEARCH_CONSTANTS.DUP_SIMILARITY,
   /** Video đối thủ ≤ ngần này giây → dạng ngắn (Shorts). */
-  SHORT_MAX_S: 60,
+  SHORT_MAX_S: 180,
   /** Tìm khung giờ đăng tối đa ngần này ngày tới. */
   SLOT_HORIZON_DAYS: 30,
 } as const;
@@ -196,7 +196,7 @@ export function allowedWorkflows(configured: string[], installed: PlanWorkflow[]
 const SHORTS = 'shorts';
 
 /**
- * Chọn workflow + dạng xuất cho một chủ đề: ≤ 60 giây và kênh dùng được `shorts` → shorts; ngược lại
+ * Chọn workflow + dạng xuất cho một chủ đề: ≤ 3 phút và kênh dùng được `shorts` → shorts; ngược lại
  * `workflow.default` nếu dùng được, không thì workflow dài đầu tiên (chỉ còn shorts → shorts).
  */
 export function chooseWorkflow(

@@ -6,7 +6,7 @@
 **Fork từ:** HyperFrames `motion-graphics` + `faceless-explainer` · **Quy tắc chung:** `workflows-common.md` (FN-common)
 
 ## 1. Mục đích
-Video dọc ≤ 60 giây, độc lập hoặc cắt từ một video dài của kênh. Cấu trúc **Hook → Insight → Paradox**.
+Video dọc ≤ 3 phút, độc lập hoặc cắt từ một video dài của kênh. Cấu trúc **Hook → Insight → Paradox**.
 
 ## 2. Hai chế độ
 - **Mới:** brief → kịch bản 3 beat (Hook ≤ 5 giây, Insight, Paradox/kết) → như `narrated-explainer` với output `yt-shorts-1080x1920`.
@@ -23,7 +23,7 @@ Video dọc ≤ 60 giây, độc lập hoặc cắt từ một video dài của 
 | `meta` | `params: { title_max: 60 }`; kèm `#shorts` |
 
 ## 4. Gate thêm
-Tổng thời lượng ≤ `max_duration_ms` của output profile (60 000 ms); mọi chữ nằm trong `safe_area`.
+Tổng thời lượng ≤ `max_duration_ms` của output profile (180 000 ms = 3 phút); mọi chữ nằm trong `safe_area`.
 
 ## 5. Nghiệm thu
 AC-M4-01; `samples/shorts-30s/`.
