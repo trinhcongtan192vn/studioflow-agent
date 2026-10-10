@@ -30,6 +30,7 @@ import {
 } from '@studioflow/core';
 import { resolveAppDataDir } from './app-data.js';
 import { MEDIA_CHUNK, mediaSlice } from './media-range.js';
+import { startMediaServer } from './media-server.js';
 import { handleSecretRequest, STATIC_SECRETS } from './secret-bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -407,9 +408,21 @@ app.on('second-instance', () => {
   showWindow();
 });
 
+// media qua HTTP cục bộ (video phát ổn định; `sf-media:` còn làm dự phòng)
+let mediaBase = '';
+ipcMain.on('media:base', (e) => {
+  e.returnValue = mediaBase;
+});
+
 if (primary)
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     registerMedia();
+    mediaBase = (
+      await startMediaServer({
+        allowed: (abs) => MEDIA_OK.some((r) => r.test(abs)),
+        types: MEDIA_TYPES,
+      })
+    ).base;
     createWindow();
     startCore();
     // 052: khởi động cùng Windows (`--hidden`) → chỉ hiện ở khay
