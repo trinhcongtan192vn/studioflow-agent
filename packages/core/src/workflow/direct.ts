@@ -156,8 +156,8 @@ export function directPrompt(i: {
     'Plan every visual shot for the whole narration in ONE pass. A code layout engine renders your plan, and a local image model (Qwen Image) generates the images from your prompts, so describe images precisely.',
     '',
     '## Brief',
-    i.brief.trim().slice(0, 3000),
-    ...(i.styleGuide ? ['', '## Channel style', i.styleGuide.trim().slice(0, 1500)] : []),
+    i.brief.trim(),
+    ...(i.styleGuide ? ['', '## Channel style', i.styleGuide.trim()] : []),
     ...(i.params.style ? ['', '## Format style', i.params.style] : []),
     ...(i.design
       ? [
@@ -615,7 +615,7 @@ export function directExecutor(d: { text: TextService }) {
       existsSync(ctx.store.abs(rel)) ? readFileSync(ctx.store.abs(rel), 'utf8') : undefined;
     const library = readChannelAssets(ctx.store.root)
       .filter((a) => a.kind === 'image' && a.description)
-      .slice(-20)
+      .slice(-60)
       .map((a) => ({ id: a.id, description: a.description, tags: a.tags ?? [] }));
     // nhân vật (cast kênh + video, 031/032): ảnh tham chiếu cho prompt, bộ miệng + điểm miệng cho khẩu hình
     const vm = loadVideoModel(ctx.store.root, ctx.videoId, ctx.appDataDir);
