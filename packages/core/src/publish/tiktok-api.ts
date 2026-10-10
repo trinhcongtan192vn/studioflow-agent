@@ -75,6 +75,26 @@ export class TikTokApi {
     });
   }
 
+  /**
+   * `creator_info` của tài khoản (bắt buộc trước khi đăng, tài liệu Direct Post): quyền riêng tư được phép và
+   * thời lượng tối đa tài khoản đăng được.
+   */
+  async creatorInfo(): Promise<{
+    privacy_level_options: string[];
+    max_video_post_duration_sec?: number;
+  }> {
+    const d = await this.post<{
+      privacy_level_options?: string[];
+      max_video_post_duration_sec?: number;
+    }>('creator_info', '/post/publish/creator_info/query/', {});
+    return {
+      privacy_level_options: d.privacy_level_options ?? [],
+      ...(typeof d.max_video_post_duration_sec === 'number'
+        ? { max_video_post_duration_sec: d.max_video_post_duration_sec }
+        : {}),
+    };
+  }
+
   /** Khởi tạo bài đăng từ tệp. `title` ≤ 150 ký tự. */
   async init(o: {
     title: string;

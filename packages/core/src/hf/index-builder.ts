@@ -4,7 +4,7 @@ import type { AudioMeta, CaptionGroups, CaptionOverrides } from '../contracts/ty
 import type { Builder } from '../graph/graph.js';
 import { canonicalJson, sha256 } from '../domain/hash.js';
 import { markUsed, trackById } from '../music/library.js';
-import { renderBed, type MusicSegment } from '../music/mix.js';
+import { measureVoiceLufs, renderBed, type MusicSegment } from '../music/mix.js';
 import type { FrameTiming } from '../graph/timing.js';
 import type { WriteStore } from '../store/writer.js';
 import { applyCaptionOverrides, buildCaptionsHtml, lineWordsOf } from './captions-html.js';
@@ -148,13 +148,13 @@ export const indexBuilder =
 
 /**
  * Bed nhạc (012, D8 mục 3): đoạn theo scene (scene liền nhau cùng bài nối liền), chép bài vào
- * `public/music/<mt>.<ext>`, trộn bằng FFmpeg (−24 LUFS, `music.volume_db`, ducking `music.duck_db`,
+ * `public/music/<mt>.<ext>`, trộn bằng FFmpeg (nhạc = loudness giọng đo được + `music.volume_db`, ducking `music.duck_db`,
  * fade 1 000 ms) vào `public/music/bed-<hash>.wav` (dựng lại khi đầu vào đổi).
  */
 async function musicBed(
   ctx: Parameters<Builder>[0],
   timing: FrameTiming,
-  voices: { start_ms: number; duration_ms: number }[],
+  voices: { start_ms: number; duration_ms: number; file?: string }[],
   appDataDir: string | undefined,
 ): Promise<
   { file: string; copies: string[]; element: NonNullable<IndexInput['music']> } | undefined
@@ -214,12 +214,23 @@ async function musicBed(
       voice,
       total: timing.total_ms,
       duck,
+      // mức nhạc theo loudness giọng đo được (thay −24 LUFS cố định) → dựng lại bed cũ
+      mix: 2,
     }),
   );
   const file = `public/music/bed-${key.slice(0, 12)}.wav`;
   if (!existsSync(ctx.store.abs(`${v}/${file}`))) {
+    const voiceFiles = voices
+      .map((x) => x.file && ctx.store.abs(`${v}/${x.file}`))
+      .filter((f): f is string => Boolean(f && existsSync(f)));
     const wav = await renderBed(
-      { segments: segs, voice, total_ms: timing.total_ms, duck_db: duck },
+      {
+        segments: segs,
+        voice,
+        total_ms: timing.total_ms,
+        duck_db: duck,
+        voice_lufs: await measureVoiceLufs(voiceFiles, ctx.signal),
+      },
       ctx.signal,
     );
     ctx.store.write(`${v}/${file}`, wav, { by: 'graph.build', validate: false });

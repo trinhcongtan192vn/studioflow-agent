@@ -5,7 +5,8 @@ import { SfError } from '../errors.js';
 import type { PlatformPublisher, PublishContext } from './types.js';
 import { isVerticalProfile, socialTokenSecret } from './social.js';
 import type { SecretStore } from '../secrets/store.js';
-import { TIKTOK_CONSTANTS, type TikTokApi } from './tiktok-api.js';
+import { TIKTOK_CONSTANTS, type TikTokApi, type TikTokPrivacy } from './tiktok-api.js';
+import { PLATFORM_LIMITS } from './limits.js';
 
 /**
  * Bộ đăng TikTok (056, FR-AP-10, D4 9.8): chỉ video dọc 9:16. TikTok không có hẹn giờ qua API:
@@ -37,12 +38,16 @@ export class TikTokPublisher implements PlatformPublisher {
   }
 
   eligible(ctx: PublishContext): { ok: true } | { ok: false; reason: string } {
-    return isVerticalProfile(ctx.render.output_profile)
-      ? { ok: true }
-      : {
-          ok: false,
-          reason: `TikTok chỉ nhận video dọc 9:16, bản này xuất ${ctx.render.output_profile} (video ngang)`,
-        };
+    if (!isVerticalProfile(ctx.render.output_profile))
+      return {
+        ok: false,
+        reason: `TikTok chỉ nhận video dọc 9:16, bản này xuất ${ctx.render.output_profile} (video ngang)`,
+      };
+    // trần API (publish/limits.ts); trần riêng của tài khoản kiểm lúc đăng qua creator_info
+    const max = PLATFORM_LIMITS.tiktok.api_max_s;
+    if (ctx.render.duration_ms !== undefined && ctx.render.duration_ms > max * 1000)
+      return { ok: false, reason: `TikTok chỉ nhận video tối đa ${max / 60} phút qua API` };
+    return { ok: true };
   }
 
   /** Đã kiểm duyệt → chỉ đăng công khai đúng giờ (API không hẹn giờ); chưa → đăng riêng tư ngay. */
@@ -61,9 +66,26 @@ export class TikTokPublisher implements PlatformPublisher {
       const file = ctx.render.file;
       const size = statSync(file).size;
       if (size <= 0) throw new SfError('E_PROVIDER_FAILED', 'file video rỗng');
+      // creator_info: trần thời lượng của tài khoản + quyền riêng tư hợp lệ (sai → privacy_level_option_mismatch)
+      const info = await api.creatorInfo();
+      const maxS = info.max_video_post_duration_sec;
+      if (maxS && ctx.render.duration_ms && ctx.render.duration_ms > maxS * 1000)
+        throw new SfError(
+          'E_SCHEMA_INVALID',
+          `tài khoản TikTok này chỉ đăng được video tối đa ${maxS} giây, bản này dài ${Math.round(ctx.render.duration_ms / 1000)} giây`,
+        );
+      const want: TikTokPrivacy = audited ? 'PUBLIC_TO_EVERYONE' : 'SELF_ONLY';
+      const opts = info.privacy_level_options;
+      const privacy = (
+        !opts.length || opts.includes(want)
+          ? want
+          : opts.includes('SELF_ONLY')
+            ? 'SELF_ONLY'
+            : opts[0]
+      ) as TikTokPrivacy;
       const init = await api.init({
         title: tiktokCaption(ctx.meta.title || ctx.item.title, ctx.meta.tags),
-        privacy: audited ? 'PUBLIC_TO_EVERYONE' : 'SELF_ONLY',
+        privacy,
         size,
       });
       publishId = init.publish_id;

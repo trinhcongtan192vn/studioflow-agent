@@ -112,7 +112,7 @@ async function setup(o: Opts = {}) {
         finished_at: finished,
         status: 'done',
         file: `renders/${id}/video.mp4`,
-        duration_ms: 2700,
+        duration_ms: 30_000,
         gate_results: [],
         index_hash: 'ff'.repeat(32),
       }),

@@ -16,7 +16,9 @@ import { trackById } from '../music/library.js';
 import { createScratchDir } from '../store/scratch.js';
 import type { WriteStore } from '../store/writer.js';
 import { hfRender } from './hf-render.js';
-import { finishVideo, probeDurationMs } from './post.js';
+import { finishVideo, probeDurationMs, probeMedia } from './post.js';
+import { publishProblems, type PlatformId } from '../publish/limits.js';
+import { resolveConfig } from '../config/resolve.js';
 
 export interface RenderDeps {
   store: WriteStore;
@@ -252,12 +254,32 @@ async function renderVideoInner(
       lufs: profile.audio.loudness_lufs,
       draft: input.mode === 'draft',
       crf: profile.video.crf,
+      fps: profile.fps,
       ...(o.signal ? { signal: o.signal } : {}),
     });
     const file = `renders/${rd}/video.mp4`;
     d.store.importFile(final, `${v}/${file}`, { by: 'render' });
     rec.file = file;
     rec.duration_ms = await probeDurationMs(final);
+    // đầu ra phát hành phải đăng được lên mọi nền tảng đích của kênh (giới hạn chính thức, publish/limits.ts);
+    // thời lượng theo nền tảng kiểm sớm ở gate `max_duration` và lúc chọn nền tảng đăng (không chặn render)
+    if (input.mode === 'release') {
+      const platforms = (resolveConfig(
+        'publish.platforms',
+        { channelDir: d.store.root, videoId },
+        { appDataDir: d.appDataDir },
+      ).value ?? []) as string[];
+      const media = await probeMedia(final);
+      const bad = platforms
+        .filter((p): p is PlatformId => ['youtube', 'facebook', 'tiktok'].includes(p))
+        .map((p) => [p, publishProblems(p, media, { ignoreDuration: true })] as const)
+        .filter(([, x]) => x.length);
+      if (bad.length)
+        throw new SfError(
+          'E_GATE_FAILED',
+          `publish_ready: ${bad.map(([p, x]) => `${p}: ${x.join('; ')}`).join(' · ')}`,
+        );
+    }
     if (input.mode === 'release') {
       const credits = creditsFor(d, videoId);
       if (credits) d.store.write(`${v}/renders/${rd}/CREDITS.txt`, credits, { by: 'render' });

@@ -110,8 +110,8 @@ Codex app-server cần dynamicTools (đã kiểm protocol CLI 0.162.0-alpha.17.2
 | `budget.tokens_per_video` | 2 000 000 |
 | `budget.api_cost_usd_per_video` | 5 |
 | `budget.cache_gb` | 20 |
-| `music.volume_db` | −18 |
-| `music.duck_db` | −12 |
+| `music.volume_db` | −6 (mức nhạc so với loudness giọng đo được, khi không có lời) |
+| `music.duck_db` | −8 (hạ thêm khi có lời → nhạc dưới giọng 14 dB) |
 | `asr.wer_threshold.<lang>` | 0.15 `[chờ S12]` |
 | `asr.max_regen` | 1 |
 | `lipsync.enabled` | false (workflow `short-film`: true, 039) |

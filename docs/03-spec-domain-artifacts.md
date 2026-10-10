@@ -259,7 +259,7 @@ id: sc_p0q2m5ka
 title: Kinh thành Thăng Long
 mood: trang nghiêm
 look: warm-archive
-music: { query: "trang nghiêm, chậm, đàn tranh", volume_db: -18 }
+music: { query: "trang nghiêm, chậm, đàn tranh", volume_db: -8 }
 ```
 
 ### Frame 1

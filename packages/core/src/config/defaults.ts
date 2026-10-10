@@ -36,8 +36,8 @@ export const DEFAULTS: Record<string, unknown> = {
   'budget.tokens_per_video': 2_000_000,
   'budget.api_cost_usd_per_video': 5,
   'budget.cache_gb': 20,
-  'music.volume_db': -18,
-  'music.duck_db': -12,
+  'music.volume_db': -6,
+  'music.duck_db': -8,
   'asr.max_regen': 1,
   'lipsync.enabled': false,
   // 034: chế độ tự động — chỉ dừng ở điểm chốt (brief luôn duyệt tay)

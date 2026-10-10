@@ -19,7 +19,7 @@ brief:
 config_defaults:
   caption.style: caption-static
   caption.max_words: 10
-  music.volume_db: -21
+  music.volume_db: -10
   voice.pause_after_ms: 600
 steps:
   - { id: design, uses: design-system, title: Design system }

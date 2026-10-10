@@ -35,6 +35,8 @@ export interface FakeTikTok {
   /** Dãy trạng thái trả lần lượt cho `status/fetch` (hết thì lặp phần tử cuối). */
   statuses: { status: string; fail_reason?: string; ids?: string[] }[];
   publishId: string;
+  /** Trả về của `creator_info` (quyền riêng tư được phép, thời lượng tối đa). */
+  creator: { privacy_level_options: string[]; max_video_post_duration_sec: number };
   /** Kịch bản lỗi theo lời gọi. */
   inject: (c: SocialCall, n: number) => Response | Error | undefined;
 }
@@ -45,6 +47,10 @@ export function fakeTikTok(): FakeTikTok {
     calls: [],
     statuses: [{ status: 'PROCESSING_UPLOAD' }, { status: 'PUBLISH_COMPLETE' }],
     publishId: 'v_pub_url~v2.1234',
+    creator: {
+      privacy_level_options: ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'],
+      max_video_post_duration_sec: 600,
+    },
     inject: () => undefined,
     to: (re) => t.calls.filter((c) => re.test(c.url)),
     fetch: async (url, init) => {
@@ -53,6 +59,8 @@ export function fakeTikTok(): FakeTikTok {
       const bad = t.inject(c, t.calls.length);
       if (bad instanceof Error) throw bad;
       if (bad) return bad;
+      if (url.endsWith('/v2/post/publish/creator_info/query/'))
+        return json({ data: t.creator, error: { code: 'ok', message: '' } });
       if (url.endsWith('/v2/post/publish/video/init/'))
         return json({
           data: { publish_id: t.publishId, upload_url: 'https://upload.tiktok.fake/u/1' },
