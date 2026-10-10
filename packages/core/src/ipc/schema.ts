@@ -110,6 +110,11 @@ export interface IpcMethods {
   };
   'channels.managed.remove': { params: ChannelRef; result: { ok: boolean } };
   /** Nhân vật dẫn chuyện của kênh (2026-10-10): ảnh tải lên (png/jpg/webp/jfif) làm người dẫn + tham chiếu phong cách. */
+  /** Tạo lại một ảnh của cảnh kèm ghi chú lỗi (tab Xem trước, 2026-10-10). */
+  'shot.image.regenerate': {
+    params: VideoRef & { layer_id: string; note: string };
+    result: { prompt: string; status: string; layers: number; error?: string };
+  };
   'channel.host.get': {
     params: ChannelRef;
     result: {

@@ -3378,3 +3378,21 @@ button.home-card:hover {
 .host-fields .field {
   width: 100%;
 }
+
+/* Tạo lại ảnh kèm ghi chú lỗi (khung xem ảnh) */
+.iv-fix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(560px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+}
+.iv-fix textarea {
+  width: 100%;
+}
+.iv-fix p {
+  margin: 0;
+}
