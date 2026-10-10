@@ -233,6 +233,8 @@ export function MusicTab({ channel }: { channel: string }) {
   const [found, setFound] = useState<string[] | null>(null);
   const [scope, setScope] = useState<MusicScope>('channel');
   const [folderTags, setFolderTags] = useState(true);
+  // loại khi nạp: tự nhận (< 10 s = SFX) / nhạc / hiệu ứng âm thanh
+  const [kind, setKind] = useState<'auto' | 'music' | 'sfx'>('auto');
   const [job, setJob] = useState<{ id: string; done: number; total: number } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
   const before = useRef<{ ids: Set<string>; scope: MusicScope }>({ ids: new Set(), scope });
@@ -286,6 +288,7 @@ export function MusicTab({ channel }: { channel: string }) {
         paths_on_disk: picked,
         scope,
         folder_tags: folderTags,
+        ...(kind !== 'auto' ? { kind } : {}),
       });
       setJob({ id: r.job_id, done: 0, total: r.files });
       if (r.capped)
@@ -317,6 +320,16 @@ export function MusicTab({ channel }: { channel: string }) {
               </button>
             ))}
           </div>
+          <select
+            value={kind}
+            aria-label="Loại âm thanh khi nạp"
+            data-testid="music-kind"
+            onChange={(e) => setKind(e.target.value as 'auto' | 'music' | 'sfx')}
+          >
+            <option value="auto">Loại: tự nhận</option>
+            <option value="music">Loại: nhạc nền</option>
+            <option value="sfx">Loại: hiệu ứng âm thanh (SFX)</option>
+          </select>
           <button disabled={!!job} onClick={() => void add(false)}>
             Nạp file…
           </button>

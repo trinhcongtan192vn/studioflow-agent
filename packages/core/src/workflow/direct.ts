@@ -45,7 +45,12 @@ export interface DirectShot {
   background?: string | null;
   /** Layout `scene`: nhân vật/đối tượng tách nền ghép lên nền. */
   actors?: DirectActor[];
+  /** Hiệu ứng âm thanh của cảnh (2026-10-10): mô tả tiếng Anh, giây tính từ đầu cảnh, độ to. */
+  sfx?: { sound: string; at?: number; volume?: 'soft' | 'normal' | 'loud' }[];
 }
+
+/** Độ to SFX so với giọng đọc (dB). */
+export const SFX_VOLUME_DB = { soft: -18, normal: -12, loud: -6 } as const;
 
 /** Một nhân vật/đối tượng trong cảnh ghép: tư thế theo câu, vị trí, cỡ, hướng, cách vào khung, cử động. */
 export interface DirectActor {
@@ -270,6 +275,7 @@ export function directPrompt(i: {
     `- Shots last 2–${maxShot} s; longer ones are split by the app.`,
     '- Most shots (about 3 of 4) show an image: a concrete subject that illustrates the line (object, place, person, scene, metaphor). Text-only layouts are for numbers, lists, quotes and the punchline.',
     '- First shot is the hook: strong image + at most 5 words, or a big number.',
+    '- Sound effects ("sfx", optional): only where the narration or picture clearly implies a real sound — wind, waves, a dog barking, footsteps, a door slam, a crowd, thunder, a ticking clock, a whoosh on a big reveal. About one shot in three at most; never under every line. "sound" = short English description of the sound itself (what makes it, how), "at" = seconds from the shot start, "volume" = soft | normal | loud.',
     `- On-screen text is short (main ≤ 6 words, sub ≤ 8 words) in ${i.language}; never copy the narration sentence — captions already show it.`,
     '- Image prompts in English: subject, action, setting, composition, lighting, style. Keep one consistent visual style for the whole video. No text, letters or logos in images.',
     '- Reuse an image key for shots about the same subject (same scene); give it a different motion.',
@@ -322,6 +328,7 @@ export function directPrompt(i: {
                       text: { main: null },
                       motion: 'pan-right',
                       transition: 'cut',
+                      sfx: [{ sound: 'strong wind gusting over a cliff', at: 0.3, volume: 'soft' }],
                     },
                   ]
                 : []),
@@ -636,6 +643,17 @@ export function planToStoryboard(
       ? s.motion!
       : MOTION_CYCLE[fi % MOTION_CYCLE.length]!;
     const tr = TRANSITIONS.includes(s.transition ?? '') ? s.transition! : fi === 0 ? 'cut' : 'cut';
+    // SFX của cảnh (chỉ ở phần đầu khi cảnh dài bị tách): kế hoạch → bước media tìm/tạo âm thanh
+    const sfxPlan = f.continuation
+      ? []
+      : (s.sfx ?? [])
+          .filter((x) => typeof x?.sound === 'string' && x.sound.trim())
+          .slice(0, 3)
+          .map((x) => ({
+            query: x.sound.trim().slice(0, 160),
+            at_ms: Math.max(0, Math.round((typeof x.at === 'number' ? x.at : 0) * 1000)),
+            volume_db: SFX_VOLUME_DB[x.volume ?? 'normal'] ?? SFX_VOLUME_DB.normal,
+          }));
     const frame: Record<string, unknown> = {
       beat_ids: [...new Set(f.lines.map((l) => l.beat_id))],
       line_ids: f.lines.map((l) => l.id),
@@ -646,6 +664,7 @@ export function planToStoryboard(
       layers,
       transition_in: { type: tr, duration_ms: tr === 'cut' ? 0 : 300 },
       ...(mouthId ? { lipsync: { cast_id: speakers[0]!, mouth_anchor: mouthId } } : {}),
+      ...(sfxPlan.length ? { config: { sfx_plan: sfxPlan } } : {}),
     };
     out.push(`### Frame ${n}`);
     out.push('```sf-frame');

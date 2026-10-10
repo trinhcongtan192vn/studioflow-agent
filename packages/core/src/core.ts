@@ -17,6 +17,7 @@ import { runDesignProposal } from './design/channel-design.js';
 import { editImage, generateImage } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
+import { resolveSfx } from './music/sfx-resolve.js';
 import { studioTools } from './studio/tools.js';
 import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
@@ -588,6 +589,15 @@ export function createCore(opts: CoreOptions = {}): Core {
         appDataDir,
         ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
       }),
+      sfx: (ctx) =>
+        resolveSfx(
+          {
+            store: ctx.store,
+            appDataDir,
+            ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
+          },
+          ctx.videoId,
+        ),
     }),
   );
   // dựng frame: dùng trong `compose` và khi graph dựng lại một frame (nút frame_html, 020)

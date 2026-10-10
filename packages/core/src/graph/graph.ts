@@ -593,6 +593,10 @@ export class BuildGraph {
         model.config('music.volume_db', { sceneId: s.id }),
       ]),
       duck_db: model.config('music.duck_db'),
+      // 2026-10-10: hiệu ứng âm thanh của frame (chỉ khi có — giữ hash dự án cũ)
+      ...(model.frames.some((f) => f.sfx?.length)
+        ? { sfx: model.frames.filter((f) => f.sfx?.length).map((f) => [f.id, f.sfx]) }
+        : {}),
       // 059: GSAP cục bộ — đổi bản ghim (hay chuyển từ CDN) → lắp lại index một lần
       gsap: GSAP_LOCAL,
     }));

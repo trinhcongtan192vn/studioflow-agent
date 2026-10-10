@@ -1350,6 +1350,7 @@ export class CoreHost extends EventEmitter {
             scope: p.scope,
             ...(p.tags ? { tags: p.tags } : {}),
             ...(p.attribution ? { attribution: p.attribution } : {}),
+            ...(p.kind === 'music' || p.kind === 'sfx' ? { kind: p.kind } : {}),
           },
         });
         return { job_id: job.id, files: found.length, capped: found.length >= MAX_SCAN_FILES };
