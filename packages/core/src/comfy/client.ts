@@ -128,7 +128,7 @@ export class ComfyClient {
               completed?: boolean;
               messages?: [string, Record<string, unknown>][];
             };
-            outputs?: Record<string, { images?: ComfyImageRef[] }>;
+            outputs?: Record<string, { images?: ComfyImageRef[]; audio?: ComfyImageRef[] }>;
           }
         >;
         const e = h[promptId];
@@ -142,9 +142,13 @@ export class ComfyClient {
           );
         }
         if (e?.status?.completed) {
-          const images = Object.values(e.outputs ?? {}).flatMap((o) => o.images ?? []);
+          // ảnh hoặc âm thanh (SaveAudio → `audio`, cùng dạng tham chiếu /view)
+          const images = Object.values(e.outputs ?? {}).flatMap((o) => [
+            ...(o.images ?? []),
+            ...(o.audio ?? []),
+          ]);
           if (images.length === 0)
-            throw new SfError('E_PROVIDER_FAILED', 'ComfyUI returned no image');
+            throw new SfError('E_PROVIDER_FAILED', 'ComfyUI returned no output file');
           return { images };
         }
         await sleep(opts.pollMs ?? 500, opts.signal);

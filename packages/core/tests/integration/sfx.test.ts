@@ -6,6 +6,7 @@ import { parse } from 'yaml';
 import { afterEach, expect, it } from 'vitest';
 import { buildIndexHtml } from '../../src/hf/index-html.js';
 import { resolveSfx } from '../../src/music/sfx-resolve.js';
+import { sfxSeconds, stableAudioWorkflow } from '../../src/music/sfx-generate.js';
 import { WriteStore } from '../../src/index.js';
 import { planToStoryboard, type DirectPlan } from '../../src/workflow/direct.js';
 import { copyChannel, fixtureVideoId, tempDir } from '../domain-helpers.js';
@@ -141,4 +142,46 @@ it('index.html places each sound at its absolute time with a linear volume', () 
   expect(html).toContain(
     '<audio id="el-sfx-1" data-sf-sfx="mt_dog00001" src="public/sfx/mt_dog00001.wav" data-start="2.5" data-duration="1.5" data-track-index="12" data-volume="0.355"></audio>',
   );
+});
+
+it('a sound missing from the library is generated once and placed; the Stable Audio workflow is complete', async () => {
+  const c = copyChannel();
+  const app = tempDir('sfx-gen-');
+  cleanups.push(c.cleanup, app.cleanup);
+  const store = new WriteStore(c.dir);
+  const sbFile = store.abs(`videos/${fixtureVideoId}/STORYBOARD.md`);
+  writeFileSync(
+    sbFile,
+    readFileSync(sbFile, 'utf8').replace(
+      'config: { look.id: frame-look }',
+      'config: { look.id: frame-look, sfx_plan: [{ query: "wind howling", at_ms: 0, volume_db: -18 }, { query: "wind howling", at_ms: 2000, volume_db: -18 }] }',
+    ),
+  );
+  const asked: string[] = [];
+  const r = await resolveSfx(
+    {
+      store,
+      appDataDir: app.dir,
+      generate: async (q) => {
+        asked.push(q);
+        return 'mt_wind0001';
+      },
+    },
+    fixtureVideoId,
+  );
+  expect(asked).toEqual(['wind howling']);
+  expect(r).toMatchObject({ placed: 2, generated: 1, missing: [] });
+  expect(sfxSeconds('wind howling')).toBe(8);
+  expect(sfxSeconds('a door slamming')).toBe(4);
+  const wf = stableAudioWorkflow('wind howling', 8, 1) as Record<string, { class_type: string }>;
+  expect(Object.values(wf).map((n) => n.class_type)).toEqual([
+    'CheckpointLoaderSimple',
+    'CLIPLoader',
+    'CLIPTextEncode',
+    'CLIPTextEncode',
+    'EmptyLatentAudio',
+    'KSampler',
+    'VAEDecodeAudio',
+    'SaveAudio',
+  ]);
 });

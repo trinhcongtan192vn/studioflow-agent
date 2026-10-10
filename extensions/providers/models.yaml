@@ -274,3 +274,26 @@
     steps:
       - ['arize-phoenix==20.19.0']
     approx_size: 900000000
+# 2026-10-10 — Stable Audio Open 1.0 (hiệu ứng âm thanh theo mô tả, ComfyUI). Bản đóng gói lại của Comfy-Org (không
+# cần đăng nhập HF) + T5-base. Giấy phép Stability AI Community: thương mại miễn phí < 1 triệu USD/năm, phải đăng
+# ký tại stability.ai/community-license.
+- key: stable-audio-open
+  title: Stable Audio Open 1.0 + T5-base (SFX)
+  install_profile: full
+  license:
+    {
+      id: stability-ai-community,
+      url: 'https://huggingface.co/Comfy-Org/stable-audio-open-1.0_repackaged/blob/main/LICENSE.md',
+      commercial: true,
+    }
+  files:
+    - name: stable-audio-open-1.0.safetensors
+      url: https://huggingface.co/Comfy-Org/stable-audio-open-1.0_repackaged/resolve/3eb100708b423cf59fc5bf2a152f5cc1e7718062/stable-audio-open-1.0.safetensors
+      sha256: 7b20458a071231aaf32613b6fbc7945f28f34dbba4f295bb49bad56f5f66b57e
+      size: 4853889016
+      dest: models/checkpoints/stable-audio-open-1.0.safetensors
+    - name: t5-base.safetensors
+      url: https://huggingface.co/ComfyUI-Wiki/t5-base/resolve/6cd5e6887a033dee7a1bad4e5ea9ed43d83681f4/t5-base.safetensors
+      sha256: a90903540cc02cbeb7ff9f823f1a80eb778c7e22426a0e620b01c77a5ec8f5b4
+      size: 891646390
+      dest: models/text_encoders/t5-base.safetensors

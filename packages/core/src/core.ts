@@ -18,6 +18,7 @@ import { editImage, generateImage } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
 import { resolveSfx } from './music/sfx-resolve.js';
+import { generateSfx, SFX_CHECKPOINT, SFX_TEXT_ENCODER } from './music/sfx-generate.js';
 import { studioTools } from './studio/tools.js';
 import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
@@ -589,15 +590,32 @@ export function createCore(opts: CoreOptions = {}): Core {
         appDataDir,
         ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
       }),
-      sfx: (ctx) =>
-        resolveSfx(
+      sfx: (ctx) => {
+        const comfy = providerHandles.comfy;
+        // âm chưa có trong kho → Stable Audio Open (khi đã cài model), không thì chỉ báo thiếu
+        const canGenerate =
+          comfy &&
+          existsSync(path.join(appDataDir, 'models', 'checkpoints', SFX_CHECKPOINT)) &&
+          existsSync(path.join(appDataDir, 'models', 'text_encoders', SFX_TEXT_ENCODER));
+        return resolveSfx(
           {
             store: ctx.store,
             appDataDir,
             ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
+            ...(canGenerate
+              ? {
+                  generate: (query: string) =>
+                    generateSfx(
+                      { server: comfy, channel: ctx.store, appDataDir, providers, db },
+                      query,
+                      ctx.signal,
+                    ),
+                }
+              : {}),
           },
           ctx.videoId,
-        ),
+        );
+      },
     }),
   );
   // dựng frame: dùng trong `compose` và khi graph dựng lại một frame (nút frame_html, 020)

@@ -20,7 +20,7 @@ import { createOmniVoiceProvider } from './omnivoice.js';
 export function registerDefaultProviders(
   registry: ProviderRegistry,
   opts: { appDataDir?: string } = {},
-): { stop(): Promise<void>; embedder?: TextEmbedder } {
+): { stop(): Promise<void>; embedder?: TextEmbedder; comfy?: ComfyServer } {
   // phân tích nhạc chạy CPU → luôn là provider thật (D12: chỉ LLM/GPU được giả lập)
   const analysis = createAudioAnalysisProvider(opts);
   registry.register(analysis.adapter);
@@ -57,6 +57,8 @@ export function registerDefaultProviders(
         comfy.stop(),
       ])),
     embedder: clap.embedder,
+    // SFX (Stable Audio Open, 2026-10-10) dùng chung ComfyUI với ảnh
+    comfy,
   };
 }
 
