@@ -6,6 +6,7 @@ import { SfError } from '../errors.js';
 import type { Builder, Planner } from '../graph/graph.js';
 import { readAsrState } from '../asr/state.js';
 import { voiceOf } from '../graph/model.js';
+import { spokenText } from './spoken.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
 
@@ -72,7 +73,7 @@ export function audioLinePlanner(deps: { providers: ProviderRegistry }): Planner
     const vf = voiceFile(store, voice);
     const regen = readAsrState(model.videoDir).regen[line.id] ?? 0;
     const input = {
-      text: line.tts_text ?? line.text,
+      text: spokenText(line, model.lines),
       language: model.language,
       voice_id: voice,
       ...(line.emotion ? { emotion: line.emotion } : {}),
@@ -119,7 +120,7 @@ export function audioLineBuilder(deps: {
       adapter,
       capability: 'tts.synthesize',
       input: {
-        text: line.tts_text ?? line.text,
+        text: spokenText(line, ctx.model.lines),
         language: ctx.model.language,
         voice_id: voice,
         ...(line.emotion ? { emotion: line.emotion } : {}),
