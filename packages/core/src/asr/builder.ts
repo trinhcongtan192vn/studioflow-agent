@@ -6,6 +6,7 @@ import { Logger } from '../log.js';
 import type { Builder } from '../graph/graph.js';
 import type { Db } from '../store/db.js';
 import type { AsrAlignOutput } from './providers.js';
+import { spokenText } from '../tts/spoken.js';
 import { alignWords, type TimedWord, asrErrorRate } from './text.js';
 
 export interface AsrLineMeta {
@@ -38,7 +39,7 @@ export function asrLineBuilder(deps: {
       language: ctx.model.language,
       appDataDir: deps.appDataDir,
     });
-    const spoken = line.tts_text ?? line.text;
+    const spoken = spokenText(line, ctx.model.lines);
     const r = await runCapability({
       store: ctx.store,
       db: deps.db,
@@ -67,7 +68,12 @@ export function asrLineBuilder(deps: {
       provider: adapter.manifest.id,
     });
     const meta: AsrLineMeta = {
-      words: alignWords(line.text, line.tts_text, out.words, audio.duration_ms),
+      words: alignWords(
+        line.text,
+        spoken === line.text ? undefined : spoken,
+        out.words,
+        audio.duration_ms,
+      ),
       asr_wer: wer,
       asr_flag: flag,
       transcript: out.transcript,

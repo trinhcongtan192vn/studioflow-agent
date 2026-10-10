@@ -14,7 +14,7 @@ import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
 import { composeExecutor } from './workflow/compose.js';
 import { runDesignProposal } from './design/channel-design.js';
-import { generateImage } from './image/service.js';
+import { generateImage, removeBackground } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
 import { studioTools } from './studio/tools.js';
@@ -549,22 +549,31 @@ export function createCore(opts: CoreOptions = {}): Core {
     mediaExecutor({
       builders: graph,
       // ảnh chuẩn (tách nền) của nhân vật/đối tượng trong cảnh ghép
-      castBase: async (ctx, r) =>
-        (
-          await generateImage(
+      castBase: async (ctx, r) => {
+        const opts = { videoId: ctx.videoId, appDataDir, signal: ctx.signal };
+        const gen = await generateImage(
+          { providers, db },
+          ctx.store,
+          {
+            prompt: r.prompt,
+            width: r.width,
+            height: r.height,
+            transparent: true,
+            seed: r.seed,
+            tags: ['cast-base', `cast:${r.key}`],
+          },
+          opts,
+        );
+        // ảnh chuẩn phải sạch nền (làm tham chiếu cho mọi tư thế): luôn tách nền
+        return (
+          await removeBackground(
             { providers, db },
             ctx.store,
-            {
-              prompt: r.prompt,
-              width: r.width,
-              height: r.height,
-              transparent: true,
-              seed: r.seed,
-              tags: ['cast-base', `cast:${r.key}`],
-            },
-            { videoId: ctx.videoId, appDataDir, signal: ctx.signal },
-          )
-        ).asset_id,
+            { source_asset_id: gen.asset_id, subject: r.height > r.width ? 'person' : 'object' },
+            opts,
+          ).catch(() => gen)
+        ).asset_id;
+      },
       music: musicExecutor({
         appDataDir,
         ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),

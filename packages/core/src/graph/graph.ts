@@ -1,3 +1,4 @@
+import { spokenText } from '../tts/spoken.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GSAP_LOCAL } from '../hf/gsap.js';
@@ -364,7 +365,12 @@ export class BuildGraph {
           line: l,
           parts: {
             text: l.text,
-            tts_text: l.tts_text ?? null,
+            // chữ thật sự đọc (sf:tts gộp câu khác → bỏ, vd_bjoza2qu)
+            // (giữ nguyên giá trị cũ khi hợp lệ → hash không đổi, chỉ line lỗi đọc lại)
+            tts_text:
+              l.tts_text !== undefined && spokenText(l, model.lines) === l.tts_text.trim()
+                ? l.tts_text
+                : null,
             emotion: l.emotion ?? null,
             speaker: l.speaker,
             voice_id: voice,

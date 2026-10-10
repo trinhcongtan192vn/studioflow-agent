@@ -204,7 +204,7 @@ export function directPrompt(i: {
             : []),
           '- "cast": the recurring characters or objects of the story (0–4; only ones not already listed): the inventor, a historical figure, an animal, a mascot-like object (a rubber ball, a molecule, a planet)… Give each a fixed "look" in English (for a person: age, build, face, hair, clothing with colors; for an object: shape, material, colors, any face/limbs) so every pose is clearly the same one. kind: character | object.',
           '- "backgrounds": the places (workshop, street, jungle, lab, space…): wide establishing views WITHOUT people or the cast, leaving the lower part of the frame open for the actors.',
-          '- Layout "scene" = one background + 1–2 actors composited on it, like an animated explainer. For each actor: cast key, "pose" (what the body does for THIS line, e.g. "stretching a rubber band between both hands, eyes wide"), x (0–1 horizontal center), size (0.4–0.95 of the frame height; 0.9 close, 0.6 medium, 0.4 far), facing (left | right | camera), enter (left | right | bottom | fade | none — none when the actor was already on screen in the previous shot), action (' +
+          '- Layout "scene" = one background + 1–2 actors composited on it, like an animated explainer. For each actor: cast key, "pose" (what the body does for THIS line, e.g. "stretching a rubber band between both hands, eyes wide" — body, gesture and hand-held props only, never the floor or the place), x (0–1 horizontal center), size (0.4–0.95 of the frame height; 0.9 close, 0.6 medium, 0.4 far), facing (left | right | camera), enter (left | right | bottom | fade | none — none when the actor was already on screen in the previous shot), action (' +
             ACTOR_ACTIONS.join(' | ') +
             ').',
           '- When the video has a cast, use "scene" for most shots (about 2 of 3): consecutive shots in the same place reuse the background and change pose, position and action to follow the narration. Use the other layouts for numbers, lists, quotes and illustrations without the cast.',
@@ -227,7 +227,7 @@ export function directPrompt(i: {
               (c) =>
                 `- ${c.id}: ${c.name}${c.look ? ` — ${c.look}` : c.description ? ` — ${c.description}` : ''}${c.expressions?.length ? ` [existing expression images: ${c.expressions.join(', ')}]` : ''}`,
             ),
-            '- For each actor write the "pose" the line needs (action, gesture, emotion). Only when an existing expression image already shows exactly that (a plain reaction while standing), set "expression": "<key>" and leave "pose" empty — it is reused instead of generated.',
+            '- For each actor write the "pose" the line needs (action, gesture, emotion) — the body only: never the floor, furniture or place (the background carries the place; the actor image is cut out). Only when an existing expression image already shows exactly that (a plain reaction while standing), set "expression": "<key>" and leave "pose" empty — it is reused instead of generated.',
           ]
         : [
             '',
@@ -448,7 +448,7 @@ export function planToStoryboard(
     const expr = a.expression ? o.castInfo?.[a.cast]?.expressions?.[a.expression] : undefined;
     const reuse = expr && !a.pose?.trim() && o.libraryIds.has(expr) ? expr : undefined;
     const who = c.look || `the same character as in the reference image (${c.name ?? c.key})`;
-    let prompt = `${who}, ${a.pose?.trim() || (object ? 'centered' : 'standing, natural pose')}, ${object ? 'whole object' : 'full body head to feet'}, isolated, plain background`;
+    let prompt = `${who}, ${a.pose?.trim() || (object ? 'centered' : 'standing, natural pose')}, ${object ? 'whole object' : 'full body head to feet'}, isolated on an empty plain background, no floor, no ground, nothing under the feet, no scenery`;
     if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
     const num = (v: number | undefined, lo: number, hi: number) =>
       typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined;
