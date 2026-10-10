@@ -199,6 +199,41 @@ describe('steps, gates, approvals (007 US2, FR-WF-03/04)', () => {
     expect(e.summary().pending_approvals).not.toContain(again.id);
   });
 
+  it('pausing during a many-item step (voice, images) finishes the current item, then the step waits and resumes', async () => {
+    fx = workflowFixture();
+    wireDemo(fx);
+    const done: number[] = [];
+    let release!: () => void;
+    let started!: () => void;
+    const itemStarted = new Promise<void>((r) => (started = r));
+    fx.core.workflows.registerExecutor('voice', async (ctx) => {
+      for (let i = done.length; i < 4; i++) {
+        if (ctx.stop?.aborted) throw new Error('paused');
+        if (i === 1) {
+          // mục thứ hai đang chạy khi người dùng bấm Tạm dừng
+          started();
+          await new Promise<void>((r) => (release = r));
+        }
+        done.push(i);
+      }
+      return { outputs: [] };
+    });
+    const e = await startWorkflow(fx);
+    await e.advance();
+    const run = e.approve(pending(fx)[0]!); // duyệt kịch bản → chạy Giọng đọc
+    await itemStarted;
+    e.pause();
+    release();
+    await run;
+    expect(done).toEqual([0, 1]); // mục đang chạy xong, không bắt đầu mục mới
+    expect(stepStatus(fx).voice).toBe('pending');
+    expect(state(fx).steps.voice.error).toBeUndefined();
+    await e.runTo('voice');
+    expect(done).toEqual([0, 1, 2, 3]);
+    // chạy tiếp: executor chạy lại (gate graph_fresh của bước giả không qua vì không có audio thật)
+    expect(state(fx).steps.voice.attempt).toBe(2);
+  });
+
   it('agent steps must report completion (E_STEP_INCOMPLETE)', async () => {
     fx = workflowFixture();
     wireDemo(fx);

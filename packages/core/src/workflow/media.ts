@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { SfError } from '../errors.js';
 import { isMap, isSeq } from 'yaml';
 import { resolveConfig } from '../config/resolve.js';
 import { parseStoryboard, serializeStoryboard } from '../domain/markdown/storyboard.js';
-import { BuildGraph, type BuilderRegistry } from '../graph/graph.js';
+import { BuildGraph, PAUSED, type BuilderRegistry } from '../graph/graph.js';
 import { loadVideoModel } from '../graph/model.js';
 import type { StepExecutor, StepRunContext } from './engine.js';
 
@@ -34,6 +35,7 @@ export function mediaExecutor(d: { builders: BuilderRegistry; music?: StepExecut
       const r = await graph.build(ctx.videoId, {
         targets: ['asset'],
         ...(ctx.signal ? { signal: ctx.signal } : {}),
+        ...(ctx.stop ? { stop: ctx.stop } : {}),
         ...(ctx.progress ? { progress: ctx.progress } : {}),
       });
       failed = Object.entries(r.nodes)
@@ -45,6 +47,8 @@ export function mediaExecutor(d: { builders: BuilderRegistry; music?: StepExecut
       failed = requested();
       if (failed.length) notes.push('máy chưa có bộ sinh ảnh → dựng không ảnh');
     }
+    // tạm dừng ngay sau ảnh cuối cùng đang sinh → chưa bỏ ảnh lỗi, chưa chọn nhạc (chạy lại thì làm tiếp)
+    if (ctx.stop?.aborted) throw new SfError('E_JOB_CANCELED', PAUSED);
     if (failed.length) dropRequests(ctx, rel, new Set(failed));
     const outputs = ['STORYBOARD.md'];
     let musicNote = '';

@@ -424,7 +424,7 @@ export function ProgressTab({
             <button
               disabled={busy !== undefined}
               onClick={() => void run({ kind: 'pause' }, 'pause')}
-              title="Dừng sau khi bước đang chạy xong"
+              title="Giọng/ảnh: dừng sau câu/ảnh đang sinh; bước khác: dừng sau khi bước xong"
             >
               {busy === 'pause' ? 'Đang dừng…' : '⏸ Tạm dừng'}
             </button>
