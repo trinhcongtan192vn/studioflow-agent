@@ -107,7 +107,7 @@ Mọi cài đặt `AgentRuntime` (bản đầu: Claude Agent SDK) PHẢI bảo �
 | `artifact.edit` (093) | ✓ | chỉ `allowed_paths` | chỉ artifact của bước | — | — |
 | `script.run` | ✓ | lint/check/snapshot của frame mình | — | — | — |
 | `graph.*`, `workflow.*` (gồm `list`, `select`, `run_to`, `pause`, `rewind`), `approval.annotate` | ✓ | `workflow.step_complete` | `workflow.step_complete` | — | — |
-| `asset.import`, `asset.search` | ✓ | `asset.search` | — | — | — |
+| `asset.import`, `asset.search`, `asset.delete` (chỉ main) | ✓ | `asset.search` | — | — | — |
 | capability (`tts.*`, `asr.*`, `voice.*`, `image.*`, `music.*`, `sfx.*`, `lipsync.*`, `grade.*`, `media.*`) | ✓ | `image.*` | — | — | — |
 | `render.video`, `studio.*` | ✓ | — | — | — | — |
 | `youtube.*` (044) | ✓ | — | — | — | — |

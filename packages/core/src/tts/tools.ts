@@ -11,6 +11,7 @@ import { startGraphBuild } from '../graph/tools.js';
 import type { JobQueue } from '../jobs/queue.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
+import { trashVoice } from '../assets/trash.js';
 import { voiceFile } from './builder.js';
 import {
   createDesignedVoice,
@@ -288,6 +289,19 @@ export function ttsTools(s: TtsServices): ToolDefinition[] {
         });
         return { job_id: job.id };
       },
+    },
+    {
+      name: 'voice.delete',
+      description:
+        'Dọn giọng rác của kênh (tạo lỗi, thử không dùng): chuyển voices/<vo> vào thùng rác .trash/voices/ (khôi phục được). Từ chối nếu giọng đang là giọng dẫn/nhân vật hoặc video nào còn dùng.',
+      input: {
+        type: 'object',
+        properties: { voice_id: { type: 'string', pattern: '^vo_[0-9a-z]{8}$' } },
+        required: ['voice_id'],
+        additionalProperties: false,
+      },
+      handler: async (i: { voice_id: string }, ctx) =>
+        trashVoice(ctx.store, i.voice_id, ctx.appDataDir),
     },
     {
       name: 'voice.preview',

@@ -241,6 +241,34 @@ export class WriteStore {
     this.record(dst.rel, '', opts.by);
   }
 
+  /**
+   * Dọn rác do agent yêu cầu: giọng `voices/<vo>` hoặc tệp thư viện `assets/files/<as>.<ext>` → `.trash/voices|assets/`
+   * (khôi phục tay được). Chỉ hai loại nguồn này; đích phải chưa tồn tại.
+   */
+  moveToTrash(srcRel: string, dstRel: string, opts: { by: string }): void {
+    const src = resolveInside(this.root, srcRel);
+    const dst = resolveInside(this.root, dstRel);
+    const ok =
+      (/^voices\/vo_[0-9a-z]{8}$/.test(src.rel) &&
+        /^\.trash\/voices\/vo_[0-9a-z]{8}-\d{14}$/.test(dst.rel)) ||
+      (/^assets\/files\/as_[0-9a-z]{8}\.[a-z0-9]+$/.test(src.rel) &&
+        /^\.trash\/assets\/as_[0-9a-z]{8}-\d{14}\.[a-z0-9]+$/.test(dst.rel));
+    if (!ok) throw new SfError('E_PATH_OUTSIDE', `moving ${src.rel} → ${dst.rel} is not allowed`);
+    if (!existsSync(src.abs)) throw new SfError('E_FILE_NOT_FOUND', `${src.rel} does not exist`);
+    if (existsSync(dst.abs)) throw new SfError('E_ID_DUPLICATE', `${dst.rel} already exists`);
+    mkdirSync(path.dirname(dst.abs), { recursive: true });
+    for (let attempt = 0; ; attempt++) {
+      try {
+        renameSync(src.abs, dst.abs);
+        break;
+      } catch (e) {
+        if (attempt >= 15 || !RETRY_CODES.has((e as NodeJS.ErrnoException).code ?? '')) throw e;
+        sleepSync(200);
+      }
+    }
+    this.record(dst.rel, '', opts.by);
+  }
+
   /** 064: xóa hẳn một mục trong thùng rác của kênh (`.trash/<id>`) — chỉ ở đây, không nơi nào khác. */
   purgeTrash(rel: string): void {
     const t = resolveInside(this.root, rel);

@@ -27,6 +27,7 @@ const TABLE: [string | RegExp, SessionKind[]][] = [
   ['cast.list', M],
   ['asset.import', M],
   ['asset.search', MF],
+  ['asset.delete', M],
   [/^image\./, MF],
   [/^(tts|asr|voice|music|sfx|lipsync|grade|media)\./, M],
   ['render.video', M],

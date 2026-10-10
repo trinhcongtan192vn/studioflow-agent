@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../gateway/types.js';
 import { importAsset, searchAssets } from './library.js';
+import { trashAsset } from './trash.js';
 
 /** Tool `asset.import`, `asset.search` (D4 mục 2.4, 011 FR-007). */
 export function assetTools(): ToolDefinition[] {
@@ -40,6 +41,18 @@ export function assetTools(): ToolDefinition[] {
       },
       handler: async (i: { query: string; tags?: string[]; limit?: number }, ctx) =>
         searchAssets(ctx.store, i),
+    },
+    {
+      name: 'asset.delete',
+      description:
+        'Dọn ảnh/tệp rác khỏi thư viện kênh (sinh lỗi, thử không dùng): chuyển vào thùng rác .trash/assets/ (khôi phục được) và bỏ khỏi manifest. Từ chối nếu storyboard, nhân vật hay design còn dùng asset đó.',
+      input: {
+        type: 'object',
+        properties: { asset_id: { type: 'string', pattern: '^as_[0-9a-z]{8}$' } },
+        required: ['asset_id'],
+        additionalProperties: false,
+      },
+      handler: async (i: { asset_id: string }, ctx) => trashAsset(ctx.store, i.asset_id),
     },
   ];
 }

@@ -81,6 +81,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `video.create` | `title, instruction` | `{video_id, note}` | Chỉ ở chat kênh (chưa ở video nào; trong video → `E_SCHEMA_INVALID`): tạo video, app mở video đó và chuyển `instruction` sang phiên chat của video khi lượt kênh xong (081) |
 | `asset.import` | `path` (trong `uploads/`), `tags, description` | `{asset_id}` | Đưa file đính kèm vào thư viện kênh + `public/` |
 | `asset.search` | `query, tags?` | `{assets[]}` | Thư viện kênh |
+| `asset.delete` | `asset_id` | `{asset_id, moved_to}` | Dọn rác (2026-10-10): tệp → `.trash/assets/`, bỏ khỏi manifest; từ chối khi storyboard/nhân vật/design còn dùng |
 | `music.library.add` | D8 | D8 | |
 | `music.find` / `sfx.find` | D8 | D8 | |
 | `youtube.video` | `url` (URL hoặc ID 11 ký tự) | `{video_id, url, title, channel{id,title}, published_at, duration_s, stats{views,likes,comments}, tags, description}` | Video YouTube tham khảo (044, mục 9.4) |
@@ -105,6 +106,7 @@ Thông báo lỗi bằng tiếng Việt, ngắn, nói rõ cách sửa. Việc d�
 | `voice.profile_create` | `name, ref_audio (upload), language` | `{voice_id}` + job | |
 | `voice.design` | `name, gender, age, pitch, whisper?, accent? (chỉ en), for?, sample_text?, seed?` | job → `{voice_id, name, for?, preview, design}` | Giọng gợi ý từ mô tả khi chưa có file mẫu (033): sinh câu mẫu theo mô tả rồi clone → `voices/<vo>/` như `voice.profile_create` |
 | `voice.preview` | `voice_id, text, emotion?` | job → `{file}` | Nghe thử |
+| `voice.delete` | `voice_id` | `{voice_id, moved_to}` | Dọn rác (2026-10-10): `voices/<vo>` → `.trash/voices/`; từ chối khi là giọng dẫn/nhân vật hoặc video còn nhắc tới |
 | `voice.list` | — | `{narrator_voice_id, voices[{voice_id, name, language, kind, ready, design?, suggested_for?, used_by[], created_at}]}` | Giọng có sẵn của kênh để dùng lại (035); chỉ đọc |
 | `cast.list` | — | `{characters[{id, name, voice_id?, voice_name?, caption_color?, reference_images, expressions[]}]}` | Nhân vật cấp kênh `characters/*/cast.json` để dùng lại (035); chỉ đọc |
 | `tts.synthesize` | `line_ids[]` hoặc `"all"` | job | Ghi `audio/lines/*`, cập nhật `audio_meta.json` |
