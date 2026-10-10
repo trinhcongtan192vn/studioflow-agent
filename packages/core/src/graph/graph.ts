@@ -473,7 +473,11 @@ export class BuildGraph {
               size: [w, h],
               look: model.config('look.id', { sceneId: f.scene_id, frameId: f.id }),
               provider: model.config('provider.image.generate'),
-              seed: sceneSeed(f.scene_id),
+              // storyboard có khóa dùng chung (`bg:`/`img:`/`actor:` — đạo diễn 2026-10-10): cùng prompt + tham
+              // chiếu → cùng seed → sinh một lần cho cả video; storyboard cũ giữ seed theo scene (không sinh lại)
+              seed: /^\s*(actor|bg|img):/i.test(l.notes ?? '')
+                ? sceneSeed(`${req.prompt ?? ''}|${(req.reference_asset_ids ?? []).join(',')}`)
+                : sceneSeed(f.scene_id),
             },
           });
         }
