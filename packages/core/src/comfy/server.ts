@@ -117,6 +117,8 @@ export class ComfyServer extends EventEmitter {
         'studioflow:',
         `  base_path: ${this.o.modelsDir.replaceAll('\\', '/')}`,
         '  diffusion_models: diffusion_models',
+        // Stable Audio Open (SFX, 2026-10-10) — checkpoint một file
+        '  checkpoints: checkpoints',
         '  text_encoders: text_encoders',
         '  vae: vae',
         '  loras: loras',
