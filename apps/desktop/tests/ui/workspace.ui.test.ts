@@ -334,7 +334,8 @@ test('channel workspace: videos, read-only explorer, chat with history, jobs and
     await win.getByTestId('nav-library').click();
     await expect(win.getByTestId('library')).toContainText('Chưa có bản render nào');
     // 074: Duyệt trước khi đăng (kênh mẫu chưa có video Autopilot)
-    await win.getByTestId('nav-publish').click();
+    await win.getByTestId('open-autopilot').click();
+    await win.getByRole('tab', { name: 'Duyệt trước khi đăng' }).click();
     await expect(win.getByTestId('publish-review')).toContainText('Chưa có video nào chờ đăng');
     // 075: Tổng quan kênh — số video theo trạng thái, lối tắt
     await win.getByTestId('nav-overview').click();

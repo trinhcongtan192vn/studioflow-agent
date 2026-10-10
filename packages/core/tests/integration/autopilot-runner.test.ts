@@ -323,6 +323,33 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
 }
 
 describe('một ngày làm theo kế hoạch (FR-AP-07, FR-AP-08)', () => {
+  it('096 AC-03b: disabling a channel stops at the next step and leaves other channels running', async () => {
+    const rig = makeRig(
+      {
+        scriptError: (id) => {
+          if (id === 'pi_a0000001')
+            setChannelAutopilot(new WriteStore(rig.dirs[0]!), 'autopilot.enabled', false);
+          return undefined;
+        },
+      },
+      2,
+    );
+    const [a, b] = rig.dirs as [string, string];
+    writePlan(a, [
+      { id: 'pi_a0000001', publish_at: '2026-10-07T12:00:00+07:00' },
+      { id: 'pi_a0000002', publish_at: '2026-10-07T13:00:00+07:00' },
+    ]);
+    writePlan(b, [{ id: 'pi_b0000001', publish_at: '2026-10-07T14:00:00+07:00' }]);
+    await rig.runner.tick();
+    expect(itemOf(a, 'pi_a0000001').status).toBe('in_production');
+    const video = itemOf(a, 'pi_a0000001').video_id;
+    expect(itemOf(a, 'pi_a0000002').status).toBe('planned');
+    expect(itemOf(b, 'pi_b0000001').status).toBe('produced');
+    expect(rig.scripts).toEqual(['pi_a0000001', 'pi_b0000001']);
+    setChannelAutopilot(new WriteStore(a), 'autopilot.enabled', true);
+    await rig.runner.tick();
+    expect(itemOf(a, 'pi_a0000001')).toMatchObject({ status: 'produced', video_id: video });
+  });
   it('produces items one at a time in publish_at order across channels, gates replace key approvals', async () => {
     const rig = makeRig({}, 2);
     const [a, b] = rig.dirs as [string, string];

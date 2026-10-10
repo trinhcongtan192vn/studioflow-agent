@@ -1,6 +1,6 @@
 # D3 — Spec mô hình miền và artifact
 
-**Phiên bản:** 1.3 · **Ngày:** 03/10/2026
+**Phiên bản:** 1.4 · **Ngày:** 09/10/2026
 **Dựa trên:** `00-architecture.md` mục 4, 5, 14 · **Phủ:** FR-WS-01/03/05, FR-SC-05, FR-VO-02, FR-OB-02, FR-CH-07, NFR-01/02
 **Tính năng triển khai:** 002 `domain-artifacts`
 
@@ -473,6 +473,8 @@ interface ResearchCandidate {
 ```
 
 ### 5.18 `autopilot/plans/<YYYY-MM-DD>.json` (051)
+
+Cập nhật 10/10/2026 (096), thay thế ràng buộc năng lực bên dưới: cả xem thử và lập kế hoạch chỉ giới hạn số mục theo `autopilot.max_per_day`, không theo năng lực ước tính (ngân sách Claude, thời gian máy, quota upload). Snapshot `capacity` được giữ để tương thích dữ liệu, không chặn kế hoạch. Lập lại thay thông báo năng lực cũ và giữ nguyên các mục đã có. Các kiểm soát khi thực thi vẫn áp dụng.
 Kế hoạch ngày của một kênh Autopilot (FR-AP-06): mỗi mục là một video dự định làm hôm nay — chủ đề, góc nhìn, workflow + dạng xuất, khung giờ đăng, lý do. Ngày theo `publish.timezone` của kênh. Bộ lập kế hoạch chỉ lấy ứng viên từ `research/<ngày>.json` (5.17) trong giới hạn của mô hình năng lực (050) và `autopilot.max_per_day`; **`autopilot.max_per_day` chỉ đếm video do Autopilot tạo — kế hoạch ngày là nguồn sự thật cho số đó** (video làm tay không tính). Ứng viên có điểm thấp hơn `autopilot.min_score` (mặc định 40) không được lập. Chỗ trống được lấp trước bằng mục `planned` chưa làm của kế hoạch ngày ngay trước (mục cũ chuyển sang `skipped`, `note: "chuyển sang <ngày>"`), rồi mới đến ứng viên mới. Lập lại trong ngày giữ nguyên mọi mục đã có và chỉ lấp chỗ còn trống; mục `in_production` / `produced` / `failed` / `needs_review` không bị sửa bởi bộ lập kế hoạch và người dùng (052 chuyển trạng thái và điền `video_id`: `in_production` khi bắt đầu làm; `produced` khi bước cuối xong; `failed` khi lỗi không cứu được; `needs_review` khi bị **đỗ** vì cần người — cổng chất lượng không đạt, thiếu giọng đọc, cần xác nhận chi phí; lý do ở `note`). Mục `needs_review` / `failed` có video nên vẫn tính vào `autopilot.max_per_day`. Người dùng sửa mục `planned` / `skipped` qua IPC `autopilot.plan.update`.
 
 **Đăng bài (053, FR-AP-09):** mục `produced` được bộ đăng (Publisher) xử lý và ghi `publish.<nền tảng>`: `pending` (chờ tải lên: chưa kết nối OAuth, ngoài khung giờ làm việc…), `uploading`, `private` (đã tải lên riêng tư, **không** hẹn giờ vì `publish.youtube.audited` = false — người dùng tự công khai trong YouTube Studio), `scheduled` (riêng tư + `publishAt`, nền tảng tự công khai; có `veto_until`), `public`, `cancelled` (người dùng bấm Hủy đăng — video vẫn riêng tư), `failed`. Giờ công khai thật = max(`publish_at` của mục, lúc tải lên + `publish.veto_hours`). Trạng thái chỉ do Publisher ghi (qua `markPlanItem`), người dùng không sửa tay. Dữ liệu app (không thuộc kênh): `<app-data>/youtube/quota.json` (`{date, units}` theo ngày Thái Bình Dương — lúc Google đặt lại quota) và `<app-data>/publish/sessions/<item_id>.json` (URI phiên tải lên có thể tiếp tục, không chứa token). **TikTok / Facebook (056, FR-AP-10):** cùng trạng thái. Chỉ video dọc 9:16 (hồ sơ xuất có chiều cao > chiều rộng, ví dụ `yt-shorts-1080x1920`); bản ngang bị bỏ qua (`cancelled`, `note: "Bỏ qua …"`). TikTok không hẹn giờ được: `publish.tiktok.audited` = false → bài `SELF_ONLY` (`private`, người dùng tự công khai); = true → bài chỉ được đăng công khai khi tới giờ công khai (chưa tới giờ: không tải lên, mục ở trạng thái `pending`). Facebook Reels hẹn giờ được (`scheduled`). Luật chọn workflow, khung giờ: FN-051.
@@ -673,6 +675,8 @@ interface SettingsConfig extends Versioned {
 | `overlay.rules` | string[] | channel |
 | `provider.<capability>` | string | app, channel, video |
 | `text.producer` / `text.critic` / `text.aux` | string (`<provider>/<model>`) | app, channel, video |
+| `agent.fallback.enabled` | boolean | app |
+| `agent.fallback.model` / `agent.fallback.command` | string | app |
 | `refine.min_rounds` / `refine.max_rounds` / `refine.threshold` | number | channel, video |
 | `advanced.refine` | boolean (vòng viết–chấm–sửa cho bước có `refine`; false = một bản nháp + kiểm khách quan, 085) | app, channel, video |
 | `advanced.music` | boolean (bước nhạc nền; false = bỏ qua bước `music`, 085) | app, channel, video |

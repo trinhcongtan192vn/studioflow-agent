@@ -471,6 +471,9 @@ export type ConfigKey =
   | 'text.producer'
   | 'text.critic'
   | 'text.aux'
+  | 'agent.fallback.enabled'
+  | 'agent.fallback.model'
+  | 'agent.fallback.command'
   | 'refine.min_rounds'
   | 'refine.max_rounds'
   | 'refine.threshold'
@@ -670,7 +673,7 @@ export interface JobInfo {
 
 export interface AgentRuntime {
   id: string;                                   // 'claude-agent-sdk'
-  authStatus(): Promise<{ ok: boolean; method: 'claude-plan' | 'api-key' | 'none'; detail?: string }>;
+  authStatus(): Promise<{ ok: boolean; method: 'claude-plan' | 'chatgpt-plan' | 'api-key' | 'none'; detail?: string }>;
   openSession(opts: SessionOptions): Promise<AgentSession>;
 }
 
@@ -688,6 +691,7 @@ export interface SessionOptions {
 
 export interface AgentSession {
   id: string;
+  readonly sdkSessionId?: string;               // id runtime; Codex dùng tiền tố codex: khi lưu qua fallback
   send(message: UserMessage): AsyncIterable<AgentEvent>;
   interrupt(): Promise<void>;
   close(): Promise<void>;

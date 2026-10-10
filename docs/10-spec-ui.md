@@ -1,6 +1,6 @@
 # D10 — Spec UI: danh mục màn hình và hợp đồng IPC
 
-**Phiên bản:** 1.2 · **Ngày:** 03/10/2026
+**Phiên bản:** 1.4 · **Ngày:** 10/10/2026
 **Dựa trên:** D1 mục 7 (hành trình), D4–D9
 **Phủ:** FR-WS-02, FR-CH-02/03/04/07, FR-WF-02/03, FR-SC-03/06, FR-OP-06, FR-OB-03 · **Tính năng:** 008, 014, 024, 026, 028
 
@@ -26,6 +26,26 @@ Tài liệu này chỉ chốt **những gì mọi tính năng UI phải tuân th
 | UI-12 | **Báo cáo chi phí** | Theo video và bước: token vào/ra, chi phí API, thời gian GPU; so ngân sách | M3 |
 
 ## 2. Quy tắc chung (ràng buộc)
+
+### Autopilot chung (096)
+
+Nguồn cho CTA Tạo video: truyền URL nguồn trong brief và chat. Agent dùng các tool MCP sẵn có để lấy metadata/transcript và phân tích theo luồng tạo video tham khảo hiện tại. Không thêm cơ chế tải/lưu transcript riêng cho CTA.
+
+Bổ sung 10/10/2026: mỗi mục chưa tạo video có CTA **Tạo video** và **Xóa**, kể cả bản xem thử. Tạo video chuyển riêng mục đó sang luồng thủ công, mở workspace video và giao brief cho agent; lấy ngôn ngữ mặc định hiện tại của kênh, giữ chủ đề/góc nhìn/nguồn/workflow/dạng xuất, giữ các điểm duyệt thủ công và không tự đăng. Mục được đánh dấu `skipped` kèm `video_id` để Autopilot không tạo trùng. Bấm lặp trả cùng video. Xóa mục đã lưu là đánh dấu `skipped` với ghi chú xóa và ẩn khỏi danh sách, không xóa file video; bản xem thử chỉ xóa cục bộ. Mục đang/đã chạy chỉ có Mở video, không cho tạo thêm hoặc xóa. Hai IPC bổ sung: `autopilot.plan.remove {channel,date,item_id}` → `{item}`; `autopilot.plan.create_video {channel,date,item_id,preview?:DailyPlan}` → `{video_id,created}`. Preview chỉ nhập mục được chọn, không lưu những mục khác, không bật kênh hoặc bỏ tạm dừng.
+
+Cập nhật 10/10/2026: bỏ các khối hiển thị năng lực và cách tính giới hạn trên trang Autopilot và bản xem thử; giao diện không gọi riêng `autopilot.capacity`. Bộ lập kế hoạch vẫn áp dụng cấu hình hiện có và giải thích khi không có mục phù hợp.
+
+Trang Autopilot quản lý kế hoạch hôm nay, danh sách mọi kênh quản lý (kể cả kênh tắt), bật/tắt từng kênh và duyệt trước khi đăng. Bỏ mục Đăng riêng trên sidebar; lối tắt duyệt đăng mở khu vực tương ứng trong Autopilot. Video chờ đăng của kênh đã tắt vẫn phải hiện.
+
+Tắt kênh trong lúc đang sản xuất: bước đang chạy được hoàn tất, không bắt đầu bước/video mới của kênh; giữ video dở để tiếp tục khi bật lại. Kênh khác vẫn được chạy. Tắt Autopilot không thay thế thao tác Hủy đăng đối với video đã được lên lịch trên nền tảng.
+
+Nút lập lại kế hoạch chỉ bổ sung chỗ trống, giữ các mục đã có. Không có kênh bật hoặc toàn cục đang tạm dừng thì không xếp job và hiển thị lý do. UI theo dõi job đến trạng thái cuối, hiển thị số mục hoặc nguyên nhân không có mục; lỗi không được biến thành trạng thái rỗng.
+
+Xem thử kế hoạch cho một kênh dùng cùng bộ chọn chủ đề, năng lực và lịch đăng, hoạt động cả khi kênh tắt/toàn cục tạm dừng. Có thể cập nhật nghiên cứu và dữ liệu học qua Gateway; không ghi kế hoạch sản xuất (kể cả kế hoạch hôm qua), không bật kênh, tạo video hoặc đăng bài. Bản xem thử được gắn nhãn rõ, chỉ xem; lịch chính thức sẽ được tính lại khi chạy thật. Không thay đổi schema artifact.
+
+### Thư viện dạng bảng (097)
+
+Thư viện hiển thị các bản render đã hoàn tất theo bảng có thumbnail, tiêu đề video, loại bản (nháp/phát hành), định dạng, ngày hoàn tất và thao tác xem/xuất/mở video/mở thư mục. Có tìm kiếm, lọc Video/Shorts, lọc loại bản, sắp xếp ngày mới/cũ và phân trang 10/25/50 dòng. Đổi bộ lọc hoặc kênh về trang đầu; dữ liệu ít đi thì trang hiện tại được kẹp về trang hợp lệ. Trạng thái lỗi tải phải hiện rõ và cho thử lại. Không thêm số liệu lượt xem/bình luận khi chưa có dữ liệu. Tái dùng hợp đồng render.library; mỗi dòng vẫn là một bản render, nhận diện bằng video_id + render_id.
 - Ngôn ngữ giao diện tiếng Việt; thông báo lỗi lấy từ Gateway.
 - Explorer **chỉ đọc**: không có thao tác tạo/sửa/xóa/đổi tên file trong project (FR-WS-02).
 - UI không bao giờ ghi file project trực tiếp; mọi thay đổi đi qua IPC tới `core` (module ghi của Gateway).
@@ -58,12 +78,15 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `captions.load` / `captions.save` | |
 | `music.list` / `music.add` / `music.update` / `music.find` | |
 | `settings.get` / `settings.set` / `secrets.set` / `secrets.delete` | Khóa chuyển cho `main` lưu |
+| `codex.status` / `codex.login` (095) | Trạng thái gói ChatGPT / bắt đầu OAuth, trả `{auth_url}` để UI mở trình duyệt; không nhận API key |
 | `asr.accept` | Chấp nhận line lệch ASR |
 | `install.plan` / `install.start` / `install.pause` | |
 | `disk.usage` / `disk.clean` | |
 | `trace.list` / `trace.get` / `cost.report` | |
 | `autopilot.plan.get` | `{channel?, date?}` → kế hoạch ngày (D3 5.18) của mọi kênh Autopilot (051); `channel` bỏ trống = tất cả kênh quản lý đang bật Autopilot |
 | `autopilot.plan.run` | `{date?}` → `{job_id}`: lập/lập lại kế hoạch hôm nay cho mọi kênh Autopilot (051, việc dài → job, D4 2.3); `date` chỉ nhận hôm nay |
+| `autopilot.plan.preview` | `{channel}` → `{job_id}`: job xem thử một kênh, không lưu kế hoạch sản xuất; kết quả job chứa `plans[].plan` (DailyPlan), `preview: true` |
+| `job.get` | `{job_id}` → `{job: JobInfo}`: lấy trạng thái/kết quả chính xác của job, kể cả khi UI bỏ lỡ sự kiện hoàn tất |
 | `autopilot.plan.update` | `{channel, date, item_id, patch}` → mục đã sửa (051): bỏ qua/khôi phục, đổi tiêu đề, góc nhìn, workflow, giờ đăng; không sửa mục đang/đã làm |
 | `autopilot.status` | `{}` → `{paused, running, waiting_until?, current?: {channel, video, item_id, step_id?}, today: [{channel, name, date, items[]}]}`: Autopilot đang làm gì, trạng thái từng mục kế hoạch hôm nay (052) |
 | `autopilot.run_now` | `{}` → `{started, reason?}`: chạy một lượt ngay (lập kế hoạch nếu chưa có rồi làm lần lượt các mục), bỏ qua khung giờ làm việc; không chạy khi đang tạm dừng (052) |

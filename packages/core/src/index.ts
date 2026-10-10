@@ -354,7 +354,10 @@ export {
   planToday,
   readPlan,
   updatePlanItem,
+  createManualPlanVideo,
+  removePlanItem,
   type PlanTodayOptions,
+  type PlanJobResult,
 } from './autopilot/index.js';
 export { setHostSecrets } from './secrets/credman.js';
 export {

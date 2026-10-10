@@ -42,6 +42,7 @@ export const PLAN_CONSTANTS = {
 const C = PLAN_CONSTANTS;
 const MIN = 60_000;
 const PLANS_DIR = 'autopilot/plans';
+export const PLAN_REMOVED_NOTE = 'Đã xóa khỏi kế hoạch.';
 const DATE_FILE = /^(\d{4}-\d{2}-\d{2})\.json$/;
 /** Trạng thái đã bắt đầu làm (đã có video; `needs_review` = đỗ chờ người, 052): tính vào trần `autopilot.max_per_day` và việc đã dùng của hôm nay. */
 const STARTED: ReadonlySet<PlanItemStatus> = new Set([
@@ -224,14 +225,9 @@ export function chooseWorkflow(
 
 // ---------- chọn ứng viên ----------
 
-/** Số chỗ còn trống: năng lực (đã gồm mục planned) và trần ngày — trần chỉ đếm mục Autopilot, không đếm video làm tay. */
-export function freeSlots(o: {
-  feasible: number;
-  max_per_day: number;
-  planned: number;
-  started: number;
-}): number {
-  return Math.max(0, Math.min(o.feasible - o.planned, o.max_per_day - (o.planned + o.started)));
+/** Số chỗ còn trống theo cấu hình ngày, chỉ đếm các mục Autopilot. */
+export function freeSlots(o: { max_per_day: number; planned: number; started: number }): number {
+  return Math.max(0, o.max_per_day - (o.planned + o.started));
 }
 
 type Tier = 'strict' | 'source' | 'any';
@@ -368,12 +364,6 @@ export interface PlanDay {
   carried: number;
 }
 
-const FACTOR_TEXT: Record<DailyPlan['capacity']['limiting_factor'], string> = {
-  time: 'thời gian máy còn trong khung giờ',
-  tokens: 'ngân sách Claude',
-  uploads: 'hạn mức đăng YouTube',
-  cap: 'số video tối đa mỗi ngày của kênh',
-};
 const KIND_TEXT: Record<ResearchCandidate['kind'], string> = {
   competitor: 'Đối thủ vừa đăng',
   competitor_evergreen: 'Video nổi bật cũ của đối thủ',
@@ -421,7 +411,6 @@ export function planDay(i: BuildPlanInput): PlanDay {
   const started = existing.filter((x) => STARTED.has(x.status)).length;
   const allowed = allowedWorkflows(i.config.workflows, i.installed);
   const free0 = freeSlots({
-    feasible: i.capacity.videos,
     max_per_day: i.config.max_per_day,
     planned: planned.length,
     started,
@@ -537,11 +526,7 @@ export function planDay(i: BuildPlanInput): PlanDay {
         : 'Chưa cài workflow nào — chưa lập video.',
     );
   } else if (free0 <= 0) {
-    if (i.capacity.videos <= 0)
-      notes.push(
-        `Hôm nay chưa lập thêm được video: năng lực còn lại bằng 0 (giới hạn bởi ${FACTOR_TEXT[i.capacity.limiting_factor]}).`,
-      );
-    else if (!existing.length)
+    if (!existing.length)
       notes.push(`Kênh đặt tối đa ${i.config.max_per_day} video mỗi ngày — chưa lập video.`);
   } else if (free <= 0) {
     // chỗ trống đã được lấp bằng mục chuyển từ hôm qua
@@ -717,6 +702,8 @@ export interface PlanTodayResult {
 }
 
 export interface PlanTodayOptions {
+  /** 096: calculate only; never save either today's or yesterday's production plan. */
+  preview?: boolean;
   /** Thư mục các kênh Autopilot. */
   channels: string[];
   now?: Date;
@@ -743,7 +730,10 @@ export interface PlanTodayOptions {
  */
 export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
   const now = o.now ?? new Date();
-  if (resolveAppConfig<boolean>('autopilot.paused', { appDataDir: o.appDataDir }) === true)
+  if (
+    !o.preview &&
+    resolveAppConfig<boolean>('autopilot.paused', { appDataDir: o.appDataDir }) === true
+  )
     return { paused: true, plans: [] };
   const scan =
     o.scan ??
@@ -833,9 +823,9 @@ export async function planToday(o: PlanTodayOptions): Promise<PlanTodayResult> {
     if (r.error) plan.notes = [`Quét nghiên cứu lỗi: ${r.error}`, ...(plan.notes ?? [])];
     // chỉ ghi khi có gì đổi (bỏ qua `generated_at`) để chạy lại không làm nhiễu file
     const changed = !c.existing || stable(c.existing) !== stable(plan);
-    if (changed) writePlan(c.store, plan, 'autopilot.plan');
+    if (changed && !o.preview) writePlan(c.store, plan, 'autopilot.plan');
     // mục chuyển sang hôm nay: đóng mục cũ ở kế hoạch hôm qua (ghi sau — lần dở dang tự lành ở lần chạy sau)
-    if (day.previous) writePlan(c.store, day.previous, 'autopilot.plan');
+    if (day.previous && !o.preview) writePlan(c.store, day.previous, 'autopilot.plan');
     const kept = c.existing?.items.length ?? 0;
     plans.push({
       channel: c.dir,
@@ -889,7 +879,7 @@ export function updatePlanItem(
   if (!keys.length) throw invalid('patch is empty');
   const unknown = keys.filter((k) => !PATCH_KEYS.includes(k));
   if (unknown.length) throw invalid(`unknown patch field: ${unknown.join(', ')}`);
-  if (LOCKED.has(cur.status))
+  if (LOCKED.has(cur.status) || cur.video_id || cur.note === PLAN_REMOVED_NOTE)
     throw invalid(`item ${cur.id} is ${cur.status}; only planned or skipped items can be edited`);
 
   const next: PlanItem = { ...cur };

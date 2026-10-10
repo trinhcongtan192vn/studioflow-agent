@@ -4,6 +4,7 @@ import { TelegramSettings } from './Connections';
 import { Icon, type IconName } from './Icon';
 import { core } from './rpc';
 import { Surface } from './Surface';
+import { CodexFallback } from './CodexFallback';
 import { applyTheme, loadTheme, type Theme } from './theme';
 
 const LABEL: Record<string, string> = {
@@ -439,7 +440,7 @@ function Models() {
       ))}
       <p className="muted">
         OpenAI và DeepSeek cần khóa API ở mục Khóa API và tính tiền theo token. Agent trong chat và
-        Autopilot luôn chạy bằng Claude.
+        Autopilot ưu tiên Claude; fallback Codex bên dưới dùng gói ChatGPT.
       </p>
       <div className="row">
         <button className="primary" onClick={() => void save()}>
@@ -522,7 +523,13 @@ export function Settings({ onClose, channel }: { onClose: () => void; channel?: 
             'Kết nối YouTube / TikTok / Facebook theo từng kênh: Cài đặt kênh → Đăng video.',
           )}
           {section('keys', <Keys />)}
-          {section('models', <Models />)}
+          {section(
+            'models',
+            <>
+              <Models />
+              <CodexFallback />
+            </>,
+          )}
           {section('autopilot', <AutopilotApp />)}
           {section('storage', <Storage {...(channel ? { channel } : {})} />)}
           {section('advanced', <Phoenix />, 'Trace chi tiết của agent và workflow để gỡ lỗi.')}

@@ -60,6 +60,21 @@ export function mapSdkMessage(m: any): AgentEvent[] {
         }));
     }
     case 'result':
+      if (
+        (m.is_error && /limit|resets|overloaded/i.test(String(m.result ?? m.errors ?? ''))) ||
+        (!m.usage?.output_tokens &&
+          /hit your (session|usage|weekly) limit|usage limit|rate limit|resets \d/i.test(
+            String(m.result ?? ''),
+          ))
+      ) {
+        return [
+          {
+            type: 'error',
+            code: 'E_RUNTIME_RATE_LIMIT',
+            message: String(m.result ?? m.errors ?? 'Claude usage limit'),
+          },
+        ];
+      }
       return [
         {
           type: 'usage',
@@ -81,6 +96,18 @@ export function mapSdkMessage(m: any): AgentEvent[] {
 export function agentErrorFrom(e: unknown): AgentEvent {
   const message = String((e as Error)?.message ?? e).split('\n')[0]!;
   let code = 'E_INTERNAL';
+  const providedCode = (e as { code?: string } | undefined)?.code;
+  if (
+    providedCode &&
+    [
+      'E_AUTH_REQUIRED',
+      'E_RUNTIME_RATE_LIMIT',
+      'E_PROVIDER_FAILED',
+      'E_PROVIDER_UNAVAILABLE',
+      'E_REFINE_SAME_MODEL',
+    ].includes(providedCode)
+  )
+    return { type: 'error', code: providedCode, message };
   if (/api key|\/login|unauthori[sz]ed|401|authentication|not logged in/i.test(message))
     code = 'E_AUTH_REQUIRED';
   else if (/rate.?limit|429|overloaded|usage limit|session limit|weekly limit/i.test(message))

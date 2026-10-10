@@ -2,6 +2,9 @@
 // Đổi mặc định không phải đổi spec hệ thống (D3 mục 7.2).
 
 export const DEFAULTS: Record<string, unknown> = {
+  'agent.fallback.enabled': true,
+  'agent.fallback.model': '',
+  'agent.fallback.command': '',
   'output.profile': 'yt-1080p30',
   'workflow.default': 'narrated-explainer',
   'voice.id': null,

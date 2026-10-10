@@ -2,6 +2,11 @@
 
 **Phiên bản:** 1.0 · **Ngày:** 03/10/2026
 
+095 (09/10/2026): `agent.fallback.enabled=true`; `agent.fallback.model=''` (mặc định Codex);
+`agent.fallback.command=''` (PATH, hoặc `SF_CODEX_PATH` khi dev). Claude nghỉ 5 phút khi hết hạn mức.
+Codex app-server cần dynamicTools (đã kiểm protocol CLI 0.162.0-alpha.17.2), home riêng app-data/codex,
+đăng nhập ChatGPT riêng cho app, không khóa API. Timeout RPC 30 giây, lượt 10 phút; lịch sử chuyển tối đa 64k ký tự.
+
 > **Không ràng buộc như spec hệ thống.** Đây là lựa chọn công nghệ và tham số kỹ thuật **mặc định gợi ý** cho bước `/plan` của từng tính năng. `plan.md` được chọn khác nếu ghi lý do (mục *Complexity Tracking* hoặc `research.md`) và vẫn thỏa constitution + hợp đồng trong D3–D13. Khi một lựa chọn đã được dùng trong code, đổi nó là một quyết định kỹ thuật, ghi lại trong `research.md` của tính năng gây ra thay đổi.
 
 Đã chốt ở tầng sản phẩm (không thuộc file này): Windows 11 x64; Electron + React (TypeScript); lõi TypeScript/Node; worker Python; Claude Agent SDK là runtime đầu tiên; HyperFrames; ComfyUI; OmniVoice; Qwen-Image-2.1.

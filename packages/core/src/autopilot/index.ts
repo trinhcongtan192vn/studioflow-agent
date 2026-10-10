@@ -78,8 +78,15 @@ export {
   enqueuePlanRun,
   planDateOf,
   type PlanDeps,
+  type PlanJobResult,
 } from './plan-tools.js';
 export { capacityRun, installedWorkflows } from './capacity-run.js';
+export {
+  createManualPlanVideo,
+  removePlanItem,
+  PLAN_REMOVED_NOTE,
+  PLAN_MANUAL_NOTE,
+} from './plan-actions.js';
 export { autopilotRunnerTools } from './runner-tools.js';
 export { asrFixInstruction, briefInstruction, type BriefFn } from './brief.js';
 export {

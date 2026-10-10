@@ -15,6 +15,9 @@ import type { WriteStore } from '../store/writer.js';
 import { llmCall, LlmFixtureError, type LlmMode } from '../testing/llm-replay.js';
 import { resolveTextModels, type ModelRef } from './models.js';
 import { claudeTextProvider, openAICompatProvider, type TextProvider } from './providers.js';
+import { createCodexPlan, fallbackSettings } from '../agent/fallback-settings.js';
+import { Gateway } from '../gateway/gateway.js';
+import { agentErrorFrom } from '../agent/events.js';
 
 export interface TextServiceOptions {
   appDataDir?: string;
@@ -26,6 +29,8 @@ export interface TextServiceOptions {
   endpoints?: Partial<Record<'openai' | 'deepseek', string>>;
   query?: typeof sdkQuery;
   logger?: Logger;
+  /** 095: fake subscription inference for tests. */
+  codexText?: (input: TextGenerateInput) => Promise<TextGenerateOutput>;
 }
 
 export interface CallScope {
@@ -130,6 +135,8 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
   const getSecret = opts.getSecret ?? defaultGetSecret;
   const price = pricing(opts.appDataDir);
   const logger = opts.logger ?? new Logger();
+  const codex = createCodexPlan(new Gateway(), opts.appDataDir);
+  let claudeLimitedUntil = 0;
   const providers: Record<string, TextProvider> = {
     claude: claudeTextProvider({ query: opts.query }),
     openai: openAICompatProvider({
@@ -170,6 +177,8 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
       async (span) => {
         const out = await callInner(capability, ref, input, scope);
         span.setAttributes({
+          'gen_ai.response.model': out.model,
+          'gen_ai.system': out.model.startsWith('codex/') ? 'codex' : ref.provider,
           'gen_ai.usage.input_tokens': out.usage.input,
           'gen_ai.usage.output_tokens': out.usage.output,
           'sf.cost_usd': out.cost_usd,
@@ -202,7 +211,27 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
       );
     }
     const t0 = Date.now();
-    const real = () => p.chat(ref.model, input);
+    const real = async () => {
+      if (ref.provider !== 'claude' || !fallbackSettings(opts.appDataDir).enabled)
+        return p.chat(ref.model, input);
+      if (Date.now() >= claudeLimitedUntil) {
+        try {
+          return await p.chat(ref.model, input);
+        } catch (e) {
+          const err = agentErrorFrom(e);
+          if (
+            !(e instanceof SfError && e.code === 'E_RUNTIME_RATE_LIMIT') &&
+            !(err.type === 'error' && err.code === 'E_RUNTIME_RATE_LIMIT')
+          )
+            throw e;
+          claudeLimitedUntil = Date.now() + 300_000;
+          if (!opts.codexText && !(await codex.authStatus()).ok) throw e;
+        }
+      }
+      return opts.codexText
+        ? opts.codexText(input)
+        : codex.text(input, capability === 'text.review');
+    };
     const out =
       opts.fixtureDir && opts.mode
         ? await llmCall({ capability, provider: p.id, model: ref.model, input }, real, {
@@ -214,8 +243,8 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
         : await real();
     logger.write('info', 'sf.text.call', {
       capability,
-      provider: p.id,
-      model: ref.model,
+      provider: out.model.startsWith('codex/') ? 'text.codex' : p.id,
+      model: out.model,
       input_tokens: out.usage.input,
       output_tokens: out.usage.output,
       cost_usd: out.cost_usd,

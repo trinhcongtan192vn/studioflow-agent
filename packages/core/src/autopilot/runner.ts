@@ -703,6 +703,7 @@ export class AutopilotRunner extends EventEmitter {
         break;
       }
       // người dùng có thể đã bỏ qua / sửa mục từ lúc xếp hàng
+      if (!this.cfg<boolean>('autopilot.enabled', e.channel)) continue;
       const fresh = readPlan(e.channel, e.date)?.items.find((i) => i.id === e.item.id);
       if (!fresh || !QUEUED.has(fresh.status)) continue;
       const r = await this.produce({
@@ -719,7 +720,11 @@ export class AutopilotRunner extends EventEmitter {
         outcome: r.outcome,
         ...(r.reason ? { reason: r.reason } : {}),
       });
-      if (r.outcome === 'wait' || r.outcome === 'stopped') break;
+      if (
+        r.outcome === 'wait' ||
+        (r.outcome === 'stopped' && this.cfg<boolean>('autopilot.enabled', e.channel))
+      )
+        break;
     }
     // 053: đăng các mục đã làm xong. Tải lên không dùng Claude nên vẫn chạy khi đang chờ hạn mức, nhưng vẫn
     // tuân theo tạm dừng và khung giờ làm việc
@@ -1058,6 +1063,11 @@ export class AutopilotRunner extends EventEmitter {
       case 'wait':
         return { ...base, outcome: 'wait' };
       case 'stopped':
+        if (!this.cfg<boolean>('autopilot.enabled', c.channel)) {
+          const reason = 'Kênh đã tắt Autopilot — giữ video dở để tiếp tục khi bật lại.';
+          this.logItem(c, 'info', 'item.stopped', reason);
+          return { ...base, outcome: 'stopped', reason };
+        }
         return { ...base, outcome: 'stopped' };
     }
   }
@@ -1095,7 +1105,8 @@ export class AutopilotRunner extends EventEmitter {
     const e = this.d.workflows.engine(c.channel, c.video);
     if (e.readState().phase !== 'briefing' || this.proposal(c)) return undefined;
     for (;;) {
-      if (this.stopped) return { kind: 'stopped' };
+      if (this.stopped || !this.cfg<boolean>('autopilot.enabled', c.channel))
+        return { kind: 'stopped' };
       try {
         if (!this.briefFn) throw new BriefMissing();
         await this.briefFn(c.channel, c.video, c.item);
@@ -1159,7 +1170,8 @@ export class AutopilotRunner extends EventEmitter {
     let last = '';
     let stall = 0;
     for (let n = 0; n < 500; n++) {
-      if (this.stopped) return { kind: 'stopped' };
+      if (this.stopped || !this.cfg<boolean>('autopilot.enabled', c.channel))
+        return { kind: 'stopped' };
       const st = e.readState();
       if (st.phase === 'briefing') {
         const r = await this.decideBriefStep(c, e);

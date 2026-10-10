@@ -2,6 +2,11 @@ import type { AgentRuntime } from '../contracts/types.js';
 import type { Gateway } from '../gateway/gateway.js';
 import { ClaudeAgentRuntime } from './claude.js';
 import { RecordReplayRuntime } from './replay.js';
+import { FallbackRuntime } from './fallback.js';
+import { createCodexPlan, fallbackSettings } from './fallback-settings.js';
+import type { CodexPlanRuntime } from './codex.js';
+import { readFileSync } from 'node:fs';
+import { isId } from '../domain/ids.js';
 
 /**
  * Runtime của app: Claude Agent SDK; khi `SF_LLM` = `record`/`replay` (test, D12) bọc lớp ghi/phát
@@ -11,6 +16,8 @@ export function createRuntime(opts: {
   gateway: Gateway;
   fixtureDir?: string;
   getApiKey?: () => Promise<string | undefined>;
+  appDataDir?: string;
+  codex?: CodexPlanRuntime;
 }): AgentRuntime {
   const claude = new ClaudeAgentRuntime({ gateway: opts.gateway, getApiKey: opts.getApiKey });
   const mode = process.env.SF_LLM;
@@ -24,7 +31,22 @@ export function createRuntime(opts: {
       callTool: (ctx, name, input) => opts.gateway.call(ctx, name, input),
     });
   }
-  return claude;
+  return new FallbackRuntime(claude, opts.codex ?? createCodexPlan(opts.gateway, opts.appDataDir), {
+    enabled: () => fallbackSettings(opts.appDataDir).enabled,
+    history: (o) => {
+      if (o.kind !== 'main' || !isId('ss', o.context.session_id)) return '';
+      const rel = o.context.video_id
+        ? `videos/${o.context.video_id}/chat/${o.context.session_id}.jsonl`
+        : `chat/${o.context.session_id}.jsonl`;
+      try {
+        return readFileSync(opts.gateway.storeFor(o.context.channel_dir).abs(rel), 'utf8').slice(
+          -64_000,
+        );
+      } catch {
+        return '';
+      }
+    },
+  });
 }
 
 export { ClaudeAgentRuntime, renderUserMessage, type ClaudeRuntimeDeps } from './claude.js';

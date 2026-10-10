@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { PublishQueueItem } from '@studioflow/core';
 import { mediaUrl } from './FileViewer';
 import { Icon } from './Icon';
@@ -21,27 +21,36 @@ export function PublishReview({
   channel,
   onOpenVideo,
   onClose,
+  embedded = false,
 }: {
   channel: string;
   onOpenVideo: (id: string) => void;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const [items, setItems] = useState<PublishQueueItem[] | null>(null);
   const [playing, setPlaying] = useState<PublishQueueItem>();
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
-  const load = () =>
+  const load = useCallback(() => {
     void core
       .call('publish.queue', { channel })
       .then((r) => setItems(r.items))
-      .catch(() => setItems([]));
+      .catch((e: Error) =>
+        setMsg({ tone: 'error', text: `Không tải được hàng đợi đăng: ${e.message}` }),
+      );
+  }, [channel]);
   useEffect(() => {
     load();
     const off = core.on('publish.updated', (e) => {
       if (e.channel === channel) load();
     });
-    return off;
-  }, [channel]);
+    const offAutopilot = core.on('autopilot.updated', () => load());
+    return () => {
+      off();
+      offAutopilot();
+    };
+  }, [channel, load]);
 
   const act = async (it: PublishQueueItem, pf: Platform, kind: 'now' | 'cancel') => {
     setBusy(`${it.item_id}:${pf}`);
@@ -69,17 +78,14 @@ export function PublishReview({
     }
   };
 
-  return (
-    <Surface
-      label="Duyệt trước khi đăng"
-      className="publish-review"
-      testId="publish-review"
-      onClose={onClose}
-    >
-      <div className="set-top">
-        <h2>Duyệt trước khi đăng</h2>
-        <button onClick={onClose}>Đóng</button>
-      </div>
+  const content = (
+    <>
+      {!embedded && (
+        <div className="set-top">
+          <h2>Duyệt trước khi đăng</h2>
+          <button onClick={onClose}>Đóng</button>
+        </div>
+      )}
       <p className="muted">
         Video Autopilot làm xong được tải lên ở chế độ riêng tư rồi tự công khai đúng giờ nếu bạn
         không phản đối. Muốn sửa tiêu đề / mô tả: mở video và nhờ agent sửa trước giờ tải lên.
@@ -90,7 +96,9 @@ export function PublishReview({
         </p>
       )}
       {items === null ? (
-        <p className="muted">Đang tải…</p>
+        <p className="muted">
+          {msg?.tone === 'error' ? <button onClick={load}>Tải lại hàng đợi</button> : 'Đang tải…'}
+        </p>
       ) : !items.length ? (
         <div className="empty-state">
           <Icon name="send" size={32} />
@@ -210,6 +218,20 @@ export function PublishReview({
           </div>
         </div>
       )}
+    </>
+  );
+  return embedded ? (
+    <div className="publish-review embedded" data-testid="publish-review">
+      {content}
+    </div>
+  ) : (
+    <Surface
+      label="Duyệt trước khi đăng"
+      className="publish-review"
+      testId="publish-review"
+      onClose={onClose}
+    >
+      {content}
     </Surface>
   );
 }

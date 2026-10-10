@@ -127,6 +127,30 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "agent.fallback.enabled",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "agent.fallback.model",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
+      "key": "agent.fallback.command",
+      "pattern": false,
+      "type": "string",
+      "tiers": [
+        "app"
+      ]
+    },
+    {
       "key": "refine.min_rounds",
       "pattern": false,
       "type": "number",
