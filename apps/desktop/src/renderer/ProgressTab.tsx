@@ -8,6 +8,7 @@ import {
   feedbackFor,
   overall,
   STATUS_LABEL,
+  shownStatus,
   stepButtons,
   stepProgressView,
   type Action,
@@ -20,6 +21,7 @@ const ICON: Record<string, string> = {
   pending: '○',
   running: '◐',
   waiting_approval: '⏸',
+  waiting_user: '⏸',
   done: '✓',
   failed: '✕',
   skipped: '–',
@@ -494,15 +496,19 @@ export function ProgressTab({
           const buttons = stepButtons(s, state.steps, errors[s.id]);
           const err = s.status === 'failed' && errors[s.id];
           return (
-            <li key={s.id} className={`step ${s.status}`} data-testid={`step-${s.id}`}>
-              <span className={`step-icon ${s.status}`} title={STATUS_LABEL[s.status]}>
-                {s.status === 'running' ? <span className="spinner" /> : (ICON[s.status] ?? '?')}
+            <li key={s.id} className={`step ${shownStatus(s)}`} data-testid={`step-${s.id}`}>
+              <span className={`step-icon ${shownStatus(s)}`} title={STATUS_LABEL[shownStatus(s)]}>
+                {s.status === 'running' ? (
+                  <span className="spinner" />
+                ) : (
+                  (ICON[shownStatus(s)] ?? '?')
+                )}
               </span>
               <div className="step-main">
                 <div className="step-title">{s.title}</div>
                 <div className="step-sub">
-                  <span className={`step-status ${s.status}`}>
-                    {STATUS_LABEL[s.status] ?? s.status}
+                  <span className={`step-status ${shownStatus(s)}`}>
+                    {STATUS_LABEL[shownStatus(s)] ?? s.status}
                   </span>
                   {s.refine && (
                     <span className="muted">

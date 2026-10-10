@@ -133,7 +133,8 @@ function timeLabel(d: Date, timeZone: string): string {
 const RUNNABLE = new Set<StepState['status']>(['pending', 'stale']);
 
 /** 083: đuôi lỗi của bước mà agent dừng lượt để hỏi người dùng (giao diện hiện "đang chờ bạn trả lời"). */
-export const AWAITING_REPLY = 'waiting for your reply in chat';
+export { AWAITING_REPLY } from './waiting.js';
+import { AWAITING_REPLY, isWaitingUser } from './waiting.js';
 const isAwaitingReply = (s: StepState): boolean =>
   s.status === 'failed' &&
   s.error?.code === 'E_STEP_INCOMPLETE' &&
@@ -291,6 +292,7 @@ export class WorkflowEngine extends EventEmitter {
         status: st.steps[id]!.status,
         ...(st.steps[id]!.refine ? { refine: st.steps[id]!.refine } : {}),
         ...(uses.get(id) ? { uses: uses.get(id)! } : {}),
+        ...(isWaitingUser(st.steps[id]!) ? { waiting_user: true } : {}),
       }));
     const current = steps.find((s) => s.status !== 'done' && s.status !== 'skipped')?.id;
     return {

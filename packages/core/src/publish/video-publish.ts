@@ -16,7 +16,8 @@ import { findReleaseRender } from './youtube.js';
  */
 
 /** Đuôi lỗi khi bước chờ người dùng chọn nền tảng (giao diện hiện bộ chọn thay cho lỗi, như 083). */
-export const PUBLISH_CHOOSE = 'waiting for you to choose where to publish';
+export { PUBLISH_CHOOSE } from '../workflow/waiting.js';
+import { PUBLISH_CHOOSE } from '../workflow/waiting.js';
 
 const ORDER: Platform[] = ['youtube', 'tiktok', 'facebook'];
 /** Đã lên nền tảng cho bản render này — chạy lại bước không tải lại. */

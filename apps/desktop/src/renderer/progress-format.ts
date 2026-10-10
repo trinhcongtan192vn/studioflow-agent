@@ -15,12 +15,19 @@ export interface StepView {
   status: string;
   /** Loại bước trong thư viện (voice, media…) khi id khác loại. */
   uses?: string;
+  /** Bước "lỗi" thật ra đang chờ người dùng (chờ bấm Đăng, agent chờ trả lời) — 2026-10-10. */
+  waiting_user?: boolean;
 }
+
+/** Trạng thái hiển thị: bước chờ người dùng hiện "Chờ bạn", không phải "Lỗi". */
+export const shownStatus = (s: { status: string; waiting_user?: boolean }): string =>
+  s.waiting_user ? 'waiting_user' : s.status;
 
 export const STATUS_LABEL: Record<string, string> = {
   pending: 'Chưa chạy',
   running: 'Đang chạy',
   waiting_approval: 'Chờ bạn duyệt',
+  waiting_user: 'Chờ bạn',
   done: 'Xong',
   failed: 'Lỗi',
   skipped: 'Bỏ qua',
@@ -43,8 +50,8 @@ export function overall(steps: readonly StepView[]): {
   const done = steps.filter((s) => s.status === 'done' || s.status === 'skipped').length;
   const find = (st: string) => steps.find((s) => s.status === st);
   const running = find('running');
-  const failed = find('failed');
-  const waiting = find('waiting_approval');
+  const failed = steps.find((s) => s.status === 'failed' && !s.waiting_user);
+  const waiting = find('waiting_approval') ?? steps.find((s) => s.waiting_user);
   const next = steps.find((s) => s.status === 'pending' || s.status === 'stale');
   const state: Overall = running
     ? { kind: 'running', step: running }
@@ -135,7 +142,7 @@ export function feedbackFor(
   const i = steps.findIndex((s) => s.id === a.step);
   const upto = i < 0 ? steps : steps.slice(0, i + 1);
   const target = title(steps, a.step);
-  const failed = upto.find((s) => s.status === 'failed');
+  const failed = upto.find((s) => s.status === 'failed' && !s.waiting_user);
   if (failed) {
     const msg = stepError?.(failed.id);
     return {

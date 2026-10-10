@@ -4,6 +4,8 @@ import {
   feedbackFor,
   overall,
   progressLabel,
+  shownStatus,
+  STATUS_LABEL,
   stepButtons,
   stepProgressView,
   type StepView,
@@ -188,4 +190,13 @@ describe('nothing to recheck (065 FR-UI-65-02)', () => {
       expect(b[0]!.confirm).toBeUndefined();
     }
   });
+});
+
+it('a step waiting for the user shows "Chờ bạn" and makes the workflow waiting, not failed', () => {
+  const steps = [
+    { id: 'render', title: 'Render', status: 'done' },
+    { id: 'publish', title: 'Đăng', status: 'failed', waiting_user: true },
+  ];
+  expect(overall(steps).state).toMatchObject({ kind: 'waiting', step: { id: 'publish' } });
+  expect(STATUS_LABEL[shownStatus(steps[1]!)]).toBe('Chờ bạn');
 });

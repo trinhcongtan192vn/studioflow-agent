@@ -732,7 +732,13 @@ function NoticeCard({
             }
           />
           {notice.error && (
-            <div className="error" title={notice.error}>
+            // chờ bạn bấm Đăng / trả lời agent: không phải lỗi → không tô đỏ
+            <div
+              className={
+                isPublishWaiting(notice.error) || isAwaitingReply(notice.error) ? 'muted' : 'error'
+              }
+              title={notice.error}
+            >
               {friendlyStepError(notice.error)}
             </div>
           )}

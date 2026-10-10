@@ -6,7 +6,7 @@ import { core } from './rpc';
 
 type Review = Awaited<ReturnType<typeof core.call<'video.review'>>>;
 type Voices = Awaited<ReturnType<typeof core.call<'voice.speakers'>>>;
-type Step = { id: string; title: string; status: string; uses?: string };
+type Step = { id: string; title: string; status: string; uses?: string; waiting_user?: boolean };
 
 const sec = (ms?: number) => (ms ? fmtClock(ms / 1000) : '');
 
@@ -397,12 +397,17 @@ function StepStrip({ steps }: { steps: Step[] }) {
     failed: '✕',
     skipped: '–',
     stale: '↻',
+    waiting_user: '⏸',
   };
   return (
     <div className="step-strip">
       {steps.map((s) => (
-        <span key={s.id} className={`step-pill ${s.status}`} title={s.status}>
-          {icon[s.status] ?? '○'} {s.title}
+        <span
+          key={s.id}
+          className={`step-pill ${s.waiting_user ? 'waiting_approval' : s.status}`}
+          title={s.waiting_user ? 'chờ bạn' : s.status}
+        >
+          {icon[s.waiting_user ? 'waiting_user' : s.status] ?? '○'} {s.title}
         </span>
       ))}
     </div>
