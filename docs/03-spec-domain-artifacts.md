@@ -218,7 +218,7 @@ approved_at: null
 ```
 
 ### 5.3 `frame.md`
-Design system của video theo định dạng HyperFrames `[chờ S3]`. Sinh từ `profile/` + `channel.json` ở bước `design-system`; có front matter `schema_version`, `generated_from` (hash hồ sơ kênh). Không sửa tay. 2026-10-10: kênh có design system (`profile/design-system.json`) thì `frame.md` sinh từ đó — `generated_from` = hash design, thêm `design_look`, `design_images` (hash phần nhìn / phong cách ảnh).
+Design system của video theo định dạng HyperFrames `[chờ S3]`. Sinh từ `profile/` + `channel.json` ở bước `design-system`; có front matter `schema_version`, `generated_from` (hash hồ sơ kênh). Không sửa tay. 2026-10-10: kênh có design system (`profile/design-system.json`) thì `frame.md` sinh từ đó — `generated_from` = hash design, thêm `design_look`, `design_images`, `design_voice` (hash phần nhìn / phong cách ảnh / nhịp đọc). Design kênh gồm cả nhịp đọc (`voice.speed` truyền vào TTS, `voice.pause_ms` = nghỉ sau mỗi câu khi `voice.pause_after_ms` không đặt riêng) và tâm trạng nhạc.
 
 ### 5.3b `STORY.md`
 Dàn ý câu chuyện (bước `script` với `mode: outline`, chỉ `short-film`). Front matter `schema_version`, `video_id`, `status`; mỗi scene dự kiến là một heading `##` kèm khối `sf-story` (YAML: `title`, `summary`, `characters: string[]`, `setting`, `beats: string[]`). Không có line/ID line; `SCRIPT.md` (screenplay) được viết từ file này.

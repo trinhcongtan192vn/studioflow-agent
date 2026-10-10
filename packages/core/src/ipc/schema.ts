@@ -328,9 +328,15 @@ export interface IpcMethods {
   /** Video lệch design kênh (chưa phát hành): cần sinh lại ảnh hay chỉ dựng lại hình. */
   'design.status': {
     params: VideoRef;
-    result: { stale: boolean; images?: boolean; design?: string; released?: boolean };
+    result: {
+      stale: boolean;
+      images?: boolean;
+      voice?: boolean;
+      design?: string;
+      released?: boolean;
+    };
   };
-  /** Áp design kênh cho video: ghi lại frame.md, chạy lại từ Đạo diễn hình (ảnh) hoặc Dựng hình (màu/chữ). */
+  /** Áp design kênh cho video: ghi lại frame.md, chạy lại từ Giọng đọc (nhịp đọc), Đạo diễn hình (ảnh) hoặc Dựng hình (màu/chữ). */
   'design.apply_video': { params: VideoRef; result: { step: string } };
   'render.library': { params: ChannelRef; result: { renders: LibraryEntry[] } };
   /** 066: sao chép bản render (+ thumbnail / .srt / .txt) ra thư mục người dùng chọn; không ghi đè. */

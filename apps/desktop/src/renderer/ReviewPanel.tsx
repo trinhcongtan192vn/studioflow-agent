@@ -83,15 +83,21 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
                 .call('design.apply_video', { channel, video })
                 .then((r) =>
                   setDesignMsg(
-                    design.images
-                      ? `Đang làm lại từ “Đạo diễn hình” (ảnh theo phong cách mới)${r.step ? '' : ''}.`
-                      : 'Đang dựng lại hình với màu/chữ mới.',
+                    design.voice
+                      ? 'Đang đọc lại lời theo nhịp đọc mới (rồi làm lại các bước sau).'
+                      : design.images
+                        ? `Đang làm lại từ “Đạo diễn hình” (ảnh theo phong cách mới)${r.step ? '' : ''}.`
+                        : 'Đang dựng lại hình với màu/chữ mới.',
                   ),
                 )
                 .catch((e: Error) => setDesignMsg(e.message))
             }
           >
-            {design.images ? 'Áp dụng (sinh lại ảnh)' : 'Áp dụng (dựng lại hình)'}
+            {design.voice
+              ? 'Áp dụng (đọc lại giọng)'
+              : design.images
+                ? 'Áp dụng (sinh lại ảnh)'
+                : 'Áp dụng (dựng lại hình)'}
           </button>
           {designMsg && <span className="muted">{designMsg}</span>}
         </div>

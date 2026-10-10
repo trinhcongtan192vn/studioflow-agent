@@ -38,6 +38,8 @@ export interface FrameMdFrontMatter extends Versioned {
   design_look?: string;
   /** Băm phong cách ảnh của design kênh. */
   design_images?: string;
+  /** Băm nhịp đọc (tốc độ, nghỉ giữa câu) của design kênh. */
+  design_voice?: string;
 }
 
 /** D3 5.3b */

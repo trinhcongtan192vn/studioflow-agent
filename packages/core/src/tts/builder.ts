@@ -77,6 +77,7 @@ export function audioLinePlanner(deps: { providers: ProviderRegistry }): Planner
       voice_id: voice,
       ...(line.emotion ? { emotion: line.emotion } : {}),
       voice_hash: vf.hash,
+      ...(model.voiceSpeed !== 1 ? { speed: model.voiceSpeed } : {}),
       ...(regen ? { seed: regen } : {}),
     };
     const key = cacheKey(cacheKeyParts(adapter, 'tts.synthesize', input, regen || undefined));
@@ -124,6 +125,7 @@ export function audioLineBuilder(deps: {
         ...(line.emotion ? { emotion: line.emotion } : {}),
         ...(vf.file ? { voice_file: vf.file } : {}),
         voice_hash: vf.hash,
+        ...(ctx.model.voiceSpeed !== 1 ? { speed: ctx.model.voiceSpeed } : {}),
         ...(regen ? { seed: regen } : {}),
       },
       ...(regen ? { seed: regen } : {}),

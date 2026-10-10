@@ -27,6 +27,12 @@ const FONTS = [
   'Times New Roman, serif',
   'monospace',
 ];
+const SPEEDS = [0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2];
+const SPEED_NOTE: Record<number, string> = {
+  0.85: '— chậm rãi (tài liệu)',
+  1: '— như giọng mẫu',
+  1.1: '— nhanh (shorts)',
+};
 const COLOR_LABEL: Record<keyof Design['colors'], string> = {
   canvas: 'Nền',
   surface: 'Bề mặt',
@@ -163,6 +169,11 @@ export function DesignSystemPanel({ channel }: { channel: string }) {
               <p className="ds-style">
                 🎨 {p.image_style.medium}; {p.image_style.lighting}
               </p>
+              {p.voice && (
+                <p className="ds-style">
+                  🎙 Đọc {p.voice.speed}× · nghỉ {p.voice.pause_ms} ms · 🎵 {p.music.mood || '—'}
+                </p>
+              )}
               <button disabled={data.design?.name === p.name} onClick={() => void choose(i)}>
                 {data.design?.name === p.name ? 'Đang dùng' : 'Chọn phương án này'}
               </button>
@@ -310,6 +321,49 @@ export function DesignSystemPanel({ channel }: { channel: string }) {
               />
             </label>
           </div>
+          <fieldset>
+            <legend>Giọng đọc (áp dụng tự động ở bước Giọng đọc)</legend>
+            <div className="ds-grid">
+              <label className="field">
+                Tốc độ đọc
+                <select
+                  value={String(edit.voice?.speed ?? 1)}
+                  onChange={(e) =>
+                    set('voice', {
+                      pause_ms: edit.voice?.pause_ms ?? 0,
+                      speed: Number(e.target.value),
+                    })
+                  }
+                >
+                  {SPEEDS.map((s) => (
+                    <option key={s} value={String(s)}>
+                      {s}× {SPEED_NOTE[s] ?? ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Nghỉ sau mỗi câu (ms)
+                <input
+                  type="number"
+                  min={0}
+                  max={1500}
+                  step={50}
+                  value={edit.voice?.pause_ms ?? 0}
+                  onChange={(e) =>
+                    set('voice', {
+                      speed: edit.voice?.speed ?? 1,
+                      pause_ms: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <p className="muted">
+              Giọng mẫu của kênh đọc khoảng 180 từ/phút; 0.85× + nghỉ 300 ms ≈ 150–160 từ/phút (phim
+              tài liệu). Đổi nhịp → video chưa phát hành có nút áp dụng (đọc lại cả lời).
+            </p>
+          </fieldset>
           <div className="row">
             <button className="primary" onClick={() => void save()}>
               Lưu design system

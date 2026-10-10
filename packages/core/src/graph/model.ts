@@ -4,6 +4,7 @@ import type { CastMember, Frame, Line, Scene } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
 import { isAutopilotVideo } from '../domain/autopilot.js';
 import { sha256 } from '../domain/hash.js';
+import { readDesignVoice } from '../design/voice.js';
 import { parseBlocksDoc } from '../domain/markdown/blocks.js';
 import { parseScript, toScriptDoc } from '../domain/markdown/script.js';
 import { parseStoryboard, toStoryboardDoc } from '../domain/markdown/storyboard.js';
@@ -20,6 +21,8 @@ export interface VideoModel {
   cast: Record<string, Partial<CastMember>>;
   /** 052: video do Autopilot tạo — người nói chưa có giọng dùng giọng mặc định của kênh. */
   autopilot: boolean;
+  /** Tốc độ đọc theo design kênh (1 = tốc độ của giọng mẫu). */
+  voiceSpeed: number;
   config<T = unknown>(key: string, scope?: { sceneId?: string; frameId?: string }): T;
   /** Hash nội dung một file/thư mục trong video (thiếu → null). */
   hashOf(rel: string): string | null;
@@ -71,6 +74,7 @@ export function loadVideoModel(
     }
   }
   const autopilot = isAutopilotVideo(channelDir, videoId);
+  const voice = readDesignVoice(channelDir);
   const channel = JSON.parse(readFileSync(path.join(channelDir, 'channel.json'), 'utf8')) as {
     language: string;
   };
@@ -79,16 +83,17 @@ export function loadVideoModel(
     videoId,
     videoDir,
     language: script?.front.language ?? channel.language,
-    // khoảng lặng mặc định sau line (`voice.pause_after_ms`, 029; essay 600 ms)
-    lines: withDefaultPause(script?.lines ?? [], () =>
-      Number(
-        resolveConfig('voice.pause_after_ms', { channelDir, videoId }, { appDataDir }).value ?? 0,
-      ),
-    ),
+    // khoảng lặng mặc định sau line (`voice.pause_after_ms`, 029; essay 600 ms); không đặt riêng ở tầng nào
+    // → nhịp đọc của design kênh
+    lines: withDefaultPause(script?.lines ?? [], () => {
+      const r = resolveConfig('voice.pause_after_ms', { channelDir, videoId }, { appDataDir });
+      return r.source === 'default' ? voice.pause_ms : Number(r.value ?? 0);
+    }),
     frames: sb?.frames ?? [],
     scenes: sb?.scenes ?? [],
     cast,
     autopilot,
+    voiceSpeed: voice.speed,
     config: (key, scope = {}) =>
       resolveConfig(key, { channelDir, videoId, ...scope }, { appDataDir }).value as never,
     hashOf: (rel) => {
