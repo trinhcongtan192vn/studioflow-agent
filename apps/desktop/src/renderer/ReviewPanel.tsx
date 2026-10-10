@@ -219,6 +219,22 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
           }}
           onIndex={setViewing}
           onClose={() => setViewing(undefined)}
+          layerOf={(f) => data.shots.flatMap((s) => s.image_layers).find((l) => l.file === f)}
+          onRegenerate={async (layer, note) => {
+            const r = await core.call('shot.image.regenerate', {
+              channel,
+              video,
+              layer_id: layer,
+              note,
+            });
+            load();
+            return r;
+          }}
+          onRebuild={() => {
+            const compose = steps.find((x) => (x.uses ?? x.id) === 'compose');
+            if (compose)
+              void core.call('workflow.rewind', { channel, video, step_id: compose.id }).then(load);
+          }}
         />
       )}
       {!video0 && !data.shots.length && !data.script.lines.some((l) => l.audio) && (
@@ -235,16 +251,33 @@ function ImageViewer({
   caption,
   onIndex,
   onClose,
+  layerOf,
+  onRegenerate,
+  onRebuild,
 }: {
   files: string[];
   index: number;
   caption: (f: string) => string;
   onIndex: (i: number) => void;
   onClose: () => void;
+  layerOf: (f: string) => { layer_id: string; regenerable: boolean } | undefined;
+  onRegenerate: (
+    layerId: string,
+    note: string,
+  ) => Promise<{ status: string; layers: number; error?: string }>;
+  onRebuild: () => void;
 }) {
+  // tạo lại ảnh kèm ghi chú lỗi (2026-10-10)
+  const [fixing, setFixing] = useState(false);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string }>();
+  const [rebuild, setRebuild] = useState(false);
   const go = (d: number) => onIndex((index + d + files.length) % files.length);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // đang gõ ghi chú → phím mũi tên/Esc thuộc ô nhập
+      if ((e.target as HTMLElement | null)?.tagName === 'TEXTAREA') return;
       if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowRight') go(1);
       else if (e.key === 'ArrowLeft') go(-1);
@@ -253,6 +286,29 @@ function ImageViewer({
     return () => window.removeEventListener('keydown', onKey);
   });
   const f = files[index]!;
+  const layer = layerOf(f);
+  const regenerate = async () => {
+    if (!layer || !note.trim()) return;
+    setBusy(true);
+    setMsg(undefined);
+    try {
+      const r = await onRegenerate(layer.layer_id, note);
+      if (r.status === 'failed') setMsg({ tone: 'error', text: r.error ?? 'Tạo lại lỗi.' });
+      else {
+        setMsg({
+          tone: 'success',
+          text: `Đã tạo lại ảnh${r.layers > 1 ? ` — áp cho ${r.layers} cảnh dùng chung ảnh này` : ''}. Dựng lại hình để bản nháp dùng ảnh mới.`,
+        });
+        setRebuild(true);
+        setFixing(false);
+        setNote('');
+      }
+    } catch (e) {
+      setMsg({ tone: 'error', text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div
       className="image-viewer"
@@ -275,10 +331,55 @@ function ImageViewer({
         <button onClick={() => go(1)} aria-label="Ảnh sau">
           →
         </button>
+        {layer?.regenerable && !fixing && (
+          <button onClick={() => setFixing(true)} data-testid="regen-image">
+            ↻ Tạo lại
+          </button>
+        )}
         <button onClick={onClose} aria-label="Đóng">
           ✕
         </button>
       </div>
+      {(fixing || msg || rebuild) && (
+        <div className="iv-fix" onClick={(e) => e.stopPropagation()}>
+          {fixing && (
+            <>
+              <textarea
+                autoFocus
+                rows={2}
+                value={note}
+                placeholder="Ảnh lỗi gì? Ví dụ: tay 6 ngón, bị cắt mất đầu, thiếu chân, sai trang phục…"
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <div className="row">
+                <button
+                  className="primary"
+                  disabled={busy || !note.trim()}
+                  onClick={() => void regenerate()}
+                >
+                  {busy ? 'Đang tạo lại… (~1 phút)' : 'Tạo lại ảnh'}
+                </button>
+                <button disabled={busy} onClick={() => setFixing(false)}>
+                  Hủy
+                </button>
+              </div>
+            </>
+          )}
+          {msg && <p className={msg.tone === 'error' ? 'error' : 'success'}>{msg.text}</p>}
+          {rebuild && !busy && (
+            <button
+              className="primary"
+              onClick={() => {
+                onRebuild();
+                setRebuild(false);
+                setMsg({ tone: 'success', text: 'Đang dựng lại hình với ảnh mới…' });
+              }}
+            >
+              Dựng lại hình
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

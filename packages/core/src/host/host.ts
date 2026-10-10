@@ -29,6 +29,7 @@ import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
 import { validateChannel } from '../domain/channel-validate.js';
 import { readHost, setHost } from '../cast/host.js';
+import { regenerateLayerImage } from '../review/regenerate.js';
 import { watchVideo } from '../studio/watch.js';
 import { costCsv, costReport } from '../trace/cost.js';
 import { diskUsage } from '../disk/usage.js';
@@ -1119,6 +1120,18 @@ export class CoreHost extends EventEmitter {
         return { ok: true };
       case 'voice.preview':
         return { file: await narrationPreview(this.store(p.channel), String(p.video)) };
+      case 'shot.image.regenerate':
+        return regenerateLayerImage(
+          {
+            store: this.store(p.channel),
+            builders: c.graph,
+            text: c.text,
+            ...(c.appDataDir ? { appDataDir: c.appDataDir } : {}),
+          },
+          String(p.video),
+          String(p.layer_id),
+          String(p.note ?? ''),
+        );
       case 'video.review':
         return reviewData(this.store(p.channel), String(p.video), c.appDataDir);
       case 'render.list':

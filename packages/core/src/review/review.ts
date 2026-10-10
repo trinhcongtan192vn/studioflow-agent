@@ -196,6 +196,8 @@ export interface ReviewShot {
   images: string[];
   /** Ảnh đang chờ sinh (prompt). */
   pending_prompts: string[];
+  /** Lớp ảnh đã có (cùng thứ tự `images`): ID lớp + tạo lại được không (ảnh sinh, không phải thư viện). */
+  image_layers: { layer_id: string; file: string; regenerable: boolean }[];
   line_ids: string[];
   duration_ms?: number;
 }
@@ -286,6 +288,18 @@ export function reviewData(store: WriteStore, videoId: string, appDataDir?: stri
       images: visual
         .map((l) => imageOf((l.asset_id as string | undefined) ?? generated(l.id)))
         .filter((x): x is string => Boolean(x)),
+      image_layers: visual.flatMap((l) => {
+        const file = imageOf((l.asset_id as string | undefined) ?? generated(l.id));
+        return file
+          ? [
+              {
+                layer_id: l.id as string,
+                file,
+                regenerable: !l.asset_id && l.asset_request?.source === 'generate',
+              },
+            ]
+          : [];
+      }),
       pending_prompts: visual
         .filter((l) => !l.asset_id && !generated(l.id) && l.asset_request?.prompt)
         .map((l) => l.asset_request!.prompt!),
