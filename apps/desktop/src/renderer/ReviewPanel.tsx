@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AudioPlayer, fmtClock } from './AudioPlayer';
 import { mediaUrl } from './media-url';
 import { NarrationPlayer } from './NarrationPlayer';
@@ -21,26 +21,40 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
   const [design, setDesign] = useState<Awaited<ReturnType<typeof core.call<'design.status'>>>>();
   const [designMsg, setDesignMsg] = useState('');
   const [err, setErr] = useState('');
+  // video đang xem: phản hồi về muộn của video trước (đổi video khi đang tải) bị bỏ
+  const current = useRef(video);
+  current.current = video;
   const load = () => {
+    const v = video;
+    const mine =
+      <T,>(f: (x: T) => void) =>
+      (x: T) => {
+        if (current.current === v) f(x);
+      };
     void core
-      .call('video.review', { channel, video })
-      .then(setData)
-      .catch((e: Error) => setErr(e.message));
+      .call('video.review', { channel, video: v })
+      .then(mine(setData))
+      .catch(mine((e: Error) => setErr(e.message)));
     void core
-      .call('voice.speakers', { channel, video })
-      .then(setVoices)
+      .call('voice.speakers', { channel, video: v })
+      .then(mine(setVoices))
       .catch(() => {});
     void core
-      .call('design.status', { channel, video })
-      .then(setDesign)
+      .call('design.status', { channel, video: v })
+      .then(mine(setDesign))
       .catch(() => {});
     void core
-      .call('workflow.state', { channel, video })
-      .then((s) => setSteps(s.steps as Step[]))
-      .catch(() => setSteps([]));
+      .call('workflow.state', { channel, video: v })
+      .then(mine((s) => setSteps(s.steps as Step[])))
+      .catch(mine(() => setSteps([])));
   };
   useEffect(() => {
     setData(undefined);
+    setVoices(undefined);
+    setDesign(undefined);
+    setDesignMsg('');
+    setErr('');
+    setSteps([]);
     load();
     return core.on('workflow.updated', (s) => {
       if (s.video_id === video) load();
@@ -223,6 +237,12 @@ function VoiceSection({
   const [msg, setMsg] = useState('');
   const [changed, setChanged] = useState(false);
   const [showLines, setShowLines] = useState(false);
+  useEffect(() => {
+    setPick({});
+    setMsg('');
+    setChanged(false);
+    setShowLines(false);
+  }, [video]);
   const hasAudio = data.script.lines.some((l) => l.audio);
   const byId = new Map((voices?.voices ?? []).map((v) => [v.voice_id, v]));
   const apply = async (speaker: string) => {
