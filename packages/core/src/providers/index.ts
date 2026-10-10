@@ -5,6 +5,7 @@ import { createFakeImageProvider } from '../image/fake.js';
 import { createQwen20ApiProvider } from '../image/qwen20-api.js';
 import { createQwen21ComfyProvider } from '../image/qwen21-comfy.js';
 import { createRemoveBgProvider } from '../image/remove-bg.js';
+import { createCodexImageProvider } from '../image/codex-plan.js';
 import { createClapProvider } from '../music/clap.js';
 import type { TextEmbedder } from '../music/clap.js';
 import { createAudioAnalysisProvider } from '../music/provider.js';
@@ -45,6 +46,8 @@ export function registerDefaultProviders(
   registry.register(createHfTranscribeProvider(opts));
   const comfy = new ComfyServer(opts);
   registry.register(createQwen21ComfyProvider({ server: comfy }).adapter);
+  // ảnh nhân vật qua gói ChatGPT (Codex đã đăng nhập) — chỉ khi chạy thật, không bao giờ trong test/CI
+  registry.register(createCodexImageProvider(opts));
   return {
     stop: async () =>
       void (await Promise.all([

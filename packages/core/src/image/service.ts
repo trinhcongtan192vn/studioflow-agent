@@ -4,7 +4,7 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { EXTENSIONS_DIR } from '../agent/options.js';
 import { readManifest } from '../assets/library.js';
-import type { ProviderRegistry } from '../capability/registry.js';
+import type { AnyAdapter, ProviderRegistry } from '../capability/registry.js';
 import { cacheKey, cacheKeyParts, runCapability } from '../capability/run.js';
 import type { AssetManifest } from '../contracts/types.js';
 import { resolveConfig } from '../config/resolve.js';
@@ -32,6 +32,8 @@ export interface ImageRunOpts {
   signal?: AbortSignal;
   progress?: (done: number, total: number, message?: string) => void;
   jobId?: string;
+  /** Provider chỉ định (ảnh nhân vật → `image.codex-plan`); không có → định tuyến mặc định. */
+  adapter?: AnyAdapter;
 }
 
 export interface ImageResult {
@@ -79,11 +81,13 @@ async function runToAsset(
   meta: { seed?: number; description: string; tags: string[] },
   o: ImageRunOpts,
 ): Promise<ImageResult> {
-  const adapter = await s.providers.resolve(capability, {
-    channelDir: store.root,
-    videoId: o.videoId,
-    appDataDir: o.appDataDir,
-  });
+  const adapter =
+    o.adapter ??
+    (await s.providers.resolve(capability, {
+      channelDir: store.root,
+      videoId: o.videoId,
+      appDataDir: o.appDataDir,
+    }));
   const key = cacheKey(cacheKeyParts(adapter, capability, input, meta.seed));
   const id = seededId('as', key);
   const file = `assets/files/${id}.png`;
@@ -148,6 +152,26 @@ export interface GenerateInput {
   seed?: number;
   steps?: number;
   tags?: string[];
+  /** Ảnh nhân vật (2026-10-10, Tan): tạo bằng gói ChatGPT qua Codex; lỗi/hết hạn mức → provider mặc định. */
+  character?: boolean;
+}
+
+/**
+ * Ảnh nhân vật: thử `image.codex-plan` (gói ChatGPT) trước; chưa đăng nhập, lỗi hay hết hạn mức → `undefined`
+ * để gọi lại bằng provider mặc định (Qwen).
+ */
+async function viaCharacterProvider(
+  s: ImageServices,
+  run: (adapter: AnyAdapter) => Promise<ImageResult>,
+): Promise<ImageResult | undefined> {
+  const a = s.providers.get('image.codex-plan');
+  if (!a || !(await a.health().catch(() => ({ ok: false }))).ok) return undefined;
+  try {
+    return await run(a);
+  } catch (e) {
+    if ((e as { code?: string }).code === 'E_JOB_CANCELED') throw e;
+    return undefined;
+  }
 }
 
 /** `image.generate` (D4 mục 2.4, FR-IM-02): prompt + look kênh → asset. */
@@ -195,14 +219,14 @@ export async function generateImage(
       return { path: p, hash };
     }),
   };
-  return runToAsset(
-    s,
-    store,
-    'image.generate',
-    req,
-    { seed, description: input.prompt, tags: input.tags ?? [] },
-    o,
-  );
+  const meta = { seed, description: input.prompt, tags: input.tags ?? [] };
+  if (input.character) {
+    const r = await viaCharacterProvider(s, (adapter) =>
+      runToAsset(s, store, 'image.generate', req, meta, { ...o, adapter }),
+    );
+    if (r) return r;
+  }
+  return runToAsset(s, store, 'image.generate', req, meta, o);
 }
 
 export interface EditInput {
@@ -212,6 +236,8 @@ export interface EditInput {
   reference_asset_ids?: string[];
   seed?: number;
   tags?: string[];
+  /** Ảnh nhân vật: thử gói ChatGPT (Codex) trước. */
+  character?: boolean;
 }
 
 /** `image.edit` (FR-IM-03): asset mới, ảnh nguồn giữ nguyên; nguồn có alpha → giữ alpha. */
@@ -236,6 +262,24 @@ export async function editImage(
     refs: (input.reference_asset_ids ?? []).map(ref),
     ...(src.asset.alpha ? { keep_alpha: true } : {}),
   };
+  if (input.character) {
+    // ảnh nhân vật: Codex (gói ChatGPT) sửa ảnh và trả thẳng nền trong suốt
+    const r = await viaCharacterProvider(s, (adapter) =>
+      runToAsset(
+        s,
+        store,
+        'image.edit',
+        req,
+        {
+          seed,
+          description: `${input.instruction} (edit of ${input.source_asset_id})`,
+          tags: input.tags ?? src.asset.tags,
+        },
+        { ...o, adapter },
+      ),
+    );
+    if (r) return r;
+  }
   const edited = await runToAsset(
     s,
     store,

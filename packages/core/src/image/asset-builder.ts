@@ -44,7 +44,8 @@ export function assetBuilder(deps: AssetBuilderDeps): Builder {
         prompt: parts.prompt,
         width: parts.size[0],
         height: parts.size[1],
-        ...(parts.transparent ? { transparent: true } : {}),
+        // lớp trong suốt = nhân vật/đối tượng ghép cảnh → gói ChatGPT (Codex) trước, Qwen dự phòng
+        ...(parts.transparent ? { transparent: true, character: true } : {}),
         ...(parts.refs.length ? { reference_asset_ids: parts.refs } : {}),
         ...(parts.look ? { look: parts.look } : {}),
         seed: parts.seed,

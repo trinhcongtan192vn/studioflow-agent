@@ -1,0 +1,13 @@
+id: image.codex-plan
+version: 1.0.0
+capabilities: [image.generate, image.edit]
+contract_versions: { image.generate: '1', image.edit: '1' }
+runtime: agent-runtime
+resource: network
+install_profile: minimal
+# gói ChatGPT (đăng nhập Codex) — không tính tiền theo ảnh; hết hạn mức → app quay về Qwen
+cost: { kind: free }
+limits: { min_side: 256, max_side: 2048, max_refs: 4 }
+health: { method: codex_login, timeout_ms: 5000 }
+network: ['chatgpt.com', '*.openai.com']
+app_api: '>=0.1 <2.0'

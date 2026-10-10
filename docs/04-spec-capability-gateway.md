@@ -248,6 +248,7 @@ interface RunContext {
 | (dự phòng vi) | `tts.vbee` | cloud | khi S1 không đạt |
 | `asr.align` | `asr.hf-transcribe` (gọi `hyperframes transcribe` bản ghim; engine `asr`) | node | M1 |
 | `image.generate`, `image.edit` | `image.qwen21-comfy` | comfyui | M2 |
+| `image.generate`, `image.edit` (chỉ ảnh nhân vật, 2026-10-10) | `image.codex-plan` — Codex CLI đã đăng nhập gói ChatGPT (`codex exec`, công cụ tạo ảnh của Codex; không API trả phí). Ảnh nhân vật (`character: true`: tư thế trong suốt, ảnh chuẩn) thử provider này trước; chưa đăng nhập, lỗi, hết hạn mức gói → provider mặc định (Qwen). Không đăng ký khi `SF_GPU=0` | agent-runtime | — |
 | (tùy chọn) | `image.qwen20-api` | cloud | M2 `[chờ S2c]` |
 | (test, CI) | `tts.fake`, `image.fake`, `asr.fake` | node | M0 — chỉ khi `SF_GPU=0` (D12) |
 | (quan sát) | `obs.phoenix` (không phải capability; gói cài Phoenix) | python | M3 |
