@@ -143,6 +143,13 @@ export function Workspace({
       toast({ tone: 'error', text: (e as Error).message });
     }
   };
+  /** Về trang Home: bỏ chọn video, mở chat kênh mới (màn gợi ý). */
+  const goHome = () => {
+    setPage('video');
+    setVideo(undefined);
+    setState(undefined);
+    void newChat();
+  };
   useEffect(() => {
     if (!channel || video || freshChat.has(channel)) return;
     freshChat.add(channel);
@@ -295,6 +302,12 @@ export function Workspace({
             label: 'Lịch sử phiên agent',
             group: 'Trang',
             run: () => setPage('history'),
+          },
+          {
+            id: 'act:new-chat',
+            label: 'Chat mới (trang Home)',
+            group: 'Thao tác',
+            run: goHome,
           },
           {
             id: 'act:new',
@@ -542,6 +555,11 @@ export function Workspace({
                   Ẩn
                 </button>
               </p>
+            )}
+            {channel && (
+              <button className="new-chat-btn" data-testid="sidebar-new-chat" onClick={goHome}>
+                <Icon name="plus" /> Chat mới
+              </button>
             )}
             {channel && (
               <div className="vl-head">
