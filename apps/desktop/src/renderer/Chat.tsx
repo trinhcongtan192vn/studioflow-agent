@@ -16,6 +16,7 @@ import {
   type VoiceSuggestion,
 } from './chat-format';
 import { AudioPlayer } from './AudioPlayer';
+import { NarrationPlayer } from './NarrationPlayer';
 import { ExportDialog } from './ExportDialog';
 import { Markdown, ToolGroup } from './ChatParts';
 import {
@@ -75,6 +76,8 @@ export function Chat({
   const [busy, setBusy] = useState(false);
   // 066: hộp thoại xuất video (từ thẻ render xong)
   const [exporting, setExporting] = useState<{ render_id?: string } | null>(null);
+  // thẻ đang mở trình nghe thử lời đọc (nút "▶ Nghe thử" của bước Giọng đọc)
+  const [listening, setListening] = useState<Set<number>>(new Set());
   // agent đang làm gì (chỉ báo "…" cuối khung chat); null = không xử lý
   const [activity, setActivity] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ path: string; mime: string }[]>([]);
@@ -254,6 +257,15 @@ export function Chat({
     }
   }
   const runCta = async (i: number, c: StepCta) => {
+    if (c.kind === 'listen') {
+      setListening((s) => {
+        const n = new Set(s);
+        if (n.has(i)) n.delete(i);
+        else n.add(i);
+        return n;
+      });
+      return;
+    }
     if (c.kind === 'file') onOpenFile?.(c.path);
     else if (c.kind === 'reveal')
       void window.studioflow.revealFile(`${channel}/${video ? `videos/${video}/` : ''}${c.path}`);
@@ -500,6 +512,7 @@ export function Chat({
               done={it.done}
               pendingIds={pending.map((p) => p.approval_id)}
               onCta={(c) => void runCta(i, c)}
+              listen={listening.has(i) && video ? { channel, video } : undefined}
             />
           ) : it.type === 'step' ? (
             <div key={i} className={`card step-card ${it.step.status}`} data-testid="step-card">
@@ -527,6 +540,9 @@ export function Chat({
                     ))}
                   </div>
                 )
+              )}
+              {listening.has(i) && video && (
+                <NarrationPlayer channel={channel} video={video} autoPlay />
               )}
             </div>
           ) : (
@@ -665,12 +681,15 @@ function NoticeCard({
   done,
   pendingIds,
   onCta,
+  listen,
 }: {
   notice: WorkflowNotice;
   text: string;
   done?: string;
   pendingIds: string[];
   onCta: (c: StepCta) => void;
+  /** Đang mở trình nghe thử lời đọc dưới thẻ. */
+  listen?: { channel: string; video: string };
 }) {
   // điểm duyệt đã xử lý (ở đâu đó) → không còn nút Duyệt
   const handled = notice.event === 'waiting' && !pendingIds.includes(notice.approval_id ?? '');
@@ -722,6 +741,7 @@ function NoticeCard({
               ))}
             </div>
           )}
+          {listen && <NarrationPlayer channel={listen.channel} video={listen.video} autoPlay />}
         </>
       )}
     </div>

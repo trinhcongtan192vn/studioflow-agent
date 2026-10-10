@@ -11,7 +11,16 @@ export function fmtClock(sec: number): string {
  * Trình phát âm thanh trong app (008): main đọc file được phép qua IPC → blob URL → `<audio>` ẩn;
  * nút ▶/⏸, thời gian, thanh tua. Nạp khi bấm phát lần đầu (nhiều thẻ giọng không tải cùng lúc).
  */
-export function AudioPlayer({ src, label }: { src: string; label?: string }) {
+export function AudioPlayer({
+  src,
+  label,
+  autoPlay,
+}: {
+  src: string;
+  label?: string;
+  /** Nạp và phát ngay (nút "Nghe thử" đã là thao tác của người dùng). */
+  autoPlay?: boolean;
+}) {
   const audio = useRef<HTMLAudioElement>(null);
   const [url, setUrl] = useState<string>();
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -30,6 +39,10 @@ export function AudioPlayer({ src, label }: { src: string; label?: string }) {
     setDur(0);
   }, [src]);
   useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+  useEffect(() => {
+    if (autoPlay) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, src]);
 
   const load = async () => {
     setState('loading');

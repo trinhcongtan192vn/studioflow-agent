@@ -34,6 +34,7 @@ import { diskUsage } from '../disk/usage.js';
 import { cleanChannel, type CleanTarget } from '../disk/clean.js';
 import { findMusic } from '../music/find.js';
 import { appLibrary, MAX_SCAN_FILES, readMusicManifest, scanAudio } from '../music/library.js';
+import { assignVoice, narrationPreview, reviewData, videoVoices } from '../review/review.js';
 import { WriteStore } from '../store/writer.js';
 import { getTrace, listTraces } from '../trace/trace.js';
 import { CORE_VERSION } from '../version.js';
@@ -1010,6 +1011,16 @@ export class CoreHost extends EventEmitter {
       // 073: thư viện — mọi bản render của kênh
       case 'render.library':
         return { renders: renderLibrary(this.store(p.channel).root) };
+      // xem lại kết quả từng bước + chọn giọng theo người nói (Tan 2026-10-10)
+      case 'voice.speakers':
+        return videoVoices(this.store(p.channel), String(p.video), c.appDataDir);
+      case 'voice.assign':
+        assignVoice(this.store(p.channel), String(p.video), String(p.speaker), String(p.voice_id));
+        return { ok: true };
+      case 'voice.preview':
+        return { file: await narrationPreview(this.store(p.channel), String(p.video)) };
+      case 'video.review':
+        return reviewData(this.store(p.channel), String(p.video), c.appDataDir);
       case 'render.list':
         return { renders: listRenders(this.store(p.channel).root, String(p.video)) };
       case 'video.export':

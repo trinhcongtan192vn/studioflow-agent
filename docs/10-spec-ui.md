@@ -121,3 +121,10 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `autopilot.updated` | cùng dữ liệu `autopilot.status` — phát mỗi lần trạng thái Autopilot đổi (052) |
 
 Tên đầy đủ tham số và kiểu trả về được sinh từ `packages/core/ipc/schema.ts` (tính năng 008), phải khớp bảng này.
+
+## Tab Xem trước — xem lại kết quả từng bước (2026-10-10)
+
+- Dải các bước (xong / đang chạy / chờ duyệt / lỗi), rồi các mục hiện dần khi bước tương ứng xong: **video** (bản phát hành, chưa có thì bản nháp chờ duyệt), **giọng đọc** (nghe cả lời đọc — core ghép audio các line thành `.sf/preview/narration-<hash>.wav`; mỗi người nói một thẻ: giọng đang dùng, chọn giọng ref khác của kênh kèm nghe câu mẫu, "Dùng giọng này" → `voice.assign`, rồi "Đọc lại bằng giọng mới" → chạy lại bước Giọng đọc; nghe từng câu theo beat), **cảnh** (lưới ảnh — khung dọc với shorts — layout, chuyển động, chữ trên hình, lời đọc, prompt ảnh đang chờ), **nhạc** theo scene, **ảnh chụp frame**. Studio, render, xuất và bảng phụ đề ở mục "Chỉnh chi tiết" bên dưới.
+- IPC: `video.review`, `voice.speakers`, `voice.assign`, `voice.preview`.
+- Chat: bước Giọng đọc xong có nút **"▶ Nghe thử"** — mở trình phát cả lời đọc ngay dưới thẻ.
+
