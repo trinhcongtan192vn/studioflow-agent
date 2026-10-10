@@ -476,8 +476,8 @@ export class BuildGraph {
                 ? req.reference_asset_ids.map((id) => lib.get(id) ?? null)
                 : null,
               transparent: Boolean(req.transparent),
-              // 2026-10-10: lớp trong suốt luôn qua bước tách nền → ảnh cũ chưa tách được dựng lại (ảnh gốc từ cache)
-              ...(req.transparent ? { cutout: 1 } : {}),
+              // 2026-10-10: công thức ảnh trong suốt (Qwen RGBA, prompt không tả nền) → ảnh cũ dính nền sinh lại
+              ...(req.transparent ? { alpha: 2 } : {}),
               size: [w, h],
               look: model.config('look.id', { sceneId: f.scene_id, frameId: f.id }),
               provider: model.config('provider.image.generate'),

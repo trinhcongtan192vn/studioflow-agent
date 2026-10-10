@@ -28,6 +28,7 @@ import type { IpcEvents, IpcMethod, IpcMethods, ChatLine, ExplorerNode } from '.
 import { UPLOAD_LIMIT, UPLOAD_TYPES } from '../ipc/schema.js';
 import { DEFAULT_SETTINGS, installPlan } from '../models/install.js';
 import { validateChannel } from '../domain/channel-validate.js';
+import { readHost, setHost } from '../cast/host.js';
 import { watchVideo } from '../studio/watch.js';
 import { costCsv, costReport } from '../trace/cost.js';
 import { diskUsage } from '../disk/usage.js';
@@ -785,6 +786,20 @@ export class CoreHost extends EventEmitter {
           videos: listVideoIds(store.root).length,
         };
       }
+      case 'channel.host.get':
+        return { host: readHost(this.store(p.channel).root) ?? null };
+      case 'channel.host.set':
+        return {
+          host: setHost(
+            this.store(p.channel),
+            {
+              name: String(p.name ?? ''),
+              ...(p.path_on_disk ? { path_on_disk: String(p.path_on_disk) } : {}),
+              ...(p.look !== undefined ? { look: String(p.look) } : {}),
+            },
+            c.appDataDir,
+          ),
+        };
       case 'channel.info.set': {
         const c = updateChannelInfo(this.store(p.channel), {
           ...(p.name !== undefined ? { name: String(p.name) } : {}),
@@ -1188,7 +1203,8 @@ export class CoreHost extends EventEmitter {
           throw new SfError('E_SCHEMA_INVALID', `file type ${ext || '(none)'} cannot be attached`);
         if (statSync(src).size > UPLOAD_LIMIT)
           throw new SfError('E_UPLOAD_TOO_LARGE', `${path.basename(src)} is larger than 200 MB`);
-        const inner = `uploads/${crypto.randomUUID()}${ext}`;
+        // .jfif là JPEG — lưu .jpg để trình duyệt/bộ sinh ảnh đọc được
+        const inner = `uploads/${crypto.randomUUID()}${ext === '.jfif' ? '.jpg' : ext}`;
         this.store(p.channel).importFile(src, p.video ? `videos/${p.video}/${inner}` : inner, {
           by: 'upload.ingest',
         });

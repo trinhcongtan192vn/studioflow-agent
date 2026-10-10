@@ -109,6 +109,19 @@ export interface IpcMethods {
     result: { name: string; language: 'vi' | 'de' | 'en' };
   };
   'channels.managed.remove': { params: ChannelRef; result: { ok: boolean } };
+  /** Nhân vật dẫn chuyện của kênh (2026-10-10): ảnh tải lên (png/jpg/webp/jfif) làm người dẫn + tham chiếu phong cách. */
+  'channel.host.get': {
+    params: ChannelRef;
+    result: {
+      host: { id: string; name: string; look?: string; asset_id: string; image?: string } | null;
+    };
+  };
+  'channel.host.set': {
+    params: ChannelRef & { path_on_disk?: string; name: string; look?: string };
+    result: {
+      host: { id: string; name: string; look?: string; asset_id: string; image?: string };
+    };
+  };
   /** Cài đặt Autopilot tầng kênh đã giải (giá trị + nguồn). */
   'channel.autopilot.get': {
     params: ChannelRef;
@@ -608,6 +621,7 @@ export const UPLOAD_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.jfif': 'image/jpeg',
   '.webp': 'image/webp',
   '.wav': 'audio/wav',
   '.mp3': 'audio/mpeg',
