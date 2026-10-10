@@ -902,7 +902,8 @@ export class BuildGraph {
     const defs = new Map(this.nodes(model).map((d) => [d.id, d]));
     const result: BuildResult = { status: 'succeeded', nodes: {} };
     let done = 0;
-    for (const p of plan) {
+    /** Dựng một nút (ghi kết quả + lưu graph). */
+    const step = async (p: (typeof plan)[number]): Promise<void> => {
       if (signal.aborted) throw new SfError('E_JOB_CANCELED', 'canceled');
       if (opts.stop?.aborted) throw new SfError('E_JOB_CANCELED', PAUSED);
       const def = defs.get(p.node)!;
@@ -917,7 +918,7 @@ export class BuildGraph {
       if (blocked) {
         result.nodes[def.id] = { status: 'skipped' };
         done++;
-        continue;
+        return;
       }
       const ih = this.inputHash(def, g.nodes);
       const rec = g.nodes[def.id];
@@ -929,7 +930,7 @@ export class BuildGraph {
       ) {
         result.nodes[def.id] = { status: 'fresh' };
         done++;
-        continue;
+        return;
       }
       const t0 = Date.now();
       try {
@@ -986,6 +987,27 @@ export class BuildGraph {
       }
       this.save(videoId, g);
       done++;
+    };
+    // 2026-10-10: đoạn nút ảnh liền nhau (không phụ thuộc nhau) chạy hai làn song song — nhân vật/đối tượng
+    // trong suốt (gói ChatGPT qua Codex, mạng) và ảnh nền/minh họa (Qwen, GPU); lịch GPU vẫn xếp hàng nếu
+    // ảnh nhân vật phải quay về Qwen
+    for (let i = 0; i < plan.length;) {
+      if (defs.get(plan[i]!.node)!.type !== 'asset') {
+        await step(plan[i]!);
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < plan.length && defs.get(plan[j]!.node)!.type === 'asset') j++;
+      const batch = plan.slice(i, j);
+      const character = (x: (typeof plan)[number]) =>
+        Boolean((defs.get(x.node)!.parts as { transparent?: boolean }).transparent);
+      await Promise.all(
+        [batch.filter(character), batch.filter((x) => !character(x))].map(async (lane) => {
+          for (const x of lane) await step(x);
+        }),
+      );
+      i = j;
     }
     opts.progress?.(done, plan.length);
     const bad = Object.values(result.nodes).filter(
