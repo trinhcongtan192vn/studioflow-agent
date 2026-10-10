@@ -3276,3 +3276,21 @@ button.home-card:hover {
 .home-card .primary {
   margin-top: auto;
 }
+
+/* nút "Chat mới" đầu sidebar: về trang Home (chat kênh mới + gợi ý) */
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  margin-bottom: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.new-chat-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
