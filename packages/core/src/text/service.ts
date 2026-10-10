@@ -148,6 +148,7 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
     deepseek: openAICompatProvider({
       id: 'text.deepseek',
       baseUrl: opts.endpoints?.deepseek ?? 'https://api.deepseek.com/v1',
+      maxOutput: 8192,
       secret: () => getSecret('deepseek'),
       price: price('text.deepseek'),
     }),

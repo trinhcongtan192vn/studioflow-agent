@@ -166,6 +166,8 @@ interface LipsyncInput { audio: RelPath; fps: number; thresholds?: { half: numbe
 // render.video
 interface RenderInput { mode: 'draft' | 'release'; output_profile: string; }
 ```
+
+`max_tokens` (2026-10-10) chỉ còn là gợi ý, provider không dùng làm trần: Claude chạy với `CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000`, DeepSeek xin tối đa 8192, OpenAI không gửi trần. Trả lời bị cắt vì hết độ dài (`finish_reason: length`, Claude báo vượt trần) → `E_PROVIDER_FAILED`, không nhận văn bản dở. Chi phí kiểm bằng `budget.tokens_per_video` / `budget.api_cost_usd_per_video`.
 `Rubric` định nghĩa ở D6 mục 4.3. `music.*` ở D8.
 
 ### 3.1 Kiểu phụ

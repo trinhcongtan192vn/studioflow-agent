@@ -1,6 +1,6 @@
 // 016 (phát hiện khi nghiệm thu) · 009 FR-001 — hết hạn mức gói Claude là lỗi rate limit, không phải nội dung.
 import { describe, expect, it } from 'vitest';
-import { claudeTextProvider } from '../../src/index.js';
+import { claudeTextProvider, openAICompatProvider } from '../../src/index.js';
 
 const fakeQuery = (result: string, output_tokens: number) =>
   (() =>
@@ -73,5 +73,67 @@ describe('text.claude plan limit (009 FR-001)', () => {
       max_tokens: 10,
     });
     expect(opts).toMatchObject({ tools: [], allowedTools: [], maxTurns: 1 });
+  });
+
+  it('no per-step output cap: Claude gets the model maximum, a cut-off answer is an error, not half a text', async () => {
+    let env: Record<string, string> = {};
+    const fake = fakeQuery('ok', 1) as unknown as () => AsyncGenerator;
+    const q = ((a: { options: { env: Record<string, string> } }) => {
+      env = a.options.env;
+      return fake();
+    }) as never;
+    const input = {
+      role: 'aux' as const,
+      messages: [{ role: 'user' as const, content: 'x' }],
+      max_tokens: 10,
+    };
+    await claudeTextProvider({ query: q }).chat('m', input);
+    expect(env.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBe('64000');
+    await expect(
+      claudeTextProvider({
+        query: fakeQuery(
+          "API Error: Claude's response exceeded the 64000 output token maximum.",
+          64000,
+        ),
+      }).chat('m', input),
+    ).rejects.toMatchObject({ code: 'E_PROVIDER_FAILED' });
+  });
+
+  it('DeepSeek asks for its maximum and reports finish_reason=length as a cut-off', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    let finish = 'stop';
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (_u: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'half a sto' }, finish_reason: finish }],
+          usage: { prompt_tokens: 1, completion_tokens: 8192 },
+        }),
+      );
+    }) as never;
+    try {
+      const p = openAICompatProvider({
+        id: 'text.deepseek',
+        baseUrl: 'http://x',
+        secret: () => 'k',
+        maxOutput: 8192,
+      });
+      const input = {
+        role: 'aux' as const,
+        messages: [{ role: 'user' as const, content: 'x' }],
+        max_tokens: 2000,
+      };
+      await p.chat('deepseek-chat', input);
+      expect(bodies[0]).toMatchObject({ max_tokens: 8192 });
+      expect(bodies[0]).not.toHaveProperty('max_completion_tokens');
+      finish = 'length';
+      await expect(p.chat('deepseek-chat', input)).rejects.toMatchObject({
+        code: 'E_PROVIDER_FAILED',
+        message: expect.stringContaining('cut off'),
+      });
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 });
