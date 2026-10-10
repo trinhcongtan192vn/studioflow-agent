@@ -1,6 +1,7 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
 import type { ChannelVoice, ReviewData, SpeakerVoice } from '../review/review.js';
+import type { ChannelDesign } from '../design/channel-design.js';
 import type { VideoCard } from '../domain/video-card.js';
 import type { LibraryEntry } from '../render/export.js';
 import type { PublishQueueItem } from '../publish/queue-view.js';
@@ -311,6 +312,26 @@ export interface IpcMethods {
   'voice.preview': { params: VideoRef; result: { file: string } };
   /** Kết quả từng bước để xem lại trong tab Xem trước. */
   'video.review': { params: VideoRef; result: ReviewData };
+  /** Design system cấp kênh + các phương án AI đề xuất (ảnh mẫu: đường dẫn tuyệt đối). */
+  'design.get': {
+    params: ChannelRef;
+    result: {
+      design?: ChannelDesign;
+      proposals: ChannelDesign[];
+      images: Record<string, string>;
+    };
+  };
+  /** Chạy nền: Opus đề xuất 3 phương án + ảnh mẫu Qwen. */
+  'design.propose': { params: ChannelRef; result: { job_id: string } };
+  'design.choose': { params: ChannelRef & { index: number }; result: ChannelDesign };
+  'design.save': { params: ChannelRef & { design: Partial<ChannelDesign> }; result: ChannelDesign };
+  /** Video lệch design kênh (chưa phát hành): cần sinh lại ảnh hay chỉ dựng lại hình. */
+  'design.status': {
+    params: VideoRef;
+    result: { stale: boolean; images?: boolean; design?: string; released?: boolean };
+  };
+  /** Áp design kênh cho video: ghi lại frame.md, chạy lại từ Đạo diễn hình (ảnh) hoặc Dựng hình (màu/chữ). */
+  'design.apply_video': { params: VideoRef; result: { step: string } };
   'render.library': { params: ChannelRef; result: { renders: LibraryEntry[] } };
   /** 066: sao chép bản render (+ thumbnail / .srt / .txt) ra thư mục người dùng chọn; không ghi đè. */
   'video.export': {

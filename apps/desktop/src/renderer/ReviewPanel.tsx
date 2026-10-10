@@ -18,6 +18,8 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
   const [data, setData] = useState<Review>();
   const [voices, setVoices] = useState<Voices>();
   const [steps, setSteps] = useState<Step[]>([]);
+  const [design, setDesign] = useState<Awaited<ReturnType<typeof core.call<'design.status'>>>>();
+  const [designMsg, setDesignMsg] = useState('');
   const [err, setErr] = useState('');
   const load = () => {
     void core
@@ -27,6 +29,10 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
     void core
       .call('voice.speakers', { channel, video })
       .then(setVoices)
+      .catch(() => {});
+    void core
+      .call('design.status', { channel, video })
+      .then(setDesign)
       .catch(() => {});
     void core
       .call('workflow.state', { channel, video })
@@ -51,6 +57,31 @@ export function ReviewPanel({ channel, video }: { channel: string; video: string
   return (
     <div className="review" data-testid="review">
       <StepStrip steps={steps} />
+      {design?.stale && !design.released && (
+        <div className="design-banner" data-testid="design-banner">
+          <span>
+            Kênh đã đổi design system <b>{design.design}</b> — video này đang theo bản cũ.
+          </span>
+          <button
+            className="primary"
+            onClick={() =>
+              void core
+                .call('design.apply_video', { channel, video })
+                .then((r) =>
+                  setDesignMsg(
+                    design.images
+                      ? `Đang làm lại từ “Đạo diễn hình” (ảnh theo phong cách mới)${r.step ? '' : ''}.`
+                      : 'Đang dựng lại hình với màu/chữ mới.',
+                  ),
+                )
+                .catch((e: Error) => setDesignMsg(e.message))
+            }
+          >
+            {design.images ? 'Áp dụng (sinh lại ảnh)' : 'Áp dụng (dựng lại hình)'}
+          </button>
+          {designMsg && <span className="muted">{designMsg}</span>}
+        </div>
+      )}
       {video0 && (
         <section className="review-sec">
           <h3>

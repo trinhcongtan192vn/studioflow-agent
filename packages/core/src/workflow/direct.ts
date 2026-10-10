@@ -11,6 +11,11 @@ import { loadOutputProfile } from '../hf/outputs.js';
 import { readChannelAssets } from '../hf/packet.js';
 import { LAYOUT_INFO, LAYOUTS, MOTIONS } from '../hf/templates.js';
 import { loadVideoModel } from '../graph/model.js';
+import {
+  imageStyleSuffix,
+  readChannelDesign,
+  type ChannelDesign,
+} from '../design/channel-design.js';
 import { extractJson, type TextService } from '../text/service.js';
 import { DEFAULT_MODELS, type ModelRef } from '../text/models.js';
 import type { StepRunContext } from './engine.js';
@@ -110,6 +115,8 @@ export function directPrompt(i: {
   cast: { id: string; name: string; description?: string }[];
   heroAllowed: boolean;
   music: boolean;
+  /** Design system của kênh (khóa phong cách ảnh, layout/chuyển động ưu tiên, tâm trạng nhạc). */
+  design?: ChannelDesign;
 }): string {
   const vertical = i.height > i.width;
   const maxShot = i.params.max_shot_s ?? (vertical ? 6 : 8);
@@ -125,6 +132,21 @@ export function directPrompt(i: {
     i.brief.trim().slice(0, 3000),
     ...(i.styleGuide ? ['', '## Channel style', i.styleGuide.trim().slice(0, 1500)] : []),
     ...(i.params.style ? ['', '## Format style', i.params.style] : []),
+    ...(i.design
+      ? [
+          '',
+          `## Channel design system "${i.design.name}" — EVERY video of the channel follows it`,
+          `- Image style (appended automatically to every image prompt — describe only subject, action, setting and composition): ${imageStyleSuffix(i.design)}`,
+          ...(i.design.layouts.prefer.length
+            ? [`- Preferred layouts: ${i.design.layouts.prefer.join(', ')}`]
+            : []),
+          ...(i.design.layouts.avoid.length
+            ? [`- Never use layouts: ${i.design.layouts.avoid.join(', ')}`]
+            : []),
+          `- Pace: ${i.design.motion.pace}${i.design.motion.prefer.length ? `; preferred motions: ${i.design.motion.prefer.join(', ')}` : ''}`,
+          ...(i.design.music.mood ? [`- Default music mood: ${i.design.music.mood}`] : []),
+        ]
+      : []),
     '',
     `## Narration (line id · beat · duration · text) — on-screen text language: ${i.language}`,
     ...i.lines.map((l) => `${l.id} · ${l.beat} · ${(l.ms / 1000).toFixed(1)} s · ${l.text}`),
@@ -285,6 +307,10 @@ export function planToStoryboard(
     heroAllowed: boolean;
     castRefs: Record<string, string[]>;
     lipsync: Record<string, { mouth: boolean; anchor?: { x: number; y: number } }>;
+    /** Phong cách ảnh của kênh — gắn vào mọi prompt ảnh (khóa phong cách). */
+    imageStyle?: string;
+    /** Layout kênh cấm → để bộ layout tự suy. */
+    avoidLayouts?: string[];
   },
 ): string {
   const images = new Map((plan.images ?? []).map((x) => [x.key, x]));
@@ -303,6 +329,8 @@ export function planToStoryboard(
       .replace(/<cast:([^>]+)>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+    // phong cách ảnh của kênh: gắn vào mọi prompt (mọi video của kênh cùng một kiểu ảnh)
+    if (o.imageStyle && !prompt.includes(o.imageStyle)) prompt = `${prompt}, ${o.imageStyle}`;
     return {
       kind,
       asset_request: {
@@ -349,7 +377,11 @@ export function planToStoryboard(
     }
     n++;
     const s = f.shot;
-    const layout = (LAYOUTS as readonly string[]).includes(s.layout ?? '') ? s.layout : undefined;
+    const layout =
+      (LAYOUTS as readonly string[]).includes(s.layout ?? '') &&
+      !o.avoidLayouts?.includes(s.layout!)
+        ? s.layout
+        : undefined;
     const t = s.text ?? {};
     const layers: Record<string, unknown>[] = [];
     const bg = layer(s.image, 'background');
@@ -469,6 +501,7 @@ export function directExecutor(d: { text: TextService }) {
         ...(c.mouth_anchor ? { anchor: { x: c.mouth_anchor.x, y: c.mouth_anchor.y } } : {}),
       }));
     const music = cfg<boolean>('advanced.music') !== false;
+    const design = readChannelDesign(ctx.store.root);
     const heroAllowed = cfg<boolean>('advanced.custom_frames') === true;
     const language = vm.language;
     const prompt = directPrompt({
@@ -483,6 +516,7 @@ export function directExecutor(d: { text: TextService }) {
       cast: castMembers,
       heroAllowed,
       music,
+      ...(design ? { design } : {}),
     });
     ctx.progress?.(0, 2, 'Đạo diễn: lên danh sách cảnh');
     let plan: DirectPlan | undefined;
@@ -524,6 +558,9 @@ export function directExecutor(d: { text: TextService }) {
       libraryIds: new Set(readChannelAssets(ctx.store.root).map((a) => a.id)),
       music,
       singleMusic: params.music !== 'per-scene',
+      ...(design
+        ? { imageStyle: imageStyleSuffix(design), avoidLayouts: design.layouts.avoid }
+        : {}),
       heroAllowed,
       castRefs: Object.fromEntries(model0.map((c) => [c.id, c.reference_images])),
       lipsync: Object.fromEntries(

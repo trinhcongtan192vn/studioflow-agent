@@ -128,3 +128,10 @@ Tên đầy đủ tham số và kiểu trả về được sinh từ `packages/c
 - IPC: `video.review`, `voice.speakers`, `voice.assign`, `voice.preview`.
 - Chat: bước Giọng đọc xong có nút **"▶ Nghe thử"** — mở trình phát cả lời đọc ngay dưới thẻ.
 
+## Design system của kênh (2026-10-10)
+
+- Cài đặt kênh → mục **Design system**: "✨ AI đề xuất phương án" (job nền `design.propose`: Opus đọc thông tin kênh, đề xuất 3 phương án khác nhau rõ rệt, mỗi phương án một ảnh mẫu Qwen) → thẻ phương án có khung mẫu dựng bằng chính màu/font + ảnh mẫu → "Chọn phương án này" → chỉnh tay (màu, font, viết hoa, độ đậm, phong cách ảnh, layout ưu tiên/cấm, nhịp, tâm trạng nhạc) → Lưu.
+- Lưu ở `profile/design-system.json` của kênh (phương án: `profile/design-proposals.json`). Bước Design system của video ghi `frame.md` từ bản của kênh (kèm `design_look`, `design_images` để biết video lệch phần nào). Bước Đạo diễn nhận phong cách ảnh/layout/nhịp/nhạc của kênh; **mọi prompt ảnh được gắn phong cách ảnh của kênh** bằng code. Bộ layout dùng màu, font, viết hoa, độ đậm.
+- Đổi design khi video đang làm (chưa render phát hành): tab Xem trước hiện banner "Áp dụng" — phong cách ảnh đổi → làm lại từ Đạo diễn hình; chỉ màu/chữ đổi → Dựng hình lại. Video đã phát hành giữ nguyên.
+- IPC: `design.get`, `design.propose`, `design.choose`, `design.save`, `design.status`, `design.apply_video`.
+

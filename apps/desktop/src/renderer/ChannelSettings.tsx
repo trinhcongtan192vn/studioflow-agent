@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AdvancedPanel } from './AdvancedPanel';
+import { DesignSystemPanel } from './DesignSystemPanel';
 import { ChannelConnections } from './Connections';
 import { Icon } from './Icon';
 import { core } from './rpc';
@@ -28,6 +29,7 @@ const SECTIONS = [
   { id: 'info', label: 'Thông tin kênh' },
   { id: 'mode', label: 'Chế độ' },
   { id: 'content', label: 'Nội dung' },
+  { id: 'design', label: 'Design system' },
   { id: 'advanced', label: 'Nâng cao' },
   { id: 'competitors', label: 'Kênh đối thủ' },
   { id: 'publish', label: 'Đăng video' },
@@ -326,6 +328,12 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
               </label>
             </>,
             'Autopilot chọn chủ đề trong các trụ cột này và chỉ dùng các workflow được chọn.',
+          )}
+
+          {section(
+            'design',
+            <DesignSystemPanel channel={channel} />,
+            'Mọi video của kênh theo design system này: màu và chữ của khung hình, phong cách ảnh (khóa cho mọi ảnh), layout và nhịp ưu tiên, nhạc.',
           )}
 
           {section(
