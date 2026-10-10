@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { imageStyleSuffix, readChannelDesign } from '../design/channel-design.js';
 import { readHost } from '../cast/host.js';
+import { readManifest } from '../assets/library.js';
 import { SfError } from '../errors.js';
 import { isMap, isSeq } from 'yaml';
 import { resolveConfig } from '../config/resolve.js';
@@ -28,6 +29,11 @@ export function mediaExecutor(d: {
       key: string;
       /** Ảnh tham chiếu phong cách (nhân vật dẫn chuyện của kênh). */
       refs?: string[];
+      /**
+       * Biến chính ảnh này thành nhân vật mới (Qwen sửa ảnh — giữ nét vẽ/tỉ lệ tốt nhất, thử thật 2026-10-10).
+       * Ảnh kết quả chỉ làm tham chiếu cho các tư thế (sinh RGBA), không hiện trong video.
+       */
+      source?: string;
     },
   ) => Promise<string>;
 }) {
@@ -149,12 +155,15 @@ async function castBases(
   if (!file.cast?.length) return { made: 0, failed: 0 };
   const design = readChannelDesign(ctx.store.root);
   const style = design ? `, ${imageStyleSuffix(design)}` : '';
+  const library = new Map(readManifest(ctx.store).assets.map((a) => [a.id as string, a.file]));
   // nhân vật dẫn chuyện của kênh: mọi nhân vật mới vẽ theo đúng phong cách tạo hình của nó
   const host = readHost(ctx.store.root);
   let made = 0;
   let failed = 0;
   for (const c of file.cast) {
-    if (c.asset_id && existsSync(ctx.store.abs(`assets/files/${c.asset_id}.png`))) continue;
+    // ảnh đã có trong thư viện (mọi đuôi: ảnh dẫn chuyện tải lên là .jpg) → không sinh lại
+    const file = c.asset_id ? library.get(c.asset_id) : undefined;
+    if (file && existsSync(ctx.store.abs(file))) continue;
     if (ctx.stop?.aborted) throw new SfError('E_JOB_CANCELED', PAUSED);
     const object = c.kind === 'object';
     ctx.progress?.(0, 2, `Ảnh chuẩn: ${c.name ?? c.key}`);
@@ -162,8 +171,17 @@ async function castBases(
       const styled = host && host.id !== c.key;
       c.asset_id = await make(ctx, {
         key: c.key,
-        ...(styled ? { refs: [host.asset_id] } : {}),
-        prompt: `${styled ? 'drawn in exactly the same art style as the reference image (same line work, shading, colors and proportions) but a different character: ' : ''}${c.look}, ${object ? 'whole object, centered, front view' : 'full body head to feet, standing in a neutral pose, facing the camera'}, character reference, isolated${style}`,
+        ...(styled
+          ? {
+              // kênh có nhân vật dẫn chuyện: biến ảnh của nó thành nhân vật mới (giữ phong cách tạo hình)
+              source: host.asset_id,
+              prompt: object
+                ? `Turn this character into a different subject drawn in exactly the same drawing style, line work and colors: ${c.look}. Whole subject, centered, plain white background.`
+                : `Turn this character into a different person while keeping exactly the same drawing style, line work, proportions and body type: ${c.look}. Full body head to feet, standing, facing the camera, plain white background.`,
+            }
+          : {
+              prompt: `${c.look}, ${object ? 'whole object, centered, front view' : 'full body head to feet, standing in a neutral pose, facing the camera'}, character reference, isolated${style}`,
+            }),
         width: object ? 1024 : 768,
         height: object ? 1024 : 1344,
         seed: seedOf(`${c.key}|${c.look}`),

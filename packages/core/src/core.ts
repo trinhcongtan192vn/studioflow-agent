@@ -14,7 +14,7 @@ import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
 import { composeExecutor } from './workflow/compose.js';
 import { runDesignProposal } from './design/channel-design.js';
-import { generateImage } from './image/service.js';
+import { editImage, generateImage } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
 import { studioTools } from './studio/tools.js';
@@ -551,6 +551,21 @@ export function createCore(opts: CoreOptions = {}): Core {
       // ảnh chuẩn (tách nền) của nhân vật/đối tượng trong cảnh ghép
       castBase: async (ctx, r) => {
         const opts = { videoId: ctx.videoId, appDataDir, signal: ctx.signal };
+        // nhân vật mới theo phong cách nhân vật dẫn chuyện: Qwen sửa ảnh từ chính ảnh dẫn chuyện
+        if (r.source)
+          return (
+            await editImage(
+              { providers, db },
+              ctx.store,
+              {
+                source_asset_id: r.source,
+                instruction: r.prompt,
+                seed: r.seed,
+                tags: ['cast-base', `cast:${r.key}`],
+              },
+              opts,
+            )
+          ).asset_id;
         const gen = await generateImage(
           { providers, db },
           ctx.store,
