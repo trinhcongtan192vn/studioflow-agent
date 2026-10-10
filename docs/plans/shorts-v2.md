@@ -1,6 +1,6 @@
 # Kế hoạch: luồng dựng video mới (`shorts-v2`)
 
-Trạng thái: **đã duyệt** (Tan, 2026-10-10) · đang làm bước 1
+Trạng thái: **đã duyệt** (Tan, 2026-10-10) · bước 1 xong (nhạc theo giọng; `publish/limits.ts` + mã lại bản phát hành GOP 2 s + kiểm sau render + trần thời lượng theo nền tảng đích + TikTok `creator_info`)
 
 ## 1. Vì sao làm lại
 
@@ -145,7 +145,7 @@ Bỏ: rubric chấm kịch bản mặc định (giữ khi bật `advanced.refine
 | Meta | đủ trường bắt buộc, độ dài theo nền tảng, có `#shorts` cho YouTube Shorts | cắt/điền |
 | Ảnh đại diện | đúng kích thước/dung lượng YouTube | nén lại |
 
-**Việc phải làm khi triển khai:** tra **tài liệu chính thức hiện hành** của YouTube Data API, TikTok Content Posting API và Facebook Reels API (thời lượng tối thiểu/tối đa, dung lượng, codec) rồi ghi thành hằng số có ngày tra trong `publish/limits.ts`. Không dùng số nhớ. Nếu Reels/TikTok có trần ngắn hơn 3 phút, Autopilot và trang chọn nền tảng phải biết trước để không lập video không đăng được.
+**Đã tra 2026-10-10** (ghi trong `publish/limits.ts`): Facebook Reels **3–90 s**, 9:16, ≥ 540×960, 24–60 fps, GOP đóng 2–5 s; TikTok 23–60 fps, cạnh 360–4096 px, ≤ 4 GB, trần theo tài khoản (`creator_info`, mọi tài khoản ≥ 3 phút); YouTube Shorts ≤ 3 phút, ≤ 1080p. Bản HyperFrames có keyframe ~8 s → Facebook sẽ từ chối; bản phát hành giờ mã lại GOP 2 s. Khi nền tảng đổi: tra **tài liệu chính thức hiện hành** của YouTube Data API, TikTok Content Posting API và Facebook Reels API (thời lượng tối thiểu/tối đa, dung lượng, codec) rồi ghi thành hằng số có ngày tra trong `publish/limits.ts`. Không dùng số nhớ. Nếu Reels/TikTok có trần ngắn hơn 3 phút, Autopilot và trang chọn nền tảng phải biết trước để không lập video không đăng được.
 
 Áp cho cả workflow cũ: kiểm `publish_ready` và tra giới hạn nền tảng làm ngay ở bước 1 của thứ tự làm, cùng bản sửa nhạc.
 

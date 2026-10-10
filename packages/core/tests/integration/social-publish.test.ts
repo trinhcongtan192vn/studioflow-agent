@@ -108,7 +108,7 @@ async function setup(o: Opts = {}) {
       finished_at: '2026-10-07T01:05:00Z',
       status: 'done',
       file: 'renders/rd_rel00001/video.mp4',
-      duration_ms: 2700,
+      duration_ms: 30_000,
       gate_results: [],
       index_hash: 'ff'.repeat(32),
     }),
@@ -201,6 +201,24 @@ describe('TikTok', () => {
     expect(log(s).some((l) => l.event === 'publish.private' && l.data?.platform === 'tiktok')).toBe(
       true,
     );
+  });
+
+  it('creator_info: a video longer than the account may post fails clearly without uploading', async () => {
+    const s = await setup({ platforms: ['tiktok'] });
+    s.tt.creator.max_video_post_duration_sec = 20;
+    await s.host.core.publisher.process(NOW);
+    expect(s.tt.to(/creator_info/)).toHaveLength(1);
+    expect(s.tt.to(/video\/init/)).toHaveLength(0);
+    expect(JSON.stringify(plan(s).publish.tiktok)).toMatch(/tối đa 20 giây/);
+  });
+
+  it('creator_info: the privacy level is one the account allows (no privacy_level_option_mismatch)', async () => {
+    const s = await setup({ platforms: ['tiktok'] });
+    s.tt.creator.privacy_level_options = ['MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'];
+    await s.host.core.publisher.process(NOW);
+    expect(s.tt.to(/video\/init/)[0]!.body).toMatchObject({
+      post_info: { privacy_level: 'SELF_ONLY' },
+    });
   });
 
   it('a 25 MiB video goes in 10 MiB chunks, the last one takes the remainder', async () => {

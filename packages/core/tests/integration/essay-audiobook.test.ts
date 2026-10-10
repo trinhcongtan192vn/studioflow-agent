@@ -183,7 +183,7 @@ describeStudio('essay-audiobook end to end (029 FR-WF-07)', () => {
       value: 10,
       source: 'workflow',
     });
-    expect(resolveConfig('music.volume_db', scope, { appDataDir: t.dir }).value).toBe(-21);
+    expect(resolveConfig('music.volume_db', scope, { appDataDir: t.dir }).value).toBe(-10);
     const cg = JSON.parse(
       readFileSync(path.join(v(), 'caption_groups.json'), 'utf8'),
     ) as CaptionGroups;

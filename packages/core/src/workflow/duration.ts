@@ -8,6 +8,7 @@ import type { FrameTiming } from '../graph/timing.js';
 import type { WriteStore } from '../store/writer.js';
 import { loadOutputProfile } from '../hf/outputs.js';
 import { registerObjective } from './gates.js';
+import { platformMaxSeconds } from '../publish/limits.js';
 
 /**
  * Thời lượng đo trên audio thật (D6 mục 4.2 `audio_duration`, 016 R4): tốc độ đọc phụ thuộc nội dung,
@@ -128,16 +129,25 @@ export function maxDurationCheck(
   const profile = loadOutputProfile(
     resolveConfig('output.profile', scope, { appDataDir }).value as string | null,
   );
-  if (!profile.max_duration_ms) return { pass: true };
+  // video dọc: trần của nền tảng đích của kênh (Facebook Reels 90 s…) để kịch bản vừa ngay từ đầu
+  const platforms = (resolveConfig('publish.platforms', scope, { appDataDir }).value ??
+    []) as string[];
+  const plat = profile.height > profile.width ? platformMaxSeconds(platforms) : undefined;
+  const caps = [
+    ...(profile.max_duration_ms ? [{ ms: profile.max_duration_ms, by: profile.id }] : []),
+    ...(plat ? [{ ms: plat.max_s * 1000, by: `${plat.by} (nền tảng đăng của kênh)` }] : []),
+  ];
+  if (!caps.length) return { pass: true };
+  const cap = caps.reduce((a, b) => (b.ms < a.ms ? b : a));
   const total =
     source === 'timeline'
       ? (timingOf(store, videoId)?.total_ms ?? 0)
       : beatDurations(store, videoId).reduce((s, b) => s + b.duration_ms, 0);
-  return total <= profile.max_duration_ms
+  return total <= cap.ms
     ? { pass: true }
     : {
         pass: false,
-        detail: `${sec(total)} exceeds ${profile.id} max ${sec(profile.max_duration_ms)}; beats: ${beatDurations(
+        detail: `${sec(total)} exceeds ${cap.by} max ${sec(cap.ms)}; beats: ${beatDurations(
           store,
           videoId,
         )

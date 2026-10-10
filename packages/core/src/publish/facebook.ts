@@ -5,6 +5,7 @@ import { SfError } from '../errors.js';
 import type { SecretStore } from '../secrets/store.js';
 import type { FacebookApi } from './facebook-api.js';
 import { isVerticalProfile, socialTokenSecret } from './social.js';
+import { PLATFORM_LIMITS } from './limits.js';
 import type { PlatformPublisher, PublishContext } from './types.js';
 
 /**
@@ -43,12 +44,20 @@ export class FacebookPublisher implements PlatformPublisher {
   }
 
   eligible(ctx: PublishContext): { ok: true } | { ok: false; reason: string } {
-    return isVerticalProfile(ctx.render.output_profile)
-      ? { ok: true }
-      : {
-          ok: false,
-          reason: `Facebook Reels chỉ nhận video dọc 9:16, bản này xuất ${ctx.render.output_profile} (video ngang)`,
-        };
+    if (!isVerticalProfile(ctx.render.output_profile))
+      return {
+        ok: false,
+        reason: `Facebook Reels chỉ nhận video dọc 9:16, bản này xuất ${ctx.render.output_profile} (video ngang)`,
+      };
+    // Reels Publishing API: 3–90 s (publish/limits.ts) — vượt thì Facebook từ chối sau khi tải lên
+    const L = PLATFORM_LIMITS.facebook;
+    const ms = ctx.render.duration_ms;
+    if (ms !== undefined && (ms < L.min_s * 1000 || ms > L.max_s * 1000))
+      return {
+        ok: false,
+        reason: `Facebook Reels chỉ nhận video ${L.min_s}–${L.max_s} giây, bản này dài ${Math.round(ms / 1000)} giây`,
+      };
+    return { ok: true };
   }
 
   private schedule(ctx: PublishContext): { veto_until: Date; publish_at: Date } {

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { SfError } from '../errors.js';
+import type { MediaInfo } from '../publish/limits.js';
 
 const FFMPEG = () => process.env.SF_FFMPEG ?? 'ffmpeg';
 const FFPROBE = () => process.env.SF_FFPROBE ?? 'ffprobe';
@@ -71,7 +72,7 @@ function fontfile(): string | undefined {
 export async function finishVideo(
   src: string,
   dst: string,
-  o: { lufs: number; draft: boolean; crf: number; signal?: AbortSignal },
+  o: { lufs: number; draft: boolean; crf: number; fps?: number; signal?: AbortSignal },
 ): Promise<void> {
   const m = await measureLoudness(src, o.lufs, o.signal);
   const ln = `loudnorm=I=${o.lufs}:TP=-1.5:LRA=11:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
@@ -89,7 +90,29 @@ export async function finishVideo(
         '-pix_fmt',
         'yuv420p',
       ]
-    : ['-c:v', 'copy'];
+    : // phát hành: mã lại theo chuẩn đăng (Facebook Reels: GOP đóng 2–5 s, fps cố định; YouTube: H.264 High,
+      // 4:2:0, faststart) — bản HyperFrames có keyframe tới ~8 s và bitrate thấp
+      [
+        '-c:v',
+        'libx264',
+        '-profile:v',
+        'high',
+        '-crf',
+        String(o.crf),
+        '-preset',
+        'medium',
+        '-pix_fmt',
+        'yuv420p',
+        ...(o.fps
+          ? ['-r', String(o.fps), '-g', String(o.fps * 2), '-keyint_min', String(o.fps * 2)]
+          : []),
+        '-sc_threshold',
+        '0',
+        '-flags',
+        '+cgop',
+        '-bf',
+        '2',
+      ];
   await run(
     FFMPEG(),
     [
@@ -104,6 +127,8 @@ export async function finishVideo(
       ln,
       '-ar',
       '48000',
+      '-ac',
+      '2',
       '-c:a',
       'aac',
       '-b:a',
@@ -128,4 +153,72 @@ export async function probeDurationMs(file: string): Promise<number> {
     file,
   ]);
   return Math.round(Number(out.trim()) * 1000);
+}
+
+/** Thông số file video để kiểm đăng được (`publish/limits.ts`): luồng hình/tiếng + khoảng cách keyframe. */
+export async function probeMedia(file: string): Promise<MediaInfo> {
+  const { out } = await run(FFPROBE(), [
+    '-v',
+    'error',
+    '-show_entries',
+    'stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate,sample_rate,channels:format=duration,size',
+    '-of',
+    'json',
+    file,
+  ]);
+  const j = JSON.parse(out) as {
+    streams: {
+      codec_type: string;
+      codec_name: string;
+      pix_fmt?: string;
+      width?: number;
+      height?: number;
+      avg_frame_rate?: string;
+      sample_rate?: string;
+      channels?: number;
+    }[];
+    format: { duration: string; size: string };
+  };
+  const v = j.streams.find((s) => s.codec_type === 'video');
+  const a = j.streams.find((s) => s.codec_type === 'audio');
+  if (!v) throw new SfError('E_PROVIDER_FAILED', `${file}: no video stream`);
+  const [n, d] = (v.avg_frame_rate ?? '0/1').split('/').map(Number);
+  const keys = await run(FFPROBE(), [
+    '-v',
+    'error',
+    '-select_streams',
+    'v',
+    '-skip_frame',
+    'nokey',
+    '-show_entries',
+    'frame=pts_time',
+    '-of',
+    'csv=p=0',
+    file,
+  ]);
+  const duration = Number(j.format.duration);
+  const times = keys.out
+    .split(/\r?\n/)
+    .map((x) => x.replace(/,.*$/, '').trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((x) => Number.isFinite(x));
+  const gaps = [...times, duration].slice(1).map((t, i) => t - times[i]!);
+  return {
+    duration_ms: Math.round(duration * 1000),
+    width: v.width ?? 0,
+    height: v.height ?? 0,
+    fps: d ? Math.round((n! / d) * 100) / 100 : 0,
+    vcodec: v.codec_name,
+    pix_fmt: v.pix_fmt ?? '',
+    ...(a
+      ? {
+          acodec: a.codec_name,
+          sample_rate: Number(a.sample_rate),
+          ...(a.channels ? { channels: a.channels } : {}),
+        }
+      : {}),
+    bytes: Number(j.format.size),
+    ...(gaps.length ? { max_gop_s: Math.round(Math.max(...gaps) * 100) / 100 } : {}),
+  };
 }
