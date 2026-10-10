@@ -24,7 +24,8 @@ beforeAll(async () => {
               { id: 'hook', score: 8, note: 'ổn' },
               { id: 'clarity', score: 6 },
             ],
-            issues: [{ severity: 'minor', text: 'câu 2 dài' }],
+            // model hay thêm trường ngoài schema (vd_mdxzk4ui) → app bỏ
+            issues: [{ id: 'i1', severity: 'minor', text: 'câu 2 dài', fix: 'cắt đôi' }],
           })
         : 'Xin chào';
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -104,6 +105,7 @@ describe('text providers (009 FR-001)', () => {
       ],
       issues: [{ severity: 'minor' }],
     });
+    expect(r.issues).toEqual([{ severity: 'minor', text: 'câu 2 dài' }]);
   });
 
   it('a missing key makes the provider unavailable', async () => {
