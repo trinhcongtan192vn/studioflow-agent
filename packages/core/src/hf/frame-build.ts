@@ -482,18 +482,18 @@ export function frameBuildExecutor(d: FrameBuildDeps) {
       ...res.general,
       ...[...res.byFrame].flatMap(([id, m]) => m.map((x) => `${id}: ${x}`)),
     ];
-    if (left.length)
-      throw new SfError(
-        'E_GATE_FAILED',
-        `hyperframes lint/check: ${[...new Set(left)].slice(0, 8).join('; ')}`,
-      );
+    // lỗi lint/check còn lại sau khi đã thay/sửa frame → cảnh báo trong tóm tắt (người dùng xem ở bản nháp
+    // để duyệt), không chặn bước và không bắt làm lại từ đầu
+    const leftWarn = left.length
+      ? ` Cảnh báo lint/check (${new Set(left).size}, xem kỹ ở bản nháp): ${[...new Set(left)].slice(0, 8).join('; ')}.`
+      : '';
     const aiFallback = fallback.filter((id) => isAi(id));
     const layoutFallback = fallback.filter((id) => !isAi(id));
     return {
       outputs: [...model.frames.map((f) => `compositions/frames/${f.id}.html`), 'index.html'],
       built,
       skipped: [...packets.keys()].filter((id) => !built.includes(id)),
-      summary: `Dựng ${built.length} frame từ bộ layout${custom ? ` (${heroIds.size} frame hero do AI dựng)` : ''} (${[...packets.keys()].length - built.length} giữ nguyên); lint/check qua, ${res.warnings} cảnh báo lint.${aiFallback.length ? ` ${aiFallback.length} frame AI vẫn lỗi sau khi sửa nên dựng bằng layout: ${aiFallback.join(', ')} — muốn AI vẽ lại thì bấm "Quay lại" ở bước này.` : ''}${layoutFallback.length ? ` ${layoutFallback.length} frame lỗi lint/check nên dựng lại bằng big-text: ${layoutFallback.join(', ')}.` : ''}`,
+      summary: `Dựng ${built.length} frame từ bộ layout${custom ? ` (${heroIds.size} frame hero do AI dựng)` : ''} (${[...packets.keys()].length - built.length} giữ nguyên); ${left.length ? 'lint/check còn lỗi' : 'lint/check qua'}, ${res.warnings} cảnh báo lint.${leftWarn}${aiFallback.length ? ` ${aiFallback.length} frame AI vẫn lỗi sau khi sửa nên dựng bằng layout: ${aiFallback.join(', ')} — muốn AI vẽ lại thì bấm "Quay lại" ở bước này.` : ''}${layoutFallback.length ? ` ${layoutFallback.length} frame lỗi lint/check nên dựng lại bằng big-text: ${layoutFallback.join(', ')}.` : ''}`,
     };
   };
 }
