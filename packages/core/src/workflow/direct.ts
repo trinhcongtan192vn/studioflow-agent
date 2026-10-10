@@ -131,6 +131,15 @@ export function scriptLines(videoDir: string): LineInfo[] {
   }));
 }
 
+const castLine = (c: {
+  id: string;
+  name: string;
+  description?: string;
+  look?: string;
+  expressions?: string[];
+}) =>
+  `- ${c.id}: ${c.name}${c.look ? ` — ${c.look}` : c.description ? ` — ${c.description}` : ''}${c.expressions?.length ? ` [existing expression images: ${c.expressions.join(', ')}]` : ''}`;
+
 /** Prompt đạo diễn (tiếng Anh cho model; chữ trên hình theo ngôn ngữ video). */
 export function directPrompt(i: {
   brief: string;
@@ -148,6 +157,8 @@ export function directPrompt(i: {
     look?: string;
     /** Khóa ảnh biểu cảm đã có (dùng lại được). */
     expressions?: string[];
+    /** Nhân vật cấp kênh không có trong CAST.md của video: chỉ gợi ý, không bắt buộc dùng. */
+    optional?: boolean;
   }[];
   heroAllowed: boolean;
   music: boolean;
@@ -199,7 +210,7 @@ export function directPrompt(i: {
           '## Visual world — imagine the whole video first, then build shots from it',
           ...(i.cast.length
             ? [
-                '- Characters already defined for this video are listed under "Characters" below: use their ids as the actor "cast" and do NOT redefine them in "cast".',
+                '- Characters of this video (listed below) are used by their ids as the actor "cast" and NOT redefined in "cast"; channel characters from earlier videos are optional.',
               ]
             : []),
           '- "cast": the recurring characters or objects of the story (0–4; only ones not already listed): the inventor, a historical figure, an animal, a mascot-like object (a rubber ball, a molecule, a planet)… Give each a fixed "look" in English (for a person: age, build, face, hair, clothing with colors; for an object: shape, material, colors, any face/limbs) so every pose is clearly the same one. kind: character | object.',
@@ -222,11 +233,18 @@ export function directPrompt(i: {
       ? i.params.scenes !== false
         ? [
             '',
-            '## Characters (already defined — actor "cast" = id; images are made after your plan, so ask for any pose or action the line needs)',
-            ...i.cast.map(
-              (c) =>
-                `- ${c.id}: ${c.name}${c.look ? ` — ${c.look}` : c.description ? ` — ${c.description}` : ''}${c.expressions?.length ? ` [existing expression images: ${c.expressions.join(', ')}]` : ''}`,
-            ),
+            ...(i.cast.some((c) => !c.optional)
+              ? [
+                  '## Characters of this video (already defined — actor "cast" = id; images are made after your plan, so ask for any pose or action the line needs)',
+                  ...i.cast.filter((c) => !c.optional).map(castLine),
+                ]
+              : []),
+            ...(i.cast.some((c) => c.optional)
+              ? [
+                  '## Channel characters from earlier videos (OPTIONAL — use one only if this story is really about them; otherwise ignore and create your own cast)',
+                  ...i.cast.filter((c) => c.optional).map(castLine),
+                ]
+              : []),
             '- For each actor write the "pose" the line needs (action, gesture, emotion) — the body only: never the floor, furniture or place (the background carries the place; the actor image is cut out). Only when an existing expression image already shows exactly that (a plain reaction while standing), set "expression": "<key>" and leave "pose" empty — it is reused instead of generated.',
           ]
         : [
@@ -665,10 +683,14 @@ export function directExecutor(d: { text: TextService }) {
       .map((a) => ({ id: a.id, description: a.description, tags: a.tags ?? [] }));
     // nhân vật (cast kênh + video, 031/032): ảnh tham chiếu cho prompt, bộ miệng + điểm miệng cho khẩu hình
     const vm = loadVideoModel(ctx.store.root, ctx.videoId, ctx.appDataDir);
+    // nhân vật của video = CAST.md; nhân vật cấp kênh (video trước) chỉ là gợi ý tùy chọn (vd_mdxzk4ui)
+    const castMd = read(`${v}/CAST.md`) ?? '';
+    const ownIds = new Set([...castMd.matchAll(/\bid:\s*(ca_[0-9a-z]{8})/g)].map((m) => m[1]!));
     const castMembers = Object.entries(vm.cast)
       .filter(([, c]) => c.role !== 'narrator')
       .map(([id, c]) => ({
         id,
+        optional: !ownIds.has(id),
         name: c.name ?? id,
         ...((c as { description?: string }).description
           ? { description: (c as { description?: string }).description }
@@ -767,6 +789,9 @@ export function directExecutor(d: { text: TextService }) {
     ctx.store.write(`${v}/STORYBOARD.md`, withIds, { by: 'direct' });
     // nhân vật/đối tượng của video (ảnh chuẩn sinh ở bước Ảnh, làm tham chiếu cho mọi tư thế)
     const refOf = new Map(castMembers.map((c) => [c.id, c.reference_images[0]]));
+    const usedCast = new Set(
+      plan.scenes.flatMap((sc) => sc.shots.flatMap((sh) => (sh.actors ?? []).map((a) => a.cast))),
+    );
     ctx.store.write(
       `${v}/visual-cast.json`,
       `${JSON.stringify(
@@ -775,6 +800,7 @@ export function directExecutor(d: { text: TextService }) {
           // nhân vật đã khai báo (có ảnh → dùng; chưa có → bước Ảnh sinh ảnh chuẩn từ `look`) + nhân vật mới
           cast: [
             ...castMembers
+              .filter((c) => !c.optional || usedCast.has(c.id))
               .filter((c) => c.look || refOf.get(c.id))
               .map((c) => ({
                 key: c.id,
