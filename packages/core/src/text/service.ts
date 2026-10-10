@@ -307,10 +307,17 @@ export function createTextService(opts: TextServiceOptions = {}): TextService {
               ...(got.note ? { note: got.note } : {}),
             };
           });
-          const issues = (j.issues ?? []).filter(
-            (i) =>
-              ['critical', 'major', 'minor'].includes(i.severity) && typeof i.text === 'string',
-          );
+          // chỉ giữ các trường của schema (model hay thêm `id`, `fix`… → round-N.json sai schema, vd_mdxzk4ui)
+          const issues = (j.issues ?? [])
+            .filter(
+              (i) =>
+                ['critical', 'major', 'minor'].includes(i.severity) && typeof i.text === 'string',
+            )
+            .map((i) => ({
+              severity: i.severity,
+              text: i.text,
+              ...(typeof i.location === 'string' && i.location ? { location: i.location } : {}),
+            }));
           const score =
             Math.round(criteria.reduce((s, c) => s + c.score * c.weight, 0) * 100) / 100;
           return { score, criteria, issues, usage, cost_usd: cost, model: out.model };
