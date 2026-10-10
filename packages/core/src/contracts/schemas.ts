@@ -2115,6 +2115,14 @@ export const schemas = {
           },
           "generated_from": {
             "$ref": "#/definitions/Sha256"
+          },
+          "design_look": {
+            "type": "string",
+            "description": "Design system cấp kênh (2026-10-10): băm phần màu/chữ/layout — để biết video lệch design kênh."
+          },
+          "design_images": {
+            "type": "string",
+            "description": "Băm phong cách ảnh của design kênh."
           }
         },
         "required": [
