@@ -9,7 +9,8 @@ import { SfError } from '../errors.js';
 import type { Builder, NodeDef, Planner } from '../graph/graph.js';
 import type { Db } from '../store/db.js';
 import type { WriteStore } from '../store/writer.js';
-import { lookPrompt, generateImage, assetRef, removeBackground } from './service.js';
+import { lookPrompt, generateImage, assetRef } from './service.js';
+import { alphaNegative, alphaPrompt } from './alpha-prompt.js';
 import type { ImageAdapterInput } from './types.js';
 import { readFileSync } from 'node:fs';
 
@@ -36,7 +37,7 @@ export function assetBuilder(deps: AssetBuilderDeps): Builder {
         'E_SCHEMA_INVALID',
         `layer ${def.key} asks to generate an image but has no prompt`,
       );
-    const gen = await generateImage(
+    const r = await generateImage(
       { providers: deps.providers, db: deps.db },
       ctx.store,
       {
@@ -51,19 +52,6 @@ export function assetBuilder(deps: AssetBuilderDeps): Builder {
       },
       { videoId: ctx.videoId, appDataDir: deps.appDataDir, signal: ctx.signal },
     );
-    // lớp cần trong suốt (nhân vật/đối tượng ghép cảnh): model ảnh hay vẽ kèm nền giấy, sàn… dù ở chế độ RGBA
-    // (vd_bjoza2qu) → luôn tách nền (~1 s, cache theo ảnh nguồn); tách lỗi → giữ ảnh gốc
-    let r = gen;
-    if (parts.transparent)
-      r = await removeBackground(
-        { providers: deps.providers, db: deps.db },
-        ctx.store,
-        {
-          source_asset_id: gen.asset_id,
-          subject: parts.size[1] > parts.size[0] ? 'person' : 'object',
-        },
-        { videoId: ctx.videoId, appDataDir: deps.appDataDir, signal: ctx.signal },
-      ).catch(() => gen);
     return {
       outputs: [r.public!],
       meta: {
@@ -113,9 +101,11 @@ function plannedInput(store: WriteStore, def: NodeDef): ImageAdapterInput | unde
   };
   try {
     const style = lookPrompt(p.look);
+    const full = style ? `${p.prompt.trim()} ${style}` : p.prompt.trim();
     return {
       kind: 'generate',
-      prompt: style ? `${p.prompt.trim()} ${style}` : p.prompt.trim(),
+      prompt: p.transparent ? alphaPrompt(full) : full,
+      ...(p.transparent ? { negative_prompt: alphaNegative() } : {}),
       width: p.size[0],
       height: p.size[1],
       ...(p.transparent ? { transparent: true } : {}),

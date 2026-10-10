@@ -17,6 +17,8 @@ import { snapSide } from './qwen21-comfy.js';
 import type { ImageAdapterInput, ImageFileRef } from './types.js';
 
 type Asset = AssetManifest['assets'][number];
+import { alphaNegative, alphaPrompt } from './alpha-prompt.js';
+
 const MANIFEST = 'assets/manifest.json';
 
 export interface ImageServices {
@@ -173,10 +175,16 @@ export async function generateImage(
     ).value;
   const style = lookPrompt(look);
   const seed = pickSeed(input.seed);
+  const full = style ? `${input.prompt.trim()} ${style}` : input.prompt.trim();
   const req: ImageAdapterInput = {
     kind: 'generate',
-    prompt: style ? `${input.prompt.trim()} ${style}` : input.prompt.trim(),
-    ...(input.negative_prompt ? { negative_prompt: input.negative_prompt } : {}),
+    // trong suốt: Qwen RGBA sinh thẳng — bỏ cụm tả nền khỏi prompt, chặn nền bằng prompt phủ định
+    prompt: input.transparent ? alphaPrompt(full) : full,
+    ...(input.transparent
+      ? { negative_prompt: alphaNegative(input.negative_prompt) }
+      : input.negative_prompt
+        ? { negative_prompt: input.negative_prompt }
+        : {}),
     width: snapSide(input.width, lim),
     height: snapSide(input.height, lim),
     ...(input.transparent ? { transparent: true } : {}),

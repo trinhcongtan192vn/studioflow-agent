@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { imageStyleSuffix, readChannelDesign } from '../design/channel-design.js';
+import { readHost } from '../cast/host.js';
 import { SfError } from '../errors.js';
 import { isMap, isSeq } from 'yaml';
 import { resolveConfig } from '../config/resolve.js';
@@ -19,7 +20,15 @@ export function mediaExecutor(d: {
   /** Sinh ảnh chuẩn (tách nền) của một nhân vật/đối tượng → asset kênh. */
   castBase?: (
     ctx: StepRunContext,
-    req: { prompt: string; width: number; height: number; seed: number; key: string },
+    req: {
+      prompt: string;
+      width: number;
+      height: number;
+      seed: number;
+      key: string;
+      /** Ảnh tham chiếu phong cách (nhân vật dẫn chuyện của kênh). */
+      refs?: string[];
+    },
   ) => Promise<string>;
 }) {
   return async (ctx: StepRunContext): Promise<{ outputs: string[]; summary: string }> => {
@@ -140,6 +149,8 @@ async function castBases(
   if (!file.cast?.length) return { made: 0, failed: 0 };
   const design = readChannelDesign(ctx.store.root);
   const style = design ? `, ${imageStyleSuffix(design)}` : '';
+  // nhân vật dẫn chuyện của kênh: mọi nhân vật mới vẽ theo đúng phong cách tạo hình của nó
+  const host = readHost(ctx.store.root);
   let made = 0;
   let failed = 0;
   for (const c of file.cast) {
@@ -148,9 +159,11 @@ async function castBases(
     const object = c.kind === 'object';
     ctx.progress?.(0, 2, `Ảnh chuẩn: ${c.name ?? c.key}`);
     try {
+      const styled = host && host.id !== c.key;
       c.asset_id = await make(ctx, {
         key: c.key,
-        prompt: `${c.look}, ${object ? 'whole object, centered, front view' : 'full body head to feet, standing in a neutral pose, facing the camera'}, character reference, isolated, plain background${style}`,
+        ...(styled ? { refs: [host.asset_id] } : {}),
+        prompt: `${styled ? 'drawn in exactly the same art style as the reference image (same line work, shading, colors and proportions) but a different character: ' : ''}${c.look}, ${object ? 'whole object, centered, front view' : 'full body head to feet, standing in a neutral pose, facing the camera'}, character reference, isolated${style}`,
         width: object ? 1024 : 768,
         height: object ? 1024 : 1344,
         seed: seedOf(`${c.key}|${c.look}`),

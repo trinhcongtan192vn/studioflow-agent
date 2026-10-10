@@ -69,6 +69,7 @@ JSON-RPC 2.0 (kênh truyền: tech-defaults). Phương thức (renderer gọi) v
 | `channel.open` / `channel.init` / `channel.list_recent` | |
 | `video.list` / `video.create` / `video.open` | |
 | `chat.send` / `chat.interrupt` / `chat.history` / `chat.new` | |
+| `channel.host.get` / `channel.host.set` | Nhân vật dẫn chuyện của kênh (Cài đặt kênh): ảnh png/jpg/webp/jfif, tên, ngoại hình |
 | `upload.ingest` | `{path_on_disk}` → `{rel_path}`; chép qua module ghi của Gateway |
 | `approval.decide` | `{approval_id, decision, note?}` |
 | `permission.decide` | `{request_id, allow, remember?}` |

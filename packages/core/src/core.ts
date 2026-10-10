@@ -14,7 +14,7 @@ import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
 import { composeExecutor } from './workflow/compose.js';
 import { runDesignProposal } from './design/channel-design.js';
-import { generateImage, removeBackground } from './image/service.js';
+import { generateImage } from './image/service.js';
 import { directExecutor } from './workflow/direct.js';
 import { mediaExecutor } from './workflow/media.js';
 import { studioTools } from './studio/tools.js';
@@ -560,19 +560,12 @@ export function createCore(opts: CoreOptions = {}): Core {
             height: r.height,
             transparent: true,
             seed: r.seed,
+            ...(r.refs?.length ? { reference_asset_ids: r.refs } : {}),
             tags: ['cast-base', `cast:${r.key}`],
           },
           opts,
         );
-        // ảnh chuẩn phải sạch nền (làm tham chiếu cho mọi tư thế): luôn tách nền
-        return (
-          await removeBackground(
-            { providers, db },
-            ctx.store,
-            { source_asset_id: gen.asset_id, subject: r.height > r.width ? 'person' : 'object' },
-            opts,
-          ).catch(() => gen)
-        ).asset_id;
+        return gen.asset_id;
       },
       music: musicExecutor({
         appDataDir,

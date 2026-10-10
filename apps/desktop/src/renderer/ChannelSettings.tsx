@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AdvancedPanel } from './AdvancedPanel';
 import { DesignSystemPanel } from './DesignSystemPanel';
+import { HostPanel } from './HostPanel';
 import { ChannelConnections } from './Connections';
 import { Icon } from './Icon';
 import { core } from './rpc';
@@ -30,6 +31,7 @@ const SECTIONS = [
   { id: 'mode', label: 'Chế độ' },
   { id: 'content', label: 'Nội dung' },
   { id: 'design', label: 'Design system' },
+  { id: 'host', label: 'Nhân vật dẫn chuyện' },
   { id: 'advanced', label: 'Nâng cao' },
   { id: 'competitors', label: 'Kênh đối thủ' },
   { id: 'publish', label: 'Đăng video' },
@@ -334,6 +336,12 @@ export function ChannelSettings({ channel, onClose }: { channel: string; onClose
             'design',
             <DesignSystemPanel channel={channel} />,
             'Mọi video của kênh theo design system này: màu và chữ của khung hình, phong cách ảnh (khóa cho mọi ảnh), layout và nhịp ưu tiên, nhạc.',
+          )}
+
+          {section(
+            'host',
+            <HostPanel channel={channel} />,
+            'Ảnh nhân vật của kênh (png, jpg, webp, jfif) làm người dẫn xuất hiện trong video. Nhân vật khác trong câu chuyện (vd. nhân vật lịch sử) được vẽ theo phong cách tạo hình của ảnh này, giữ đặc trưng riêng của họ.',
           )}
 
           {section(

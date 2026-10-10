@@ -286,7 +286,7 @@ transition_in: { type: crossfade, duration_ms: 600 }
 - `STORYBOARD.md` là **nguồn duy nhất cho nội dung và cấu trúc** (D9 mục 1). Adapter sinh định dạng storyboard HyperFrames cần (bản tạm) nếu khác `[chờ S3]`.
 
 ### 5.6 `CAST.md`
-Front matter + một khối `sf-cast` (YAML danh sách `CastMember`) + văn xuôi mô tả nhân vật. Cast cấp kênh nằm ở `characters/<cast_id>/cast.json`; `CAST.md` của video chỉ tham chiếu `id` và có thể ghi đè trường.
+Front matter + một khối `sf-cast` (YAML danh sách `CastMember`) + văn xuôi mô tả nhân vật. Cast cấp kênh nằm ở `characters/<cast_id>/cast.json`; `CAST.md` của video chỉ tham chiếu `id` và có thể ghi đè trường. 2026-10-10: nhân vật cấp kênh vai `narrator` có `reference_images` là **nhân vật dẫn chuyện** (ảnh người dùng tải lên) — đạo diễn đưa vào cảnh như người dẫn; ảnh chuẩn của mọi nhân vật mới được sinh với ảnh này làm tham chiếu phong cách. Nhân vật cấp kênh khác chỉ là gợi ý tùy chọn cho video không khai báo họ trong `CAST.md`. Ảnh nhân vật trong suốt sinh thẳng bằng Qwen RGBA (prompt không tả nền + prompt phủ định), không có bước tách nền ngoài.
 
 ### 5.7 `audio_meta.json`
 

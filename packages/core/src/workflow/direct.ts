@@ -11,6 +11,7 @@ import { loadOutputProfile } from '../hf/outputs.js';
 import { readChannelAssets } from '../hf/packet.js';
 import { ACTOR_ACTIONS, LAYOUT_INFO, LAYOUTS, MOTIONS } from '../hf/templates.js';
 import { loadVideoModel } from '../graph/model.js';
+import { readHost } from '../cast/host.js';
 import {
   imageStyleSuffix,
   readChannelDesign,
@@ -159,6 +160,8 @@ export function directPrompt(i: {
     expressions?: string[];
     /** Nhân vật cấp kênh không có trong CAST.md của video: chỉ gợi ý, không bắt buộc dùng. */
     optional?: boolean;
+    /** Nhân vật dẫn chuyện của kênh (ảnh người dùng tải lên). */
+    host?: boolean;
   }[];
   heroAllowed: boolean;
   music: boolean;
@@ -233,10 +236,16 @@ export function directPrompt(i: {
       ? i.params.scenes !== false
         ? [
             '',
-            ...(i.cast.some((c) => !c.optional)
+            ...(i.cast.some((c) => c.host)
+              ? [
+                  "## Channel host (the on-screen presenter of every video of this channel — bring them in as the guide: hook, explanations, reactions, outro; any pose; other characters are drawn in the host's art style)",
+                  ...i.cast.filter((c) => c.host).map(castLine),
+                ]
+              : []),
+            ...(i.cast.some((c) => !c.optional && !c.host)
               ? [
                   '## Characters of this video (already defined — actor "cast" = id; images are made after your plan, so ask for any pose or action the line needs)',
-                  ...i.cast.filter((c) => !c.optional).map(castLine),
+                  ...i.cast.filter((c) => !c.optional && !c.host).map(castLine),
                 ]
               : []),
             ...(i.cast.some((c) => c.optional)
@@ -686,11 +695,14 @@ export function directExecutor(d: { text: TextService }) {
     // nhân vật của video = CAST.md; nhân vật cấp kênh (video trước) chỉ là gợi ý tùy chọn (vd_mdxzk4ui)
     const castMd = read(`${v}/CAST.md`) ?? '';
     const ownIds = new Set([...castMd.matchAll(/\bid:\s*(ca_[0-9a-z]{8})/g)].map((m) => m[1]!));
+    // người dẫn chuyện của kênh = nhân vật vai narrator có ảnh tham chiếu (người dùng tải lên)
+    const hostId = readHost(ctx.store.root)?.id;
     const castMembers = Object.entries(vm.cast)
-      .filter(([, c]) => c.role !== 'narrator')
+      .filter(([id, c]) => c.role !== 'narrator' || id === hostId)
       .map(([id, c]) => ({
         id,
-        optional: !ownIds.has(id),
+        optional: !ownIds.has(id) && id !== hostId,
+        host: id === hostId,
         name: c.name ?? id,
         ...((c as { description?: string }).description
           ? { description: (c as { description?: string }).description }
