@@ -50,6 +50,8 @@ const MEDIA_OK = [
   /[\\/]voices[\\/]vo_[0-9a-z]{8}[\\/]ref\.wav$/i,
   /[\\/]videos[\\/][^\\/]+[\\/]renders[\\/][^\\/]+[\\/][^\\/]+\.mp4$/i,
   /[\\/]videos[\\/][^\\/]+[\\/].+\.(png|jpe?g|webp)$/i,
+  // ảnh thư viện kênh (xem lại cảnh dùng ảnh có sẵn ở tab Xem trước)
+  /[\\/]assets[\\/].+\.(png|jpe?g|webp)$/i,
 ];
 const MEDIA_TYPES: Record<string, string> = {
   wav: 'audio/wav',

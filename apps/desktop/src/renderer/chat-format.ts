@@ -246,7 +246,9 @@ export type StepCta =
   | { kind: 'reveal'; label: string; path: string }
   | { kind: 'export'; label: string; render_id?: string }
   /** Duyệt ngay điểm duyệt đang chờ (041). */
-  | { kind: 'approve'; label: string; approval_id: string };
+  | { kind: 'approve'; label: string; approval_id: string }
+  /** Nghe thử cả lời đọc ngay trong chat (bước Giọng đọc xong). */
+  | { kind: 'listen'; label: string };
 
 const DOC_LABELS: Record<string, string> = {
   'BRIEF.md': 'Xem brief',
@@ -386,6 +388,8 @@ export function stepCtas(
       out.push(exportCta(p));
     }
   }
+  // Giọng đọc xong → nghe thử ngay trong chat
+  if (step.id === 'voice') out.unshift({ kind: 'listen', label: '▶ Nghe thử' });
   if (PREVIEW_STEPS.has(step.id))
     out.push({ kind: 'tab', label: 'Mở xem trước', tab: 'Xem trước' });
   if (step.id === 'music') out.push({ kind: 'tab', label: 'Xem nhạc', tab: 'Nhạc' });

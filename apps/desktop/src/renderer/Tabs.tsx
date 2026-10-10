@@ -6,6 +6,7 @@ import { importProgress, importSummary, SCOPE_LABEL, type MusicScope } from './m
 import { CaptionPanel } from './CaptionPanel';
 import { addContextRef } from './context-refs';
 import { StudioBridge } from './studio-bridge';
+import { ReviewPanel } from './ReviewPanel';
 
 export { ProgressTab } from './ProgressTab';
 
@@ -155,6 +156,9 @@ export function PreviewTab({ channel, video }: { channel: string; video?: string
   );
   return (
     <div className="preview">
+      {/* kết quả từng bước đã xong: video, giọng đọc, cảnh, nhạc, ảnh chụp frame */}
+      {!wide && !url && <ReviewPanel key={video} channel={channel} video={video} />}
+      <h3 className="review-tools">🛠 Chỉnh chi tiết, render, xuất</h3>
       <div className="row">
         {url ? (
           <>

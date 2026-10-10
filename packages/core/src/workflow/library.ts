@@ -45,11 +45,9 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     reads: r('SCRIPT', 'CAST'),
     writes: r('audio'),
     outputs: r('audio_meta.json'),
-    // D6 mục 2/4.2: thời lượng đo trên audio thật (không ước từ số từ/phút)
-    gates: () => [
-      { kind: 'graph_fresh', nodes: 'audio.line:*' },
-      { kind: 'objective', check: 'audio_duration' },
-    ],
+    // Tan (2026-10-10): bỏ điểm dừng cảnh báo thời lượng (`audio_duration`) — lệch mục tiêu không hỏi người dùng;
+    // trần cứng của định dạng (`max_duration`, shorts) vẫn khai ở manifest
+    gates: () => [{ kind: 'graph_fresh', nodes: 'audio.line:*' }],
   },
   // v2: đạo diễn — một lượt Opus cho cả video, JSON → STORYBOARD.md (ảnh, layout, chữ, chuyển động, nhạc)
   direct: {

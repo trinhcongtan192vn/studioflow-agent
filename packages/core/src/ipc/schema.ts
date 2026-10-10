@@ -1,5 +1,6 @@
 // Hợp đồng IPC renderer ↔ core (D10 mục 4, 008): JSON-RPC 2.0 qua MessagePort do `main` cấp.
 // D10 ghi đường dẫn `packages/core/ipc/schema.ts`; đặt trong `src/` để biên dịch cùng core (008 R1).
+import type { ChannelVoice, ReviewData, SpeakerVoice } from '../review/review.js';
 import type { VideoCard } from '../domain/video-card.js';
 import type { LibraryEntry } from '../render/export.js';
 import type { PublishQueueItem } from '../publish/queue-view.js';
@@ -296,6 +297,20 @@ export interface IpcMethods {
     };
   };
   /** 073: thư viện — mọi bản render đã xong của các video trong kênh, mới nhất trước. */
+  /** Người nói của video + giọng đang dùng; giọng ref của kênh để chọn (Tan 2026-10-10). */
+  'voice.speakers': {
+    params: VideoRef;
+    result: { speakers: SpeakerVoice[]; voices: ChannelVoice[] };
+  };
+  /** Đổi giọng một người nói (người dẫn → `voice.id` tầng video; nhân vật → `voice_id`). */
+  'voice.assign': {
+    params: VideoRef & { speaker: string; voice_id: string };
+    result: { ok: true };
+  };
+  /** Ghép audio các line thành một file nghe thử cả lời đọc. */
+  'voice.preview': { params: VideoRef; result: { file: string } };
+  /** Kết quả từng bước để xem lại trong tab Xem trước. */
+  'video.review': { params: VideoRef; result: ReviewData };
   'render.library': { params: ChannelRef; result: { renders: LibraryEntry[] } };
   /** 066: sao chép bản render (+ thumbnail / .srt / .txt) ra thư mục người dùng chọn; không ghi đè. */
   'video.export': {
