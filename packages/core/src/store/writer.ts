@@ -51,6 +51,26 @@ export const BACKUP_KEEP = 20;
 const LOG_LIMIT = 10_000;
 const RETRY_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
 
+/**
+ * Đổi tên tệp tạm thành đích; Windows: đích đang được đọc (phát trong app, diệt virus quét, tiến trình lõi cũ
+ * chưa thoát) → EPERM/EBUSY tạm thời → thử lại (~2,4 s), hết lượt thì xóa tệp tạm và báo lỗi.
+ */
+function renameRetry(tmp: string, abs: string): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(tmp, abs);
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code ?? '';
+      if (attempt >= 15 || !RETRY_CODES.has(code)) {
+        rmSync(tmp, { force: true });
+        throw e;
+      }
+      sleepSync(20 * (attempt + 1));
+    }
+  }
+}
+
 function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
@@ -139,7 +159,7 @@ export class WriteStore {
     } catch {
       copyFileSync(src.abs, tmp);
     }
-    renameSync(tmp, dst.abs);
+    renameRetry(tmp, dst.abs);
     const hash = sha256(readFileSync(dst.abs));
     this.record(dst.rel, hash, opts.by);
     return { path: dst.rel, hash };
@@ -181,7 +201,7 @@ export class WriteStore {
     mkdirSync(path.dirname(dst.abs), { recursive: true });
     const tmp = path.join(tmpDir, randomUUID());
     copyFileSync(absSrc, tmp);
-    renameSync(tmp, dst.abs);
+    renameRetry(tmp, dst.abs);
     const hash = sha256(readFileSync(dst.abs));
     this.record(dst.rel, hash, opts.by);
     return { path: dst.rel, hash };
@@ -269,19 +289,7 @@ export class WriteStore {
     } finally {
       closeSync(fd);
     }
-    for (let attempt = 0; ; attempt++) {
-      try {
-        renameSync(tmp, abs);
-        return;
-      } catch (e) {
-        const code = (e as NodeJS.ErrnoException).code ?? '';
-        if (attempt >= 5 || !RETRY_CODES.has(code)) {
-          rmSync(tmp, { force: true });
-          throw e;
-        }
-        sleepSync(20 * (attempt + 1));
-      }
-    }
+    renameRetry(tmp, abs);
   }
 
   /** Artifact nằm trong một approval `approved`, hoặc HTML của frame đã ghim (D3 mục 8). */
