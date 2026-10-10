@@ -36,8 +36,8 @@ describe('recovery (007 US4)', () => {
     await e.select('demo-explainer', 'yt-1080p30');
     await e.approve(e.summary().pending_approvals[0]!);
     await e.advance();
-    await e.approve(e.summary().pending_approvals[0]!); // script
-    const run = e.approve(e.summary().pending_approvals[0]!); // storyboard → voice chạy
+    // luồng v2: voice ngay sau kịch bản
+    const run = e.approve(e.summary().pending_approvals[0]!); // script → voice chạy
     const t0 = Date.now();
     while (status(fx).voice!.status !== 'running') {
       if (Date.now() - t0 > 10_000) throw new Error('voice never started');
@@ -61,9 +61,8 @@ describe('recovery (007 US4)', () => {
     await e.select('demo-explainer', 'yt-1080p30');
     await e.approve(e.summary().pending_approvals[0]!);
     await e.advance();
-    await e.approve(e.summary().pending_approvals[0]!); // script
     e.pause();
-    await e.approve(e.summary().pending_approvals[0]!); // storyboard → dừng (paused)
+    await e.approve(e.summary().pending_approvals[0]!); // script → dừng (paused), voice chờ
     expect(status(fx).voice!.status).toBe('pending');
     const appData = fx.core.appDataDir;
     fx.core.close();
@@ -94,36 +93,42 @@ await core.workflows.engine(${JSON.stringify(fx.dir)}, ${JSON.stringify(fx.video
 
     const core2 = createCore({ appDataDir: appData, workflowDirs: [workflowFixtures] });
     try {
-      core2.workflows.registerExecutor('finalize', finalizeExecutor(core2));
+      core2.workflows.registerExecutor('compose', finalizeExecutor(core2));
+      core2.workflows.registerExecutor('direct', async (ctx) => {
+        ctx.store.write(`videos/${ctx.videoId}/STORYBOARD.md`, fx.sample('STORYBOARD.md'), {
+          by: 'test',
+        });
+        return { outputs: ['STORYBOARD.md'] };
+      });
       const e2 = core2.workflows.engine(fx.dir, fx.videoId);
       e2.open();
       expect(status(fx).voice!.status).toBe('pending');
       await e2.advance();
       expect(status(fx)).toMatchObject({
         voice: { status: 'done' },
-        finalize: { status: 'waiting_approval' },
+        storyboard: { status: 'waiting_approval' },
       });
     } finally {
       core2.close();
     }
   }, 60_000);
 
-  it('an agent step interrupted by a crash goes back to pending and asks for confirmation', async () => {
+  // luồng v2: bước agent duy nhất là `cast`; gói mẫu dùng `direct` (engine giao agent giả) — bước engine bị
+  // ngắt khi chưa có file đầu ra → `pending`, chạy lại tự động (không hỏi xác nhận như bước agent)
+  it('a step interrupted by a crash before writing its output goes back to pending', async () => {
     fx = workflowFixture();
     wireDemo(fx);
     const e = fx.core.workflows.engine(fx.dir, fx.videoId);
     await e.select('demo-explainer', 'yt-1080p30');
     await e.approve(e.summary().pending_approvals[0]!);
-    // giả lập crash: storyboard (agent) đang running trong state.json
+    // giả lập crash: storyboard đang running trong state.json, chưa có STORYBOARD.md
     const p = path.join(fx.dir, fx.v('state.json'));
     const st = JSON.parse(readFileSync(p, 'utf8'));
     st.steps.script.status = 'done';
     st.steps.storyboard.status = 'running';
     writeFileSync(p, JSON.stringify(st));
     e.open();
-    expect(status(fx).storyboard).toMatchObject({
-      status: 'pending',
-      error: { code: 'E_STEP_INCOMPLETE' },
-    });
+    expect(status(fx).storyboard).toMatchObject({ status: 'pending' });
+    expect(status(fx).storyboard!.error).toBeUndefined();
   });
 });

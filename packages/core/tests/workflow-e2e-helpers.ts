@@ -9,6 +9,66 @@ import type {
 } from '../src/index.js';
 import { sampleFrame } from './frame-helpers.js';
 
+const LAYOUT_CYCLE = ['image-title', 'stat-pop', 'image-caption', 'big-text', 'list', 'quote'];
+
+/**
+ * Đạo diễn giả (luồng v2): đọc danh sách line trong prompt của bước `direct`, trả kế hoạch hợp lệ — một cảnh mỗi
+ * line, layout xoay vòng, ảnh sinh theo prompt (ảnh thư viện kênh cho cảnh đầu nếu prompt có), nhạc theo scene.
+ */
+export function directorPlan(prompt: string): Record<string, unknown> {
+  const lines = [...prompt.matchAll(/^(ln_[0-9a-z]{8}) · /gm)].map((m) => m[1]!);
+  const lib = /^- (as_[0-9a-z]{8}):/m.exec(prompt)?.[1];
+  const music = !prompt.includes('"music": null');
+  // frame tùy biến bật → cảnh đầu là frame "hero" (phiên frame AI)
+  const hero = prompt.includes('"hero": true');
+  return {
+    images: [{ key: 'img1', prompt: 'a clear blue sky over green hills, cinematic, no text' }],
+    scenes: [
+      {
+        title: 'Scene',
+        mood: 'curious',
+        music: music ? 'calm curious piano' : null,
+        shots: lines.map((id, i) => {
+          const layout = LAYOUT_CYCLE[i % LAYOUT_CYCLE.length]!;
+          return {
+            line_ids: [id],
+            layout,
+            image: i === 0 && lib ? `asset:${lib}` : layout.startsWith('image') ? 'img1' : null,
+            text:
+              layout === 'stat-pop'
+                ? { number: '87%', main: 'ánh sáng xanh' }
+                : layout === 'list'
+                  ? { items: ['Ánh sáng', 'Không khí', 'Màu xanh'] }
+                  : { main: `Ý ${i + 1}`, sub: layout === 'quote' ? 'Rayleigh' : null },
+            motion: 'ken-burns-in',
+            transition: i ? 'crossfade' : 'cut',
+            ...(hero && i === 0 ? { hero: true } : {}),
+          };
+        }),
+      },
+    ],
+  };
+}
+
+const isDirector = (input: { messages: { content: string }[] }) =>
+  input.messages.some((m) => m.content.includes('You are the art director'));
+
+/** Bọc một TextService: prompt của bước `direct` → kế hoạch của `directorPlan`. */
+export function withDirector(base: TextService): TextService {
+  return {
+    ...base,
+    generate: async (role, input, scope) =>
+      isDirector(input)
+        ? {
+            text: JSON.stringify(directorPlan(input.messages.map((m) => m.content).join('\n'))),
+            usage: { input: 10, output: 5 },
+            cost_usd: 0,
+            model: 'claude-opus-5-5',
+          }
+        : base.generate(role, input, scope),
+  };
+}
+
 /** Text giả: `script` trả `body`, `meta` trả JSON `meta`; critic chấm 9. */
 export function stubText(body: string, meta: Record<string, unknown>): TextService {
   const usage = { input: 10, output: 5 };
@@ -19,7 +79,11 @@ export function stubText(body: string, meta: Record<string, unknown>): TextServi
       aux: { provider: 'claude', model: 'a' },
     }),
     generate: async (_r, input) => ({
-      text: input.messages.some((m) => m.content.includes('JSON')) ? JSON.stringify(meta) : body,
+      text: isDirector(input)
+        ? JSON.stringify(directorPlan(input.messages.map((m) => m.content).join('\n')))
+        : input.messages.some((m) => m.content.includes('JSON'))
+          ? JSON.stringify(meta)
+          : body,
       usage,
       cost_usd: 0,
       model: 'p',

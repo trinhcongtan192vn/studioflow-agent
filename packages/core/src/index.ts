@@ -442,8 +442,20 @@ export {
   type ChannelIssue,
   type ChannelValidation,
 } from './domain/channel-validate.js';
-export { storyboardExecutor, checkStoryboard, type StoryboardDeps } from './text/storyboard.js';
-export { assetsExecutor, unresolvedAssets } from './workflow/assets.js';
+export {
+  directExecutor,
+  directPrompt,
+  normalizePlan,
+  parsePlan,
+  planToStoryboard,
+  scriptLines,
+  DIRECTOR_MODEL,
+  type DirectPlan,
+  type DirectShot,
+  type DirectParams,
+} from './workflow/direct.js';
+export { mediaExecutor } from './workflow/media.js';
+export { composeExecutor } from './workflow/compose.js';
 export {
   diskUsage,
   channelUsage,

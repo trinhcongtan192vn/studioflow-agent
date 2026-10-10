@@ -66,7 +66,11 @@ export function wireDemo(fx: WorkflowFixture, opts: { badScript?: boolean } = {}
     );
     return { outputs: ['SCRIPT.md'] };
   });
-  fx.core.workflows.registerExecutor('finalize', finalizeExecutor(fx.core));
+  fx.core.workflows.registerExecutor('compose', finalizeExecutor(fx.core));
+  // luồng v2: bước `storyboard` của gói mẫu là `uses: direct` — executor giả giao agent (cơ chế bước agent)
+  fx.core.workflows.registerExecutor('direct', async (ctx) => ({
+    outputs: (await ctx.agent!()) ?? ['STORYBOARD.md'],
+  }));
   fx.core.workflows.setAgentRunner(async (instruction, ctx) => {
     fx.store.write(fx.v('STORYBOARD.md'), fx.sample('STORYBOARD.md'), { by: 'test' });
     await ctx.stepComplete(['STORYBOARD.md']);

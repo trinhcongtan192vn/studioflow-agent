@@ -1,6 +1,6 @@
-// 016 · FR-WF-05, AC-M1-01 (dạng hồi quy), AC-M1-03 — workflow `narrated-explainer` chạy hết tới MP4
-// phát hành: TTS/ASR giả (SF_GPU=0), text giả cho script/meta, agent giả cho storyboard/assets/music,
-// phiên frame giả; HyperFrames (lint/check/snapshot/render) và FFmpeg thật.
+// 016 · FR-WF-05, AC-M1-01 (dạng hồi quy), AC-M1-03 — workflow `narrated-explainer` (luồng v2) chạy hết tới
+// MP4 phát hành: TTS/ASR giả (SF_GPU=0), text giả cho script/meta + đạo diễn giả (một lượt JSON → storyboard),
+// không phiên agent; frame từ bộ layout; HyperFrames (lint/check/snapshot/render) và FFmpeg thật.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { jpegSize } from '../../src/thumbnail/thumbnail.js';
@@ -9,6 +9,7 @@ import { describeStudio } from '../../src/testing/gpu.js';
 import {
   createCore,
   createVideo,
+  directExecutor,
   parseBlocksDoc,
   publishMetaExecutor,
   scriptExecutor,
@@ -24,6 +25,7 @@ import {
 } from '../../src/index.js';
 import { copyChannel, fixtureAppData, tempDir } from '../domain-helpers.js';
 import { publishWaiting } from '../workflow-helpers.js';
+import { withDirector } from '../workflow-e2e-helpers.js';
 import { sampleFrame } from '../frame-helpers.js';
 
 const SCRIPT_BODY = [
@@ -118,84 +120,17 @@ beforeAll(() => {
   core = createCore({ appDataDir: t.dir, permissionTimeoutMs: 5000, backoffMs: [10, 20] });
   core.workflows.registerExecutor('script', scriptExecutor({ text: stubText() }));
   core.workflows.registerExecutor('publish-meta', publishMetaExecutor({ text: stubText() }));
+  core.workflows.registerExecutor('direct', directExecutor({ text: withDirector(stubText()) }));
   core.workflows.setAgentRuntime(frameRuntime(() => core));
   // người dùng đồng ý ghi đè STORYBOARD.md đã duyệt ở bước overlays (D5 5.1)
   core.gateway.permissions.on('permission.requested', (r: { request_id: string; kind: string }) => {
     asked.push(r.kind);
     core.gateway.permissions.decide({ request_id: r.request_id, allow: true });
   });
-  // phiên main giả: bước agent storyboard/assets/music theo skill của gói
+  // luồng v2: không bước nào giao agent — ghi lại nếu engine lỡ giao
   core.workflows.setAgentRunner(async (instruction, ctx) => {
-    const step = /bước (\S+) của workflow/.exec(instruction)![1]!;
-    agentSteps.push(step);
-    const session: SessionContext = {
-      session_id: 'ss_agent001',
-      kind: 'main',
-      channel_dir: ctx.channelDir,
-      video_id: ctx.videoId as SessionContext['video_id'],
-    };
-    if (step === 'storyboard') {
-      const script = readFileSync(ctx.store.abs(`videos/${ctx.videoId}/SCRIPT.md`), 'utf8');
-      const lines = [...script.matchAll(/sf:line id=(ln_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      const beats = [...script.matchAll(/sf:beat id=(bt_[0-9a-z]{8})/g)].map((m) => m[1]!);
-      const frame = (i: number, ids: string[], beat: string, tr: boolean) =>
-        [
-          `### Frame ${i}`,
-          '```sf-frame',
-          `beat_ids: [${beat}]`,
-          `line_ids: [${ids.join(', ')}]`,
-          `intent: "Hình minh họa ${i}"`,
-          'layers:',
-          '  - { kind: background, notes: "nền tối" }',
-          `  - { kind: text, text: "Ý ${i}" }`,
-          ...(tr ? ['transition_in: { type: crossfade, duration_ms: 500 }'] : []),
-          '```',
-          '',
-        ].join('\n');
-      const sb = [
-        '---',
-        'schema_version: 1',
-        `video_id: ${ctx.videoId}`,
-        'status: draft',
-        '---',
-        '## Scene 1 — Bầu trời',
-        '```sf-scene',
-        'title: Bầu trời',
-        'mood: tò mò',
-        'music: { query: "nhẹ nhàng" }',
-        '```',
-        '',
-        frame(1, lines.slice(0, 2), beats[0]!, false),
-        frame(2, lines.slice(2), beats[1]!, true),
-      ].join('\n');
-      const w = await core.gateway.call(session, 'artifact.write', {
-        path: 'STORYBOARD.md',
-        content: sb,
-      });
-      if (!w.ok) throw new Error(JSON.stringify(w));
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else if (step === 'finish') {
-      // 062: look + hiệu ứng + overlay trong một bước
-      // 027: lower third ở frame đầu (khối của app, biến bắt buộc `title`)
-      const rel = `videos/${ctx.videoId}/STORYBOARD.md`;
-      const sb = readFileSync(ctx.store.abs(rel), 'utf8').replace(
-        'intent: "Hình minh họa 1"',
-        'intent: "Hình minh họa 1"\noverlays: [{ block: lower-third, vars: { title: "Tán xạ Rayleigh", subtitle: "Vật lý khí quyển" } }]',
-      );
-      const w = await core.gateway.call(session, 'artifact.write', {
-        path: 'STORYBOARD.md',
-        content: sb,
-      });
-      if (!w.ok) throw new Error(JSON.stringify(w));
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else if (step === 'music') {
-      // kho nhạc trống → music.find báo không có → scene giữ query, không có track
-      const r = await core.gateway.call(session, 'music.find', { query: 'nhẹ nhàng' });
-      expect(r).toMatchObject({ ok: false, error: { code: 'E_MUSIC_NOT_FOUND' } });
-      await ctx.stepComplete(['STORYBOARD.md']);
-    } else {
-      await ctx.stepComplete([]);
-    }
+    agentSteps.push(/bước (\S+) của workflow/.exec(instruction)?.[1] ?? instruction.slice(0, 40));
+    await ctx.stepComplete([]);
   });
   const store = core.gateway.storeFor(c.dir);
   videoId = createVideo(store, { title: 'Vì sao trời xanh' }).video_id;
@@ -244,23 +179,18 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
       approved.push(pending.step_id);
       await e.approve(pending.id);
     }
-    // overlays sửa STORYBOARD.md đã duyệt → hỏi ghi đè (D5 5.1) + duyệt lại storyboard (D6 3.1)
-    expect(approved).toEqual(['brief', 'script', 'storyboard', 'storyboard', 'finalize']);
-    expect(asked).toContain('overwrite_approved');
-    // assets do engine (nút asset, 023): không có layer cần ảnh thư viện → không giao agent
-    expect(agentSteps).toEqual(['storyboard', 'finish']);
+    // luồng v2: chỉ duyệt brief, kịch bản và bản xem trước; không phiên agent nào
+    expect(approved).toEqual(['brief', 'script', 'compose']);
+    expect(agentSteps).toEqual([]);
+    expect(asked).toEqual([]);
     const st = state();
     expect(Object.fromEntries(Object.entries(st.steps).map(([k, s]) => [k, s.status]))).toEqual({
       design: 'done',
       script: 'done',
-      storyboard: 'done',
       voice: 'done',
-      assets: 'done',
-      frames: 'done',
-      finish: 'done',
-      captions: 'done',
-      music: 'done',
-      finalize: 'done',
+      direct: 'done',
+      media: 'done',
+      compose: 'done',
       meta: 'done',
       thumbnail: 'done',
       render: 'done',
@@ -269,14 +199,10 @@ describeStudio('narrated-explainer end to end (016 FR-WF-05)', () => {
     // 063: thumbnail JPEG 1280×720 (tiêu đề rút gọn + ảnh frame khi không có LLM/ảnh sinh)
     const thumb = readFileSync(path.join(v(), 'thumbnail.jpg'));
     expect(jpegSize(thumb)).toEqual({ width: 1280, height: 720 });
-    // 027: overlay ở tầng riêng (trên frame, dưới caption), biến đã điền
     const index = readFileSync(path.join(v(), 'index.html'), 'utf8');
-    expect(index).toMatch(/data-sf-overlay="lower-third"[^>]*data-track-index="2"/);
     expect(index).toMatch(/id="el-captions"[^>]*data-track-index="3"/);
-    const ov = /data-composition-src="(compositions\/overlays\/[^"]+)"/.exec(index)![1]!;
-    expect(readFileSync(path.join(v(), ov), 'utf8')).toContain('Tán xạ Rayleigh');
-    const finalizeNote = st.approvals.find((a) => a.step_id === 'finalize')!.note!;
-    expect(finalizeNote).toMatch(/Bản nháp: renders\/rd_[0-9a-z]{8}\/video\.mp4/);
+    const composeNote = st.approvals.find((a) => a.step_id === 'compose')!.note!;
+    expect(composeNote).toMatch(/Bản nháp: renders\/rd_[0-9a-z]{8}\/video\.mp4/);
     expect(existsSync(path.join(v(), '.sf', 'snapshots'))).toBe(true);
     const release = st.steps.render!.outputs!.find((o) => o.endsWith('video.mp4'))!;
     expect(existsSync(path.join(v(), release))).toBe(true);

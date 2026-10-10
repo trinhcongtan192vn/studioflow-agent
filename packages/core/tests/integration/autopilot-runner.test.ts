@@ -223,7 +223,11 @@ function makeRig(o: RigOpts = {}, channelCount = 1): Rig {
     const refine = o.refine?.(item);
     return { outputs: ['SCRIPT.md'], ...(refine ? { refine } : {}) };
   });
-  core.workflows.registerExecutor('finalize', finalizeExecutor(core));
+  // luồng v2: gói mẫu dùng `compose` (bước `finalize`) và `direct` (bước `storyboard`, giao agent giả)
+  core.workflows.registerExecutor('compose', finalizeExecutor(core));
+  core.workflows.registerExecutor('direct', async (ctx) => ({
+    outputs: (await ctx.agent!()) ?? ['STORYBOARD.md'],
+  }));
   core.workflows.setAgentRunner(async (_instruction, ctx) => {
     ctx.store.write(`videos/${ctx.videoId}/STORYBOARD.md`, sampleOf('STORYBOARD.md', ctx.videoId), {
       by: 'test',
@@ -827,8 +831,8 @@ describe('tạm dừng, khung giờ làm việc', () => {
       { id: 'pi_a0000002', publish_at: '2026-10-07T19:00:00+07:00' },
     ]);
     // người dùng bấm tạm dừng khi video đầu đang chạy
-    const base = rig.fx.core.workflows.executor('finalize')!;
-    rig.fx.core.workflows.registerExecutor('finalize', async (ctx) => {
+    const base = rig.fx.core.workflows.executor('compose')!;
+    rig.fx.core.workflows.registerExecutor('compose', async (ctx) => {
       setApp(rig.app, 'autopilot.paused', true);
       return base(ctx);
     });

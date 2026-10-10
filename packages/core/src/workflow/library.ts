@@ -33,13 +33,6 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     outputs: (p) => (p?.mode === 'outline' ? ['STORY.md'] : ['SCRIPT.md']),
     gates: (p) => [valid(p?.mode === 'outline' ? 'STORY.md' : 'SCRIPT.md')],
   },
-  storyboard: {
-    by: 'agent',
-    reads: r('BRIEF', 'SCRIPT', 'frame.md', 'blueprint'),
-    writes: r('STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    gates: () => [valid('STORYBOARD.md'), { kind: 'objective', check: 'coverage' }],
-  },
   cast: {
     by: 'agent',
     reads: r('STORY', 'BRIEF'),
@@ -58,13 +51,21 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
       { kind: 'objective', check: 'audio_duration' },
     ],
   },
-  assets: {
-    by: 'agent',
-    reads: r('STORYBOARD'),
-    writes: r('assets'),
-    outputs: r('assets/manifest.json'),
-    // D6 mục 2: mọi layer có asset (023)
-    gates: () => [{ kind: 'objective', check: 'assets_resolved' }],
+  // v2: đạo diễn — một lượt Opus cho cả video, JSON → STORYBOARD.md (ảnh, layout, chữ, chuyển động, nhạc)
+  direct: {
+    by: 'engine',
+    reads: r('BRIEF', 'SCRIPT', 'audio', 'CAST', 'profile'),
+    writes: r('STORYBOARD'),
+    outputs: r('STORYBOARD.md'),
+    gates: () => [valid('STORYBOARD.md'), { kind: 'objective', check: 'coverage' }],
+  },
+  // v2: tài nguyên — sinh ảnh theo asset_request, chọn nhạc theo music.query (ảnh lỗi → bỏ ảnh, không chặn)
+  media: {
+    by: 'engine',
+    reads: r('STORYBOARD', 'music'),
+    writes: r('assets', 'music'),
+    outputs: r(),
+    gates: () => [],
   },
   lipsync: {
     by: 'engine',
@@ -73,79 +74,15 @@ export const STEP_LIBRARY: Record<StepLibraryId, StepSpec> = {
     outputs: r(),
     gates: () => [],
   },
-  'frame-build': {
-    by: 'agent',
-    reads: r('STORYBOARD', 'audio', 'frame.md', 'assets', 'lipsync'),
-    writes: r('frames'),
-    outputs: r(),
-    gates: () => [],
-  },
-  animatic: {
+  // v2: dựng hình — bộ layout (0 token) + phụ đề + index + nhạc nền + kiểm cuối tự sửa + bản nháp xem trước
+  compose: {
     by: 'engine',
-    reads: r('STORYBOARD', 'audio', 'assets'),
-    writes: r('renders'),
+    reads: r('STORYBOARD', 'audio', 'frame.md', 'assets', 'music', 'lipsync'),
+    writes: r('frames', 'captions', 'index'),
     outputs: r(),
-    gates: () => [],
-  },
-  captions: {
-    by: 'engine',
-    reads: r('audio', 'SCRIPT'),
-    writes: r('captions'),
-    outputs: r('caption_groups.json'),
-    gates: () => [valid('caption_groups.json')],
-  },
-  music: {
-    by: 'agent',
-    reads: r('STORYBOARD', 'music'),
-    writes: r('music', 'STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    gates: () => [],
-  },
-  look: {
-    by: 'agent',
-    reads: r('profile'),
-    writes: r('STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
-    gates: () => [{ kind: 'objective', check: 'look_valid' }],
-  },
-  effects: {
-    by: 'agent',
-    reads: r('profile'),
-    writes: r('STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
-    gates: () => [{ kind: 'objective', check: 'effects_valid' }],
-  },
-  overlays: {
-    by: 'agent',
-    reads: r('profile'),
-    writes: r('STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    // 027: kiểm khách quan phần hoàn thiện (gói phong cách, dry-run grading, ngân sách, khối overlay)
-    gates: () => [{ kind: 'objective', check: 'overlays_valid' }],
-  },
-  // 062: look + hiệu ứng + overlay trong một phiên agent (thay ba bước riêng, đỡ hai phiên)
-  finish: {
-    by: 'agent',
-    reads: r('profile'),
-    writes: r('STORYBOARD'),
-    outputs: r('STORYBOARD.md'),
-    gates: () => [
-      { kind: 'objective', check: 'look_valid' },
-      { kind: 'objective', check: 'effects_valid' },
-      { kind: 'objective', check: 'overlays_valid' },
-    ],
-  },
-  finalize: {
-    by: 'engine',
-    reads: r('frames', 'audio', 'captions', 'music'),
-    writes: r('index'),
-    outputs: r(),
-    // D6 mục 2: graph_fresh * + thời lượng timeline trong check.duration_tolerance của mục tiêu
     gates: () => [
       { kind: 'graph_fresh', nodes: '*' },
-      { kind: 'objective', check: 'audio_duration', params: { source: 'timeline' } },
+      { kind: 'objective', check: 'max_duration', params: { source: 'timeline' } },
       // 061: dòng đọc sai chặn render phát hành → báo sớm ở đây (kiểm mềm)
       { kind: 'objective', check: 'asr_clean' },
     ],

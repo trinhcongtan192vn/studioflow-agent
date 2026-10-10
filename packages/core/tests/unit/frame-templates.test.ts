@@ -7,6 +7,7 @@ import {
   contrast,
   fitFontSize,
   parseDesignTokens,
+  LAYOUTS,
   pickTemplate,
   readable,
   templateFrame,
@@ -41,9 +42,7 @@ describe('template frames (086)', () => {
     expect(pickTemplate(packet('stat-pop. Con số bật lên', [text('el_aaaaaaa1', 'x')]))).toBe(
       'stat-pop',
     );
-    expect(pickTemplate(packet('Hook', [text('el_aaaaaaa1', 'ĐIỂM ≠ Ý ĐỊNH')]))).toBe(
-      'split-reveal',
-    );
+    expect(pickTemplate(packet('Hook', [text('el_aaaaaaa1', 'ĐIỂM ≠ Ý ĐỊNH')]))).toBe('split-text');
     expect(pickTemplate(packet('Hook', [text('el_aaaaaaa1', '87%')]))).toBe('stat-pop');
     expect(
       pickTemplate(
@@ -119,5 +118,92 @@ describe('template frames (086)', () => {
     );
     // một từ dài hơn dòng → không vừa
     expect(wrapLines('Supercalifragilistic', 200, 500)).toBe(Infinity);
+  });
+
+  it('v2: every layout with its images is a valid frame; image layouts without an image fall back to text', () => {
+    const tokens = parseDesignTokens('- canvas: #101418\n- accent (nhấn): #e8b04a\n');
+    const img = (id: string, kind = 'background') =>
+      ({ id, kind, asset_id: `as_${id.slice(3)}` }) as never;
+    const withAssets = (p: FramePacket, ids: string[]) =>
+      ({
+        ...p,
+        assets: ids.map((id) => ({
+          asset_id: `as_${id.slice(3)}`,
+          file: `public/as_${id.slice(3)}.png`,
+          width: 1024,
+          height: 1024,
+          alpha: false,
+        })),
+      }) as FramePacket;
+    const texts = (layout: string) =>
+      layout === 'list' || layout === 'chart-bar'
+        ? [
+            text('el_aaaaaaa1', 'Tốc độ: 42'),
+            text('el_aaaaaaa2', 'Độ bền: 87'),
+            text('el_aaaaaaa3', 'Giá: 15'),
+          ]
+        : layout === 'stat-pop'
+          ? [text('el_aaaaaaa1', '87%'), text('el_aaaaaaa2', 'người dùng')]
+          : [text('el_aaaaaaa1', 'Cao su lưu hóa'), text('el_aaaaaaa2', 'Charles Goodyear')];
+    for (const profileId of ['yt-1080p30', 'yt-shorts-1080x1920'])
+      for (const layout of LAYOUTS) {
+        const layers = [
+          img('el_bbbbbbb1'),
+          ...(layout === 'image-split' ? [img('el_bbbbbbb2', 'image')] : []),
+          ...texts(layout),
+        ];
+        const p = withAssets(
+          {
+            ...packet(`${layout}. x`, layers),
+            frame: { ...packet('', layers).frame, layout },
+          } as FramePacket,
+          layers.filter((l: { asset_id?: string }) => l.asset_id).map((l: { id: string }) => l.id),
+        );
+        const html = templateFrame(p, loadOutputProfile(profileId), tokens, {
+          karaoke: profileId.includes('shorts'),
+        });
+        expect(pickTemplate(p), layout).toBe(layout);
+        expect(
+          checkFrameFile(
+            html,
+            'fr_aaaaaaaa',
+            layers.map((l: { id: string }) => l.id),
+          ),
+          `${profileId} ${layout}`,
+        ).toEqual([]);
+        expect(html).not.toMatch(/autoAlpha|visibility|Math\.random|Date\.now/);
+        // ảnh có mặt (layout ảnh: tràn khung / hai cột; layout chữ: nền mờ sau lớp tối)
+        expect(html).toContain('src="public/as_bbbbbbb1.png"');
+      }
+    // layout cần ảnh mà ảnh chưa có (sinh lỗi) → bản chữ tương ứng
+    const noImg = { ...packet('', [text('el_aaaaaaa1', 'Ảnh lỗi')]) } as FramePacket;
+    for (const [layout, fallback] of [
+      ['image-title', 'big-text'],
+      ['image-caption', 'big-text'],
+      ['image-zoom-detail', 'big-text'],
+      ['image-split', 'split-text'],
+    ] as const)
+      expect(pickTemplate({ ...noImg, frame: { ...noImg.frame, layout } } as FramePacket)).toBe(
+        fallback,
+      );
+  });
+
+  it('v2: accent word is coloured; the mouth layer sits at the character mouth anchor', () => {
+    const tokens = parseDesignTokens('- canvas: #101418\n- accent (nhấn): #e8b04a\n');
+    const p = packet('big-text', [
+      {
+        id: 'el_aaaaaaa1',
+        kind: 'text',
+        text: 'Không phát minh, mà thấu hiểu',
+        notes: 'accent: thấu hiểu',
+      } as never,
+      { id: 'el_mmmmmmm1', kind: 'mouth', notes: 'anchor: 0.4,0.3' } as never,
+    ]);
+    const W = 1920;
+    const html = templateFrame(p, loadOutputProfile('yt-1080p30'), tokens, { karaoke: false });
+    expect(html).toMatch(/<span style="color:#e8b04a">thấu hiểu<\/span>/);
+    expect(html).toContain(
+      `left: ${Math.round(0.4 * W - W * 0.03)}px; top: ${Math.round(0.3 * 1080 - W * 0.018)}px`,
+    );
   });
 });

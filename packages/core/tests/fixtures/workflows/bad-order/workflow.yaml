@@ -7,7 +7,7 @@ output_profiles: [yt-1080p30]
 requires: [tts.synthesize]
 steps:
   - { id: script, uses: script, title: Kịch bản }
-  - { id: storyboard, uses: storyboard, title: Storyboard }
   - { id: voice, uses: voice, title: Giọng }
-  - { id: frames, uses: frame-build, title: Frame }
+  - { id: direct, uses: direct, title: Đạo diễn }
+  - { id: frames, uses: compose, title: Dựng hình }
   - { id: lipsync, uses: lipsync, title: Lipsync }

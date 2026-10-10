@@ -260,19 +260,7 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 /** Bước có kết quả hình/tiếng xem được ở tab Xem trước. */
-const PREVIEW_STEPS = new Set([
-  'voice',
-  'assets',
-  'look',
-  'frames',
-  'effects',
-  'overlays',
-  'captions',
-  'finalize',
-  'animatic',
-  'lipsync',
-  'cut',
-]);
+const PREVIEW_STEPS = new Set(['voice', 'media', 'lipsync', 'compose', 'cut']);
 
 /** Nhãn nút cho một tệp kết quả (đường dẫn tương đối trong video), `undefined` nếu không có. */
 export function fileCtaLabel(rel: string): string | undefined {

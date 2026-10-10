@@ -44,6 +44,9 @@ export interface Frame {           // khai báo trong STORYBOARD.md
   beat_ids: BeatId[];       // Beat–Frame nhiều–nhiều
   line_ids: LineId[];       // line phát trong frame; mỗi line thuộc ĐÚNG MỘT frame (thời lượng frame suy từ audio)
   blueprint?: string;       // id blueprint (D13)
+  layout?: string;          // v2: id layout trong bộ layout (hf/layouts); không có → suy từ layer
+  motion?: string;          // v2: chuyển động (ken-burns-in, pan-left, pop…)
+  hero?: boolean;           // v2: frame "đinh" — phiên frame AI dựng khi bật advanced.custom_frames
   intent: string;           // mô tả ý đồ hình ảnh/chuyển động
   layers: Layer[];
   transition_in?: { type: string; duration_ms: Ms };
@@ -550,8 +553,9 @@ export interface WorkflowManifest {
   steps: StepDecl[];                        // không gồm brief (brief là pha trước workflow)
 }
 
-export type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
+// luồng v2 (2026-10-10): kịch bản → giọng → đạo diễn → tài nguyên → dựng hình → meta/render/đăng
+export type StepLibraryId = 'design-system' | 'script' | 'cast' | 'voice' | 'direct' | 'media' | 'lipsync'
+  | 'compose' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
 
 export interface StepDecl {
   id: string;                               // duy nhất trong workflow

@@ -40,8 +40,9 @@ interface WorkflowManifest {
   steps: StepDecl[];                        // không gồm brief (brief là pha trước workflow)
 }
 
-type StepLibraryId = 'design-system' | 'script' | 'storyboard' | 'cast' | 'voice' | 'assets' | 'frame-build'
-  | 'animatic' | 'captions' | 'music' | 'look' | 'effects' | 'overlays' | 'finish' | 'lipsync' | 'finalize' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
+// luồng v2 (2026-10-10): kịch bản → giọng → đạo diễn → tài nguyên → dựng hình → meta/render/đăng
+type StepLibraryId = 'design-system' | 'script' | 'cast' | 'voice' | 'direct' | 'media' | 'lipsync'
+  | 'compose' | 'publish-meta' | 'thumbnail' | 'render' | 'publish';
 
 interface StepDecl {
   id: string;                               // duy nhất trong workflow
@@ -100,19 +101,13 @@ steps:
 |---|---|---|---|---|---|
 | `design-system` | engine | — | `profile/`, `channel.json` | `frame.md` | hợp lệ |
 | `script` | engine (`text.generate` + `refine-loop`) | `mode: 'narration' \| 'outline' \| 'screenplay'` (mặc định `narration`) | `BRIEF.md`, gói prompt; `screenplay` đọc thêm `STORY.md`, `CAST.md` | `outline` → `STORY.md`; khác → `SCRIPT.md` | hợp lệ; `SCRIPT.md`: mọi line có ID; `screenplay`: mỗi `speaker` có cast + voice |
-| `storyboard` | agent (`producer` khi có refine, nếu không thì `main`) | — | `BRIEF.md`, `SCRIPT.md`, `frame.md`, blueprint | `STORYBOARD.md` | hợp lệ; **mỗi line thuộc đúng một frame**; mọi ID tham chiếu tồn tại |
 | `cast` | agent (`main`) | — | `STORY.md` hoặc `BRIEF.md` | `CAST.md`, `characters/` | mỗi nhân vật trong `STORY.md` có cast + voice |
 | `voice` | engine (`graph.build` nút `audio.line`, `asr.line`) | — | `SCRIPT.md`, `CAST.md` | `audio/`, `audio_meta.json` | `graph_fresh audio.line:*`; `audio_duration`; mọi line `asr_flag ∈ {ok, accepted}` (line còn `mismatch` sau `asr.max_regen` lần sinh lại → hỏi người dùng sửa chữ/chấp nhận) |
-| `assets` | engine + agent | — | `STORYBOARD.md` (`asset_request`) | `public/`, `assets/manifest.json` | mọi layer có asset |
+| `direct` (v2) | engine (`text.generate`, **luôn Opus**, một lượt cho cả video, trả JSON) | — | `BRIEF.md`, `SCRIPT.md` + thời lượng thật (`audio_meta.json`), hồ sơ kênh, danh mục layout/chuyển động, ảnh thư viện kênh, `CAST.md` | `STORYBOARD.md` (app chuyển JSON → markdown: gán ID, gom line thiếu/thừa, tách cảnh dài, layout lạ → gần nhất, chữ dài → cắt; sai JSON → nhắc lại 1 lần) | hợp lệ; mỗi line thuộc đúng một frame |
+| `media` (v2) | engine | — | `STORYBOARD.md` (`asset_request: generate`, `sf-scene.music.query`) | ảnh (`assets/`, `public/`), `sf-scene.music.track_id` | — · ảnh sinh lỗi → layer đó bỏ ảnh (layout tự đổi), không chặn bước; nhạc chỉ khi `advanced.music` |
 | `lipsync` | engine | — | `audio.line`, `CAST.md` | `lipsync/*.json` | — (bỏ qua khi `lipsync.enabled` = false) |
-| `frame-build` | engine từ mẫu (086, mặc định: `big-text`, `stat-pop`, `split-reveal`, `image-focus`, `list` theo `intent`/layer, màu từ `frame.md`, 0 token); `advanced.custom_frames` → agent (`frame` × N). Hết lượt Claude → dừng mở phiên, bước lỗi `E_RUNTIME_RATE_LIMIT` và engine tự chạy lại lúc hết hạn mức (video không thuộc Autopilot); 093: frame AI còn lỗi → một phiên sửa tại chỗ (file hiện tại + lỗi lint/check, `artifact.edit`), vẫn lỗi → frame đó dựng từ mẫu | — | frame packet | `compositions/frames/<fr>.html` | `lint`/`check` qua; `data-sf-id` đủ; mọi frame đã báo xong |
-| `animatic` | engine | — | `STORYBOARD.md`, `audio_meta.json`, asset | `renders/<rd>/` với `mode: animatic` (khung tĩnh theo frame + audio) | — |
-| `captions` | engine | — | `audio_meta.json`, `SCRIPT.md` | `caption_groups.json` | hợp lệ |
-| `music` | engine (085: `music.find` theo `music.query`/`mood` của scene, không phiên agent; chỉ chạy khi `advanced.music`; 092: `advanced.music` tắt → `index.html` không dựng nhạc dù storyboard còn `track_id`) | — | `sf-scene.music`, kho nhạc | `public/music/*`, cập nhật `sf-scene.music.track_id` (storyboard đã duyệt giữ hiệu lực duyệt) | mỗi scene có `track_id` hoặc `music: none` |
-| `look` / `effects` / `overlays` | agent (`main`) | — | hồ sơ kênh | `sf-scene.look`, `sf-frame.effects/overlays` | — |
+| `compose` (v2) | engine (0 token): frame từ **bộ layout** (`hf/layouts`) + phụ đề + `index.html` + nhạc nền + kiểm cuối + bản nháp xem trước; `advanced.custom_frames` → chỉ frame `hero` do phiên `frame` AI dựng (lỗi → layout) | — | toàn bộ | `compositions/`, `index.html`, `caption_groups.json`, `.sf/snapshots/`, bản nháp | `graph_fresh *`; `max_duration` (timeline, trần profile + nền tảng đích); `asr_clean` (mềm); shorts thêm `text_safe_area` (tự co chữ) |
 | `thumbnail` (063) | engine | — | `publish.md`, BRIEF, `frame.md`, ảnh chụp frame | `thumbnail.jpg` (1280×720 ≤ 2 MB; video dọc bỏ qua) | `thumbnail_valid` |
-| `finish` (062) | agent (`main`) | — | hồ sơ kênh, danh mục look/hiệu ứng/overlay, hiện trạng từng frame | `sf-scene.look`, `sf-frame.effects/overlays` (một phiên cho cả ba) | `look_valid`, `effects_valid`, `overlays_valid` |
-| `finalize` | engine | — | toàn bộ | `index.html`, contact sheet `.sf/snapshots/` | `graph_fresh *`; `audio_duration` (thời lượng timeline); `asr_clean` (061: còn line ASR `mismatch` → cảnh báo sớm, vì render phát hành sẽ chặn; xử lý: nghe lại + `asr.accept` hoặc sửa chữ) |
 | `publish-meta` | engine (`text.generate` vai `aux` + `refine-loop` khi `advanced.refine`) | — | 085: phụ đề SRT (`caption_groups.json` + bản sửa; chưa có → lời đọc `SCRIPT.md`), thông tin kênh (tên, ngôn ngữ, chủ đề trụ cột, `style-guide.md`, `preferences.md`), `audio_meta.json` | `publish.md` (mốc chương lấy từ thời lượng audio thật) | `meta_limits` |
 | `render` | engine | `mode: 'draft' \| 'release'` | `index.html` | `renders/<rd>/` (+ `CREDITS.txt`, `description.txt` khi release) | gate phát hành (D4) khi `release` |
 | `publish` (091) | engine (bộ đăng 053/056 ở chế độ đăng ngay) | — | bản render phát hành mới nhất, `publish.md`, phụ đề, `thumbnail.*`, lựa chọn nền tảng của người dùng (`publish.video.start`) | `publish-state.json` (D3 5.22) | — · chưa chọn → `failed` `E_STEP_INCOMPLETE` "waiting for you to choose where to publish"; video Autopilot → xong ngay (Autopilot đăng theo kế hoạch ngày) |
@@ -199,7 +194,7 @@ Không ước thời lượng từ số từ: tốc độ đọc phụ thuộc n
 | `schema` | mọi | artifact parse và hợp lệ |
 | `coverage` | storyboard | mỗi line thuộc đúng một frame; mọi frame có ≥ 1 layer |
 | `meta_limits` | meta | tiêu đề ≤ `meta.title_max`, mô tả ≤ `meta.description_max` ký tự |
-| `text_safe_area` | finalize (shorts) | mọi chữ đang hiện ở giữa mỗi frame nằm trong `safe_area` của output profile (đo trong Chrome headless) |
+| `text_safe_area` | compose (shorts) | mọi chữ đang hiện ở giữa mỗi frame nằm trong `safe_area` của output profile (đo trong Chrome headless) |
 
 **Tự sửa khi kiểm trượt (0 token):** kiểm có hàm sửa đăng ký (`registerGateRepair`) → engine sửa đúng chỗ sai một lần rồi kiểm lại mọi gate của bước; sửa được thì bước qua, chi tiết gate ghi "đã tự sửa — …"; không sửa được → lỗi như cũ. `text_safe_area`: đo trên trang xem trước, thu nhỏ dần `font-size` của đúng phần tử chữ tràn (không dưới 40% cỡ gốc), ghi `style="font-size: …"` vào file frame; frame ghim (chỉnh tay trong Studio) và caption/overlay không sửa.
 

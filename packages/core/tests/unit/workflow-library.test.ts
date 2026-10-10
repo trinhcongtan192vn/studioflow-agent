@@ -38,20 +38,12 @@ describe('validateManifest (007 FR-002)', () => {
       [
         'design-system',
         'script',
-        'storyboard',
         'cast',
         'voice',
-        'assets',
-        'frame-build',
-        'animatic',
-        'captions',
-        'music',
-        'look',
-        'effects',
-        'overlays',
-        'finish',
+        'direct',
+        'media',
         'lipsync',
-        'finalize',
+        'compose',
         'publish-meta',
         'thumbnail',
         'render',
@@ -65,11 +57,11 @@ describe('validateManifest (007 FR-002)', () => {
       validateManifest(
         base([
           { id: 'script', uses: 'script', title: 's' },
-          { id: 'sb', uses: 'storyboard', title: 'b' },
           { id: 'voice', uses: 'voice', title: 'v' },
+          { id: 'direct', uses: 'direct', title: 'd' },
+          { id: 'media', uses: 'media', title: 'm' },
           { id: 'lip', uses: 'lipsync', title: 'l' },
-          { id: 'frames', uses: 'frame-build', title: 'f' },
-          { id: 'music', uses: 'music', title: 'm' },
+          { id: 'compose', uses: 'compose', title: 'c' },
         ]),
       ),
     ).toEqual([]);
@@ -79,7 +71,7 @@ describe('validateManifest (007 FR-002)', () => {
     const errs = validateManifest(
       base([
         { id: 'a', uses: 'script', title: 'a' },
-        { id: 'a', uses: 'storyboard', title: 'b' },
+        { id: 'a', uses: 'direct', title: 'b' },
         { id: 'c', uses: 'voice', title: 'c', after: ['nope'] },
       ]),
     ).map((e) => e.message);
@@ -88,7 +80,7 @@ describe('validateManifest (007 FR-002)', () => {
     const cyc = validateManifest(
       base([
         { id: 'a', uses: 'script', title: 'a', after: ['b'] },
-        { id: 'b', uses: 'storyboard', title: 'b', after: ['a'] },
+        { id: 'b', uses: 'direct', title: 'b', after: ['a'] },
       ]),
     );
     expect(cyc.some((e) => e.message.includes('cycle'))).toBe(true);
@@ -98,13 +90,17 @@ describe('validateManifest (007 FR-002)', () => {
     const errs = validateManifest(
       base([
         { id: 'script', uses: 'script', title: 's' },
-        { id: 'sb', uses: 'storyboard', title: 'b' },
-        { id: 'frames', uses: 'frame-build', title: 'f' },
+        { id: 'voice', uses: 'voice', title: 'v' },
+        { id: 'direct', uses: 'direct', title: 'd' },
+        { id: 'compose', uses: 'compose', title: 'c' },
         { id: 'lip', uses: 'lipsync', title: 'l' },
       ]),
     );
     expect(errs).toEqual([
-      expect.objectContaining({ code: 'E_STEP_ORDER', message: expect.stringContaining('frames') }),
+      expect.objectContaining({
+        code: 'E_STEP_ORDER',
+        message: expect.stringContaining('compose'),
+      }),
     ]);
     const screenplay = validateManifest(
       base([

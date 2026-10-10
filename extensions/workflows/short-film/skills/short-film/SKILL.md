@@ -1,15 +1,13 @@
 ---
 name: short-film
-description: Hướng dẫn từng bước của workflow StudioFlow "short-film" (phim ngắn nhiều nhân vật + người dẫn, comic/2D phẳng). Dùng khi engine giao bước cast, storyboard, assets, look, effects, overlays hoặc music của workflow này.
+description: Workflow StudioFlow "short-film" (phim ngắn nhiều nhân vật + người dẫn, comic/2D phẳng). Dùng khi engine giao bước cast, hoặc khi người dùng hỏi về luồng dựng / nhờ chỉnh hình, chữ, ảnh, nhạc của một shot.
 ---
 
 # Workflow short-film (phim ngắn nhiều nhân vật)
 
-Engine giao cho bạn từng bước bằng chỉ dẫn "Thực hiện bước <id> của workflow short-film theo skill…". Chỉ làm đúng bước đó, ghi file bằng `artifact.write`, rồi gọi `workflow.step_complete` với `step_id` của bước và `outputs` là các file đã ghi.
+Engine giao cho bạn **một** bước: `cast`. Chỉ làm đúng bước đó, ghi file bằng `artifact.write`, rồi gọi `workflow.step_complete` với `step_id: "cast"` và `outputs` là các file đã ghi.
 
-Engine tự làm: story (dàn ý `STORY.md`, refine), design-system, script (kịch bản thoại theo `STORY.md` + `CAST.md`, refine), voice (giọng từng nhân vật, biến thể cảm xúc), animatic (khung tĩnh + lời để duyệt nhịp), lipsync (khi bật), frames, captions (màu theo người nói), finalize, meta, render.
-
-Phong cách hình **cố định theo kênh** (comic hoặc 2D phẳng — xem look kênh `{{config:look.id}}` và `frame.md`).
+Phong cách hình **cố định theo kênh** (comic hoặc 2D phẳng — look kênh `{{config:look.id}}` và `frame.md`). Ảnh từng shot do bước Đạo diễn hình mô tả kèm nhân vật (dùng ảnh chuẩn của nhân vật làm tham chiếu); khẩu hình (khi bật) đặt lớp miệng theo điểm miệng của nhân vật.
 
 ## Bước `cast` → `CAST.md` (+ nhân vật cấp kênh)
 
@@ -41,33 +39,20 @@ Không ghi `id:` cho nhân vật mới (app gán `ca_…`). Kết thúc: `workfl
 
 **Biến thể cảm xúc giọng** (tùy chọn): nếu người dùng có ref audio cho cảm xúc của nhân vật, thêm `emotions: { sad: "uploads/…wav" }` — line có `emotion: sad` sẽ đọc bằng giọng đó.
 
-## Bước `storyboard` → `STORYBOARD.md` (có refine)
+## Luồng dựng (v2 — engine tự làm, không giao bạn từng bước)
 
-Mỗi frame là **một shot**: ghi trong `intent` cỡ cảnh (`toàn` / `trung` / `cận`), nhân vật trong khung, biểu cảm, hướng nhìn. Layers: `background` (bối cảnh theo scene), `image` cho nhân vật với `asset_id` là ảnh biểu cảm phù hợp từ `CAST.md` (`expressions`), `text` hiếm khi cần. Scene đổi khi đổi bối cảnh/thời gian. Mỗi line thuộc đúng một frame; một shot 1–3 line (2–8 giây). Shot trung/cận có nhân vật đang nói nhìn về máy quay là shot hợp lip-sync (khi bật).
+story (duyệt) → **cast** (bạn, duyệt) → design → script thoại (duyệt) → voice → **direct** → **media** → lipsync → **compose** (duyệt bản xem trước) → meta → thumbnail → render → publish
 
-**Khẩu hình (khi `lipsync.enabled` bật cho video/kênh):** với shot trung/cận mà một nhân vật nói và nhìn về máy quay, thêm layer `- { kind: mouth, notes: "miệng <tên>" }`. Ghi `STORYBOARD.md` một lần để app gán ID, đọc lại lấy ID của layer miệng, rồi thêm vào khối `sf-frame` đó `lipsync: { cast_id: ca_…, mouth_anchor: el_… }` (nhân vật đang nói trong shot) và ghi lại. Shot toàn cảnh hoặc nhân vật quay đi: không khai `lipsync`. App tự tính khẩu hình từ lời thoại và chèn hình miệng theo bộ miệng của nhân vật (`mouth_set`, mặc định `flat`). Ghi `STORYBOARD.md`, rồi `workflow.step_complete {step_id: "storyboard", outputs: ["STORYBOARD.md"]}`.
+Bạn không viết storyboard, không dựng frame, không chọn ảnh/nhạc từng cảnh: bước **Đạo diễn hình** (`direct`) do Opus lên danh sách cảnh một lượt cho cả video; **Ảnh và nhạc** (`media`) sinh ảnh bằng bộ sinh ảnh cục bộ + chọn nhạc; **Dựng hình** (`compose`) dựng frame từ bộ layout bằng code, lắp phụ đề, kiểm và tự sửa, rồi làm bản nháp để người dùng duyệt.
 
-## Bước `assets` (khi engine giao)
+## Khi người dùng muốn chỉnh hình qua chat
 
-Nền mỗi scene: `asset_request: { source: generate, prompt: "<bối cảnh, phong cách kênh, không có người>", aspect: "16:9" }`. Nhân vật: luôn dùng ảnh biểu cảm có sẵn trong `CAST.md` (thiếu biểu cảm → `image.edit` từ ảnh chuẩn rồi cập nhật `CAST.md`). Ghi file (giữ mọi `id`) rồi `workflow.step_complete {step_id: "assets", outputs: [<file đã ghi>]}`.
-
-## Bước `music`
-
-> 085: engine tự chạy bước này (không giao agent) khi tính năng nâng cao **Nhạc nền** (`advanced.music`) bật; tắt thì bỏ qua. Phần dưới chỉ dùng khi người dùng nhờ chọn/đổi nhạc qua chat. Ở bước storyboard vẫn ghi `music: { query: … }` (mô tả nhạc) cho mỗi scene.
-
-Nhạc theo không khí từng scene (`music.find`, query tiếng Anh). Không có kết quả → `music: none` cho scene đó, vẫn ghi `STORYBOARD.md` và `workflow.step_complete {step_id: "music", outputs: ["STORYBOARD.md"]}`.
-## Bước `finish` (M3, 062)
-
-Engine giao **một phiên** cho cả ba phần hoàn thiện hình, kèm danh mục look, hiệu ứng, khối overlay, ngân sách hiệu ứng nặng và hiện trạng từng frame. Làm lần lượt theo ba mục dưới — look (mục "Bước `look`"), hiệu ứng (mục "Bước `effects`"), overlay (mục "Bước `overlays`"); phần nào không cần thì bỏ qua. Ghi `STORYBOARD.md` (giữ mọi `id`) rồi gọi **một lần** `workflow.step_complete {step_id: "finish", outputs: ["STORYBOARD.md"]}` (bỏ qua lời dặn `step_complete` riêng trong từng mục).
-
-## Bước `look` (M3)
-
-Chỉ dẫn của engine có danh mục look (gói phong cách + biến thể) và look hiện tại của từng frame. Look kênh là `{{config:look.id}}`. Mặc định giữ look kênh; chỉ đặt `look` cho scene khi không khí khác rõ (đêm, hồi tưởng, tư liệu cũ): ghi `look: <biến thể>` (ví dụ `night`) hoặc `look: <gói khác>` vào `sf-scene`; ngoại lệ một frame thì `config: { look.id: … }` trong `sf-frame`. Muốn so sánh trước: `grade.compare {asset_ids: [ảnh tiêu biểu], looks: [...]}` rồi xem `contact_sheet`. Look được nướng vào ảnh khi dựng frame (chữ/hình HTML không đổi màu). Không có gì cần đổi → không ghi file. Xong: `workflow.step_complete {step_id: "look", outputs: ["STORYBOARD.md"]}`.
-
-## Bước `effects` (M3)
-
-Hiệu ứng media dùng tiết chế, phục vụ nội dung (hồi tưởng → `grain`, tư liệu cũ → `filmArtifacts`, nhấn mạnh → `bloom`). Hiệu ứng `[nặng]` làm render chậm: tôn trọng ngân sách trong chỉ dẫn (2 mỗi phút video). Với mỗi ảnh cần hiệu ứng: `media.treatment {asset_id, effect, mode: "dry_run"}` → đọc kết quả (`within_budget`, frame bị ảnh hưởng) → nếu ổn thì `mode: "apply"` (app ghi `sf-frame.effects`, người dùng được hỏi vì storyboard đã duyệt). Mức tùy chọn: `grain:0.3`. Không cần hiệu ứng → không làm gì. Xong: `workflow.step_complete {step_id: "effects", outputs: ["STORYBOARD.md"]}`.
-
-## Bước `overlays` (M3)
-
-Đề xuất overlay theo quy tắc kênh `{{config:overlay.rules}}` (ví dụ lower third khi nhân vật/địa danh xuất hiện lần đầu, nhãn địa điểm khi đổi bối cảnh). Ghi vào `sf-frame`: `overlays: [{ block: lower-third, vars: { title: "…", subtitle: "…" } }]` — chỉ dùng khối trong danh mục, đủ biến bắt buộc (dấu `*`), chữ ngắn (≤ 40 ký tự). Thẻ mô phỏng nền tảng thật (bình luận, bài đăng mạng xã hội) chỉ dùng với nội dung có thật. Mỗi frame tối đa một overlay. Ghi bằng `artifact.write` (giữ mọi `id`), rồi `workflow.step_complete {step_id: "overlays", outputs: ["STORYBOARD.md"]}`.
+- **Đổi ảnh / chữ / layout / chuyển động một cảnh:** đọc `STORYBOARD.md`, sửa đúng khối `sf-frame` của cảnh đó bằng `artifact.edit` (giữ mọi `id`):
+  - layout: `layout: <id>` — image-title, image-caption, image-split, image-zoom-detail, split-text, stat-pop, big-text, list, quote, chart-bar;
+  - chuyển động: `motion: <id>` — ken-burns-in, ken-burns-out, pan-left, pan-up, pop, slide-up;
+  - chữ: `text` của layer `kind: text` (ngắn, ≤ 6 từ, không chép câu thoại);
+  - ảnh: `asset_request: { source: generate, prompt: "<mô tả tiếng Anh>", aspect: "16:9" }` trên layer `background` (hoặc `asset_id: as_…` để dùng ảnh thư viện kênh — tìm bằng `asset.search`).
+  Rồi chạy lại từ **Ảnh và nhạc** (ảnh mới) hoặc **Dựng hình** (chỉ chữ/layout) bằng `workflow.rewind`.
+- **Làm lại toàn bộ hình:** `workflow.rewind` về bước `direct`.
+- **Dời/chỉnh kích thước phần tử, sửa tự do:** mở Studio (tab Xem trước → Chỉnh), lưu nguyên frame.
+- **Nhạc:** đổi `music: { query: "…" }` (hoặc `track_id`) trong `sf-scene` rồi chạy lại **Ảnh và nhạc**.

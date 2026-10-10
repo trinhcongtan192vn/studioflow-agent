@@ -12,15 +12,13 @@ import { attachTraceStore, type Pricing } from './trace/trace.js';
 import { PhoenixServer } from './trace/phoenix.js';
 import { Logger } from './log.js';
 import { StudioPreviews } from './studio/preview.js';
-import { captionsExecutor, finalizeExecutor } from './workflow/finalize.js';
-import { assetsExecutor } from './workflow/assets.js';
-import { storyboardExecutor } from './text/storyboard.js';
+import { composeExecutor } from './workflow/compose.js';
+import { directExecutor } from './workflow/direct.js';
+import { mediaExecutor } from './workflow/media.js';
 import { studioTools } from './studio/tools.js';
 import { StudioEdits } from './studio/edit.js';
 import { CaptionPanel } from './captions/panel.js';
 import { defineFinishJobs, finishTools } from './finish/tools.js';
-import { finishStepExecutor } from './finish/check.js';
-import { animaticExecutor } from './render/animatic.js';
 import { lipsyncLineBuilder } from './lipsync/builder.js';
 import { lipsyncExecutor, lipsyncTools } from './lipsync/step.js';
 import { castExecutor } from './workflow/cast.js';
@@ -533,44 +531,35 @@ export function createCore(opts: CoreOptions = {}): Core {
   gateway.channelResolver = (ref) => autopilot.resolveChannel(ref);
   defineRenderJob(tts, appDataDir);
   workflows.registerExecutor('render', renderExecutor(graph));
-  // narrated-explainer (016): bước engine còn lại
-  workflows.registerExecutor('captions', captionsExecutor(graph));
-  for (const k of ['look', 'effects', 'overlays', 'finish'] as const)
-    workflows.registerExecutor(k, finishStepExecutor(k));
-  workflows.registerExecutor('finalize', finalizeExecutor(graph));
-  workflows.registerExecutor('animatic', animaticExecutor(graph));
   workflows.registerExecutor('cast', castExecutor());
   workflows.registerExecutor('lipsync', lipsyncExecutor(graph));
   for (const t of lipsyncTools(queue)) gateway.register(t);
   workflows.registerExecutor('design-system', designSystemExecutor());
-  // story-documentary (023): storyboard refine (phiên producer) + assets (nút asset)
-  workflows.registerExecutor(
-    'storyboard',
-    storyboardExecutor({
-      text,
-      gateway,
-      runtime: () => workflows.agentRuntime,
-      permissions: gateway.permissions,
-    }),
-  );
-  workflows.registerExecutor('assets', assetsExecutor(graph));
-  workflows.registerExecutor(
-    'frame-build',
-    frameBuildExecutor({ builders: graph, gateway, runtime: () => workflows.agentRuntime }),
-  );
   workflows.registerExecutor('script', scriptExecutor({ text, permissions: gateway.permissions }));
   workflows.registerExecutor(
     'publish-meta',
     publishMetaExecutor({ text, permissions: gateway.permissions }),
   );
-  // 085: nhạc nền do engine chọn (không phiên agent); chỉ chạy khi `advanced.music` bật
+  // luồng v2: đạo diễn (một lượt Opus) → tài nguyên (ảnh + nhạc) → dựng hình (bộ layout + kiểm cuối)
+  workflows.registerExecutor('direct', directExecutor({ text }));
   workflows.registerExecutor(
-    'music',
-    musicExecutor({
-      appDataDir,
-      ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
+    'media',
+    mediaExecutor({
+      builders: graph,
+      music: musicExecutor({
+        appDataDir,
+        ...(providerHandles.embedder ? { embedder: providerHandles.embedder } : {}),
+      }),
     }),
   );
+  // dựng frame: dùng trong `compose` và khi graph dựng lại một frame (nút frame_html, 020)
+  const frameBuild = frameBuildExecutor({
+    builders: graph,
+    gateway,
+    runtime: () => workflows.agentRuntime,
+  });
+  workflows.registerExecutor('frame-build', frameBuild);
+  workflows.registerExecutor('compose', composeExecutor({ builders: graph, frames: frameBuild }));
   // 063: thumbnail (LLM phụ + sinh ảnh nền + HyperFrames chụp một khung)
   workflows.registerExecutor('thumbnail', thumbnailExecutor({ text, providers, db }));
   // 091: đăng ngay lên nền tảng người dùng chọn (dùng chung bộ đăng 053/056)

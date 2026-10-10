@@ -857,7 +857,8 @@ export class WorkflowEngine extends EventEmitter {
         if (extra.summary) a.note = extra.summary;
         // 034: chế độ tự động — điểm duyệt không phải điểm chốt được engine duyệt ngay
         const auto = autopilotOf(this.d.store.root, this.d.videoId, this.d.appDataDir);
-        if (auto.on && !auto.keys.includes(decl.id)) {
+        // điểm chốt khớp theo id bước hoặc loại bước (luồng v2: `compose` dù manifest đặt id khác)
+        if (auto.on && !auto.keys.includes(decl.id) && !auto.keys.includes(decl.uses)) {
           a.status = 'approved';
           a.decided_at = now();
           a.note = `${AUTO_APPROVAL_NOTE}${extra.summary ? ` — ${extra.summary}` : ''}`;
@@ -970,8 +971,9 @@ export class WorkflowEngine extends EventEmitter {
   frameBuildContext(signal: AbortSignal): StepRunContext {
     const st = this.readState();
     const manifest = this.manifestOf(st);
-    const decl = manifest.steps.find((s) => s.uses === 'frame-build');
-    if (!decl) throw new SfError('E_STEP_INCOMPLETE', 'this workflow has no frame-build step');
+    // v2: frame dựng trong bước `compose`
+    const decl = manifest.steps.find((s) => s.uses === 'compose');
+    if (!decl) throw new SfError('E_STEP_INCOMPLETE', 'this workflow has no compose step');
     return {
       store: this.d.store,
       channelDir: this.d.store.root,

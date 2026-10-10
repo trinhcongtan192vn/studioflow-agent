@@ -1,6 +1,6 @@
 # Kế hoạch: luồng dựng video mới (`shorts-v2`)
 
-Trạng thái: **đã duyệt** (Tan, 2026-10-10) · bước 1 xong (nhạc theo giọng; `publish/limits.ts` + mã lại bản phát hành GOP 2 s + kiểm sau render + trần thời lượng theo nền tảng đích + TikTok `creator_info`)
+Trạng thái: **đã duyệt** (Tan, 2026-10-10) · bước 1 xong · 2026-10-10: Tan chốt **thay hẳn luồng cũ cho cả 5 workflow** (workflow thành preset) — luồng v2 (`direct` → `media` → `compose`, bộ layout 10 + 6 chuyển động) đã thay; test dựng hình tối giản theo yêu cầu Tan (chạy thật, đánh giá chất lượng trước khi thêm test ràng buộc)
 
 ## 1. Vì sao làm lại
 

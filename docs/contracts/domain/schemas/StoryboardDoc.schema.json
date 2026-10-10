@@ -177,6 +177,15 @@
         "blueprint": {
           "type": "string"
         },
+        "layout": {
+          "type": "string"
+        },
+        "motion": {
+          "type": "string"
+        },
+        "hero": {
+          "type": "boolean"
+        },
         "intent": {
           "type": "string"
         },
