@@ -622,6 +622,16 @@ export const configKeyTable = {
       ]
     },
     {
+      "key": "publish.ai_disclosure",
+      "pattern": false,
+      "type": "boolean",
+      "tiers": [
+        "app",
+        "channel",
+        "video"
+      ]
+    },
+    {
       "key": "publish.tiktok.audited",
       "pattern": false,
       "type": "boolean",

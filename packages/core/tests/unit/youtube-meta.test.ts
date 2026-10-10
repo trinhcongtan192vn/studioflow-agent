@@ -68,13 +68,18 @@ describe('buildVideoMetadata', () => {
     language: 'vi',
   };
   const at = new Date('2026-10-08T12:00:00.000Z');
-  it('not audited: private, never a publishAt, AI-generated and not-for-kids declarations, category 22', () => {
+  it('not audited: private, never a publishAt, no AI declaration by default, not-for-kids, category 22', () => {
     const m = buildVideoMetadata({ ...base, audited: false, publishAt: at });
     expect(m.status).toEqual({
       privacyStatus: 'private',
       selfDeclaredMadeForKids: false,
-      containsSyntheticMedia: true,
+      containsSyntheticMedia: false,
     });
+    // `publish.ai_disclosure` bật (cảnh trông như thật / người thật) → khai báo AI
+    expect(
+      buildVideoMetadata({ ...base, audited: false, synthetic: true }).status
+        .containsSyntheticMedia,
+    ).toBe(true);
     expect(m.snippet).toMatchObject({
       title: 'Năm 1428: Lê Lợi lên ngôi',
       tags: ['lịch sử'],

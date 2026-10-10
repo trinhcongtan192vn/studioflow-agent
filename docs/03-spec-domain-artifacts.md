@@ -731,6 +731,7 @@ interface SettingsConfig extends Versioned {
 | `telegram.chat_id` | string (ID nhóm/kênh Telegram nhận thông báo; rỗng = chưa đặt) | app |
 | `telegram.allowed_user_ids` | string[] (ID người dùng Telegram được ra lệnh cho bot; rỗng = mọi thành viên của `telegram.chat_id`) | app |
 | `publish.youtube.audited` | boolean (dự án API YouTube đã qua kiểm duyệt của Google: được đăng công khai/hẹn giờ; false = chỉ tải lên riêng tư, người dùng tự công khai trong YouTube Studio, 053) | app |
+| `publish.ai_disclosure` | boolean (khai báo "nội dung do AI tạo/biến đổi" khi đăng YouTube — `containsSyntheticMedia`; mặc định false theo Tan 2026-10-10: video minh họa/hoạt hình không thuộc diện. Bật cho kênh/video có cảnh trông như thật mà không có thật, hoặc người thật nói/làm điều họ không làm) | app, channel, video |
 | `publish.tiktok.audited` | boolean (ứng dụng TikTok đã qua kiểm duyệt Content Posting API: được đăng công khai; false = mọi bài đăng `SELF_ONLY`, người dùng tự công khai trong app TikTok, 056) | app |
 | `publish.facebook.page_id` | string (ID Trang Facebook nhận Reels; không phải bí mật, 056) | channel |
 | `publish.youtube.channel_id` | string (ID kênh YouTube `UC…` gắn với kênh StudioFlow, ghi khi kết nối OAuth; không phải bí mật) | channel |

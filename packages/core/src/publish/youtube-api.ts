@@ -105,6 +105,7 @@ export class YouTubeApi {
   async updateStatus(
     id: string,
     status: { privacyStatus: 'private' | 'public' | 'unlisted'; publishAt?: string },
+    synthetic = false,
   ): Promise<void> {
     this.d.quota.add(YT_UNITS.UPDATE);
     const r = await this.authed('videos.update', `${API}/videos?part=status`, {
@@ -112,7 +113,7 @@ export class YouTubeApi {
       headers: { 'content-type': 'application/json; charset=UTF-8' },
       body: JSON.stringify({
         id,
-        status: { ...status, selfDeclaredMadeForKids: false, containsSyntheticMedia: true },
+        status: { ...status, selfDeclaredMadeForKids: false, containsSyntheticMedia: synthetic },
       }),
     });
     if (!r.ok) return this.fail('videos.update', r);

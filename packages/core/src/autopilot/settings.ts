@@ -19,6 +19,7 @@ export const CHANNEL_AUTOPILOT_KEYS = [
   'publish.slots',
   'publish.timezone',
   'publish.veto_hours',
+  'publish.ai_disclosure',
 ] as const;
 
 export const APP_AUTOPILOT_KEYS = [

@@ -41,6 +41,17 @@ export class YouTubePublisher implements PlatformPublisher {
     return { ok: true };
   }
 
+  /** Khai báo nội dung AI (`publish.ai_disclosure` theo video → kênh → app; mặc định không). */
+  private synthetic(ctx: PublishContext): boolean {
+    return (
+      resolveConfig<boolean>(
+        'publish.ai_disclosure',
+        { channelDir: ctx.channel, ...(ctx.video ? { videoId: ctx.video } : {}) },
+        { appDataDir: this.d.appDataDir },
+      ).value === true
+    );
+  }
+
   /** Giờ công khai thật = max(giờ trong kế hoạch, lúc tải lên + giờ phản đối). */
   private schedule(ctx: PublishContext): { veto_until: Date; publish_at: Date } {
     const veto = new Date(ctx.now.getTime() + ctx.veto_hours * 3_600_000);
@@ -77,6 +88,7 @@ export class YouTubePublisher implements PlatformPublisher {
         chapters: ctx.meta.chapters,
         language: ctx.meta.language,
         audited,
+        synthetic: this.synthetic(ctx),
         ...(ctx.mode === 'now' ? { publicNow: true } : { publishAt: sched.publish_at }),
       });
       const sf = sessionFile(this.d.appDataDir, ctx.item.id);
@@ -181,7 +193,9 @@ export class YouTubePublisher implements PlatformPublisher {
 
   async cancel(ctx: PublishContext, st: PlatformPublish): Promise<PlatformPublish> {
     if (st.video_id && st.status === 'scheduled')
-      await this.d.api(ctx.channel_id).updateStatus(st.video_id, { privacyStatus: 'private' });
+      await this.d
+        .api(ctx.channel_id)
+        .updateStatus(st.video_id, { privacyStatus: 'private' }, this.synthetic(ctx));
     return { ...st, status: 'cancelled', note: 'Đã hủy đăng — video ở lại riêng tư trên YouTube.' };
   }
 
@@ -195,7 +209,9 @@ export class YouTubePublisher implements PlatformPublisher {
         state: st,
         note: `Dự án API YouTube chưa được kiểm duyệt nên app không công khai được. Mở ${st.url ?? 'video'} trong YouTube Studio → Hiển thị → Công khai.`,
       };
-    await this.d.api(ctx.channel_id).updateStatus(st.video_id, { privacyStatus: 'public' });
+    await this.d
+      .api(ctx.channel_id)
+      .updateStatus(st.video_id, { privacyStatus: 'public' }, this.synthetic(ctx));
     const { publish_at: _drop, ...rest } = st;
     void _drop;
     return {
