@@ -3408,3 +3408,12 @@ button.home-card:hover {
   border-radius: var(--r-md);
   background: var(--err-bg);
 }
+
+/* Bước chờ người dùng (chờ bấm Đăng, agent chờ trả lời) — giống chờ duyệt, không phải lỗi */
+.step.waiting_user {
+  background: var(--tool);
+}
+.step-icon.waiting_user,
+.step-status.waiting_user {
+  color: var(--caution-ink);
+}

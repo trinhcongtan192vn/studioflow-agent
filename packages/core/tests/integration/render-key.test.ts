@@ -16,11 +16,16 @@ it('render key follows what the render reads, not the meta files', () => {
   const vdir = path.join(c.dir, 'videos', fixtureVideoId);
   mkdirSync(path.join(vdir, 'public'), { recursive: true });
   writeFileSync(path.join(vdir, 'public', 'a.png'), 'one');
+  // bản dựng tham chiếu a.png
+  writeFileSync(path.join(vdir, 'index.html'), '<img src="public/a.png">');
   const k1 = renderKey(d, fixtureVideoId, 30, 18);
   // tiêu đề/mô tả (publish.md) đổi sau duyệt → vẫn dùng lại
   writeFileSync(path.join(vdir, 'publish.md'), 'changed');
   expect(renderKey(d, fixtureVideoId, 30, 18)).toBe(k1);
   expect(renderKey(d, fixtureVideoId, 25, 18)).not.toBe(k1);
+  // ảnh không được bản dựng dùng (thumbnail sinh sau bản nháp) → vẫn dùng lại
+  writeFileSync(path.join(vdir, 'public', 'thumb-bg.png'), 'thumb');
+  expect(renderKey(d, fixtureVideoId, 30, 18)).toBe(k1);
   writeFileSync(path.join(vdir, 'public', 'a.png'), 'two');
   expect(renderKey(d, fixtureVideoId, 30, 18)).not.toBe(k1);
 });

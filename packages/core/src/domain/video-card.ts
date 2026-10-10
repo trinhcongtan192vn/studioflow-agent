@@ -1,3 +1,4 @@
+import { isWaitingUser } from '../workflow/waiting.js';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { VideoState } from '../contracts/types.js';
@@ -34,7 +35,10 @@ export function videoStatus(
   steps: Record<string, { status: string }>,
 ): VideoStatus {
   if (phase !== 'workflow') return 'briefing';
-  const all = Object.values(steps).map((s) => s.status);
+  // bước "lỗi" đang chờ người dùng (chờ bấm Đăng, agent chờ trả lời) → tính là chờ
+  const all = Object.values(steps).map((s) =>
+    isWaitingUser(s as Parameters<typeof isWaitingUser>[0]) ? 'waiting_approval' : s.status,
+  );
   for (const [st, keys] of ORDER) if (all.some((x) => keys.includes(x))) return st;
   return all.length && all.every((x) => x === 'done' || x === 'skipped') ? 'done' : 'paused';
 }
@@ -75,7 +79,8 @@ export function videoCard(
       format = /shorts|1080x1920|vertical/i.test(st.output_profile) ? 'vertical' : 'horizontal';
     }
   const pick =
-    entries.find(([, s]) => s.status === 'failed') ??
+    entries.find(([, s]) => s.status === 'failed' && !isWaitingUser(s)) ??
+    entries.find(([, s]) => isWaitingUser(s)) ??
     entries.find(([, s]) => s.status === 'waiting_approval') ??
     entries.find(([, s]) => s.status === 'running') ??
     entries.find(([, s]) => s.status === 'pending' || s.status === 'stale');

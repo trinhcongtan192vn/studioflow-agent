@@ -42,16 +42,45 @@ type Gate = RenderRecord['gate_results'][number];
 /** Khóa của bản HyperFrames: nội dung mọi thứ render đọc (index, frame, audio, ảnh) + fps/crf + bản HyperFrames. */
 export function renderKey(d: RenderDeps, videoId: string, fps: number, crf: number): string {
   const m = loadVideoModel(d.store.root, videoId, d.appDataDir);
+  const vdir = d.store.abs(`videos/${videoId}`);
+  // file HTML của bản dựng + đúng những file chúng tham chiếu (ảnh/âm/script) — file thừa trong public/ (ảnh
+  // thumbnail sinh giữa bản nháp và bản phát hành, vd_mdxzk4ui) không làm lệch khóa
+  const htmls = ['index.html', ...htmlFiles(path.join(vdir, 'compositions'), 'compositions')];
+  const refs = new Set<string>();
+  for (const h of htmls) {
+    const abs = path.join(vdir, ...h.split('/'));
+    if (!existsSync(abs)) continue;
+    const text = readFileSync(abs, 'utf8');
+    for (const x of text.matchAll(/(?:src|href)="([^"]+)"|url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
+      const ref = (x[1] ?? x[2] ?? '').trim();
+      if (!ref || /^(?:[a-z]+:|#|\/\/)/i.test(ref)) continue;
+      refs.add(path.posix.normalize(ref.replace(/^(?:\.\.?\/)+/, '')));
+    }
+  }
   return sha256(
     canonicalJson({
-      files: ['index.html', 'hyperframes.json', 'compositions', 'audio', 'public'].map((f) =>
-        m.hashOf(f),
-      ),
+      html: htmls.map((h) => [h, m.hashOf(h)]),
+      hf_json: m.hashOf('hyperframes.json'),
+      refs: [...refs].sort().map((r) => [r, m.hashOf(r)]),
       fps,
       crf,
       hf: hfInstall().version,
     }),
   ).slice(0, 32);
+}
+
+/** Mọi file `.html` dưới một thư mục (đường dẫn tương đối video, dấu `/`). */
+function htmlFiles(dir: string, rel: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) =>
+      e.isDirectory()
+        ? htmlFiles(path.join(dir, e.name), `${rel}/${e.name}`)
+        : e.name.endsWith('.html')
+          ? [`${rel}/${e.name}`]
+          : [],
+    )
+    .sort();
 }
 
 /** Giữ bản HyperFrames của bản nháp (dữ liệu dẫn xuất `.sf/`, chỉ bản mới nhất của video). */
